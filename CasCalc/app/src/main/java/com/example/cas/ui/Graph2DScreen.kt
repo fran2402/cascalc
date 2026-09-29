@@ -64,6 +64,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.cas.graph.Plot2D
 import com.example.cas.graph.Viewport
+import com.example.cas.graph.Scene
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.material.icons.filled.IosShare
 import com.example.cas.ui.theme.CasFonts
 import kotlin.math.abs
 
@@ -237,11 +240,22 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
             }
         }
         val tap = rememberKeyTap()
+        // Export as PDF, PNG, JPG or SVG, in the shape of the graph on screen.
+        var exporting by remember { mutableStateOf(false) }
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val density = androidx.compose.ui.platform.LocalDensity.current.density
+        val export = rememberGraphExporter("graph") { r ->
+            graph2DScene(vm, r.view, size.width / density.toDouble(), size.height / density.toDouble(), com.example.cas.ui.theme.appColorScheme(context, r.dark))
+        }
+        if (exporting && view != null) ExportDialog(view, onExport = { r, share -> exporting = false; export(r, share) }, onDismiss = { exporting = false })
         ExpressiveToolbar(Modifier.align(Alignment.BottomEnd).padding(12.dp)) {
             ToolToggle(PlotIcons.PolarGrid, "Polar grid", vm.polarGrid) { vm.polarGrid = !vm.polarGrid }
             // Equal scales on both axes, so circles look round.
             IconButton(onClick = { tap(); vm.zoomSquare(size.width, size.height) }) {
                 Icon(Icons.Default.CropSquare, contentDescription = "Square zoom: equal scales", tint = colors.onSurface)
+            }
+            IconButton(onClick = { tap(); exporting = true }, enabled = size.width > 0) {
+                Icon(Icons.Default.IosShare, contentDescription = "Export the graph", tint = colors.onSurface)
             }
         }
         // The point's coordinates, with buttons to use x or y (or r and θ) in the calculator.
@@ -573,6 +587,144 @@ private fun DrawScope.drawCurve(v: Viewport, p: Plotted, color: Color) {
             drawArrowHead(toScreen(v, line[line.size - 2].first, line[line.size - 2].second), toScreen(v, line.last().first, line.last().second), color, w)
         }
     }
+}
+
+/**
+ * The 2D graph over [view] as a [Scene] [w] × [h] units (dp) in [scheme]'s colors, drawn as on
+ * screen: grid (or polar grid), shaded areas, curves, points and vectors. Found points (zeros,
+ * extrema) and the tapped point are left out.
+ */
+internal fun graph2DScene(vm: Graph2DViewModel, view: Viewport, w: Double, h: Double, scheme: androidx.compose.material3.ColorScheme): Scene {
+    val scene = Scene(w, h, scheme.surface.toArgb())
+    val v = view
+    fun sx(x: Double) = (x - v.xMin) / v.width * w
+    fun sy(y: Double) = (v.yMax - y) / v.height * h
+    fun argb(c: Color, alpha: Float = 1f) = c.copy(alpha = c.alpha * alpha).toArgb()
+    val themeColors = plotColors(scheme)
+    val picked = vm.functions.mapNotNull { f -> f.customColor?.let { f.colorIndex to Color(it) } }.toMap()
+    val palette = themeColors.indices.map { picked[it] ?: themeColors[it] }
+    val axisColor = scheme.onSurfaceVariant
+    val gridColor = if (AppSettings.showGrid) scheme.outlineVariant else Color.Transparent
+    val label = 11.0
+    if (vm.polarGrid) {
+        val ox = sx(0.0); val oy = sy(0.0)
+        val corners = listOf(v.xMin to v.yMin, v.xMin to v.yMax, v.xMax to v.yMin, v.xMax to v.yMax)
+        val far = corners.maxOf { (x, y) -> kotlin.math.hypot(x, y) }
+        val step = Plot2D.niceStep(minOf(v.width, v.height) / 2, 4)
+        val perUnit = w / v.width
+        var r = step / 2; var k = 1
+        while (r <= far + step) {
+            scene.add(Scene.Circle(ox, oy, r * perUnit, fill = null, stroke = argb(scheme.outlineVariant, if (k % 2 == 0) 0.9f else 0.35f), strokeWidth = if (k % 2 == 0) 0.6 else 0.5))
+            r += step / 2; k++
+        }
+        val reach = far * perUnit + w
+        for (a in 0 until 12) {
+            val ang = a * PI / 6
+            scene.add(Scene.Stroke(listOf(doubleArrayOf(ox, oy, ox + reach * kotlin.math.cos(ang), oy - reach * kotlin.math.sin(ang))), argb(if (a % 3 == 0) axisColor else scheme.outlineVariant, if (a % 3 == 0) 1f else 0.9f), if (a % 3 == 0) 2.0 else 0.6))
+        }
+        var lr = step
+        while (lr <= far) {
+            val x = ox + lr * perUnit
+            if (x in 0.0..w && oy in 0.0..h) scene.add(Scene.Label(x, oy + 10, Plot2D.label(lr, step), label, argb(axisColor), Scene.Anchor.Middle))
+            lr += step
+        }
+        val names = listOf("0", "π/6", "π/3", "π/2", "2π/3", "5π/6", "π", "7π/6", "4π/3", "3π/2", "5π/3", "11π/6")
+        val labelR = minOf(ox, w - ox, oy, h - oy) - 18
+        if (labelR > 40) for (a in 0 until 12) {
+            val ang = a * PI / 6
+            val text = if (vm.angle == com.example.cas.engine.AngleUnit.Degrees) "${a * 30}°" else names[a]
+            scene.add(Scene.Label(ox + labelR * kotlin.math.cos(ang), oy - labelR * kotlin.math.sin(ang), text, label, argb(axisColor), Scene.Anchor.Middle))
+        }
+    } else {
+        val targetX = (w / 90).toInt().coerceAtLeast(3)
+        val targetY = (h / 90).toInt().coerceAtLeast(3)
+        val stepX = Plot2D.niceStep(v.width, targetX)
+        val stepY = Plot2D.niceStep(v.height, targetY)
+        // Minor lines at a fifth of a step, then the major ones.
+        val minor = Plot2D.ticks(v.xMin, v.xMax, targetX * 5).map { doubleArrayOf(sx(it), 0.0, sx(it), h) } +
+            Plot2D.ticks(v.yMin, v.yMax, targetY * 5).map { doubleArrayOf(0.0, sy(it), w, sy(it)) }
+        scene.add(Scene.Stroke(minor, argb(gridColor, 0.35f), 0.5))
+        val xs = Plot2D.ticks(v.xMin, v.xMax, targetX)
+        val ys = Plot2D.ticks(v.yMin, v.yMax, targetY)
+        scene.add(Scene.Stroke(xs.map { doubleArrayOf(sx(it), 0.0, sx(it), h) } + ys.map { doubleArrayOf(0.0, sy(it), w, sy(it)) }, argb(gridColor, 0.9f), 0.6))
+        val ox = sx(0.0); val oy = sy(0.0)
+        val axes = ArrayList<DoubleArray>()
+        if (oy in 0.0..h) axes += doubleArrayOf(0.0, oy, w, oy)
+        if (ox in 0.0..w) axes += doubleArrayOf(ox, 0.0, ox, h)
+        scene.add(Scene.Stroke(axes, argb(axisColor), 2.0))
+        // Labels stay on the page when an axis is off it.
+        val labelY = pinInside(oy.toFloat(), 2f, (h - 16).toFloat()).toDouble() + 3 + 7
+        xs.filter { abs(it) > stepX / 2 }.forEach { x -> scene.add(Scene.Label(sx(x), labelY, Plot2D.label(x, stepX), label, argb(axisColor), Scene.Anchor.Middle)) }
+        val labelX = pinInside(ox.toFloat(), 2f, (w - 40).toFloat()).toDouble() + 4
+        ys.filter { abs(it) > stepY / 2 }.forEach { y -> scene.add(Scene.Label(labelX, sy(y), Plot2D.label(y, stepY), label, argb(axisColor))) }
+    }
+    // The area picked with Area, shaded.
+    vm.area?.let { ar ->
+        val fn = (ar.f.plot as? Plot2DKind.Explicit)?.f
+        if (fn != null && !ar.signed.isNaN()) {
+            val lo = minOf(ar.a, ar.b); val hi = maxOf(ar.a, ar.b)
+            val pts = ArrayList<Double>()
+            pts += sx(lo); pts += sy(0.0)
+            for (k in 0..200) {
+                val x = lo + (hi - lo) * k / 200
+                val y = vm.call(ar.f, fn, x).let { if (it.isFinite()) it.coerceIn(v.yMin - v.height, v.yMax + v.height) else 0.0 }
+                pts += sx(x); pts += sy(y)
+            }
+            pts += sx(hi); pts += sy(0.0)
+            scene.add(Scene.Fill(listOf(pts.toDoubleArray()), argb(palette[ar.f.colorIndex], 0.28f)))
+        }
+    }
+    // Sampled finely: three samples per unit of width.
+    val plotted = runCatching { plot(vm, v, IntSize((w * 3).toInt().coerceAtLeast(1), (h * 3).toInt().coerceAtLeast(1)), null) }.getOrElse { emptyList() }
+    for (p in plotted) {
+        val color = palette[p.f.colorIndex]
+        val lw = p.f.thickness.toDouble()
+        val dash = when (p.f.lineStyle) { 1 -> doubleArrayOf(4 * lw, 3 * lw); 2 -> doubleArrayOf(0.01, 2.5 * lw); else -> null }
+        p.mask?.let { mask ->
+            val mx = p.maskSize.width; val my = p.maskSize.height
+            val cw = w / mx; val ch = h / my
+            val rects = ArrayList<DoubleArray>()
+            for (j in 0 until my) {
+                var i = 0
+                while (i < mx) {
+                    if (!mask[j * mx + i]) { i++; continue }
+                    val start = i
+                    while (i < mx && mask[j * mx + i]) i++
+                    val x0 = start * cw; val x1 = i * cw + 0.25; val y0 = j * ch; val y1 = (j + 1) * ch + 0.25
+                    rects += doubleArrayOf(x0, y0, x1, y0, x1, y1, x0, y1)
+                }
+            }
+            scene.add(Scene.Fill(rects, argb(color, 0.22f)))
+        }
+        if (p.segments.isNotEmpty()) {
+            val segW = if (p.mask != null) 2.0 else lw
+            scene.add(Scene.Stroke(p.segments.map { sg -> doubleArrayOf(sx(sg[0]), sy(sg[1]), sx(sg[2]), sy(sg[3])) }, argb(color), segW, if (p.dashed) doubleArrayOf(8.0, 6.0) else dash))
+        }
+        if (p.lines.isNotEmpty()) {
+            scene.add(Scene.Stroke(p.lines.map { line -> DoubleArray(line.size * 2) { k -> if (k % 2 == 0) sx(line[k / 2].first) else sy(line[k / 2].second) } }, argb(color), lw, dash))
+        }
+        // A vector's arrowhead.
+        if (p.arrow) p.lines.forEach { line ->
+            if (line.size < 2) return@forEach
+            val (fx, fy) = line[line.size - 2].let { sx(it.first) to sy(it.second) }
+            val (tx, ty) = line.last().let { sx(it.first) to sy(it.second) }
+            val len = kotlin.math.hypot(tx - fx, ty - fy)
+            if (len >= 0.5) {
+                val ux = (tx - fx) / len; val uy = (ty - fy) / len
+                val head = maxOf(lw * 4, 10.0)
+                val bx = tx - ux * head; val by = ty - uy * head
+                scene.add(Scene.Fill(listOf(doubleArrayOf(tx, ty, bx - uy * head * 0.45, by + ux * head * 0.45, bx + uy * head * 0.45, by - ux * head * 0.45)), argb(color)))
+            }
+        }
+        p.points.forEach { pt ->
+            val cx = sx(pt.x); val cy = sy(pt.y)
+            scene.add(Scene.Circle(cx, cy, 5.0, fill = argb(scheme.surface)))
+            // Plotted points are filled dots; others are rings.
+            if (pt.label == "point") scene.add(Scene.Circle(cx, cy, 6.0, fill = argb(palette[pt.colorIndex])))
+            else scene.add(Scene.Circle(cx, cy, 5.0, fill = null, stroke = argb(palette[pt.colorIndex]), strokeWidth = 2.0))
+        }
+    }
+    return scene
 }
 
 /** A special point near the tap if there is one, otherwise the nearest curve at the tapped x. */

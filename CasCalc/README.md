@@ -139,8 +139,8 @@ Settings (⋮ menu), in sections (AppSettings.kt keeps them):
   scientific, engineering with exponents in threes), complex decimals as a + bi or r·e^{iθ}.
 - Calculator: live answer, continue from the answer after =, explanations on long-press,
   history length (50, 100, 500, all), ask before clearing history.
-- Appearance: theme (system, light, dark), dynamic color, maths size, keypad size,
-  expressive or standard motion, keep the screen on.
+- Appearance: theme (system, light, dark), dynamic color, app color (when dynamic color is
+  off or unavailable), maths size, keypad size, expressive or standard motion, keep the screen on.
 - Feel: haptic feedback, key sounds.
 - Graphs: grid lines, marking zeros/extrema/crossings, starting view (±5, ±10, ±20),
   complex plot quality (standard or full resolution), 3D surface detail.
@@ -195,7 +195,24 @@ Constants and symbols are long lists and scroll up and down in place; the others
 Groups: Basic, Trigonometry, Calculus, Vector calculus, Linear algebra, Statistics, Complex
 numbers, Physical constants, Symbols.
 
-## Latest changes (this round)
+## Latest changes (29 September)
+- **Export graphs**: the share button on the 2D and complex toolbars exports the graph as PDF
+  (the default), PNG, JPG or SVG, with the limits you type (the current view to start with)
+  and light or dark colors; then Save (the system's save dialog) or Share. The graph is
+  rebuilt as a list of shapes (graph/Scene.kt) at the new limits, so SVG and PDF are real
+  vector files; the complex plane's colouring is rendered afresh and embedded as a picture.
+- **Colormaps on the complex plane**: long-press a function's dot to pick how arg f is
+  colored: the classic wheel, matplotlib's cyclic twilight maps, or viridis, plasma, magma,
+  cividis and turbo (the dot shows the map as a ring). ∮ loops and curves such as |z − 1| = 2
+  keep a plain color (white unless you pick one). Saved with the graph and its projects.
+- **App color**: with Material You off (or before Android 12), Settings → Appearance offers
+  preset colors or any color from the picker; a full light and dark scheme is grown from it
+  (TonalScheme.kt, Material's tonal-spot recipe in OKLab).
+- **Keypad**: one size in all four modes, and the function panel is three rows tall.
+- **∇** has its own drawing: the order box is raised on ∇ (∇ⁿ f), shown while editing or when
+  filled, and exported to LaTeX as \nabla^{n}.
+
+## Latest changes (earlier)
 - Infinite sums: a sum with a symbolic upper limit and no closed form is kept as it is until
   a limit finishes it, so lim_{n→∞} Σ 1/k² = π²/6 (p-series through ζ), Σ 1/k³ = ζ(3),
   Σ 1/k = ∞, and geometric series work from any starting index.

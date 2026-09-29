@@ -1,0 +1,143 @@
+package com.example.cas.graph
+
+import java.io.ByteArrayOutputStream
+import java.util.Locale
+import java.util.zip.CRC32
+import java.util.zip.Deflater
+
+/**
+ * A graph as a list of simple shapes, for exporting: lines, filled shapes, dots, text and
+ * images, in units where the whole drawing is [width] × [height] (y down, like the screen).
+ * The same scene is written as SVG here, and drawn onto an Android canvas for PDF, PNG and
+ * JPG, so every format shows the same picture. Colors are ARGB, alpha included.
+ */
+class Scene(val width: Double, val height: Double, val background: Int) {
+    sealed class Item
+
+    /** Open polylines, each as x₀, y₀, x₁, y₁…; [dash] is on and off lengths, or null for solid. */
+    class Stroke(val paths: List<DoubleArray>, val color: Int, val strokeWidth: Double, val dash: DoubleArray? = null) : Item()
+
+    /** Closed polygons filled together (touching ones don't double up). */
+    class Fill(val polygons: List<DoubleArray>, val color: Int) : Item()
+
+    class Circle(val cx: Double, val cy: Double, val r: Double, val fill: Int?, val stroke: Int? = null, val strokeWidth: Double = 0.0) : Item()
+
+    enum class Anchor { Start, Middle, End }
+
+    /** Text with its [anchor] at x and its middle at y. */
+    class Label(val x: Double, val y: Double, val text: String, val size: Double, val color: Int, val anchor: Anchor = Anchor.Start) : Item()
+
+    /** A picture ([pixels] ARGB, row 0 at the top) stretched over the rectangle. */
+    class Image(val x: Double, val y: Double, val w: Double, val h: Double, val pixels: IntArray, val pixelWidth: Int, val pixelHeight: Int) : Item()
+
+    val items = ArrayList<Item>()
+
+    fun add(item: Item) { items += item }
+}
+
+/** The export formats; PDF first, as the default. */
+enum class ExportFormat(val label: String, val extension: String, val mime: String) {
+    PDF("PDF", "pdf", "application/pdf"),
+    PNG("PNG", "png", "image/png"),
+    JPG("JPG", "jpg", "image/jpeg"),
+    SVG("SVG", "svg", "image/svg+xml"),
+}
+
+/** Writes a [Scene] as an SVG document. */
+object SvgWriter {
+    private fun n(v: Double) = String.format(Locale.US, "%.2f", v).trimEnd('0').trimEnd('.').ifEmpty { "0" }.let { if (it == "-0") "0" else it }
+
+    private fun rgb(c: Int) = String.format(Locale.US, "#%06X", c and 0xFFFFFF)
+
+    /** fill="#rrggbb" plus its opacity when not opaque. */
+    private fun paint(attr: String, c: Int): String {
+        val a = (c ushr 24) and 0xFF
+        return "$attr=\"${rgb(c)}\"" + if (a < 255) " $attr-opacity=\"${n(a / 255.0)}\"" else ""
+    }
+
+    private fun escape(s: String) = s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+
+    private fun pathData(points: DoubleArray, closed: Boolean) = buildString {
+        var k = 0
+        while (k + 1 < points.size) {
+            append(if (k == 0) "M" else "L").append(n(points[k])).append(' ').append(n(points[k + 1]))
+            k += 2
+        }
+        if (closed) append('Z')
+    }
+
+    fun write(scene: Scene): String = buildString {
+        append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
+        append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"${n(scene.width)}\" height=\"${n(scene.height)}\" viewBox=\"0 0 ${n(scene.width)} ${n(scene.height)}\">\n")
+        append("<defs><clipPath id=\"frame\"><rect width=\"${n(scene.width)}\" height=\"${n(scene.height)}\"/></clipPath></defs>\n")
+        append("<rect width=\"${n(scene.width)}\" height=\"${n(scene.height)}\" ${paint("fill", scene.background)}/>\n")
+        append("<g clip-path=\"url(#frame)\">\n")
+        for (item in scene.items) when (item) {
+            is Scene.Stroke -> {
+                val d = item.paths.filter { it.size >= 4 }.joinToString("") { pathData(it, false) }
+                if (d.isEmpty()) continue
+                append("<path d=\"$d\" fill=\"none\" ${paint("stroke", item.color)} stroke-width=\"${n(item.strokeWidth)}\" stroke-linecap=\"round\" stroke-linejoin=\"round\"")
+                item.dash?.let { append(" stroke-dasharray=\"${it.joinToString(" ") { v -> n(maxOf(v, 0.01)) }}\"") }
+                append("/>\n")
+            }
+            is Scene.Fill -> {
+                val d = item.polygons.filter { it.size >= 6 }.joinToString("") { pathData(it, true) }
+                if (d.isEmpty()) continue
+                append("<path d=\"$d\" ${paint("fill", item.color)}/>\n")
+            }
+            is Scene.Circle -> {
+                append("<circle cx=\"${n(item.cx)}\" cy=\"${n(item.cy)}\" r=\"${n(item.r)}\" ")
+                append(item.fill?.let { paint("fill", it) } ?: "fill=\"none\"")
+                item.stroke?.let { append(" ${paint("stroke", it)} stroke-width=\"${n(item.strokeWidth)}\"") }
+                append("/>\n")
+            }
+            is Scene.Label -> {
+                val anchor = when (item.anchor) { Scene.Anchor.Start -> "start"; Scene.Anchor.Middle -> "middle"; Scene.Anchor.End -> "end" }
+                append("<text x=\"${n(item.x)}\" y=\"${n(item.y)}\" font-family=\"Google Sans Flex, Google Sans, Roboto, Arial, sans-serif\" font-size=\"${n(item.size)}\" text-anchor=\"$anchor\" dominant-baseline=\"central\" ${paint("fill", item.color)}>")
+                append(escape(item.text)).append("</text>\n")
+            }
+            is Scene.Image -> {
+                val png = java.util.Base64.getEncoder().encodeToString(Png.encode(item.pixels, item.pixelWidth, item.pixelHeight))
+                append("<image x=\"${n(item.x)}\" y=\"${n(item.y)}\" width=\"${n(item.w)}\" height=\"${n(item.h)}\" preserveAspectRatio=\"none\" href=\"data:image/png;base64,$png\"/>\n")
+            }
+        }
+        append("</g>\n</svg>\n")
+    }
+}
+
+/** A minimal PNG encoder (8-bit RGBA), for pictures inside SVG files. */
+object Png {
+    fun encode(argb: IntArray, width: Int, height: Int): ByteArray {
+        require(argb.size >= width * height) { "Not enough pixels" }
+        val raw = ByteArray(height * (1 + width * 4))
+        var o = 0
+        for (j in 0 until height) {
+            raw[o++] = 0 // no filter
+            for (i in 0 until width) {
+                val c = argb[j * width + i]
+                raw[o++] = (c shr 16).toByte(); raw[o++] = (c shr 8).toByte(); raw[o++] = c.toByte(); raw[o++] = (c ushr 24).toByte()
+            }
+        }
+        val deflater = Deflater(Deflater.BEST_COMPRESSION)
+        deflater.setInput(raw)
+        deflater.finish()
+        val z = ByteArrayOutputStream()
+        val buf = ByteArray(8192)
+        while (!deflater.finished()) z.write(buf, 0, deflater.deflate(buf))
+        deflater.end()
+        val out = ByteArrayOutputStream()
+        out.write(byteArrayOf(0x89.toByte(), 'P'.code.toByte(), 'N'.code.toByte(), 'G'.code.toByte(), 13, 10, 26, 10))
+        fun int(v: Int) = byteArrayOf((v ushr 24).toByte(), (v ushr 16).toByte(), (v ushr 8).toByte(), v.toByte())
+        fun chunk(type: String, data: ByteArray) {
+            out.write(int(data.size))
+            val t = type.toByteArray(Charsets.US_ASCII)
+            out.write(t); out.write(data)
+            val crc = CRC32().apply { update(t); update(data) }
+            out.write(int(crc.value.toInt()))
+        }
+        chunk("IHDR", int(width) + int(height) + byteArrayOf(8, 6, 0, 0, 0))
+        chunk("IDAT", z.toByteArray())
+        chunk("IEND", ByteArray(0))
+        return out.toByteArray()
+    }
+}

@@ -72,15 +72,8 @@ private val LightFallback = lightColorScheme(
 fun CasTheme(content: @Composable () -> Unit) {
     val dark = when (com.example.cas.ui.AppSettings.theme) { 1 -> false; 2 -> true; else -> isSystemInDarkTheme() }
     val context = LocalContext.current
-    val colors: ColorScheme = when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && com.example.cas.ui.AppSettings.dynamicColor ->
-            if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        // Your own color, or olive by default.
-        com.example.cas.ui.AppSettings.themeColor != 0 -> remember(com.example.cas.ui.AppSettings.themeColor, dark) {
-            schemeOf(com.example.cas.ui.TonalScheme.from(com.example.cas.ui.AppSettings.themeColor, dark), dark)
-        }
-        dark -> DarkFallback
-        else -> LightFallback
+    val colors: ColorScheme = remember(context, dark, com.example.cas.ui.AppSettings.dynamicColor, com.example.cas.ui.AppSettings.themeColor) {
+        appColorScheme(context, dark)
     }
     val glyphs = remember(context) { GlyphFallback(context.applicationContext) }
     val mathGlyphs = remember(context) { MathGlyphs(context.applicationContext) }
@@ -94,6 +87,20 @@ fun CasTheme(content: @Composable () -> Unit) {
             content = content,
         )
     }
+}
+
+/**
+ * The app's colors, light or dark: the wallpaper's (Material You, Android 12+) when that's on,
+ * otherwise grown from the chosen app color, or the built-in olive. Also used to export a graph
+ * in the other theme.
+ */
+fun appColorScheme(context: Context, dark: Boolean): ColorScheme = when {
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && com.example.cas.ui.AppSettings.dynamicColor ->
+        if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    // Your own color, or olive by default.
+    com.example.cas.ui.AppSettings.themeColor != 0 -> schemeOf(com.example.cas.ui.TonalScheme.from(com.example.cas.ui.AppSettings.themeColor, dark), dark)
+    dark -> DarkFallback
+    else -> LightFallback
 }
 
 /** A generated scheme as Material's; the roles it doesn't set keep Material's defaults. */

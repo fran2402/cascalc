@@ -303,10 +303,11 @@ private fun ColorTrack(label: String, fraction: Float, track: Brush, onChange: (
 
 /** Colors for successive functions; the first two follow the theme. */
 @Composable
-fun plotColor(index: Int): Color {
-    val c = MaterialTheme.colorScheme
-    return listOf(c.primary, c.tertiary, Color(0xFF4C8DF6), Color(0xFFE8710A), Color(0xFF1E9E54), c.error)[index % GraphViewModel.PLOT_COLOR_COUNT]
-}
+fun plotColor(index: Int): Color = plotColors(MaterialTheme.colorScheme)[index % GraphViewModel.PLOT_COLOR_COUNT]
+
+/** The graph colors in a color scheme, in the order functions take them. */
+fun plotColors(c: androidx.compose.material3.ColorScheme): List<Color> =
+    listOf(c.primary, c.tertiary, Color(0xFF4C8DF6), Color(0xFFE8710A), Color(0xFF1E9E54), c.error)
 
 /** Short number for labels: 1.4142, −3, 2.5e+06. */
 fun shortNumber(v: Double): String {

@@ -38,6 +38,14 @@ class MultivariableTest {
     @Test fun secondPartial() = assertEquals("6x^2y", cas(row(Derivative(r("y"), r("x²y³"), MathRow(), r("2"), partial = true))))
     @Test fun partialRoundTrip() = assertEquals("pdiff{'x;|'x;'y;||}", MathCodec.encode(MathCodec.decode(MathCodec.encode(row(Derivative(r("x"), r("xy"), partial = true))))))
     @Test fun gradient() = assertEquals("[[2xy],[x^2]]", cas(f("grad", r("x²y"))))
+    // ∇ with its order box: empty is the gradient, 2 the Laplacian; LaTeX writes the order raised.
+    @Test fun gradientOrderEmpty() = assertEquals("[[2xy],[x^2]]", cas(f("grad", r("x²y"), MathRow())))
+    @Test fun gradientOrderTwo() = assertEquals("2y", cas(f("grad", r("x²y"), r("2"))))
+    @Test fun gradientLatex() {
+        assertEquals("\\nabla \\left(x^{2}y\\right)", com.example.cas.engine.Latex.of(f("grad", r("x²y"), MathRow())))
+        assertEquals("\\nabla^{2}\\left(x^{2}y\\right)", com.example.cas.engine.Latex.of(f("grad", r("x²y"), r("2"))))
+    }
+    @Test fun gradientRoundTrip() = assertEquals("fn:grad{'f;|'2;}", MathCodec.encode(MathCodec.decode(MathCodec.encode(f("grad", r("f"), r("2"))))))
     @Test fun gradient3d() = assertEquals("[[yz],[xz],[xy]]", cas(f("grad", r("xyz"))))
     @Test fun divergence() = assertEquals("3", cas(f("div", vec("x", "y", "z"))))
     @Test fun curl3d() = assertEquals("[[0],[0],[2]]", cas(f("curl", vec("−y", "x", "0"))))

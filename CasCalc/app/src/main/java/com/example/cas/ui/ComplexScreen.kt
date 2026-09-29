@@ -65,6 +65,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.cas.cas.CD
 import com.example.cas.graph.DomainColoring
+import com.example.cas.graph.Scene
+import androidx.compose.material.icons.filled.IosShare
+import androidx.compose.ui.graphics.toArgb
 import com.example.cas.graph.Plot2D
 import com.example.cas.graph.Viewport
 import com.example.cas.ui.theme.CasFonts
@@ -83,14 +86,24 @@ import kotlin.coroutines.coroutineContext
 @Composable
 fun ComplexScreen(vm: ComplexViewModel, modifier: Modifier = Modifier) {
     BackHandler(enabled = vm.active != null) { vm.edit(null) }
+    // The plot's size, for exporting it in the same shape.
+    var plotSize by remember { mutableStateOf(IntSize.Zero) }
+    var exporting by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val density = androidx.compose.ui.platform.LocalDensity.current.density
+    val export = rememberGraphExporter("complex-plot") { r ->
+        complexScene(vm, r.view, plotSize.width / density.toDouble(), plotSize.height / density.toDouble(), com.example.cas.ui.theme.appColorScheme(context, r.dark))
+    }
+    val shownView = vm.view
+    if (exporting && shownView != null) ExportDialog(shownView, onExport = { r, share -> exporting = false; export(r, share) }, onDismiss = { exporting = false })
     Column(modifier.fillMaxSize()) {
-        Box(Modifier.weight(1f).fillMaxWidth()) {
+        Box(Modifier.weight(1f).fillMaxWidth().onSizeChanged { plotSize = it }) {
             ComplexCanvas(vm, Modifier.fillMaxSize())
             // (Top left holds the contour result, bottom right the toolbar.)
             if (vm.active != null && vm.keypadHidden) {
                 ShowKeypadButton(onClick = { vm.keypadHidden = false }, modifier = Modifier.align(Alignment.BottomStart).padding(12.dp))
             }
-            PlotToolbar(vm, Modifier.align(Alignment.BottomEnd).padding(12.dp))
+            PlotToolbar(vm, Modifier.align(Alignment.BottomEnd).padding(12.dp), onExport = { exporting = true })
             vm.contourResult?.let { ContourCard(it, onClose = vm::clearContour, modifier = Modifier.align(Alignment.TopStart).padding(12.dp)) }
         }
         FunctionList(vm, outputLabel = "f(z)")
@@ -334,7 +347,8 @@ fun complexText(z: CD): String {
 
 /** A floating toolbar of toggles: modulus bands, phase lines, the conformal grid, and the loop tool. */
 @Composable
-private fun PlotToolbar(vm: ComplexViewModel, modifier: Modifier) {
+private fun PlotToolbar(vm: ComplexViewModel, modifier: Modifier, onExport: () -> Unit) {
+    val tap = rememberKeyTap()
     ExpressiveToolbar(modifier) {
         ToolToggle(PlotIcons.Bands, "Modulus bands", vm.options.modulusBands) { vm.options = vm.options.copy(modulusBands = !vm.options.modulusBands) }
         ToolToggle(PlotIcons.Phase, "Phase lines", vm.options.phaseLines) { vm.options = vm.options.copy(phaseLines = !vm.options.phaseLines) }
@@ -344,7 +358,93 @@ private fun PlotToolbar(vm: ComplexViewModel, modifier: Modifier) {
             vm.contourMode = !vm.contourMode
             if (!vm.contourMode) vm.clearContour()
         }
+        IconButton(onClick = { tap(); onExport() }, enabled = vm.view != null) {
+            Icon(Icons.Default.IosShare, contentDescription = "Export the plot", tint = MaterialTheme.colorScheme.onSurface)
+        }
     }
+}
+
+/**
+ * The complex plane over [view] as a [Scene] [w] × [h] units (dp): the domain colouring as a
+ * picture (rendered afresh for the export), with the axes, polar grid, curves, ∮ loops and a
+ * drawn loop as lines on top. The plane stays dark as on screen; [scheme] colors the ∮ labels.
+ */
+internal fun complexScene(vm: ComplexViewModel, view: Viewport, w: Double, h: Double, scheme: androidx.compose.material3.ColorScheme): Scene {
+    val scene = Scene(w, h, 0xFF000000.toInt())
+    val v = view
+    fun sx(x: Double) = (x - v.xMin) / v.width * w
+    fun sy(y: Double) = (v.yMax - y) / v.height * h
+    val white = 0xFFFFFFFF.toInt()
+    val halo = 0x8C000000.toInt()
+    val f = vm.plotted
+    val c = f?.complexCompiled
+    if (f != null && c != null) {
+        // Two pixels per unit (about the phone's own), at most 1600 across.
+        val scale = minOf(2.0, 1600 / w)
+        val pw = (w * scale).toInt().coerceAtLeast(1); val ph = (h * scale).toInt().coerceAtLeast(1)
+        DomainColoring.render(c, vm.parameterValues(f), v, pw, ph, vm.options.copy(colormap = f.colormap))?.let { px ->
+            scene.add(Scene.Image(0.0, 0.0, w, h, px, pw, ph))
+        }
+    }
+    val ox = sx(0.0); val oy = sy(0.0)
+    val axes = ArrayList<DoubleArray>()
+    if (oy in 0.0..h) axes += doubleArrayOf(0.0, oy, w, oy)
+    if (ox in 0.0..w) axes += doubleArrayOf(ox, 0.0, ox, h)
+    scene.add(Scene.Stroke(axes, 0xB3FFFFFF.toInt(), 1.5))
+    val stepX = Plot2D.niceStep(v.width, 5)
+    Plot2D.ticks(v.xMin, v.xMax, 5).filter { kotlin.math.abs(it) > stepX / 2 }.forEach { x ->
+        scene.add(Scene.Label(sx(x), pinInside(oy.toFloat(), 2f, (h - 18).toFloat()).toDouble() + 4 + 7, Plot2D.label(x, stepX), 11.0, white, Scene.Anchor.Middle))
+    }
+    val stepY = Plot2D.niceStep(v.height, 6)
+    Plot2D.ticks(v.yMin, v.yMax, 6).filter { kotlin.math.abs(it) > stepY / 2 }.forEach { y ->
+        scene.add(Scene.Label(pinInside(ox.toFloat(), 2f, (w - 44).toFloat()).toDouble() + 4, sy(y), Plot2D.label(y, stepY) + "i", 11.0, white))
+    }
+    if (vm.polarGrid) {
+        val corners = listOf(v.xMin to v.yMin, v.xMin to v.yMax, v.xMax to v.yMin, v.xMax to v.yMax)
+        val far = corners.maxOf { (x, y) -> kotlin.math.hypot(x, y) }
+        val step = Plot2D.niceStep(minOf(v.width, v.height) / 2, 4)
+        val perUnit = w / v.width
+        val line = 0x8CFFFFFF.toInt()
+        var r = step
+        while (r <= far) { scene.add(Scene.Circle(ox, oy, r * perUnit, fill = null, stroke = line, strokeWidth = 0.5)); r += step }
+        val reach = far * perUnit + w
+        scene.add(Scene.Stroke((0 until 12).map { a -> val ang = a * Math.PI / 6; doubleArrayOf(ox, oy, ox + reach * kotlin.math.cos(ang), oy - reach * kotlin.math.sin(ang)) }, line, 0.5))
+    }
+    // Curves and loops: a dark outline, then their color.
+    fun outlined(paths: List<DoubleArray>, color: Int) {
+        scene.add(Scene.Stroke(paths, halo, 4.5))
+        scene.add(Scene.Stroke(paths, color, 2.0))
+    }
+    vm.functions.filter { it.visible && it.complexCurve != null }.forEach { fn ->
+        val g = fn.complexCurve!!
+        val segs = runCatching { com.example.cas.graph.Curves.implicit({ x, y -> vm.call(fn, g, x, y) }, v, (w / 2).toInt().coerceIn(40, 400), (h / 2).toInt().coerceIn(40, 520)) }.getOrNull() ?: return@forEach
+        outlined(segs.map { sg -> doubleArrayOf(sx(sg[0]), sy(sg[1]), sx(sg[2]), sy(sg[3])) }, complexLineColor(fn).toArgb())
+    }
+    vm.functions.filter { it.visible && it.contour != null }.forEach { fn ->
+        val cc = fn.contour!!
+        val cx = sx(cc.centerRe); val cy = sy(cc.centerIm)
+        val rx = cc.radius / v.width * w; val ry = cc.radius / v.height * h
+        val color = complexLineColor(fn).toArgb()
+        outlined(listOf(DoubleArray(2 * 97) { k -> val t = (k / 2) * 2 * Math.PI / 96; if (k % 2 == 0) cx + rx * kotlin.math.cos(t) else cy - ry * kotlin.math.sin(t) }), color)
+        // Arrowhead at the right, pointing up (anticlockwise).
+        val tx = cx + rx; val ty = cy - 8
+        scene.add(Scene.Fill(listOf(doubleArrayOf(tx, ty, tx - 6, ty + 10, tx + 6, ty + 10)), color))
+        val shown = runCatching { roundedComplex(com.example.cas.cas.Numeric.eval(cc.value)) }.getOrDefault("?")
+        val text = "Integral ≈ $shown"
+        // A bubble behind the value (its width estimated from the text).
+        val tw = text.length * 14 * 0.52
+        val ax = minOf(cx + rx * 0.72, w - tw - 8); val ay = maxOf(cy - ry * 0.72 - 18, 4.0)
+        scene.add(Scene.Fill(listOf(doubleArrayOf(ax - 8, ay - 4, ax + tw + 8, ay - 4, ax + tw + 8, ay + 22, ax - 8, ay + 22)), scheme.inverseSurface.toArgb()))
+        scene.add(Scene.Label(ax, ay + 9, text, 14.0, scheme.inverseOnSurface.toArgb()))
+    }
+    if (vm.contour.size > 1) {
+        val pts = DoubleArray(vm.contour.size * 2 + if (vm.contourResult != null) 2 else 0)
+        vm.contour.forEachIndexed { k, z -> pts[2 * k] = sx(z.re); pts[2 * k + 1] = sy(z.im) }
+        if (vm.contourResult != null) { pts[pts.size - 2] = pts[0]; pts[pts.size - 1] = pts[1] }
+        scene.add(Scene.Stroke(listOf(pts), 0x80000000.toInt(), 5.0))
+        scene.add(Scene.Stroke(listOf(pts), white, 2.5))
+    }
+    return scene
 }
 
 @Composable
