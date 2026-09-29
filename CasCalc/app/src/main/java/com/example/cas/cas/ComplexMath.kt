@@ -92,6 +92,73 @@ object ComplexMath {
         return eta / (ONE - exp((ONE - s) * CD(ln(2.0))))
     }
 
+    /**
+     * Bessel J of real order [a] at complex [z] (principal branch, cut along the negative real
+     * axis for fractional orders): the power series Σ (−1)ᵏ (z/2)^{2k+a} / (k! Γ(k+a+1)) for
+     * |z| < 20, Hankel's asymptotic expansion further out.
+     */
+    fun besselJ(a: Double, z: CD): CD {
+        if (a.isNaN() || z.re.isNaN() || z.im.isNaN()) return CD(Double.NaN)
+        // Negative whole orders: J₋ₙ = (−1)ⁿ Jₙ.
+        if (a < 0 && a == Math.rint(a)) return besselJ(-a, z) * CD(if ((-a).toLong() % 2 == 0L) 1.0 else -1.0)
+        val m = z.abs()
+        if (m == 0.0) return CD(if (a == 0.0) 1.0 else if (a > 0) 0.0 else Double.POSITIVE_INFINITY)
+        if (m < 20) {
+            val half = z * CD(0.5)
+            // First term (z/2)^a / Γ(a + 1), then each from the last.
+            var term = exp(CD(a) * ln(half)) * CD(1 / Statistics.gammaReal(a + 1))
+            var sum = term
+            val q = -(half * half)
+            for (k in 1..300) {
+                term = term * q / CD(k * (k + a))
+                sum = sum + term
+                if (term.abs() < 1e-17 * sum.abs() && k > 3) break
+            }
+            return sum
+        }
+        // Left half-plane: reflect, J_a(z) = e^{±iπa} J_a(−z), so the expansion stays valid.
+        if (z.re < 0) {
+            val sign = if (z.im >= 0) 1.0 else -1.0
+            return exp(CD(0.0, sign * PI * a)) * hankel(a, -z).first
+        }
+        return hankel(a, z).first
+    }
+
+    /** Bessel Y of real order [a] at complex [z]: (J_a cos aπ − J₋ₐ) / sin aπ, and its limit at whole orders. */
+    fun besselY(a: Double, z: CD): CD {
+        if (a.isNaN() || z.re.isNaN() || z.im.isNaN()) return CD(Double.NaN)
+        if (z.abs() == 0.0) return CD(Double.NEGATIVE_INFINITY)
+        if (z.abs() >= 20 && z.re >= 0) return hankel(a, z).second
+        fun y(nu: Double): CD = (besselJ(nu, z) * CD(kotlin.math.cos(nu * PI)) - besselJ(-nu, z)) / CD(kotlin.math.sin(nu * PI))
+        // Whole orders: the average either side, which is exact to second order.
+        if (a == Math.rint(a)) { val e = 1e-4; return (y(a + e) + y(a - e)) * CD(0.5) }
+        return y(a)
+    }
+
+    /**
+     * Hankel's expansion for large |z| (Re z ≥ 0):
+     * J = √(2/πz) (P cos ω − Q sin ω), Y = √(2/πz) (P sin ω + Q cos ω), ω = z − aπ/2 − π/4,
+     * with P and Q summed until their terms stop shrinking.
+     */
+    private fun hankel(a: Double, z: CD): Pair<CD, CD> {
+        val mu = 4 * a * a
+        var p = CD(1.0); var q = CD(0.0)
+        var term = CD(1.0)
+        var last = Double.MAX_VALUE
+        for (k in 1..40) {
+            // a_k = a_{k−1} (μ − (2k−1)²) / (8k), over z each time.
+            term = term * CD((mu - (2 * k - 1.0) * (2 * k - 1.0)) / (8.0 * k)) / z
+            val size = term.abs()
+            if (size > last || size < 1e-17) break
+            last = size
+            // Signs of P: +, −, +… on even k; of Q: +, −… on odd k.
+            when (k % 4) { 1 -> q = q + term; 2 -> p = p - term; 3 -> q = q - term; else -> p = p + term }
+        }
+        val w = z - CD(a * PI / 2 + PI / 4)
+        val f = sqrt(CD(2 / PI) / z)
+        return f * (p * cos(w) - q * sin(w)) to f * (p * sin(w) + q * cos(w))
+    }
+
     /** Magnitude helper that doesn't overflow as easily. */
     fun abs(z: CD) = hypot(z.re, z.im)
 }

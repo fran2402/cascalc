@@ -103,6 +103,8 @@ object Latex {
             "jacobian" -> "J" + paren(a[0])
             "hessian" -> "H" + paren(a[0])
             "zeta" -> "\\zeta" + paren(a[0])
+            "besselj" -> "J_{" + a[0] + "}" + paren(a[1])
+            "bessely" -> "Y_{" + a[0] + "}" + paren(a[1])
             "log" -> "\\log_" + group(f.args[0]) + paren(a[1])
             "lim" -> "\\lim_{" + a[1] + "}" + paren(a[0])
             "binom" -> "\\binom{${a[0]}}{${a[1]}}"

@@ -124,6 +124,12 @@ object ComplexCompiler {
             "fact" -> one { ComplexMath.gamma(it + CD(1.0)) }
             "gamma" -> one(ComplexMath::gamma)
             "zeta" -> one(ComplexMath::zeta)
+            // J_a(z), Y_a(z): the order is real (a number or a slider), z anywhere on the plane.
+            "besselj", "bessely" -> {
+                val order = a[0]; val arg = a[1]
+                val second = e.name == "bessely"
+                ComplexFunction { z, p -> val n = order(z, p).re; val w = arg(z, p); if (second) ComplexMath.besselY(n, w) else ComplexMath.besselJ(n, w) }
+            }
             "floor" -> one { CD(floor(it.re), floor(it.im)) }
             "ceil" -> one { CD(kotlin.math.ceil(it.re), kotlin.math.ceil(it.im)) }
             "round" -> one { CD(floor(it.re + 0.5), floor(it.im + 0.5)) }
@@ -143,6 +149,8 @@ data class ColoringOptions(
     val grid: Boolean = false,
     /** The colours for arg f. */
     val colormap: Colormap = Colormap.CLASSIC,
+    /** The colormap run backwards (matplotlib's _r maps). */
+    val reversed: Boolean = false,
 )
 
 /**
@@ -175,10 +183,11 @@ object DomainColoring {
             if (fr < 0.04 || fi < 0.04) light = light * 0.5
         }
         val l = light.coerceIn(0.0, 1.0)
-        if (o.colormap == Colormap.CLASSIC) return hsl(hue, 1.0, l)
+        if (o.colormap == Colormap.CLASSIC) return hsl(if (o.reversed) (1 - hue) % 1.0 else hue, 1.0, l)
         // Cyclic maps start at the positive real axis like the classic wheel; the others run
         // from arg f = −π to π.
-        val c = o.colormap.rgb(if (o.colormap.cyclic) hue else (w.arg() + PI) / (2 * PI))
+        val t = if (o.colormap.cyclic) hue else (w.arg() + PI) / (2 * PI)
+        val c = o.colormap.rgb(if (o.reversed) 1 - t else t)
         return shade(c, l)
     }
 

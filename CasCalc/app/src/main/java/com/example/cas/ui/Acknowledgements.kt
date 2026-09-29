@@ -61,7 +61,7 @@ val CREDITS: List<CreditGroup> = listOf(
         Credit("CODATA 2022 recommended values", "NIST and the CODATA Task Group on Fundamental Constants", "Every physical constant and its unit",
             "The internationally agreed values, updated every four years; exact ones are fixed by the 2019 SI.", "Public domain (US government work)", "https://physics.nist.gov/cuu/Constants/"),
         Credit("matplotlib colormaps", "Nathaniel Smith and Stéfan van der Walt (viridis, plasma, magma), Jamie Nuñez et al. (cividis), Bastian Bechtold (twilight), Anton Mikhailov (turbo)", "The colors of the complex plane",
-            "Viridis, plasma, magma, cividis, twilight and turbo, sampled at 64 points.", "CC0 (viridis family), BSD (matplotlib), Apache 2.0 (turbo)", "https://matplotlib.org/stable/users/explain/colors/colormaps.html"),
+            "Every map on matplotlib's Choosing Colormaps page (86 of them), sampled at 256 points.", "CC0 (viridis family), BSD (matplotlib), Apache 2.0 (turbo)", "https://matplotlib.org/stable/users/explain/colors/colormaps.html"),
     )),
     CreditGroup("Numerical methods", "Published methods behind the answers that aren't exact.", listOf(
         Credit("Gauss–Kronrod quadrature", "Carl Friedrich Gauss, Aleksandr Kronrod", "Definite integrals without a closed form",

@@ -77,6 +77,14 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
     var customColor by mutableStateOf<Int?>(null)
     /** On the complex plane: the colours for arg f. */
     var colormap by mutableStateOf(com.example.cas.graph.Colormap.CLASSIC)
+    /** The colormap run backwards. */
+    var colormapReversed by mutableStateOf(false)
+    /** 2D points: their coordinates written beside them (Desmos's "Label"). */
+    var showLabel by mutableStateOf(false)
+    /** 2D lists of points: joined by lines in order, like a table's line option in Desmos. */
+    var connectPoints by mutableStateOf(false)
+    /** How strongly an inequality's region is shaded, 0 to 1. */
+    var fillOpacity by mutableStateOf(0.22f)
 }
 
 /** A contour integral typed on the complex plane: its circle and its value. */
@@ -174,7 +182,13 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             val (style, width) = parts.getOrNull(0)?.toIntOrNull() to parts.getOrNull(1)?.toFloatOrNull()
             functions.getOrNull(i)?.let { f ->
                 style?.let { f.lineStyle = it.coerceIn(0, 2) }; width?.let { f.thickness = it.coerceIn(1f, 10f) }
-                f.colormap = com.example.cas.graph.Colormap.byName(parts.getOrNull(2))
+                // A trailing _r is the reversed map, as in matplotlib.
+                val (map, reversed) = com.example.cas.graph.Colormap.parse(parts.getOrNull(2))
+                f.colormap = map
+                f.colormapReversed = reversed
+                // Then flags (L label, C connect) and the fill opacity.
+                parts.getOrNull(3)?.let { flags -> f.showLabel = 'L' in flags; f.connectPoints = 'C' in flags }
+                parts.getOrNull(4)?.toFloatOrNull()?.let { f.fillOpacity = it.coerceIn(0f, 1f) }
             }
         }
         get("ranges").orEmpty().lines().forEach { line ->
@@ -190,7 +204,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     private fun currentData(): Map<String, String> = mapOf(
         "functions" to functions.joinToString("\n") { MathCodec.encode(it.editor.root) },
         "colors" to functions.joinToString(",") { f -> f.customColor?.let { (it.toLong() and 0xFFFFFFFFL).toString() } ?: "" },
-        "styles" to functions.joinToString(",") { f -> "${f.lineStyle}:${f.thickness}:${f.colormap.name}" },
+        "styles" to functions.joinToString(",") { f -> styleText(f) },
         "slots" to functions.joinToString(",") { it.colorIndex.toString() },
         "ranges" to ranges.entries.joinToString("\n") { "${it.key}\t${it.value.first}\t${it.value.second}" },
         "parameters" to parameters.entries.joinToString("\n") { "${it.key}\t${it.value}" },
@@ -280,6 +294,29 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         }
         functions += f
         return f
+    }
+
+    /**
+     * Adds each list of points (read from a CSV file) as its own line, written as the list
+     * [(x₁, y₁), (x₂, y₂), …] so it can be edited like a typed one. Returns the number of points.
+     */
+    fun importPoints(lists: List<List<Pair<Double, Double>>>): Int {
+        fun MathRow.number(v: Double) = com.example.cas.graph.Csv.numberText(v).forEach { add(com.example.cas.editor.Sym(it.toString())) }
+        for (points in lists) {
+            if (points.isEmpty()) continue
+            val r = MathRow()
+            r.add(com.example.cas.editor.Sym("["))
+            points.forEachIndexed { i, (x, y) ->
+                if (i > 0) r.add(com.example.cas.editor.Sym(","))
+                r.add(com.example.cas.editor.Sym("(")); r.number(x); r.add(com.example.cas.editor.Sym(",")); r.number(y); r.add(com.example.cas.editor.Sym(")"))
+            }
+            r.add(com.example.cas.editor.Sym("]"))
+            recompile(addFunction(r))
+        }
+        active = null
+        version++
+        save()
+        return lists.sumOf { it.size }
     }
 
     fun add() {
@@ -433,10 +470,13 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             if ((items.firstOrNull() as? com.example.cas.editor.Sym)?.text == "[" && (items.lastOrNull() as? com.example.cas.editor.Sym)?.text == "]") {
                 val entries = splitTopLevel(items.subList(1, items.size - 1)).filter { it.isNotEmpty() }
                 val xs = ArrayList<Double>(); val ys = ArrayList<Double>()
+                // Plain numbers (as imported lists have) are read directly; anything else is worked out.
+                fun plain(nodes: List<com.example.cas.editor.Node>): Double? =
+                    if (nodes.all { it is com.example.cas.editor.Sym }) nodes.joinToString("") { (it as com.example.cas.editor.Sym).text }.replace("−", "-").toDoubleOrNull() else null
                 for (entry in entries) {
                     val pair = splitPair(entry) ?: throw MathError("Write each point as (x, y)")
-                    xs += com.example.cas.cas.Numeric.real(ev.evaluate(rowOf(pair[0])))
-                    ys += com.example.cas.cas.Numeric.real(ev.evaluate(rowOf(pair[1])))
+                    xs += plain(pair[0]) ?: com.example.cas.cas.Numeric.real(ev.evaluate(rowOf(pair[0])))
+                    ys += plain(pair[1]) ?: com.example.cas.cas.Numeric.real(ev.evaluate(rowOf(pair[1])))
                 }
                 if (xs.isEmpty()) throw MathError("Put points in the list, like [(1, 2), (3, 4)]")
                 f.plot = Plot2DKind.PointList(xs.toDoubleArray(), ys.toDoubleArray())
@@ -764,6 +804,25 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
 
     fun rangeOf(name: String) = ranges[name] ?: (-10.0 to 10.0)
 
+    /**
+     * For a 2D point like (a, b) or (a, 2): the slider letter behind each coordinate, or null
+     * where it's fixed. Null for anything else. Dragging the point moves those sliders.
+     */
+    fun movableLetters(f: PlotFunction): Pair<String?, String?>? {
+        if (f.plot !is Plot2DKind.Point) return null
+        val pair = splitPair(f.editor.root.items) ?: return null
+        fun letter(part: List<com.example.cas.editor.Node>) =
+            (part.singleOrNull() as? com.example.cas.editor.Sym)?.text?.takeIf { it in f.parameters && it !in definedLetters }
+        val lx = letter(pair[0]); val ly = letter(pair[1])
+        return if (lx == null && ly == null) null else lx to ly
+    }
+
+    /** A dragged point's slider: set to [value], widening its range if the point goes past an end. */
+    fun dragSlider(name: String, value: Double) {
+        val (lo, hi) = rangeOf(name)
+        if (value < lo || value > hi) setSlider(name, value, minOf(lo, value), maxOf(hi, value)) else setParameter(name, value)
+    }
+
     /** Sets a slider's value (typed) and range; the value is kept inside the range. */
     fun setSlider(name: String, value: Double, min: Double, max: Double) {
         ranges[name] = min to max
@@ -828,7 +887,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         prefs.edit()
             .putString("${key}_functions", functions.joinToString("\n") { MathCodec.encode(it.editor.root) })
             .putString("${key}_colors", functions.joinToString(",") { f -> f.customColor?.let { (it.toLong() and 0xFFFFFFFFL).toString() } ?: "" })
-            .putString("${key}_styles", functions.joinToString(",") { f -> "${f.lineStyle}:${f.thickness}:${f.colormap.name}" })
+            .putString("${key}_styles", functions.joinToString(",") { f -> styleText(f) })
             .putString("${key}_slots", functions.joinToString(",") { it.colorIndex.toString() })
             .apply()
     }
@@ -840,9 +899,22 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         save()
     }
 
+    /** A line's saved style: style:thickness:colormap:flags:opacity. */
+    private fun styleText(f: PlotFunction) =
+        "${f.lineStyle}:${f.thickness}:${com.example.cas.graph.Colormap.save(f.colormap, f.colormapReversed)}:" +
+            (if (f.showLabel) "L" else "") + (if (f.connectPoints) "C" else "") + ":${f.fillOpacity}"
+
+    /** Label, connect-the-points and fill opacity, from a line's options. */
+    fun setOptions(f: PlotFunction, label: Boolean = f.showLabel, connect: Boolean = f.connectPoints, opacity: Float = f.fillOpacity) {
+        f.showLabel = label; f.connectPoints = connect; f.fillOpacity = opacity.coerceIn(0f, 1f)
+        version++
+        save()
+    }
+
     /** The colours for arg f on the complex plane. */
-    fun setColormap(f: PlotFunction, map: com.example.cas.graph.Colormap) {
+    fun setColormap(f: PlotFunction, map: com.example.cas.graph.Colormap, reversed: Boolean = false) {
         f.colormap = map
+        f.colormapReversed = reversed
         version++
         save()
     }

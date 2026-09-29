@@ -71,7 +71,11 @@ object SceneExport {
     private const val PDF_SCALE = 1.5f
 
     fun bytes(context: Context, scene: Scene, format: ExportFormat): ByteArray = when (format) {
-        ExportFormat.SVG -> SvgWriter.write(scene).toByteArray(Charsets.UTF_8)
+        ExportFormat.SVG -> {
+            fun bytes(id: Int) = runCatching { context.resources.openRawResource(id).use { it.readBytes() } }.getOrNull()
+            val fonts = listOfNotNull(bytes(R.font.cm_main)?.let { Scene.Font.Roman to it }, bytes(R.font.cm_italic)?.let { Scene.Font.Italic to it }).toMap()
+            SvgWriter.write(scene, fonts).toByteArray(Charsets.UTF_8)
+        }
         ExportFormat.PDF -> pdf(context, scene)
         ExportFormat.PNG, ExportFormat.JPG -> {
             val s = (RASTER_WIDTH / scene.width).toFloat()
@@ -97,10 +101,16 @@ object SceneExport {
         return out.toByteArray()
     }
 
-    private fun font(context: Context): Typeface? = runCatching { ResourcesCompat.getFont(context, R.font.google_sans_flex) }.getOrNull()
+    /** The three typefaces labels use: Google Sans Flex, and Computer Modern roman and italic. */
+    class Fonts(val sans: Typeface?, val roman: Typeface?, val italic: Typeface?)
+
+    fun font(context: Context): Fonts {
+        fun get(id: Int) = runCatching { ResourcesCompat.getFont(context, id) }.getOrNull()
+        return Fonts(get(R.font.google_sans_flex), get(R.font.cm_main), get(R.font.cm_italic))
+    }
 
     /** Draws [scene] at [s] pixels (or points) per unit. */
-    fun draw(canvas: android.graphics.Canvas, scene: Scene, s: Float, typeface: Typeface?) {
+    fun draw(canvas: android.graphics.Canvas, scene: Scene, s: Float, fonts: Fonts) {
         canvas.drawColor(scene.background)
         canvas.save()
         canvas.clipRect(0f, 0f, (scene.width * s).toFloat(), (scene.height * s).toFloat())
@@ -139,12 +149,20 @@ object SceneExport {
                 val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     color = item.color
                     textSize = (item.size * s).toFloat()
-                    this.typeface = typeface
+                    typeface = when (item.font) { Scene.Font.Sans -> fonts.sans; Scene.Font.Roman -> fonts.roman; Scene.Font.Italic -> fonts.italic }
                     textAlign = when (item.anchor) { Scene.Anchor.Start -> Paint.Align.LEFT; Scene.Anchor.Middle -> Paint.Align.CENTER; Scene.Anchor.End -> Paint.Align.RIGHT }
                 }
                 val fm = paint.fontMetrics
-                canvas.drawText(item.text, (item.x * s).toFloat(), (item.y * s).toFloat() - (fm.ascent + fm.descent) / 2, paint)
+                val x = (item.x * s).toFloat(); val y = (item.y * s).toFloat()
+                if (item.angle != 0.0) { canvas.save(); canvas.rotate(-item.angle.toFloat(), x, y) }
+                canvas.drawText(item.text, x, y - (fm.ascent + fm.descent) / 2, paint)
+                if (item.angle != 0.0) canvas.restore()
             }
+            is Scene.ClipStart -> {
+                canvas.save()
+                canvas.clipRect((item.x * s).toFloat(), (item.y * s).toFloat(), ((item.x + item.w) * s).toFloat(), ((item.y + item.h) * s).toFloat())
+            }
+            Scene.ClipEnd -> canvas.restore()
             is Scene.Image -> {
                 val bmp = Bitmap.createBitmap(item.pixels, item.pixelWidth, item.pixelHeight, Bitmap.Config.ARGB_8888)
                 val dst = RectF((item.x * s).toFloat(), (item.y * s).toFloat(), ((item.x + item.w) * s).toFloat(), ((item.y + item.h) * s).toFloat())
@@ -155,6 +173,9 @@ object SceneExport {
         canvas.restore()
     }
 }
+
+/** Exported graphs are square, this many units across (points in a PDF, before its 1.5× scale). */
+const val EXPORT_SIZE = 400.0
 
 /**
  * What to export: the format, the region of the plane (and the z range in 3D), and light or
@@ -240,7 +261,6 @@ fun ExportDialog(
     )
     // The preview: redrawn a moment after anything changes, off the main thread.
     var preview by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
-    var previewAspect by remember { mutableStateOf(0.75f) }
     androidx.compose.runtime.LaunchedEffect(valid, fields.toList(), dark) {
         if (!valid) return@LaunchedEffect
         kotlinx.coroutines.delay(250)
@@ -250,10 +270,10 @@ fun ExportDialog(
                 val scene = build(r)
                 val s = (480 / scene.width).toFloat()
                 val bmp = Bitmap.createBitmap((scene.width * s).toInt().coerceAtLeast(1), (scene.height * s).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
-                SceneExport.draw(android.graphics.Canvas(bmp), scene, s, runCatching { ResourcesCompat.getFont(context, R.font.google_sans_flex) }.getOrNull())
+                SceneExport.draw(android.graphics.Canvas(bmp), scene, s, SceneExport.font(context))
                 bmp
             }
-        }.onSuccess { previewAspect = it.height.toFloat() / it.width; preview = it.asImageBitmap() }
+        }.onSuccess { preview = it.asImageBitmap() }
     }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -262,7 +282,7 @@ fun ExportDialog(
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 // What the file will look like.
                 Box(
-                    Modifier.fillMaxWidth().aspectRatio(1f / previewAspect.coerceIn(0.3f, 2f)).clip(RoundedCornerShape(16.dp))
+                    Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp))
                         .border(1.dp, colors.outlineVariant, RoundedCornerShape(16.dp))
                         .background(colors.surfaceContainerHighest),
                     contentAlignment = Alignment.Center,
@@ -286,8 +306,8 @@ fun ExportDialog(
                     when (format) {
                         ExportFormat.PDF -> "Vector: sharp at any size, for documents and printing."
                         ExportFormat.SVG -> "Vector: sharp at any size, editable in drawing programs."
-                        ExportFormat.PNG -> "Picture, 2400 pixels wide, without loss."
-                        ExportFormat.JPG -> "Picture, 2400 pixels wide, smaller files."
+                        ExportFormat.PNG -> "Picture, 2400 × 2400 pixels, without loss."
+                        ExportFormat.JPG -> "Picture, 2400 × 2400 pixels, smaller files."
                     },
                     style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
                 )

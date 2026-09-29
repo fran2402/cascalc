@@ -195,6 +195,25 @@ Constants and symbols are long lists and scroll up and down in place; the others
 Groups: Basic, Trigonometry, Calculus, Vector calculus, Linear algebra, Statistics, Complex
 numbers, Physical constants, Symbols.
 
+## Latest changes (29 September, third round)
+- **Fixed**: the ∂ key crashed (it asked the editor for half a path into the derivative);
+  EveryKeyTest now presses every key, types, evaluates and backspaces, so no key can crash it.
+- **Bessel functions** are drawn J_a(z) and Y_a(z), with a box for the order, and can be
+  plotted on the complex plane: J by its power series for |z| < 20 and Hankel's expansion
+  beyond (also used for real x ≥ 25 now), Y from J (checked against mpmath in BesselTest).
+- **Complex plane**: the loop tool is gone; the + button has no label in any graph.
+- **Export**: always square (and the preview too), drawn like pgfplots: a framed plot with
+  inward ticks, Computer Modern tick labels and axis names (the fonts are embedded in SVGs),
+  pgfplots' line colors unless you picked one, light or dark.
+- **Colormaps**: all 86 on matplotlib's Choosing Colormaps page. Your list comes first (move
+  entries up or down, remove them to More); More colormaps lists the rest by group, each with
+  a pin; every row has an invert button for the reversed map (saved as name_r).
+- **CSV import** (the file button on the 2D graph): commas, semicolons with decimal commas,
+  tabs or spaces; headers skipped; the first column is x and each other column a list of points.
+- **More like Desmos**: drag a point like (a, b) to move its sliders; show a point's
+  coordinates; join a list's points with a line; fill opacity for inequalities; a graph
+  settings button (exact limits, grid, axis numbers, degrees).
+
 ## Latest changes (29 September, second round)
 - **Fixed a crash** on long-pressing the new complex keys (Lambert W, Bessel J and Y) and every
   letter and symbol: their explanations had doubled backslashes, which made an empty symbol the

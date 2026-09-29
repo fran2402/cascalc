@@ -20,7 +20,7 @@ class ColormapTest {
     }
 
     @Test fun cyclicMapsJoinUp() {
-        for (m in Colormap.entries.filter { it.cyclic }) assertTrue(m.name, close(m.rgb(0.0), m.rgb(0.99999), 6))
+        for (m in Colormap.ALL.filter { it.cyclic }) assertTrue(m.name, close(m.rgb(0.0), m.rgb(0.99999), 6))
     }
 
     @Test fun viridisEnds() {
@@ -36,7 +36,7 @@ class ColormapTest {
     }
 
     @Test fun zerosAndPolesStayBlackAndWhite() {
-        for (m in Colormap.entries) {
+        for (m in Colormap.ALL) {
             assertEquals(m.name, Triple(0, 0, 0), rgb(DomainColoring.color(CD(0.0), ColoringOptions(modulusBands = false, colormap = m))))
             assertEquals(m.name, Triple(255, 255, 255), rgb(DomainColoring.color(CD(Double.POSITIVE_INFINITY), ColoringOptions(colormap = m))))
         }
@@ -47,6 +47,31 @@ class ColormapTest {
         val w = CD(-1.0, 1e-12)
         val c = DomainColoring.color(w, ColoringOptions(modulusBands = false, colormap = Colormap.VIRIDIS))
         assertTrue(close(c, Colormap.VIRIDIS.rgb(1.0)))
+    }
+
+    @Test fun everyMatplotlibMapIsThere() {
+        assertEquals(87, Colormap.ALL.size)
+        assertEquals(Colormap.ALL.size, Colormap.ALL.map { it.name }.toSet().size)
+        for (n in listOf("RdBu", "coolwarm", "tab10", "cubehelix", "berlin", "gist_ncar")) assertEquals(n, Colormap.byName(n).name)
+    }
+
+    @Test fun reversedNamesRoundTrip() {
+        assertEquals(Colormap.VIRIDIS to true, Colormap.parse("viridis_r"))
+        assertEquals(Colormap.VIRIDIS to false, Colormap.parse("viridis"))
+        assertEquals("RdBu_r", Colormap.save(Colormap.byName("RdBu"), true))
+        // Saves from before the list grew used upper-case names.
+        assertEquals(Colormap.byName("twilight_shifted") to false, Colormap.parse("TWILIGHT_SHIFTED"))
+    }
+
+    @Test fun reversedRunsBackwards() {
+        val w = CD(-1.0, 1e-12)
+        val c = DomainColoring.color(w, ColoringOptions(modulusBands = false, colormap = Colormap.VIRIDIS, reversed = true))
+        assertTrue(close(c, Colormap.VIRIDIS.rgb(0.0)))
+    }
+
+    @Test fun qualitativeMapsKeepTheirColours() {
+        // tab10's first colour, #1f77b4, unblended.
+        assertTrue(close(Colormap.byName("tab10").rgb(0.02), 0x1F77B4, 0))
     }
 
     @Test fun byNameFallsBackToClassic() {

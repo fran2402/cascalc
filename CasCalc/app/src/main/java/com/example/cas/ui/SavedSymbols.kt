@@ -53,3 +53,34 @@ object PinnedKeys {
         prefs?.edit()?.putString("pinned", list.joinToString("\n"))?.apply()
     }
 }
+
+/**
+ * The colormaps offered first on the complex plane, in the order you've put them; the rest are
+ * under "More colormaps". Kept in preferences by matplotlib name.
+ */
+object FavouriteColormaps {
+    private var prefs: SharedPreferences? = null
+    val list = mutableStateListOf<String>()
+
+    fun init(context: Context) {
+        val p = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        prefs = p
+        list.clear()
+        val saved = p.getString("colormaps", null)
+        list.addAll(saved?.split('\n')?.filter { it.isNotEmpty() } ?: com.example.cas.graph.Colormap.DEFAULT_FAVOURITES)
+    }
+
+    fun add(name: String) { if (name !in list) { list.add(name); save() } }
+    fun remove(name: String) { list.remove(name); save() }
+
+    /** Moves a favourite one place up (−1) or down (+1). */
+    fun move(name: String, by: Int) {
+        val i = list.indexOf(name)
+        val j = i + by
+        if (i < 0 || j !in list.indices) return
+        list.removeAt(i); list.add(j, name)
+        save()
+    }
+
+    private fun save() { prefs?.edit()?.putString("colormaps", list.joinToString("\n"))?.apply() }
+}

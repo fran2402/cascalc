@@ -667,6 +667,14 @@ private fun FuncView(f: Func, row: MathRow, index: Int, level: Int) {
             }
             Fenced(Delim.Paren, level) { RowView(f.args[0], level) }
         }
+        // Bessel functions: J_a(z) and Y_a(z), the order as a subscript box.
+        "besselj", "bessely" -> if (f.args.size == 2) AxisRow(level) {
+            Scripts(level, tap, base = { MathText(if (f.name == "besselj") "J" else "Y", level, italic = true) }, sub = { RowView(f.args[0], level + 1) })
+            Fenced(Delim.Paren, level) { RowView(f.args[1], level) }
+        } else AxisRow(level) {
+            MathText(f.name, level, tap)
+            FuncArguments(f, level)
+        }
         // ∮ with its circle underneath, then f dz.
         "contour" -> ContourView(f, level)
         // Res with the point underneath: Res_{z=a}(f).

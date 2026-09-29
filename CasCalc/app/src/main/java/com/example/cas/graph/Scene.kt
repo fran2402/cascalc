@@ -24,8 +24,18 @@ class Scene(val width: Double, val height: Double, val background: Int) {
 
     enum class Anchor { Start, Middle, End }
 
-    /** Text with its [anchor] at x and its middle at y. */
-    class Label(val x: Double, val y: Double, val text: String, val size: Double, val color: Int, val anchor: Anchor = Anchor.Start) : Item()
+    /** Sans is the app's Google Sans Flex; Roman and Italic are LaTeX's Computer Modern. */
+    enum class Font { Sans, Roman, Italic }
+
+    /** Text with its [anchor] at x and its middle at y, turned [angle] degrees (anticlockwise) about that point. */
+    class Label(
+        val x: Double, val y: Double, val text: String, val size: Double, val color: Int,
+        val anchor: Anchor = Anchor.Start, val font: Font = Font.Sans, val angle: Double = 0.0,
+    ) : Item()
+
+    /** Everything up to the matching [ClipEnd] is cut to this rectangle (a plot's frame). */
+    class ClipStart(val x: Double, val y: Double, val w: Double, val h: Double) : Item()
+    object ClipEnd : Item()
 
     /** A picture ([pixels] ARGB, row 0 at the top) stretched over the rectangle. */
     class Image(val x: Double, val y: Double, val w: Double, val h: Double, val pixels: IntArray, val pixelWidth: Int, val pixelHeight: Int) : Item()
@@ -66,9 +76,21 @@ object SvgWriter {
         if (closed) append('Z')
     }
 
-    fun write(scene: Scene): String = buildString {
+    /**
+     * The SVG for [scene]. Font files in [embedded] (the Computer Modern OTFs) are put inside the
+     * file, so its maths text shows in LaTeX's font on any computer.
+     */
+    fun write(scene: Scene, embedded: Map<Scene.Font, ByteArray> = emptyMap()): String = buildString {
+        var clips = 0
         append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
         append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"${n(scene.width)}\" height=\"${n(scene.height)}\" viewBox=\"0 0 ${n(scene.width)} ${n(scene.height)}\">\n")
+        if (embedded.isNotEmpty()) {
+            append("<style>")
+            embedded.forEach { (font, bytes) ->
+                append("@font-face{font-family:'CM${font.name}';src:url(data:font/otf;base64,${java.util.Base64.getEncoder().encodeToString(bytes)}) format('opentype');}")
+            }
+            append("</style>\n")
+        }
         append("<defs><clipPath id=\"frame\"><rect width=\"${n(scene.width)}\" height=\"${n(scene.height)}\"/></clipPath></defs>\n")
         append("<rect width=\"${n(scene.width)}\" height=\"${n(scene.height)}\" ${paint("fill", scene.background)}/>\n")
         append("<g clip-path=\"url(#frame)\">\n")
@@ -93,9 +115,24 @@ object SvgWriter {
             }
             is Scene.Label -> {
                 val anchor = when (item.anchor) { Scene.Anchor.Start -> "start"; Scene.Anchor.Middle -> "middle"; Scene.Anchor.End -> "end" }
-                append("<text x=\"${n(item.x)}\" y=\"${n(item.y)}\" font-family=\"Google Sans Flex, Google Sans, Roboto, Arial, sans-serif\" font-size=\"${n(item.size)}\" text-anchor=\"$anchor\" dominant-baseline=\"central\" ${paint("fill", item.color)}>")
-                append(escape(item.text)).append("</text>\n")
+                val own = if (item.font in embedded) "CM${item.font.name}, " else ""
+                val family = when (item.font) {
+                    Scene.Font.Sans -> "Google Sans Flex, Google Sans, Roboto, Arial, sans-serif"
+                    // The embedded font, else Computer Modern as LaTeX has it, under its usual installed names.
+                    else -> own + "Latin Modern Roman, CMU Serif, Computer Modern, cmr10, Times New Roman, serif"
+                }
+                append("<text x=\"${n(item.x)}\" y=\"${n(item.y)}\" font-family=\"$family\" font-size=\"${n(item.size)}\" text-anchor=\"$anchor\" dominant-baseline=\"central\" ${paint("fill", item.color)}")
+                // (The embedded italic is italic already; slanting it again would double it.)
+                if (item.font == Scene.Font.Italic && item.font !in embedded) append(" font-style=\"italic\"")
+                if (item.angle != 0.0) append(" transform=\"rotate(${n(-item.angle)} ${n(item.x)} ${n(item.y)})\"")
+                append(">").append(escape(item.text)).append("</text>\n")
             }
+            is Scene.ClipStart -> {
+                clips++
+                append("<clipPath id=\"c$clips\"><rect x=\"${n(item.x)}\" y=\"${n(item.y)}\" width=\"${n(item.w)}\" height=\"${n(item.h)}\"/></clipPath>\n")
+                append("<g clip-path=\"url(#c$clips)\">\n")
+            }
+            Scene.ClipEnd -> append("</g>\n")
             is Scene.Image -> {
                 val png = java.util.Base64.getEncoder().encodeToString(Png.encode(item.pixels, item.pixelWidth, item.pixelHeight))
                 append("<image x=\"${n(item.x)}\" y=\"${n(item.y)}\" width=\"${n(item.w)}\" height=\"${n(item.h)}\" preserveAspectRatio=\"none\" href=\"data:image/png;base64,$png\"/>\n")

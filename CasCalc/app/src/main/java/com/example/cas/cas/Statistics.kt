@@ -180,8 +180,9 @@ object Statistics {
             }
             return if (x < 0 && a == Math.rint(a)) sum * (if (a.toInt() % 2 == 0) 1.0 else -1.0) else sum
         }
-        // Far from 0: √(2/πx) cos(x − aπ/2 − π/4)
-        return kotlin.math.sqrt(2 / (PI * ax)) * kotlin.math.cos(ax - a * PI / 2 - PI / 4)
+        // Far from 0: Hankel's expansion (whole orders are odd or even under x → −x).
+        val far = ComplexMath.besselJ(a, CD(ax)).re
+        return if (x < 0 && a == Math.rint(a)) far * (if (a.toLong() % 2 == 0L) 1.0 else -1.0) else far
     }
 
     /** Γ(x) for any x that isn't zero or a negative whole number (reflection below 0.5). */

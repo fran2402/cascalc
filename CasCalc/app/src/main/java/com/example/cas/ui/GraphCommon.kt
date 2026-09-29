@@ -1,5 +1,19 @@
 package com.example.cas.ui
 
+import androidx.compose.material.icons.filled.SwapHoriz
+
+import androidx.compose.material.icons.filled.PushPin
+
+import androidx.compose.material.icons.filled.ExpandMore
+
+import androidx.compose.material.icons.filled.ExpandLess
+
+import androidx.compose.material.icons.filled.RemoveCircleOutline
+
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+
 import androidx.compose.foundation.layout.fillMaxSize
 
 import androidx.compose.foundation.layout.RowScope
@@ -109,41 +123,104 @@ fun isComplexLine(f: PlotFunction) = f.contour != null || f.complexCurve != null
 fun complexLineColor(f: PlotFunction): Color = f.customColor?.let { Color(it) } ?: Color.White
 
 /** A colormap's colors in order, for drawing it as a gradient. */
-fun colormapStops(map: com.example.cas.graph.Colormap, n: Int = 24): List<Color> =
-    (0..n).map { k -> Color(0xFF000000.toInt() or map.rgb(k.toDouble() / n)) }
+fun colormapStops(map: com.example.cas.graph.Colormap, n: Int = 32, reversed: Boolean = false): List<Color> =
+    (0..n).map { k -> val t = k.toDouble() / n; Color(0xFF000000.toInt() or map.rgb(if (reversed) 1 - t else t)) }
 
 /**
- * The colors for arg f on the complex plane, as in matplotlib: the classic wheel, the cyclic
- * twilight maps, and the perceptually uniform ones. Each shows as its own gradient.
+ * The colors for arg f on the complex plane. Your colormaps come first, in your order: move them
+ * up or down, or remove them (they go to More). "More colormaps" lists every other matplotlib map
+ * by group, each with a pin to add it to yours. Every row has an invert button for the reversed
+ * map (matplotlib's _r). Tap a row to use it.
  */
 @Composable
-fun ColormapPickerDialog(current: com.example.cas.graph.Colormap, onPick: (com.example.cas.graph.Colormap) -> Unit, onDismiss: () -> Unit) {
+fun ColormapPickerDialog(
+    current: com.example.cas.graph.Colormap,
+    reversed: Boolean,
+    onPick: (com.example.cas.graph.Colormap, Boolean) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val colors = MaterialTheme.colorScheme
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Colormap") },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                com.example.cas.graph.Colormap.entries.forEach { map ->
-                    val chosen = map == current
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(if (chosen) colors.secondaryContainer else Color.Transparent)
-                            .clickable(onClickLabel = "Use ${map.label}") { onPick(map) }
-                            .padding(horizontal = 12.dp, vertical = 10.dp)
-                            .semantics { contentDescription = map.label + if (chosen) ", chosen" else "" },
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(map.label, color = if (chosen) colors.onSecondaryContainer else colors.onSurface, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.width(88.dp))
-                        Box(Modifier.weight(1f).height(20.dp).clip(RoundedCornerShape(10.dp)).background(Brush.horizontalGradient(colormapStops(map))))
+    var more by remember { mutableStateOf(false) }
+    val favourites = FavouriteColormaps.list.map { com.example.cas.graph.Colormap.byName(it) }.distinct()
+    FullScreenPage("Colormap", onBack = onDismiss) {
+        // The one in use, big.
+        Box(
+            Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(16.dp))
+                .background(Brush.horizontalGradient(colormapStops(current, reversed = reversed))),
+        )
+        Text(com.example.cas.graph.Colormap.save(current, reversed), style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
+        Text("Your colormaps", style = MaterialTheme.typography.titleSmall, color = colors.primary)
+        favourites.forEachIndexed { k, map ->
+            ColormapRow(map, current, reversed, onPick) {
+                IconButton(onClick = { FavouriteColormaps.move(map.name, -1) }, enabled = k > 0) {
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move ${map.name} up")
+                }
+                IconButton(onClick = { FavouriteColormaps.move(map.name, 1) }, enabled = k < favourites.lastIndex) {
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move ${map.name} down")
+                }
+                IconButton(onClick = { FavouriteColormaps.remove(map.name) }) {
+                    Icon(Icons.Default.RemoveCircleOutline, contentDescription = "Remove ${map.name} from your colormaps", tint = colors.onSurfaceVariant)
+                }
+            }
+        }
+        androidx.compose.material3.OutlinedButton(onClick = { more = !more }, modifier = Modifier.fillMaxWidth()) {
+            Icon(if (more) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(if (more) "Fewer colormaps" else "More colormaps")
+        }
+        if (more) {
+            com.example.cas.graph.Colormap.CATEGORIES.forEach { category ->
+                val maps = com.example.cas.graph.Colormap.ALL.filter { it.category == category && it !in favourites }
+                if (maps.isEmpty()) return@forEach
+                Text(category, style = MaterialTheme.typography.titleSmall, color = colors.primary)
+                maps.forEach { map ->
+                    ColormapRow(map, current, reversed, onPick) {
+                        IconButton(onClick = { FavouriteColormaps.add(map.name) }) {
+                            Icon(Icons.Default.PushPin, contentDescription = "Add ${map.name} to your colormaps", tint = colors.onSurfaceVariant)
+                        }
                     }
                 }
             }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
-    )
+        }
+    }
+}
+
+/** A colormap's name and gradient (tap to use it), its invert button, then [actions]. */
+@Composable
+private fun ColormapRow(
+    map: com.example.cas.graph.Colormap,
+    current: com.example.cas.graph.Colormap,
+    reversed: Boolean,
+    onPick: (com.example.cas.graph.Colormap, Boolean) -> Unit,
+    actions: @Composable RowScope.() -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val chosen = map == current
+    val shownReversed = chosen && reversed
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (chosen) colors.secondaryContainer else Color.Transparent)
+            .clickable(onClickLabel = "Use ${map.name}") { onPick(map, false) }
+            .padding(start = 12.dp, top = 4.dp, bottom = 4.dp)
+            .semantics { contentDescription = map.name + if (chosen) ", chosen" + (if (reversed) ", reversed" else "") else "" },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(map.name, color = if (chosen) colors.onSecondaryContainer else colors.onSurface, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+            Box(Modifier.fillMaxWidth().padding(top = 4.dp).height(14.dp).clip(RoundedCornerShape(7.dp)).background(Brush.horizontalGradient(colormapStops(map, reversed = shownReversed))))
+        }
+        // Invert: this map, run the other way.
+        IconButton(onClick = { onPick(map, !shownReversed) }) {
+            Icon(
+                Icons.Default.SwapHoriz,
+                contentDescription = if (shownReversed) "Use ${map.name} the right way round" else "Use ${map.name} reversed",
+                tint = if (shownReversed) colors.primary else colors.onSurfaceVariant,
+            )
+        }
+        actions()
+    }
 }
 
 /** The standard set offered under the color picker. */
@@ -166,6 +243,8 @@ fun ColorPickerDialog(
     lineStyle: Int? = null,
     thickness: Float = 3f,
     onStyle: (Int, Float) -> Unit = { _, _ -> },
+    /** More options for the line (labels, connecting points, fill opacity), under the colors. */
+    extra: (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? = null,
 ) {
     var style by remember { mutableStateOf(lineStyle ?: 0) }
     var width by remember { mutableStateOf(thickness) }
@@ -268,6 +347,7 @@ fun ColorPickerDialog(
                     Text("Thickness: ${"%.1f".format(width)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
                     ExpressiveSlider(value = width, onValueChange = { width = it }, valueRange = 1f..8f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Line thickness" })
                 }
+                extra?.invoke(this)
                 Text("Standard", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     STANDARD_COLORS.forEach { c ->
@@ -377,7 +457,7 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
     val colormapDot = vm.isComplex && !isComplexLine(f)
     var picking by remember { mutableStateOf(false) }
     if (picking && colormapDot) {
-        ColormapPickerDialog(f.colormap, onPick = { vm.setColormap(f, it) }, onDismiss = { picking = false })
+        ColormapPickerDialog(f.colormap, f.colormapReversed, onPick = { map, rev -> vm.setColormap(f, map, rev) }, onDismiss = { picking = false })
     } else if (picking) {
         ColorPickerDialog(
             initial = color,
@@ -387,6 +467,7 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             lineStyle = if (vm.plotVars == listOf("x") && f.plot !is Plot2DKind.Point && f.plot !is Plot2DKind.PointList) f.lineStyle else null,
             thickness = f.thickness,
             onStyle = { st, w -> vm.setStyle(f, st, w) },
+            extra = lineOptions(vm, f),
         )
     }
     Column(
@@ -414,7 +495,7 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
                 contentAlignment = Alignment.Center,
             ) {
                 if (colormapDot) {
-                    val ring = Brush.sweepGradient(colormapStops(f.colormap))
+                    val ring = Brush.sweepGradient(colormapStops(f.colormap, reversed = f.colormapReversed))
                     Box(
                         Modifier
                             .size(18.dp)
@@ -443,16 +524,30 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             }
             // No "y =", "z =" or "f(z) =": the line is read from what's typed, as in Desmos.
             Box(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
-                MathView(
-                    row = f.editor.root,
-                    fontSize = 22.sp,
-                    color = colors.onSurface,
-                    accent = colors.primary,
-                    cursorRow = if (active) f.editor.row else null,
-                    cursorIndex = f.editor.index,
-                    version = f.version,
-                    onTap = { r, i -> vm.tapAt(f, r, i) },
-                )
+                // A long list (an imported file) shows its start and how many points, until it's edited.
+                val items = f.editor.root.items
+                val shortened = if (!active && items.size > 300) remember(f.version) {
+                    val cut = items.take(120).let { head -> head.subList(0, head.indexOfLast { (it as? Sym)?.text == ")" } + 1) }
+                    val points = (f.plot as? Plot2DKind.PointList)?.xs?.size
+                    MathRow((cut.map { com.example.cas.editor.MathCodec.decode(com.example.cas.editor.MathCodec.encode(MathRow(mutableListOf(it)))).items.single() } +
+                        listOf(Sym(","), Sym("…"), Sym("]"))).toMutableList()) to points
+                } else null
+                Column {
+                    shortened?.second?.let { n ->
+                        Text("$n points", style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+                    }
+                    MathView(
+                        row = shortened?.first ?: f.editor.root,
+                        fontSize = 22.sp,
+                        color = colors.onSurface,
+                        accent = colors.primary,
+                        cursorRow = if (active) f.editor.row else null,
+                        cursorIndex = f.editor.index,
+                        version = f.version,
+                        // The shortened copy isn't the line itself: a tap opens the whole line.
+                        onTap = if (shortened != null) ({ _, _ -> vm.edit(f) }) else ({ r, i -> vm.tapAt(f, r, i) }),
+                    )
+                }
             }
             // Fit sits at the end of the row once the graph has a list of points.
             if (handle != null && vm.canFit(f)) FitButton(vm, f)
@@ -471,6 +566,34 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
         }
         f.error?.let {
             Text(it, color = colors.error, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp), modifier = Modifier.padding(start = 48.dp, bottom = 2.dp))
+        }
+    }
+}
+
+/** Desmos-like options for a 2D line: labels on points, joining a list's points, a region's fill opacity. */
+private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? {
+    if (vm.plotVars != listOf("x")) return null
+    val kind = f.plot
+    val points = kind is Plot2DKind.Point || kind is Plot2DKind.PointList
+    val region = kind is Plot2DKind.Region
+    if (!points && !region) return null
+    return {
+        val colors = MaterialTheme.colorScheme
+        if (points) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Show coordinates", modifier = Modifier.weight(1f), color = colors.onSurface)
+                androidx.compose.material3.Switch(checked = f.showLabel, onCheckedChange = { vm.setOptions(f, label = it) })
+            }
+        }
+        if (kind is Plot2DKind.PointList) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Join the points", modifier = Modifier.weight(1f), color = colors.onSurface)
+                androidx.compose.material3.Switch(checked = f.connectPoints, onCheckedChange = { vm.setOptions(f, connect = it) })
+            }
+        }
+        if (region) {
+            Text("Fill opacity: ${(f.fillOpacity * 100).roundToInt()}%", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+            ExpressiveSlider(value = f.fillOpacity, onValueChange = { vm.setOptions(f, opacity = it) }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Fill opacity" })
         }
     }
 }
@@ -733,7 +856,7 @@ private fun FitButton(vm: GraphViewModel, f: PlotFunction) {
 
 
 /**
- * The bar along the bottom of a graph: + Add on the left (with the keyboard button while it's
+ * The bar along the bottom of a graph: + (add a line) on the left (with the keyboard button while it's
  * hidden, and any [leading] controls), the [tools] on the right, and export in its own circle
  * at the far right.
  */
@@ -744,8 +867,6 @@ fun GraphBottomBar(
     onExport: (() -> Unit)?,
     leading: @Composable RowScope.() -> Unit = {},
     tools: (@Composable RowScope.() -> Unit)? = null,
-    /** Just "+" when the tools leave little room. */
-    addLabel: Boolean = true,
 ) {
     val colors = MaterialTheme.colorScheme
     val tap = rememberKeyTap()
@@ -757,14 +878,10 @@ fun GraphBottomBar(
                 .clip(CircleShape)
                 .background(colors.secondaryContainer)
                 .clickable(onClickLabel = "Add a line") { tap(); vm.add() }
-                .padding(horizontal = if (addLabel) 16.dp else 12.dp, vertical = 12.dp),
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Default.Add, contentDescription = if (addLabel) null else "Add a line", tint = colors.onSecondaryContainer, modifier = Modifier.size(24.dp))
-            if (addLabel) {
-                Spacer(Modifier.width(8.dp))
-                Text("Add", color = colors.onSecondaryContainer, style = MaterialTheme.typography.labelLarge)
-            }
+            Icon(Icons.Default.Add, contentDescription = "Add a line", tint = colors.onSecondaryContainer, modifier = Modifier.size(24.dp))
         }
         if (vm.active != null && vm.keypadHidden) {
             Spacer(Modifier.width(8.dp))

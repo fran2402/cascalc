@@ -26,3 +26,13 @@ From the list of 28 September, in the order I'd tackle them.
   handle; swipe to delete lines; Fit in the row; + Add and export on the graph's bottom bar;
   saved line colors; faster inequalities; settings reordered; fuller acknowledgements.
 - Settings: the ⋮ menu in all four modes; custom app colors when Material You is off.
+- Third round: ∂ key crash; Bessel J_a(z)/Y_a(z) drawing and complex plotting; loop tool
+  removed; square pgfplots-style exports; the full matplotlib colormap library with your own
+  list, pins, reordering and inverting; CSV import; draggable points, labels, joined points,
+  fill opacity and graph settings.
+
+## Ideas from Desmos not done yet
+- Lists inside expressions (y = [1, 2, 3]x drawing a family of curves).
+- Tables that can be edited cell by cell.
+- Polygons, and folders and notes in the list of lines.
+

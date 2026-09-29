@@ -34,6 +34,9 @@ object AppSettings {
         private set
     var showGrid by mutableStateOf(true)
         private set
+    /** Numbers along the 2D graph's axes. */
+    var axisNumbers by mutableStateOf(true)
+        private set
 
     /** Numbers: 0 auto, 1 scientific (a × 10ⁿ), 2 engineering (n a multiple of 3). */
     var numberFormat by mutableStateOf(0)
@@ -86,6 +89,7 @@ object AppSettings {
         prefs = p
         SavedSymbols.init(context)
         PinnedKeys.init(context)
+        FavouriteColormaps.init(context)
         theme = p.getInt("theme", 0)
         dynamicColor = p.getBoolean("dynamicColor", true)
         themeColor = p.getInt("themeColor", 0)
@@ -94,6 +98,7 @@ object AppSettings {
         mathSize = p.getInt("mathSize", 1)
         keypadSize = p.getInt("keypadSize", 1)
         showGrid = p.getBoolean("showGrid", true)
+        axisNumbers = p.getBoolean("axisNumbers", true)
         numberFormat = p.getInt("numberFormat", 0)
         polarComplex = p.getBoolean("polarComplex", false)
         livePreview = p.getBoolean("livePreview", true)
@@ -129,6 +134,7 @@ object AppSettings {
     fun changeMathSize(v: Int) { mathSize = v; save("mathSize", v) }
     fun changeKeypadSize(v: Int) { keypadSize = v; save("keypadSize", v) }
     fun changeShowGrid(v: Boolean) { showGrid = v; save("showGrid", v) }
+    fun changeAxisNumbers(v: Boolean) { axisNumbers = v; save("axisNumbers", v) }
     fun changeNumberFormat(v: Int) { numberFormat = v; com.example.cas.engine.Formatter.numberFormat = v; save("numberFormat", v) }
     fun changePolarComplex(v: Boolean) { polarComplex = v; com.example.cas.engine.Formatter.polarComplex = v; save("polarComplex", v) }
     fun changeLivePreview(v: Boolean) { livePreview = v; save("livePreview", v) }

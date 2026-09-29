@@ -85,7 +85,8 @@ class Editor(initial: MathRow = MathRow()) {
     /** Moves the cursor into nested slots: (item index, slot index) pairs from the current row. */
     fun enter(path: List<Int>) {
         var r = row
-        for (k in path.indices step 2) {
+        // Only whole (item, slot) pairs; a stray last number is ignored.
+        for (k in 0 until path.size - 1 step 2) {
             val node = r.items.getOrNull(path[k]) ?: break
             r = node.slots.getOrNull(path[k + 1]) ?: break
         }

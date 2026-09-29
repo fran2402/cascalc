@@ -78,11 +78,7 @@ fun Graph3DScreen(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
     BackHandler(enabled = vm.active != null) { vm.edit(null) }
     var plotSize by remember { mutableStateOf(IntSize.Zero) }
     var exporting by remember { mutableStateOf(false) }
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val density = androidx.compose.ui.platform.LocalDensity.current.density
-    val build = { r: ExportRequest ->
-        surface3DScene(vm, r, plotSize.width / density.toDouble(), plotSize.height / density.toDouble(), com.example.cas.ui.theme.appColorScheme(context, r.dark))
-    }
+    val build = { r: ExportRequest -> surface3DScene(vm, r, EXPORT_SIZE, r.dark) }
     val export = rememberGraphExporter("graph-3d", build)
     if (exporting) {
         val b = surfaceBounds(vm)
@@ -346,20 +342,23 @@ private fun surfacePolygons(vm: Graph3DViewModel, bounds: Bounds): List<Polygon>
  * The 3D graph for exporting, [w] × [h] units (dp), seen from the current camera: the box, the
  * shaded surfaces (as filled polygons, back to front), axis names, points and space curves.
  */
-internal fun surface3DScene(vm: Graph3DViewModel, r: ExportRequest, w: Double, h: Double, scheme: androidx.compose.material3.ColorScheme): Scene {
-    val scene = Scene(w, h, scheme.surface.toArgb())
+internal fun surface3DScene(vm: Graph3DViewModel, r: ExportRequest, size: Double, dark: Boolean): Scene {
+    // pgfplots' colors and Computer Modern, as in the 2D export.
+    val style = if (dark) com.example.cas.graph.Pgf.Style.DARK else com.example.cas.graph.Pgf.Style.LIGHT
+    val w = size; val h = size
+    val scene = Scene(w, h, style.background)
     val base = surfaceBounds(vm, r.view.xMin, r.view.xMax, r.view.yMin, r.view.yMax)
     val bounds = r.z?.let { (a, b) -> base.copy(z0 = a, z1 = b) } ?: base
     val camera = vm.camera
     val fw = w.toFloat(); val fh = h.toFloat()
-    val themeColors = plotColors(scheme)
     val gradients = (0 until GraphViewModel.PLOT_COLOR_COUNT).map { k ->
-        val c = vm.functions.firstOrNull { it.colorIndex == k }?.customColor?.let { Color(it) } ?: themeColors[k]
+        val c = Color(vm.functions.firstOrNull { it.colorIndex == k }?.customColor ?: style.cycle[k % style.cycle.size])
         lerp(c, Color.Black, 0.35f) to lerp(c, Color.White, 0.45f)
     }
-    scene.add(Scene.Stroke(Surface3D.box(camera, fw, fh).map { doubleArrayOf(it.x1.toDouble(), it.y1.toDouble(), it.x2.toDouble(), it.y2.toDouble()) }, scheme.outlineVariant.toArgb(), 1.0))
+    val ink = Color(style.ink)
+    scene.add(Scene.Stroke(Surface3D.box(camera, fw, fh).map { doubleArrayOf(it.x1.toDouble(), it.y1.toDouble(), it.x2.toDouble(), it.y2.toDouble()) }, style.ink, com.example.cas.graph.Pgf.FRAME_WIDTH))
     val faces = Surface3D.faces(surfacePolygons(vm, bounds), bounds, camera, fw, fh)
-    val wire = scheme.onSurface.copy(alpha = 0.12f).toArgb()
+    val wire = ink.copy(alpha = 0.15f).toArgb()
     for (face in faces) {
         val pts = DoubleArray(face.xs.size * 2) { k -> if (k % 2 == 0) face.xs[k / 2].toDouble() else face.ys[k / 2].toDouble() }
         val (lo, hi) = gradients[face.surface % gradients.size]
@@ -368,9 +367,9 @@ internal fun surface3DScene(vm: Graph3DViewModel, r: ExportRequest, w: Double, h
         if (face.xs.size == 4) scene.add(Scene.Stroke(listOf(pts + doubleArrayOf(pts[0], pts[1])), wire, 0.6))
     }
     Surface3D.axisLabels(camera, fw, fh).forEach { (name, p) ->
-        scene.add(Scene.Label(p.first.toDouble(), p.second.toDouble(), name, 18.0, scheme.onSurfaceVariant.toArgb(), Scene.Anchor.Middle))
+        scene.add(Scene.Label(p.first.toDouble(), p.second.toDouble(), name, com.example.cas.graph.Pgf.NAME_SIZE, style.ink, Scene.Anchor.Middle, Scene.Font.Italic))
     }
-    scene.add(Scene.Label(w - 12, 20.0, "z from ${shortNumber(bounds.z0)} to ${shortNumber(bounds.z1)}", 11.0, scheme.onSurfaceVariant.toArgb(), Scene.Anchor.End))
+    scene.add(Scene.Label(w - 12, 20.0, "z from ${shortNumber(bounds.z0)} to ${shortNumber(bounds.z1)}", com.example.cas.graph.Pgf.TICK_SIZE, style.ink, Scene.Anchor.End, Scene.Font.Roman))
     vm.functions.filter { it.visible && it.space != null }.forEach { fn ->
         val (fx, fy, fz) = fn.space!!
         val (lo, hi) = gradients[fn.colorIndex % gradients.size]
@@ -394,7 +393,7 @@ internal fun surface3DScene(vm: Graph3DViewModel, r: ExportRequest, w: Double, h
             if (x.isFinite() && y.isFinite() && z.isFinite()) {
                 val (sx, sy) = Surface3D.project(x, y, z, bounds, camera, fw, fh)
                 scene.add(Scene.Circle(sx.toDouble(), sy.toDouble(), 7.0, fill = color))
-                scene.add(Scene.Circle(sx.toDouble(), sy.toDouble(), 2.5, fill = scheme.surface.toArgb()))
+                scene.add(Scene.Circle(sx.toDouble(), sy.toDouble(), 2.5, fill = style.background))
             }
         }
     }
