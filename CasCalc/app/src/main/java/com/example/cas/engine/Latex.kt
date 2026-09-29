@@ -96,7 +96,7 @@ object Latex {
             } else "\\mathrm{${f.name}}" + paren(a[0])
             "digamma" -> "\\psi" + paren(a[0])
             "zetaprime" -> "\\zeta'" + paren(a[0])
-            "grad" -> "\\nabla " + paren(a[0])
+            "grad" -> (if (f.args.size > 1 && !f.args[1].isEmpty) "\\nabla^{" + a[1] + "}" else "\\nabla ") + paren(a[0])
             "div" -> "\\nabla\\cdot " + paren(a[0])
             "curl" -> "\\nabla\\times " + paren(a[0])
             "laplacian" -> "\\nabla^{2}" + paren(a[0])

@@ -83,7 +83,7 @@ fun Graph3DScreen(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
         }
         FunctionList(vm, outputLabel = "z")
         AnimatedVisibility(visible = vm.active != null && !vm.keypadHidden, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-            Keypad(vm, compact = true)
+            Keypad(vm)
         }
     }
 }

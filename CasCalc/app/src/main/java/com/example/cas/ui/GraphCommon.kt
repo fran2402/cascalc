@@ -86,6 +86,62 @@ import kotlin.math.roundToInt
 @Composable
 fun functionColor(f: PlotFunction): Color = f.customColor?.let { Color(it) } ?: plotColor(f.colorIndex)
 
+/** On the complex plane, ∮ loops and curves are lines in a plain color (white unless picked); the rest are colored by a colormap. */
+fun isComplexLine(f: PlotFunction) = f.contour != null || f.complexCurve != null
+
+/** The color of a ∮ loop or curve on the complex plane. */
+fun complexLineColor(f: PlotFunction): Color = f.customColor?.let { Color(it) } ?: Color.White
+
+/** A colormap's colors in order, for drawing it as a gradient. */
+fun colormapStops(map: com.example.cas.graph.Colormap, n: Int = 24): List<Color> =
+    (0..n).map { k -> Color(0xFF000000.toInt() or map.rgb(k.toDouble() / n)) }
+
+/**
+ * The colors for arg f on the complex plane, as in matplotlib: the classic wheel, the cyclic
+ * twilight maps, and the perceptually uniform ones. Each shows as its own gradient.
+ */
+@Composable
+fun ColormapPickerDialog(current: com.example.cas.graph.Colormap, onPick: (com.example.cas.graph.Colormap) -> Unit, onDismiss: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Colormap") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    "The color shows arg f(z). Cyclic maps join up at ±π; the others have a seam along it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                )
+                com.example.cas.graph.Colormap.entries.forEach { map ->
+                    val chosen = map == current
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(if (chosen) colors.secondaryContainer else Color.Transparent)
+                            .clickable(onClickLabel = "Use ${map.label}") { onPick(map) }
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                            .semantics { contentDescription = map.label + if (chosen) ", chosen" else "" },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.width(112.dp)) {
+                            Text(map.label, color = if (chosen) colors.onSecondaryContainer else colors.onSurface, style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                map.matplotlibName + if (map.cyclic) " · cyclic" else "",
+                                color = colors.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        Box(Modifier.weight(1f).height(20.dp).clip(RoundedCornerShape(10.dp)).background(Brush.horizontalGradient(colormapStops(map))))
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
+    )
+}
+
 /** The standard set offered under the color picker. */
 val STANDARD_COLORS = listOf(
     Color(0xFFE53935), Color(0xFFFB8C00), Color(0xFFFDD835), Color(0xFF43A047),
@@ -332,9 +388,13 @@ fun FunctionList(vm: GraphViewModel, outputLabel: String, modifier: Modifier = M
 private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String) {
     val colors = MaterialTheme.colorScheme
     val active = vm.active === f
-    val color = functionColor(f)
+    val color = if (vm.isComplex && isComplexLine(f)) complexLineColor(f) else functionColor(f)
+    // On the complex plane a function's dot shows its colormap round a ring; loops and curves keep a plain color.
+    val colormapDot = vm.isComplex && !isComplexLine(f)
     var picking by remember { mutableStateOf(false) }
-    if (picking) {
+    if (picking && colormapDot) {
+        ColormapPickerDialog(f.colormap, onPick = { vm.setColormap(f, it) }, onDismiss = { picking = false })
+    } else if (picking) {
         ColorPickerDialog(
             initial = color,
             onPick = { vm.setColor(f, it?.toArgb()); picking = false },
@@ -359,22 +419,33 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
                 Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    // Tap to hide or show; long-press to pick a color (not on the complex plane, whose colors are the plot).
+                    // Tap to hide or show; long-press to pick a color (a colormap for f(z) on the complex plane).
                     .combinedClickable(
                         onClickLabel = if (f.visible) "Hide" else "Show",
                         onClick = { vm.toggleVisible(f) },
-                        onLongClickLabel = "Change color",
-                        onLongClick = if (vm.isComplex) null else ({ picking = true }),
+                        onLongClickLabel = if (colormapDot) "Change colormap" else "Change color",
+                        onLongClick = { picking = true },
                     )
                     .semantics { contentDescription = if (f.visible) "Shown" else "Hidden" },
                 contentAlignment = Alignment.Center,
             ) {
-                Box(
-                    Modifier
-                        .size(18.dp)
-                        .clip(CircleShape)
-                        .then(if (f.visible) Modifier.background(color) else Modifier.border(2.dp, color, CircleShape)),
-                )
+                if (colormapDot) {
+                    val ring = Brush.sweepGradient(colormapStops(f.colormap))
+                    Box(
+                        Modifier
+                            .size(18.dp)
+                            .clip(CircleShape)
+                            .then(if (f.visible) Modifier.background(ring) else Modifier.border(2.dp, ring, CircleShape)),
+                    )
+                } else {
+                    Box(
+                        Modifier
+                            .size(18.dp)
+                            .clip(CircleShape)
+                            // A white loop gets an outline so its dot shows on light surfaces.
+                            .then(if (f.visible) Modifier.background(color).border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape) else Modifier.border(2.dp, color, CircleShape)),
+                    )
+                }
             }
             // "y =", "r =", "(x, y) =", or nothing when the line is an equation or inequality itself.
             val typed = f.editor.root.items.any { (it as? Sym)?.text in setOf("=", "<", ">", "≤", "≥") }

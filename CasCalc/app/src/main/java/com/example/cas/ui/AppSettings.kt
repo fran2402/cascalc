@@ -19,6 +19,9 @@ object AppSettings {
     /** Colors from the wallpaper (Android 12+). */
     var dynamicColor by mutableStateOf(true)
         private set
+    /** The color the scheme is built from when dynamic color is off (ARGB); 0 is the built-in olive. */
+    var themeColor by mutableStateOf(0)
+        private set
     var haptics by mutableStateOf(true)
         private set
     /** Digits in groups of three: 1 000 000. */
@@ -84,6 +87,7 @@ object AppSettings {
         SavedSymbols.init(context)
         theme = p.getInt("theme", 0)
         dynamicColor = p.getBoolean("dynamicColor", true)
+        themeColor = p.getInt("themeColor", 0)
         haptics = p.getBoolean("haptics", true)
         groupDigits = p.getBoolean("groupDigits", true)
         mathSize = p.getInt("mathSize", 1)
@@ -118,6 +122,7 @@ object AppSettings {
 
     fun changeTheme(v: Int) { theme = v; save("theme", v) }
     fun changeDynamicColor(v: Boolean) { dynamicColor = v; save("dynamicColor", v) }
+    fun changeThemeColor(v: Int) { themeColor = v; save("themeColor", v) }
     fun changeHaptics(v: Boolean) { haptics = v; save("haptics", v) }
     fun changeGroupDigits(v: Boolean) { groupDigits = v; com.example.cas.engine.Formatter.groupDigits = v; save("groupDigits", v) }
     fun changeMathSize(v: Int) { mathSize = v; save("mathSize", v) }

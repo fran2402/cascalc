@@ -97,7 +97,7 @@ fun Graph2DScreen(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, modifier: 
         }
         FunctionList(vm, outputLabel = "y")
         AnimatedVisibility(visible = vm.active != null && !vm.keypadHidden, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-            Keypad(vm, compact = true)
+            Keypad(vm)
         }
     }
 }

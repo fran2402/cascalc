@@ -141,6 +141,8 @@ data class ColoringOptions(
     val phaseLines: Boolean = false,
     /** Lines where Re f or Im f is a whole number: the image of the grid, showing conformality. */
     val grid: Boolean = false,
+    /** The colours for arg f. */
+    val colormap: Colormap = Colormap.CLASSIC,
 )
 
 /**
@@ -172,7 +174,22 @@ object DomainColoring {
             val fi = abs(w.im - Math.rint(w.im))
             if (fr < 0.04 || fi < 0.04) light = light * 0.5
         }
-        return hsl(hue, 1.0, light.coerceIn(0.0, 1.0))
+        val l = light.coerceIn(0.0, 1.0)
+        if (o.colormap == Colormap.CLASSIC) return hsl(hue, 1.0, l)
+        // Cyclic maps start at the positive real axis like the classic wheel; the others run
+        // from arg f = −π to π.
+        val c = o.colormap.rgb(if (o.colormap.cyclic) hue else (w.arg() + PI) / (2 * PI))
+        return shade(c, l)
+    }
+
+    /** Darkens towards black below the middle brightness and lightens towards white above it, as HSL does. */
+    fun shade(rgb: Int, light: Double): Int {
+        fun ch(shift: Int): Int {
+            val v = ((rgb shr shift) and 0xFF) / 255.0
+            val out = if (light < 0.5) v * 2 * light else v + (1 - v) * (2 * light - 1)
+            return (out * 255).roundToInt().coerceIn(0, 255)
+        }
+        return (0xFF shl 24) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
     }
 
     private fun hsl(h: Double, s: Double, l: Double): Int {

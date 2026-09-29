@@ -650,6 +650,17 @@ private fun FuncView(f: Func, row: MathRow, index: Int, level: Int) {
             Scripts(level, tap, base = { MathText("log", level) }, sub = { RowView(f.args[0], level + 1) })
             Fenced(Delim.Paren, level) { RowView(f.args[1], level) }
         }
+        // ∇ⁿ(f): the order box is raised on ∇, and shows while it's filled, while you edit ∇,
+        // and on the key (blank means the gradient, 2 the Laplacian).
+        "grad" -> AxisRow(level) {
+            val order = f.args.getOrNull(1)
+            if (order != null && (!order.isEmpty || env.emptyAsDot || cursorInside(env, f))) {
+                Scripts(level, tap, base = { MathText("∇", level) }, sup = { RowView(order, level + 1) })
+            } else {
+                MathText("∇", level, tap)
+            }
+            Fenced(Delim.Paren, level) { RowView(f.args[0], level) }
+        }
         // ∮ with its circle underneath, then f dz.
         "contour" -> ContourView(f, level)
         // Res with the point underneath: Res_{z=a}(f).

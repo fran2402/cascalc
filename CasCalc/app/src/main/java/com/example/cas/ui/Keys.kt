@@ -271,7 +271,7 @@ val FunctionTabs: List<FunctionTab> = listOf(
             ),
             listOf(
                 // ∇ with an empty order box (blank means the gradient, 2 the Laplacian).
-                math(row(Sym("∇"), Pow(MathRow()), Sym("f")), KeyAction.Insert(0) { Func("grad", listOf(MathRow(), MathRow())) }, "gradient"),
+                math(row(Func("grad", listOf(row("f"), MathRow()))), KeyAction.Insert(0) { Func("grad", listOf(MathRow(), MathRow())) }, "gradient"),
                 notation(row(Func("div", listOf(row("F")))), KeyAction.Insert(0) { Func("div") }, "divergence"),
                 notation(row(Func("curl", listOf(row("F")))), KeyAction.Insert(0) { Func("curl") }, "curl"),
                 notation(row(Func("jacobian", listOf(row("F")))), KeyAction.Insert(0) { Func("jacobian") }, "Jacobian matrix"),

@@ -75,6 +75,8 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
         internal set
     /** A colour picked by long-pressing the dot (ARGB), or null for the theme's colour for [colorIndex]. */
     var customColor by mutableStateOf<Int?>(null)
+    /** On the complex plane: the colours for arg f. */
+    var colormap by mutableStateOf(com.example.cas.graph.Colormap.CLASSIC)
 }
 
 /** A contour integral typed on the complex plane: its circle and its value. */
@@ -165,8 +167,13 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             functions.getOrNull(i)?.customColor = c.toLongOrNull()?.toInt()
         }
         get("styles")?.split(",")?.forEachIndexed { i, st ->
-            val (style, width) = st.split(":").let { it.getOrNull(0)?.toIntOrNull() to it.getOrNull(1)?.toFloatOrNull() }
-            functions.getOrNull(i)?.let { f -> style?.let { f.lineStyle = it.coerceIn(0, 2) }; width?.let { f.thickness = it.coerceIn(1f, 10f) } }
+            // style:thickness, then the colormap's name on the complex plane.
+            val parts = st.split(":")
+            val (style, width) = parts.getOrNull(0)?.toIntOrNull() to parts.getOrNull(1)?.toFloatOrNull()
+            functions.getOrNull(i)?.let { f ->
+                style?.let { f.lineStyle = it.coerceIn(0, 2) }; width?.let { f.thickness = it.coerceIn(1f, 10f) }
+                f.colormap = com.example.cas.graph.Colormap.byName(parts.getOrNull(2))
+            }
         }
         get("ranges").orEmpty().lines().forEach { line ->
             val bits = line.split('\t')
@@ -181,7 +188,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     private fun currentData(): Map<String, String> = mapOf(
         "functions" to functions.joinToString("\n") { MathCodec.encode(it.editor.root) },
         "colors" to functions.joinToString(",") { f -> f.customColor?.let { (it.toLong() and 0xFFFFFFFFL).toString() } ?: "" },
-        "styles" to functions.joinToString(",") { f -> "${f.lineStyle}:${f.thickness}" },
+        "styles" to functions.joinToString(",") { f -> "${f.lineStyle}:${f.thickness}:${f.colormap.name}" },
         "ranges" to ranges.entries.joinToString("\n") { "${it.key}\t${it.value.first}\t${it.value.second}" },
         "parameters" to parameters.entries.joinToString("\n") { "${it.key}\t${it.value}" },
     )
@@ -782,13 +789,20 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         prefs.edit()
             .putString("${key}_functions", functions.joinToString("\n") { MathCodec.encode(it.editor.root) })
             .putString("${key}_colors", functions.joinToString(",") { f -> f.customColor?.let { (it.toLong() and 0xFFFFFFFFL).toString() } ?: "" })
-            .putString("${key}_styles", functions.joinToString(",") { f -> "${f.lineStyle}:${f.thickness}" })
+            .putString("${key}_styles", functions.joinToString(",") { f -> "${f.lineStyle}:${f.thickness}:${f.colormap.name}" })
             .apply()
     }
 
     /** Line style (0 solid, 1 dashed, 2 dotted) and thickness in dp. */
     fun setStyle(f: PlotFunction, style: Int, thickness: Float) {
         f.lineStyle = style; f.thickness = thickness
+        version++
+        save()
+    }
+
+    /** The colours for arg f on the complex plane. */
+    fun setColormap(f: PlotFunction, map: com.example.cas.graph.Colormap) {
+        f.colormap = map
         version++
         save()
     }

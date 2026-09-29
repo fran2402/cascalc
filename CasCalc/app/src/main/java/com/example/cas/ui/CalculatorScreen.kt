@@ -71,6 +71,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
@@ -189,7 +190,7 @@ fun CalculatorScreen(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, m
  * follow the screen, like Google Calculator.
  */
 @Composable
-fun Keypad(host: KeypadHost, modifier: Modifier = Modifier, compact: Boolean = false) {
+fun Keypad(host: KeypadHost, modifier: Modifier = Modifier) {
     var showMatrixPicker by remember { mutableStateOf(false) }
     var showConstants by remember { mutableStateOf(false) }
     var showBuilder by remember { mutableStateOf(false) }
@@ -207,7 +208,8 @@ fun Keypad(host: KeypadHost, modifier: Modifier = Modifier, compact: Boolean = f
     )
     val screen = LocalConfiguration.current.screenHeightDp.dp
     // A little shorter than Google Calculator's keys, to leave more room for the maths.
-    val mainRow = (screen * (if (compact) 0.048f else 0.058f) * AppSettings.keypadScale).coerceIn(34.dp, 74.dp)
+    // The same size in all four modes (calculator, 2D, 3D, complex).
+    val mainRow = (screen * 0.052f * AppSettings.keypadScale).coerceIn(34.dp, 74.dp)
     val fnRow = mainRow * 0.76f
     Column(modifier) {
         KeypadHandle(onHide = { host.keypadHidden = true })
@@ -233,7 +235,7 @@ fun Keypad(host: KeypadHost, modifier: Modifier = Modifier, compact: Boolean = f
         } else if (host.mainVariable == "x") MainKeys else MainKeys.map { r ->
             r.map { k -> if (k.spoken == "x") KeySpec(KeyLabel.Math(row(com.example.cas.editor.Sym(host.mainVariable))), KeyAction.Type(host.mainVariable), k.role, host.mainVariable) else k }
         }
-        KeyGrid(pad, mainRow, onKey, fontSize = if (compact) 26f else 30f, modifier = Modifier.padding(bottom = 12.dp))
+        KeyGrid(pad, mainRow, onKey, fontSize = 28f, modifier = Modifier.padding(bottom = 12.dp))
     }
     if (showMatrixPicker) {
         MatrixPickerDialog(
@@ -639,9 +641,9 @@ private fun FunctionPanel(vm: KeypadHost, rowHeight: Dp, onKey: (KeyAction) -> U
                     )
                 },
         ) {
-            // Every group is the same height (four rows), so nothing shifts as they change;
-            // groups with fewer rows get taller keys instead.
-            val gridHeight = rowHeight * 4 + 7.dp * 3 + 16.dp
+            // Every group is the same height (three rows, as many as the fixed groups have), so
+            // nothing shifts as they change; the long lists scroll inside it.
+            val gridHeight = rowHeight * 3 + 7.dp * 2 + 16.dp
             AnimatedContent(
                 targetState = vm.selectedTab,
                 transitionSpec = {
@@ -1144,6 +1146,47 @@ private fun SettingsToggle(title: String, detail: String?, checked: Boolean, onC
     }
 }
 
+/** Swatches for the app's color (the first is the built-in olive), then any color of your own. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ThemeColorChoice() {
+    val colors = MaterialTheme.colorScheme
+    var picker by remember { mutableStateOf(false) }
+    val current = AppSettings.themeColor
+    val custom = TonalScheme.PRESETS.none { it.second == current }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("App color", color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            @Composable
+            fun Swatch(fill: Color, selected: Boolean, label: String, onClick: () -> Unit, content: @Composable () -> Unit = {}) {
+                Box(
+                    Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(fill)
+                        .then(if (selected) Modifier.border(3.dp, colors.onSurface, CircleShape) else Modifier)
+                        .clickable(onClickLabel = label, onClick = onClick)
+                        .semantics { contentDescription = label + if (selected) ", chosen" else "" },
+                    contentAlignment = Alignment.Center,
+                ) { content() }
+            }
+            TonalScheme.PRESETS.forEach { (name, seed) ->
+                // Olive shows the built-in palette's own green.
+                Swatch(Color(if (seed == 0) 0xFF5B6133.toInt() else seed), current == seed, name, onClick = { AppSettings.changeThemeColor(seed) })
+            }
+            Swatch(if (custom) Color(current) else colors.surfaceContainerHighest, custom, "Your own color", onClick = { picker = true }) {
+                Icon(Icons.Default.Edit, contentDescription = null, tint = if (custom) Color.White else colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
+            }
+        }
+    }
+    if (picker) ColorPickerDialog(
+        initial = Color(if (current == 0) 0xFF5B6133.toInt() else current),
+        // "Default" goes back to olive.
+        onPick = { c -> picker = false; AppSettings.changeThemeColor(c?.toArgb()?.let { if (it == 0) 1 else it } ?: 0) },
+        onDismiss = { picker = false },
+    )
+}
+
 @Composable
 private fun SettingsChoice(title: String, options: List<String>, selected: Int, onChange: (Int) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1196,9 +1239,12 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
 
                 SettingsSection("Appearance")
                 SettingsChoice("Theme", listOf("System", "Light", "Dark"), AppSettings.theme, AppSettings::changeTheme)
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                val wallpaperColors = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+                if (wallpaperColors) {
                     SettingsToggle("Colors from your wallpaper", "Material You dynamic color", AppSettings.dynamicColor, AppSettings::changeDynamicColor)
                 }
+                // Without Material You, the colors grow from one you choose.
+                if (!wallpaperColors || !AppSettings.dynamicColor) ThemeColorChoice()
                 SettingsChoice("Maths size", listOf("Small", "Medium", "Large"), AppSettings.mathSize, AppSettings::changeMathSize)
                 SettingsChoice("Keypad size", listOf("Compact", "Medium", "Tall"), AppSettings.keypadSize, AppSettings::changeKeypadSize)
                 SettingsToggle("Expressive motion", "Springy animations; off for calmer ones", AppSettings.expressiveMotion, AppSettings::changeExpressiveMotion)

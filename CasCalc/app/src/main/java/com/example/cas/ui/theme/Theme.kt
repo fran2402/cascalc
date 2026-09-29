@@ -15,6 +15,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.ExperimentalTextApi
@@ -74,6 +75,10 @@ fun CasTheme(content: @Composable () -> Unit) {
     val colors: ColorScheme = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && com.example.cas.ui.AppSettings.dynamicColor ->
             if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        // Your own color, or olive by default.
+        com.example.cas.ui.AppSettings.themeColor != 0 -> remember(com.example.cas.ui.AppSettings.themeColor, dark) {
+            schemeOf(com.example.cas.ui.TonalScheme.from(com.example.cas.ui.AppSettings.themeColor, dark), dark)
+        }
         dark -> DarkFallback
         else -> LightFallback
     }
@@ -91,9 +96,33 @@ fun CasTheme(content: @Composable () -> Unit) {
     }
 }
 
+/** A generated scheme as Material's; the roles it doesn't set keep Material's defaults. */
+private fun schemeOf(r: com.example.cas.ui.TonalScheme.Roles, dark: Boolean): ColorScheme {
+    val base = if (dark) DarkFallback else LightFallback
+    return base.copy(
+        primary = Color(r.primary), onPrimary = Color(r.onPrimary),
+        primaryContainer = Color(r.primaryContainer), onPrimaryContainer = Color(r.onPrimaryContainer),
+        secondary = Color(r.secondary), onSecondary = Color(r.onSecondary),
+        secondaryContainer = Color(r.secondaryContainer), onSecondaryContainer = Color(r.onSecondaryContainer),
+        tertiary = Color(r.tertiary), onTertiary = Color(r.onTertiary),
+        tertiaryContainer = Color(r.tertiaryContainer), onTertiaryContainer = Color(r.onTertiaryContainer),
+        background = Color(r.background), onBackground = Color(r.onBackground),
+        surface = Color(r.surface), onSurface = Color(r.onSurface),
+        surfaceVariant = Color(r.surfaceVariant), onSurfaceVariant = Color(r.onSurfaceVariant),
+        surfaceContainerLowest = Color(r.surfaceContainerLowest), surfaceContainerLow = Color(r.surfaceContainerLow),
+        surfaceContainer = Color(r.surfaceContainer), surfaceContainerHigh = Color(r.surfaceContainerHigh),
+        surfaceContainerHighest = Color(r.surfaceContainerHighest),
+        surfaceBright = Color(if (dark) r.surfaceContainerHighest else r.surface), surfaceDim = Color(if (dark) r.surface else r.surfaceContainerHighest),
+        surfaceTint = Color(r.primary),
+        inverseSurface = Color(r.inverseSurface), inverseOnSurface = Color(r.inverseOnSurface), inversePrimary = Color(r.inversePrimary),
+        outline = Color(r.outline), outlineVariant = Color(r.outlineVariant),
+    )
+}
+
 /** The "=" key: bright peach in dark mode, soft peach in light mode, like Google Calculator. */
 val ColorScheme.equalsKey: Pair<Color, Color>
-    @Composable get() = if (isSystemInDarkTheme()) tertiary to onTertiary else tertiaryContainer to onTertiaryContainer
+    // Dark or light as the app is shown (the theme setting can differ from the system's).
+    @Composable get() = if (surface.luminance() < 0.5f) tertiary to onTertiary else tertiaryContainer to onTertiaryContainer
 
 @OptIn(ExperimentalTextApi::class)
 /** Google Sans Flex, always fully rounded (ROND 100) — the only look used outside the maths. */

@@ -95,7 +95,7 @@ fun ComplexScreen(vm: ComplexViewModel, modifier: Modifier = Modifier) {
         }
         FunctionList(vm, outputLabel = "f(z)")
         AnimatedVisibility(visible = vm.active != null && !vm.keypadHidden, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-            Keypad(vm, compact = true)
+            Keypad(vm)
         }
     }
 }
@@ -122,11 +122,12 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
         if (v == null || size.width == 0) emptyList() else vm.functions.filter { it.visible && it.complexCurve != null }.mapNotNull { fn ->
             val g = fn.complexCurve!!
             runCatching { com.example.cas.graph.Curves.implicit({ x, y -> vm.call(fn, g, x, y) }, v, (size.width / 6).coerceIn(40, 200), (size.height / 6).coerceIn(40, 260)) }.getOrNull()
+                ?.let { complexLineColor(fn) to it }
         }
     }
 
     // Render coarse first so panning feels live, then sharper once the view settles.
-    LaunchedEffect(view, vm.version, size, vm.options, params, f, AppSettings.complexQuality) {
+    LaunchedEffect(view, vm.version, size, vm.options, params, f, f?.colormap, AppSettings.complexQuality) {
         val v = view ?: return@LaunchedEffect
         val c = f?.complexCompiled
         if (c == null || size.width == 0) { image = null; return@LaunchedEffect }
@@ -142,7 +143,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
                 val h = (size.height / divisor).coerceAtLeast(1)
                 val ctx = coroutineContext
                 val px = withContext(Dispatchers.Default) {
-                    DomainColoring.render(c, p, v, w, h, vm.options) { !ctx.isActive }
+                    DomainColoring.render(c, p, v, w, h, vm.options.copy(colormap = f.colormap)) { !ctx.isActive }
                 } ?: return@LaunchedEffect
                 image = Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888).asImageBitmap()
             }
@@ -220,31 +221,33 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
                 }
             }
             // Curves, outlined so they show on any colour.
-            curves.forEach { segs ->
+            curves.forEach { (lineColor, segs) ->
                 val path = Path()
                 segs.forEach { sg ->
                     path.moveTo(((sg[0] - v.xMin) / v.width * size.width).toFloat(), ((v.yMax - sg[1]) / v.height * size.height).toFloat())
                     path.lineTo(((sg[2] - v.xMin) / v.width * size.width).toFloat(), ((v.yMax - sg[3]) / v.height * size.height).toFloat())
                 }
                 drawPath(path, Color.Black.copy(alpha = 0.55f), style = Stroke(4.5.dp.toPx(), cap = StrokeCap.Round))
-                drawPath(path, Color.White, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
+                drawPath(path, lineColor, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
             }
             // Typed contour integrals: the circle, an arrow showing it runs anticlockwise, and the value.
             vm.functions.filter { it.visible && it.contour != null }.forEach { fn ->
                 val c = fn.contour!!
+                // Its own plain color, white unless one was picked.
+                val lineColor = complexLineColor(fn)
                 val cx = ((c.centerRe - v.xMin) / v.width * size.width).toFloat()
                 val cy = ((v.yMax - c.centerIm) / v.height * size.height).toFloat()
                 val rx = (c.radius / v.width * size.width).toFloat()
                 val ry = (c.radius / v.height * size.height).toFloat()
                 val oval = androidx.compose.ui.geometry.Rect(cx - rx, cy - ry, cx + rx, cy + ry)
                 drawOval(Color.Black.copy(alpha = 0.55f), oval.topLeft, oval.size, style = Stroke(4.5.dp.toPx()))
-                drawOval(Color.White, oval.topLeft, oval.size, style = Stroke(2.dp.toPx()))
+                drawOval(lineColor, oval.topLeft, oval.size, style = Stroke(2.dp.toPx()))
                 // Arrowhead at the right of the circle, pointing up (anticlockwise).
                 val tip = Offset(cx + rx, cy - 8.dp.toPx())
                 val arrow = Path().apply {
                     moveTo(tip.x, tip.y); lineTo(tip.x - 6.dp.toPx(), tip.y + 10.dp.toPx()); lineTo(tip.x + 6.dp.toPx(), tip.y + 10.dp.toPx()); close()
                 }
-                drawPath(arrow, Color.White)
+                drawPath(arrow, lineColor)
                 drawPath(arrow, Color.Black.copy(alpha = 0.55f), style = Stroke(1.dp.toPx()))
                 // The value in rounded Google Sans Flex, to at most 4 decimals.
                 val shown = runCatching { roundedComplex(com.example.cas.cas.Numeric.eval(c.value)) }.getOrDefault("?")
