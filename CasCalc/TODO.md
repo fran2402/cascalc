@@ -2,11 +2,7 @@
 
 From the list of 28 September, in the order I'd tackle them.
 
-## Bugs
-- The gradient key crashed when drawn. It now has its own drawing (∇ with the order box raised,
-  the argument in brackets) and the key label uses it, instead of a lone power after ∇. The
-  crash couldn't be reproduced without a phone, so check it there; if it still crashes, the
-  line from `adb logcat -b crash -d | grep -A25 "Process: com.example.cas"` will say where.
+Nothing left from the list. New ideas go here.
 
 ## Done
 - Keypad: one size in all four modes; the extended keypad is three rows tall. Earlier: mod
@@ -36,6 +32,6 @@ From the list of 28 September, in the order I'd tackle them.
   graph settings in 3D and complex; pin card bug; one-line formulas; Σ/Π with x; lists in
   lines, polygons, tables, notes and folders.
 
-## Ideas not done yet
-- Desmos's list ranges ([1...10]) and list comprehensions.
-- Folders inside folders.
+- Fifth round: list ranges ([1...10], [1, 3, ...11]) and comprehensions
+  ([n² for n = [1...5]], also for points); folders inside folders; the ∇ crash note closed (everything
+  was reported working after its fix).

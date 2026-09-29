@@ -195,6 +195,16 @@ Constants and symbols are long lists and scroll up and down in place; the others
 Groups: Basic, Trigonometry, Calculus, Vector calculus, Linear algebra, Statistics, Complex
 numbers, Physical constants, Symbols.
 
+## Latest changes (29 September, fifth round)
+- **List ranges**: [1...10] counts in ones, [1, 3, ...11] in the step of its first two
+  entries (type "..." as three points). They work anywhere a list does: y = [1...5]x.
+- **List comprehensions**: [n² for n = [1...5]] (type "for" with the letters), so
+  y = [nx for n = [1...3]] draws three lines and [(n, n²) for n = [1...10]] ten points.
+  At most 100 entries.
+- **Folders inside folders**: a folder's ⋮ menu puts it inside the folder above or takes it
+  out; lines are indented by how deep they are, and closing or hiding a folder does the same
+  to everything in it, subfolders included.
+
 ## Latest changes (29 September, fourth round)
 - **Colormap picker** is a popup again: one-word names (Viridis, RdBu, Dusk…); your maps are
   dragged by their handle to reorder and swiped away to remove; More colormaps opens below

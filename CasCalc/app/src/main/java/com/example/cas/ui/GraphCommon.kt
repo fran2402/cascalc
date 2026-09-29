@@ -1,5 +1,11 @@
 package com.example.cas.ui
 
+import androidx.compose.material.icons.automirrored.filled.FormatIndentDecrease
+
+import androidx.compose.material.icons.automirrored.filled.FormatIndentIncrease
+
+import androidx.compose.material.icons.filled.MoreVert
+
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -501,7 +507,10 @@ fun FunctionList(vm: GraphViewModel, outputLabel: String, modifier: Modifier = M
         } else {
             // Drag a row by its handle (or hold it anywhere) to move it; swipe it away to delete it.
             // Lines in a closed folder are left out.
-            ReorderableRows(vm, hidden = { f -> !f.isFolder && vm.folderOf(f)?.collapsed == true }) { f, handle -> FunctionRow(vm, f, outputLabel, handle) }
+            // Items are indented by how many folders they're in.
+            ReorderableRows(vm, hidden = { f -> vm.hiddenByFolder(f) }) { f, handle ->
+                Box(Modifier.padding(start = (14 * vm.enclosing(f).size).dp)) { FunctionRow(vm, f, outputLabel, handle) }
+            }
         }
         vm.tableFor?.let { f -> PointTableDialog(vm, f, onDismiss = { vm.tableFor = null }) }
         val params = shown.filter { it.visible }.flatMap { it.parameters }.distinct() - vm.definedLetters
@@ -1073,7 +1082,30 @@ private fun TextRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
         if (f.isFolder && f.collapsed) {
             Text("${vm.folderMembers(f).size}", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
         }
-        IconButton(onClick = { vm.remove(f) }) {
+        if (f.isFolder) {
+            // Nesting, and deleting, from the folder's menu.
+            var menu by remember { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Folder options", tint = colors.onSurfaceVariant) }
+                androidx.compose.material3.DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    if (vm.canNest(f)) androidx.compose.material3.DropdownMenuItem(
+                        text = { Text("Put inside the folder above") },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.FormatIndentIncrease, null) },
+                        onClick = { menu = false; vm.nestFolder(f, 1) },
+                    )
+                    if (f.folderLevel > 0) androidx.compose.material3.DropdownMenuItem(
+                        text = { Text("Take out of its folder") },
+                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.FormatIndentDecrease, null) },
+                        onClick = { menu = false; vm.nestFolder(f, -1) },
+                    )
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text("Delete folder") },
+                        leadingIcon = { Icon(Icons.Default.Delete, null) },
+                        onClick = { menu = false; vm.remove(f) },
+                    )
+                }
+            }
+        } else IconButton(onClick = { vm.remove(f) }) {
             Icon(Icons.Default.Close, contentDescription = "Remove", tint = colors.onSurfaceVariant)
         }
         if (handle != null) Icon(Icons.Default.DragIndicator, contentDescription = "Drag to reorder", tint = colors.onSurfaceVariant, modifier = handle.size(40.dp).padding(8.dp))

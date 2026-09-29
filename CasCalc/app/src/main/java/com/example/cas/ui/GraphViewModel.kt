@@ -99,6 +99,8 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
     var isFolder by mutableStateOf(false)
     /** A folder showing only its title. */
     var collapsed by mutableStateOf(false)
+    /** How deep a folder is nested: 0 at the top, 1 inside another folder, and so on. */
+    var folderLevel by mutableStateOf(0)
     /** Notes and folders aren't drawn. */
     val isText get() = note != null
 }
@@ -207,6 +209,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 f.note = t.optString("text", "")
                 f.isFolder = t.optBoolean("folder", false)
                 f.collapsed = t.optBoolean("collapsed", false)
+                f.folderLevel = t.optInt("level", 0)
             }
         }
         get("colors")?.split(",")?.forEachIndexed { i, c ->
@@ -527,6 +530,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 items = body
             }
             fun rowOf(nodes: List<com.example.cas.editor.Node>) = MathCodec.copy(MathRow(nodes.toMutableList()))
+            // A list written as a range or comprehension ([(n, n²) for n = [1...10]]) is spelled out first.
+            if (items === f.editor.root.items) com.example.cas.editor.ListFamily.spelledOut(f.editor.root)?.let { items = it.items.toList() }
             // [(x₁, y₁), (x₂, y₂), …]: a list of points.
             if ((items.firstOrNull() as? com.example.cas.editor.Sym)?.text == "[" && (items.lastOrNull() as? com.example.cas.editor.Sym)?.text == "]") {
                 val entries = splitTopLevel(items.subList(1, items.size - 1)).filter { it.isNotEmpty() }
@@ -973,7 +978,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     /** Notes' and folders' texts, by position (null for maths lines). */
     private fun notesJson(): String = org.json.JSONArray().apply {
         functions.forEach { f ->
-            put(if (!f.isText) org.json.JSONObject.NULL else org.json.JSONObject().apply { put("text", f.note); put("folder", f.isFolder); put("collapsed", f.collapsed) })
+            put(if (!f.isText) org.json.JSONObject.NULL else org.json.JSONObject().apply { put("text", f.note); put("folder", f.isFolder); put("collapsed", f.collapsed); put("level", f.folderLevel) })
         }
     }.toString()
 
@@ -989,15 +994,37 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
 
     fun setNote(f: PlotFunction, text: String) { f.note = text; save() }
 
-    /** The lines in a folder: those after it, up to the next folder. */
-    fun folderMembers(folder: PlotFunction): List<PlotFunction> {
-        val i = functions.indexOf(folder)
-        if (i < 0 || !folder.isFolder) return emptyList()
-        return functions.drop(i + 1).takeWhile { !it.isFolder }
+    /** Each item's folder level, or null for lines, as [com.example.cas.graph.FolderTree] reads them. */
+    private fun folderLevels(): List<Int?> = functions.map { if (it.isFolder) it.folderLevel else null }
+
+    /** Everything in a folder, nested folders and their lines included. */
+    fun folderMembers(folder: PlotFunction): List<PlotFunction> =
+        if (!folder.isFolder) emptyList() else com.example.cas.graph.FolderTree.members(folderLevels(), functions.indexOf(folder)).map { functions[it] }
+
+    /** The folders an item is in, outermost first. */
+    fun enclosing(f: PlotFunction): List<PlotFunction> {
+        val i = functions.indexOf(f)
+        return if (i < 0) emptyList() else com.example.cas.graph.FolderTree.enclosing(folderLevels(), i).map { functions[it] }
     }
 
-    /** The folder a line is in, if any. */
-    fun folderOf(f: PlotFunction): PlotFunction? = functions.take(functions.indexOf(f).coerceAtLeast(0)).lastOrNull { it.isFolder }
+    /** The folder an item is directly in, if any. */
+    fun folderOf(f: PlotFunction): PlotFunction? = enclosing(f).lastOrNull()
+
+    /** Whether a closed folder hides this item. */
+    fun hiddenByFolder(f: PlotFunction) = enclosing(f).any { it.collapsed }
+
+    /** Whether [folder] can go one level deeper (inside the folder above it). */
+    fun canNest(folder: PlotFunction) = folder.isFolder && com.example.cas.graph.FolderTree.canNest(folderLevels(), functions.indexOf(folder))
+
+    /** Puts a folder inside the folder above it (+1), or takes it out of its folder (−1); its own folders move with it. */
+    fun nestFolder(folder: PlotFunction, by: Int) {
+        if (!folder.isFolder || (by > 0 && !canNest(folder)) || folder.folderLevel + by < 0) return
+        val inside = folderMembers(folder).filter { it.isFolder }
+        folder.folderLevel += by
+        inside.forEach { it.folderLevel = (it.folderLevel + by).coerceAtLeast(0) }
+        version++
+        save()
+    }
 
     fun toggleCollapsed(folder: PlotFunction) { folder.collapsed = !folder.collapsed; save() }
 
