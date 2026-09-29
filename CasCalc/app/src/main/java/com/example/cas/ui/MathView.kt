@@ -1,5 +1,15 @@
 package com.example.cas.ui
 
+import androidx.compose.runtime.remember
+
+import androidx.compose.ui.input.pointer.PointerEventPass
+
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+
+import androidx.compose.foundation.gestures.awaitFirstDown
+
+import androidx.compose.foundation.gestures.awaitEachGesture
+
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -208,7 +218,35 @@ fun RowView(row: MathRow, level: Int) {
     val env = LocalMath.current
     val active = env.cursorRow === row
     val items = row.items.toList()
+    // Where each item starts and ends across the row (filled in by the layout), for taps beside
+    // a fraction, root or function: those put the cursor before or after it, not inside.
+    val edges = remember(row) { IntArray(2 * 64) }
+    val edgeCount = remember(row) { IntArray(1) }
+    val onTap = env.onTap
+    val besideTaps = if (onTap == null || items.isEmpty()) Modifier else Modifier.pointerInput(row, onTap, items.size) {
+        val band = 10.dp.toPx()
+        awaitEachGesture {
+            // Seen before the boxes inside (Initial pass), and only claimed near a structure's edge.
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            val x = down.position.x
+            val n = edgeCount[0]
+            var index = -1
+            for (k in 0 until n) {
+                val node = items.getOrNull(k) ?: break
+                if (node is Sym || node is Const) continue
+                val a = edges[2 * k].toFloat(); val b = edges[2 * k + 1].toFloat()
+                val w = minOf(band, (b - a) * 0.25f)
+                if (x in (a - band)..(a + w)) { index = k; break }
+                if (x in (b - w)..(b + band)) { index = k + 1; break }
+            }
+            if (index < 0) return@awaitEachGesture
+            down.consume()
+            val up = waitForUpOrCancellation(pass = PointerEventPass.Initial)
+            if (up != null) { up.consume(); onTap(row, index) }
+        }
+    }
     Layout(
+        modifier = besideTaps,
         content = {
             // The top-level input shows just the cursor when empty; inner slots show a box.
             if (items.isEmpty() && row.parent != null) Placeholder(row, level, active)
@@ -301,11 +339,15 @@ fun RowView(row: MathRow, level: Int) {
             var x = 0
             var cursorX = 0
             val itemOffset = if (items.isEmpty() && row.parent != null) 1 else 0
+            var recorded = 0
             placeables.forEachIndexed { k, p ->
                 if (k - itemOffset == env.cursorIndex && items.isNotEmpty()) cursorX = x
                 p!!.place(x, asc - axes[k])
+                val item = k - itemOffset
+                if (item in 0 until minOf(items.size, 64)) { edges[2 * item] = x; edges[2 * item + 1] = x + p.width; recorded = item + 1 }
                 x += p.width
             }
+            edgeCount[0] = recorded
             if (items.isNotEmpty() && env.cursorIndex >= items.size) cursorX = x
             if (items.isEmpty()) cursorX = if (row.parent != null) (em * 0.12f).roundToInt() else cursor?.width ?: 0
             cursor?.place(cursorX - cursor.width / 2, (asc + desc - cursor.height) / 2)

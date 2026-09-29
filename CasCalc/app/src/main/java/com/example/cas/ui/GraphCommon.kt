@@ -1,5 +1,13 @@
 package com.example.cas.ui
 
+import androidx.compose.foundation.layout.fillMaxHeight
+
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+
+import kotlinx.coroutines.launch
+
+import androidx.compose.runtime.rememberCoroutineScope
+
 import androidx.compose.material.icons.automirrored.filled.FormatIndentDecrease
 
 import androidx.compose.material.icons.automirrored.filled.FormatIndentIncrease
@@ -22,9 +30,7 @@ import androidx.compose.material.icons.filled.Notes
 
 import androidx.compose.material.icons.filled.TableChart
 
-import androidx.compose.foundation.layout.wrapContentWidth
 
-import androidx.compose.ui.draw.clipToBounds
 
 import androidx.compose.material.icons.filled.SwapHoriz
 
@@ -487,17 +493,18 @@ fun shortNumber(v: Double): String {
  * While a function is being edited, only that one is shown so the keypad fits.
  */
 @Composable
-fun FunctionList(vm: GraphViewModel, outputLabel: String, modifier: Modifier = Modifier) {
+fun FunctionList(vm: GraphViewModel, outputLabel: String, modifier: Modifier = Modifier, tablet: Boolean = false) {
     val colors = MaterialTheme.colorScheme
     val editing = vm.active
     // While a line is being edited only that line shows, unless the keypad is hidden: then the
-    // whole list is back, as it is after Enter.
-    val shown = if (editing != null && !vm.keypadHidden) listOf(editing) else vm.functions.toList()
-    val editingNow = editing?.takeIf { !vm.keypadHidden }
+    // whole list is back, as it is after Enter. On a tablet the whole list always shows, in a
+    // column of its own beside the keyboard.
+    val editingNow = editing?.takeIf { !vm.keypadHidden && !tablet }
+    val shown = if (editingNow != null) listOf(editingNow) else vm.functions.toList()
     Column(
         modifier
             .fillMaxWidth()
-            .heightIn(max = if (editingNow != null) 200.dp else 280.dp)
+            .then(if (tablet) Modifier.fillMaxHeight() else Modifier.heightIn(max = if (editingNow != null) 200.dp else 280.dp))
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -513,6 +520,16 @@ fun FunctionList(vm: GraphViewModel, outputLabel: String, modifier: Modifier = M
             }
         }
         vm.tableFor?.let { f -> PointTableDialog(vm, f, onDismiss = { vm.tableFor = null }) }
+        // "Ask before deleting" (settings) covers graph lines too.
+        vm.pendingRemoval?.let { f ->
+            AlertDialog(
+                onDismissRequest = { vm.pendingRemoval = null },
+                title = { Text(if (f.isFolder) "Delete this folder?" else if (f.isText) "Delete this note?" else "Delete this line?") },
+                text = { Text(if (f.isFolder) "The lines in it stay, outside the folder." else "It will be removed from the graph.") },
+                confirmButton = { TextButton(onClick = { vm.pendingRemoval = null; vm.remove(f) }) { Text("Delete") } },
+                dismissButton = { TextButton(onClick = { vm.pendingRemoval = null }) { Text("Cancel") } },
+            )
+        }
         val params = shown.filter { it.visible }.flatMap { it.parameters }.distinct() - vm.definedLetters
         params.forEach { p -> ParameterSlider(vm, p) }
     }
@@ -607,14 +624,9 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
                 else -> "y ="
             }
             // No "y =", "z =" or "f(z) =": the line is read from what's typed, as in Desmos.
-            // Scrolls sideways only while being edited; in the list a sideways swipe deletes the
-            // line instead, and a long line is cut off at the edge (tap it to see it all).
-            Box(
-                Modifier.weight(1f).then(
-                    if (active) Modifier.horizontalScroll(rememberScrollState())
-                    else Modifier.clipToBounds().wrapContentWidth(Alignment.Start, unbounded = true),
-                ),
-            ) {
+            // Long lines scroll sideways; a swipe that starts on the row's edges (the dot on the
+            // left, the × and handle on the right) deletes the line instead.
+            Box(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
                 // A long list (an imported file) shows its start and how many points, until it's edited.
                 val items = f.editor.root.items
                 val shortened = if (!active && items.size > 300) remember(f.version) {
@@ -642,7 +654,7 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             }
             // Fit sits at the end of the row once the graph has a list of points.
             if (handle != null && vm.canFit(f)) FitButton(vm, f)
-            IconButton(onClick = { vm.remove(f) }) {
+            IconButton(onClick = { vm.requestRemove(f) }) {
                 Icon(Icons.Default.Close, contentDescription = "Remove", tint = colors.onSurfaceVariant)
             }
             // Drag here to move the line up or down the list.
@@ -734,17 +746,18 @@ private fun ParameterSlider(vm: GraphViewModel, name: String) {
         IconButton(onClick = { vm.togglePlay(name) }, modifier = Modifier.size(40.dp)) {
             Icon(
                 if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
-                contentDescription = if (playing) "Pause $name" else "Animate $name",
+                contentDescription = if (playing) "Pause ${spokenName(name)}" else "Animate ${spokenName(name)}",
                 tint = if (playing) colors.primary else colors.onSurfaceVariant,
             )
         }
-        Text(name, color = colors.onSurface, style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 20.sp), modifier = Modifier.width(28.dp))
+        // A built symbol (x̂₁) drawn as the maths draws it, not as its stored text.
+        SymbolName(name, 20.sp, colors.onSurface, Modifier.widthIn(min = 28.dp).padding(end = 4.dp))
         val step = (hi - lo) / 200
         ExpressiveSlider(
             value = value.toFloat(),
             onValueChange = { vm.setParameter(name, Math.round(it / step) * step) },
             valueRange = lo.toFloat()..hi.toFloat(),
-            modifier = Modifier.weight(1f).semantics { contentDescription = "Value of $name, from ${shortNumber(lo)} to ${shortNumber(hi)}" },
+            modifier = Modifier.weight(1f).semantics { contentDescription = "Value of ${spokenName(name)}, from ${shortNumber(lo)} to ${shortNumber(hi)}" },
         )
         // Tap the value to type it, or change the slider's range.
         Box(
@@ -752,7 +765,7 @@ private fun ParameterSlider(vm: GraphViewModel, name: String) {
                 .padding(start = 6.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(colors.surfaceContainerHigh)
-                .clickable(onClickLabel = "Type a value for $name") { editing = true }
+                .clickable(onClickLabel = "Type a value for ${spokenName(name)}") { editing = true }
                 .padding(horizontal = 10.dp, vertical = 6.dp),
         ) {
             // Always the same decimals for this range (its step), in a width that fits either end,
@@ -781,7 +794,7 @@ private fun SliderDialog(name: String, value: Double, min: Double, max: Double, 
     val valid = nv != null && na != null && nb != null && na < nb
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(mathLabel(name)) },
+        title = { SymbolName(name, 24.sp, MaterialTheme.colorScheme.onSurface) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(v, { v = it }, singleLine = true, label = { Text("Value") }, modifier = Modifier.fillMaxWidth())
@@ -790,7 +803,7 @@ private fun SliderDialog(name: String, value: Double, min: Double, max: Double, 
                     OutlinedTextField(b, { b = it }, singleLine = true, label = { Text("To") }, modifier = Modifier.weight(1f))
                 }
                 Text(
-                    "You can also set it with a line of its own, like $name = 3.",
+                    "You can also set it with a line of its own, like ${spokenName(name)} = 3.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -805,6 +818,19 @@ private fun SliderDialog(name: String, value: Double, min: Double, max: Double, 
  * A label like "f(z) =" or "(x, y) =": letters in italic Computer Modern, brackets, commas
  * and = upright, as in the maths.
  */
+/** A slider's letter: a built symbol drawn with its accent and scripts, otherwise an italic letter. */
+@Composable
+fun SymbolName(name: String, size: androidx.compose.ui.unit.TextUnit, color: Color, modifier: Modifier = Modifier) {
+    if (com.example.cas.cas.CustomSymbol.isCustom(name)) {
+        Box(modifier) { MathView(MathRow(mutableListOf(Sym(name))), size, color) }
+    } else {
+        Text(mathLabel(name), color = color, style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = size), modifier = modifier)
+    }
+}
+
+/** A letter as words can carry it: a built symbol as plain text (x̂_1), anything else as it is. */
+fun spokenName(name: String): String = com.example.cas.cas.CustomSymbol.decode(name)?.plain ?: name
+
 fun mathLabel(text: String): androidx.compose.ui.text.AnnotatedString = androidx.compose.ui.text.buildAnnotatedString {
     for (c in text) {
         if (c.isLetter()) {
@@ -905,12 +931,13 @@ private fun ReorderableRows(vm: GraphViewModel, hidden: (PlotFunction) -> Boolea
         // Keyed by the line, so its drag carries on after it moves past another.
         key(f) {
             val lifted = dragging === f
+            // Up and down only, so a sideways swipe from the handle still deletes the line.
             val handle = Modifier.pointerInput(f) {
-                detectDragGestures(
+                detectVerticalDragGestures(
                     onDragStart = { tap(); dragging = f; offset = 0f },
                     onDragEnd = { dragging = null; offset = 0f },
                     onDragCancel = { dragging = null; offset = 0f },
-                    onDrag = { change, amount -> change.consume(); dragBy(f, amount.y) },
+                    onVerticalDrag = { change, dy -> change.consume(); dragBy(f, dy) },
                 )
             }
             Box(
@@ -928,7 +955,7 @@ private fun ReorderableRows(vm: GraphViewModel, hidden: (PlotFunction) -> Boolea
                         )
                     },
             ) {
-                SwipeToRemove(onRemove = { vm.remove(f) }) { row(f, handle) }
+                SwipeToRemove(onRemove = { vm.requestRemove(f) }, asks = { AppSettings.confirmDeleteEntry }) { row(f, handle) }
             }
         }
     }
@@ -936,10 +963,11 @@ private fun ReorderableRows(vm: GraphViewModel, hidden: (PlotFunction) -> Boolea
 
 /** Swipe a line sideways (either way) to delete it; a red strip with a bin shows underneath. */
 @Composable
-private fun SwipeToRemove(onRemove: () -> Unit, content: @Composable () -> Unit) {
+private fun SwipeToRemove(onRemove: () -> Unit, asks: () -> Boolean = { false }, content: @Composable () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val state = androidx.compose.material3.rememberSwipeToDismissBoxState(
-        confirmValueChange = { value -> if (value != androidx.compose.material3.SwipeToDismissBoxValue.Settled) { onRemove(); true } else false },
+        // When it asks first, the row snaps back and the dialog decides.
+        confirmValueChange = { value -> if (value != androidx.compose.material3.SwipeToDismissBoxValue.Settled) { onRemove(); !asks() } else false },
     )
     androidx.compose.material3.SwipeToDismissBox(
         state = state,
@@ -1018,11 +1046,12 @@ fun GraphBottomBar(
                 if (tables) androidx.compose.material3.DropdownMenuItem(text = { Text("Table") }, leadingIcon = { Icon(Icons.Default.TableChart, null) }, onClick = { menu = false; vm.addTable() })
             }
         }
-        if (vm.active != null && vm.keypadHidden) {
+        leading()
+        // After + and the file button; tablets always show the keyboard, so never there.
+        if (vm.active != null && vm.keypadHidden && !isTabletLayout()) {
             Spacer(Modifier.width(8.dp))
             ShowKeypadButton(onClick = { vm.keypadHidden = false })
         }
-        leading()
         Spacer(Modifier.weight(1f))
         if (tools != null) ExpressiveToolbar(content = tools)
         if (onExport != null) {
@@ -1101,11 +1130,11 @@ private fun TextRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
                     androidx.compose.material3.DropdownMenuItem(
                         text = { Text("Delete folder") },
                         leadingIcon = { Icon(Icons.Default.Delete, null) },
-                        onClick = { menu = false; vm.remove(f) },
+                        onClick = { menu = false; vm.requestRemove(f) },
                     )
                 }
             }
-        } else IconButton(onClick = { vm.remove(f) }) {
+        } else IconButton(onClick = { vm.requestRemove(f) }) {
             Icon(Icons.Default.Close, contentDescription = "Remove", tint = colors.onSurfaceVariant)
         }
         if (handle != null) Icon(Icons.Default.DragIndicator, contentDescription = "Drag to reorder", tint = colors.onSurfaceVariant, modifier = handle.size(40.dp).padding(8.dp))
@@ -1114,56 +1143,156 @@ private fun TextRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
 
 /**
  * A list of points as a table, as Desmos has: an x and a y for each row, rows added and
- * removed, and the line rewritten as [(x₁, y₁), …] when done. Empty rows are skipped.
+ * removed, and the line rewritten as [(x₁, y₁), …] when done. Empty rows are skipped. Rows are
+ * built as they scroll into view, so long data (thousands of points) stays quick.
  */
 @Composable
 private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val kind = f.plot as? Plot2DKind.PointList
-    val tooMany = (kind?.xs?.size ?: 0) > 300
     val rows = remember(f) {
         androidx.compose.runtime.mutableStateListOf<Pair<String, String>>().apply {
-            if (kind != null && !tooMany) kind.xs.indices.forEach { add(com.example.cas.graph.Csv.numberText(kind.xs[it]).replace("−", "-") to com.example.cas.graph.Csv.numberText(kind.ys[it]).replace("−", "-")) }
+            if (kind != null) kind.xs.indices.forEach { add(com.example.cas.graph.Csv.numberText(kind.xs[it]).replace("−", "-") to com.example.cas.graph.Csv.numberText(kind.ys[it]).replace("−", "-")) }
             while (size < 3) add("" to "")
         }
     }
     fun num(t: String) = t.trim().replace("−", "-").replace(",", ".").toDoubleOrNull()?.takeIf { it.isFinite() }
     val filled = rows.filter { it.first.isNotBlank() || it.second.isNotBlank() }
-    val valid = filled.isNotEmpty() && filled.all { num(it.first) != null && num(it.second) != null }
+    val bad = filled.count { num(it.first) == null || num(it.second) == null }
+    val valid = filled.isNotEmpty() && bad == 0
+    val list = androidx.compose.foundation.lazy.rememberLazyListState()
+    val scope = rememberCoroutineScope()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Table") },
+        title = { Text("Table · ${filled.size} points") },
         text = {
-            if (tooMany) {
-                Text("This list has ${kind?.xs?.size} points, too many to edit here. Edit the line instead.", color = colors.onSurfaceVariant)
-            } else Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("x", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 20.sp), modifier = Modifier.weight(1f).padding(start = 12.dp))
-                    Text("y", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 20.sp), modifier = Modifier.weight(1f).padding(start = 12.dp))
-                    Spacer(Modifier.width(40.dp))
+                    Text("#", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.width(40.dp))
+                    Text("x", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 20.sp), modifier = Modifier.weight(1f).padding(start = 8.dp))
+                    Text("y", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 20.sp), modifier = Modifier.weight(1f).padding(start = 8.dp))
+                    Spacer(Modifier.width(36.dp))
                 }
-                rows.forEachIndexed { i, (x, y) ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        androidx.compose.material3.OutlinedTextField(x, { rows[i] = it to rows[i].second }, singleLine = true, isError = x.isNotBlank() && num(x) == null, modifier = Modifier.weight(1f))
-                        androidx.compose.material3.OutlinedTextField(y, { rows[i] = rows[i].first to it }, singleLine = true, isError = y.isNotBlank() && num(y) == null, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { rows.removeAt(i) }, modifier = Modifier.size(40.dp)) {
-                            Icon(Icons.Default.Close, contentDescription = "Remove row ${i + 1}", tint = colors.onSurfaceVariant)
+                androidx.compose.foundation.lazy.LazyColumn(state = list, modifier = Modifier.heightIn(max = 380.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    items(rows.size) { i ->
+                        val (x, y) = rows[i]
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text("${i + 1}", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.width(34.dp))
+                            TableCell(x, x.isNotBlank() && num(x) == null, Modifier.weight(1f)) { rows[i] = it to rows[i].second }
+                            TableCell(y, y.isNotBlank() && num(y) == null, Modifier.weight(1f)) { rows[i] = rows[i].first to it }
+                            IconButton(onClick = { rows.removeAt(i) }, modifier = Modifier.size(32.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = "Remove row ${i + 1}", tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                            }
                         }
                     }
                 }
-                TextButton(onClick = { rows.add("" to "") }) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Spacer(Modifier.width(6.dp))
-                    Text("Row")
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { rows.add("" to ""); scope.launch { list.animateScrollToItem(rows.lastIndex) } }) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Row")
+                    }
+                    Spacer(Modifier.weight(1f))
+                    if (bad > 0) Text("$bad not numbers", style = MaterialTheme.typography.bodySmall, color = colors.error)
                 }
             }
         },
         confirmButton = {
-            TextButton(enabled = tooMany || valid, onClick = {
-                if (!tooMany) vm.setPoints(f, filled.map { num(it.first)!! to num(it.second)!! })
+            TextButton(enabled = valid, onClick = {
+                vm.setPoints(f, filled.map { num(it.first)!! to num(it.second)!! })
                 onDismiss()
             }) { Text("Done") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
+}
+
+/** One cell of the table: a compact number field, red-edged when it isn't a number. */
+@Composable
+private fun TableCell(text: String, error: Boolean, modifier: Modifier, onChange: (String) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    androidx.compose.foundation.text.BasicTextField(
+        value = text,
+        onValueChange = onChange,
+        singleLine = true,
+        textStyle = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = colors.onSurface),
+        cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.primary),
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+        modifier = modifier
+            .height(40.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(colors.surfaceContainerHighest)
+            .border(1.dp, if (error) colors.error else Color.Transparent, RoundedCornerShape(10.dp))
+            .padding(horizontal = 10.dp, vertical = 9.dp),
+    )
+}
+
+
+/**
+ * The wide layout: on landscape tablets and unfolded foldables the keyboard sits beside the
+ * maths instead of under it (Settings chooses which side), and it's always shown.
+ */
+@Composable
+fun isTabletLayout(): Boolean {
+    val c = androidx.compose.ui.platform.LocalConfiguration.current
+    return c.screenWidthDp >= 840 && c.smallestScreenWidthDp >= 600
+}
+
+/** The keyboard column's width in the wide layout: about a third of the screen, 300–440 dp. */
+@Composable
+fun tabletKeypadWidth(): androidx.compose.ui.unit.Dp =
+    (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp * 0.32f).dp.coerceIn(300.dp, 440.dp)
+
+/**
+ * A graph screen: the plot, its list of lines and the keyboard. On a phone they're stacked, and
+ * the keyboard is measured first so it never gets squashed (the list gives way, then the plot).
+ * On a tablet they're side by side: keyboard, lines, plot (mirrored with the keyboard on the right).
+ */
+@Composable
+fun GraphScaffold(vm: GraphViewModel, outputLabel: String, modifier: Modifier = Modifier, canvas: @Composable () -> Unit) {
+    if (isTabletLayout()) {
+        val left = AppSettings.keypadSide == 0
+        val colors = MaterialTheme.colorScheme
+        val keypad = @Composable {
+            Keypad(vm, Modifier.width(tabletKeypadWidth()).fillMaxHeight().background(colors.surfaceContainerLow), tablet = true)
+        }
+        val list = @Composable {
+            FunctionList(vm, outputLabel, Modifier.width(320.dp).fillMaxHeight(), tablet = true)
+        }
+        Row(modifier.fillMaxSize()) {
+            if (left) { keypad(); list(); Box(Modifier.weight(1f).fillMaxHeight()) { canvas() } }
+            else { Box(Modifier.weight(1f).fillMaxHeight()) { canvas() }; list(); keypad() }
+        }
+        return
+    }
+    androidx.compose.ui.layout.Layout(
+        contents = listOf(
+            { Box(Modifier.fillMaxSize()) { canvas() } },
+            { FunctionList(vm, outputLabel) },
+            {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = vm.active != null && !vm.keypadHidden,
+                    enter = androidx.compose.animation.expandVertically() + androidx.compose.animation.fadeIn(),
+                    exit = androidx.compose.animation.shrinkVertically() + androidx.compose.animation.fadeOut(),
+                ) { Keypad(vm) }
+            },
+        ),
+        modifier = modifier.fillMaxSize(),
+    ) { (plot, lines, keys), c ->
+        val w = c.maxWidth; val h = c.maxHeight
+        // The keyboard first, at its full height; then the lines; the plot keeps at least 120 dp.
+        val kp = keys.map { it.measure(androidx.compose.ui.unit.Constraints(minWidth = w, maxWidth = w, maxHeight = h)) }
+        val kh = kp.sumOf { it.height }
+        val room = (h - kh - 120.dp.roundToPx()).coerceAtLeast(0)
+        val lp = lines.map { it.measure(androidx.compose.ui.unit.Constraints(minWidth = w, maxWidth = w, maxHeight = room)) }
+        val lh = lp.sumOf { it.height }
+        val ph = (h - kh - lh).coerceAtLeast(0)
+        val pp = plot.map { it.measure(androidx.compose.ui.unit.Constraints.fixed(w, ph)) }
+        layout(w, h) {
+            var y = 0
+            pp.forEach { it.place(0, y) }; y += ph
+            lp.forEach { it.place(0, y); y += it.height }
+            kp.forEach { it.place(0, y); y += it.height }
+        }
+    }
 }

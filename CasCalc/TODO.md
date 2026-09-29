@@ -5,6 +5,11 @@ From the list of 28 September, in the order I'd tackle them.
 Nothing left from the list. New ideas go here.
 
 ## Done
+- Round of 29 September (sixth): tablet layout with the keyboard on a chosen side (calculator
+  and all three graph modes), scrolling data tables, taps beside constructions, sideways
+  scrolling lines with edge swipes, first line on top, italic z and i in complex exports,
+  delete confirmation for lines, custom symbols in lines and sliders, bottom bar order and an
+  unsquashed graph keyboard.
 - Keypad: one size in all four modes; the extended keypad is three rows tall. Earlier: mod
   takes the whole product after it; √ with an empty index means 2; the power key with nothing
   before it adds a bracketed base box; backspace removes an empty construction; every key has

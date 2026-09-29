@@ -195,6 +195,28 @@ Constants and symbols are long lists and scroll up and down in place; the others
 Groups: Basic, Trigonometry, Calculus, Vector calculus, Linear algebra, Statistics, Complex
 numbers, Physical constants, Symbols.
 
+## Latest changes (29 September, sixth round)
+- **Tablets** (screens at least 840 dp wide and 600 dp on the short side): the keyboard has a
+  column of its own, always showing, with taller keys sitting at the bottom and no hide
+  button. Settings › Keyboard side on tablets puts it on the left or right. The calculator's
+  history and input fill the other side; the graph modes put the lines next to the keyboard
+  and the plot beyond them (keyboard | lines | plot, or plot | lines | keyboard). Typing with
+  no line open starts a new one. Mock-up: preview-render/tablet.png (build_tablet.py,
+  shot_tablet.py).
+- **Data tables** scroll, so they take any number of rows; cells are compact, numbered, and
+  red when they aren't numbers.
+- **Tapping beside a fraction, root, power…** puts the cursor just before or after it, so a
+  bracket can go round it.
+- **Long lines scroll sideways**; swiping to delete starts from the row's edges (the colour
+  dot, the handle, ✕), so it no longer fights the scrolling.
+- **The first line is drawn on top**, so reordering lines changes which is in front.
+- **Complex plot export**: z and i are italic in the axis names and labels.
+- **Ask before deleting** (Settings) now also covers lines, notes and folders in the graphs.
+- **Custom symbols** show as themselves in the lines, sliders and slider dialogs, and are one
+  symbol everywhere.
+- The show-keyboard button comes after the CSV button; the graph keyboard is measured first,
+  so it's never squashed by a long list of lines.
+
 ## Latest changes (29 September, fifth round)
 - **List ranges**: [1...10] counts in ones, [1, 3, ...11] in the step of its first two
   entries (type "..." as three points). They work anywhere a list does: y = [1...5]x.

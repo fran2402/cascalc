@@ -105,14 +105,8 @@ private data class Special(val x: Double, val y: Double, val label: String, val 
 @Composable
 fun Graph2DScreen(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, modifier: Modifier = Modifier) {
     BackHandler(enabled = vm.active != null) { vm.edit(null) }
-    Column(modifier.fillMaxSize()) {
-        Box(Modifier.weight(1f).fillMaxWidth()) {
-            Graph2DCanvas(vm, onUseValue, Modifier.fillMaxSize())
-        }
-        FunctionList(vm, outputLabel = "y")
-        AnimatedVisibility(visible = vm.active != null && !vm.keypadHidden, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-            Keypad(vm)
-        }
+    GraphScaffold(vm, outputLabel = "y", modifier = modifier) {
+        Graph2DCanvas(vm, onUseValue, Modifier.fillMaxSize())
     }
 }
 
@@ -234,7 +228,8 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                     drawPath(path, palette[ar.f.colorIndex].copy(alpha = 0.28f))
                 }
             }
-            plotted.forEach { p -> drawCurve(v, p, palette[p.f.colorIndex]) }
+            // The first line in the list is drawn last, so it sits on top.
+            plotted.asReversed().forEach { p -> drawCurve(v, p, palette[p.f.colorIndex]) }
             vm.areaStart?.let { (f, a) ->
                 val fn = (f.plot as? Plot2DKind.Explicit)?.f
                 if (fn != null) {
@@ -243,7 +238,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                     drawCircle(palette[f.colorIndex], radius = 6.dp.toPx(), center = o)
                 }
             }
-            plotted.forEach { p -> p.points.forEach { s ->
+            plotted.asReversed().forEach { p -> p.points.forEach { s ->
                 val o = toScreen(v, s.x, s.y)
                 // Plotted points in their line's mark and size; found points (zeros, extrema…) are rings.
                 if (s.label == "point") {
@@ -770,7 +765,8 @@ internal fun graph2DScene(vm: Graph2DViewModel, view: Viewport, size: Double, da
     }
     // Sampled finely: three samples per unit of width.
     val plotted = runCatching { plot(vm, v, IntSize((frame.width * 3).toInt().coerceAtLeast(1), (frame.height * 3).toInt().coerceAtLeast(1)), null) }.getOrElse { emptyList() }
-    for (p in plotted) {
+    // The first line in the list last, on top, as on screen.
+    for (p in plotted.asReversed()) {
         val color = palette[p.f.colorIndex]
         // pgfplots' "thick" for the usual 3 dp line, scaled with the line's own thickness.
         val lw = p.f.thickness * 0.5

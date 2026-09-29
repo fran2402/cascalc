@@ -32,6 +32,9 @@ object AppSettings {
         private set
     var keypadSize by mutableStateOf(1)
         private set
+    /** On tablets (the wide layout): the keypad on the left (0) or the right (1). */
+    var keypadSide by mutableStateOf(1)
+        private set
     var showGrid by mutableStateOf(true)
         private set
     /** Numbers along the 2D graph's axes. */
@@ -97,6 +100,7 @@ object AppSettings {
         groupDigits = p.getBoolean("groupDigits", true)
         mathSize = p.getInt("mathSize", 1)
         keypadSize = p.getInt("keypadSize", 1)
+        keypadSide = p.getInt("keypadSide", 1)
         showGrid = p.getBoolean("showGrid", true)
         axisNumbers = p.getBoolean("axisNumbers", true)
         numberFormat = p.getInt("numberFormat", 0)
@@ -133,6 +137,7 @@ object AppSettings {
     fun changeGroupDigits(v: Boolean) { groupDigits = v; com.example.cas.engine.Formatter.groupDigits = v; save("groupDigits", v) }
     fun changeMathSize(v: Int) { mathSize = v; save("mathSize", v) }
     fun changeKeypadSize(v: Int) { keypadSize = v; save("keypadSize", v) }
+    fun changeKeypadSide(v: Int) { keypadSide = v; save("keypadSide", v) }
     fun changeShowGrid(v: Boolean) { showGrid = v; save("showGrid", v) }
     fun changeAxisNumbers(v: Boolean) { axisNumbers = v; save("axisNumbers", v) }
     fun changeNumberFormat(v: Int) { numberFormat = v; com.example.cas.engine.Formatter.numberFormat = v; save("numberFormat", v) }

@@ -155,7 +155,20 @@ object SceneExport {
                 val fm = paint.fontMetrics
                 val x = (item.x * s).toFloat(); val y = (item.y * s).toFloat()
                 if (item.angle != 0.0) { canvas.save(); canvas.rotate(-item.angle.toFloat(), x, y) }
-                canvas.drawText(item.text, x, y - (fm.ascent + fm.descent) / 2, paint)
+                val runs = item.runs()
+                if (runs.size == 1) {
+                    canvas.drawText(item.text, x, y - (fm.ascent + fm.descent) / 2, paint)
+                } else {
+                    // Mixed fonts: each run measured in its own font, the whole placed by the anchor.
+                    val italicPaint = Paint(paint).apply { typeface = fonts.italic }
+                    paint.textAlign = Paint.Align.LEFT; italicPaint.textAlign = Paint.Align.LEFT
+                    val widths = runs.map { (piece, ital) -> (if (ital) italicPaint else paint).measureText(piece) }
+                    var at = x - when (item.anchor) { Scene.Anchor.Start -> 0f; Scene.Anchor.Middle -> widths.sum() / 2; Scene.Anchor.End -> widths.sum() }
+                    runs.forEachIndexed { k, (piece, ital) ->
+                        canvas.drawText(piece, at, y - (fm.ascent + fm.descent) / 2, if (ital) italicPaint else paint)
+                        at += widths[k]
+                    }
+                }
                 if (item.angle != 0.0) canvas.restore()
             }
             is Scene.ClipStart -> {

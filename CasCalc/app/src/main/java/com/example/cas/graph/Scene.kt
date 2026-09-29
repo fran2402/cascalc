@@ -31,7 +31,20 @@ class Scene(val width: Double, val height: Double, val background: Int) {
     class Label(
         val x: Double, val y: Double, val text: String, val size: Double, val color: Int,
         val anchor: Anchor = Anchor.Start, val font: Font = Font.Sans, val angle: Double = 0.0,
-    ) : Item()
+        /** Letters drawn in math italic within a roman label (the z of "Re z", the i of "2i"). */
+        val italic: Set<Char> = emptySet(),
+    ) : Item() {
+        /** The text in runs of one font: (piece, italic?). */
+        fun runs(): List<Pair<String, Boolean>> {
+            if (italic.isEmpty()) return listOf(text to (font == Font.Italic))
+            val out = ArrayList<Pair<String, Boolean>>()
+            for (c in text) {
+                val it = c in italic || font == Font.Italic
+                if (out.isNotEmpty() && out.last().second == it) out[out.lastIndex] = (out.last().first + c) to it else out += c.toString() to it
+            }
+            return out
+        }
+    }
 
     /** Everything up to the matching [ClipEnd] is cut to this rectangle (a plot's frame). */
     class ClipStart(val x: Double, val y: Double, val w: Double, val h: Double) : Item()
@@ -125,7 +138,18 @@ object SvgWriter {
                 // (The embedded italic is italic already; slanting it again would double it.)
                 if (item.font == Scene.Font.Italic && item.font !in embedded) append(" font-style=\"italic\"")
                 if (item.angle != 0.0) append(" transform=\"rotate(${n(-item.angle)} ${n(item.x)} ${n(item.y)})\"")
-                append(">").append(escape(item.text)).append("</text>\n")
+                append(">")
+                val runs = item.runs()
+                if (runs.size == 1) append(escape(item.text))
+                else runs.forEach { (piece, ital) ->
+                    // Italic pieces of a roman label: the embedded italic font, or a slant.
+                    if (ital && item.font != Scene.Font.Italic) {
+                        append("<tspan")
+                        if (Scene.Font.Italic in embedded) append(" font-family=\"CMItalic, Latin Modern Roman, CMU Serif, serif\"") else append(" font-style=\"italic\"")
+                        append(">").append(escape(piece)).append("</tspan>")
+                    } else append(escape(piece))
+                }
+                append("</text>\n")
             }
             is Scene.ClipStart -> {
                 clips++

@@ -413,6 +413,14 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         save()
     }
 
+    /** A line waiting for "Delete?" to be answered (when settings ask before deleting). */
+    var pendingRemoval by mutableStateOf<PlotFunction?>(null)
+
+    /** Deletes a line, or asks first when "Ask before deleting" is on. */
+    fun requestRemove(f: PlotFunction) {
+        if (AppSettings.confirmDeleteEntry) pendingRemoval = f else remove(f)
+    }
+
     fun remove(f: PlotFunction) {
         if (active === f) active = null
         functions.remove(f)
@@ -1162,6 +1170,9 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     override fun moveRight() { active?.editor?.moveRight() }
 
     override fun press(action: KeyAction) {
+        // With no line open (the tablet's keyboard is always there), typing starts a new one.
+        if (active == null && (action is KeyAction.Type || action is KeyAction.Insert || action is KeyAction.Power ||
+                action == KeyAction.Fraction || action == KeyAction.Paren || action == KeyAction.ListBrackets || action is KeyAction.Sequence)) add()
         val ed = active?.editor ?: return
         when (action) {
             is KeyAction.Type -> ed.type(action.text)

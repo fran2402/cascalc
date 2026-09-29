@@ -89,8 +89,8 @@ fun Graph3DScreen(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
         val b = surfaceBounds(vm)
         ExportDialog(Viewport(vm.xMin, vm.xMax, vm.yMin, vm.yMax), build, onExport = { r, share -> exporting = false; export(r, share) }, onDismiss = { exporting = false }, z = b.z0 to b.z1)
     }
-    Column(modifier.fillMaxSize()) {
-        Box(Modifier.weight(1f).fillMaxWidth().onSizeChanged { plotSize = it }) {
+    GraphScaffold(vm, outputLabel = "z", modifier = modifier) {
+        Box(Modifier.fillMaxSize().onSizeChanged { plotSize = it }) {
             SurfaceCanvas(vm, Modifier.fillMaxSize())
             RangeControl(vm, Modifier.align(Alignment.TopStart).padding(12.dp))
             var settings by remember { mutableStateOf(false) }
@@ -107,10 +107,6 @@ fun Graph3DScreen(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
                     Icon(Icons.Default.Tune, contentDescription = "Graph settings", tint = MaterialTheme.colorScheme.onSurface)
                 }
             })
-        }
-        FunctionList(vm, outputLabel = "z")
-        AnimatedVisibility(visible = vm.active != null && !vm.keypadHidden, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-            Keypad(vm)
         }
     }
 }

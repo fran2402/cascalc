@@ -50,7 +50,12 @@ object Pgf {
      * The frame, the ticks and their labels, and the axis names, drawn over the plot.
      * [ySuffix] follows each y label ("i" on the complex plane).
      */
-    fun axes(scene: Scene, v: Viewport, f: Frame, style: Style, xName: String = "x", yName: String = "y", ySuffix: String = "", nameFont: Scene.Font = Scene.Font.Italic) {
+    fun axes(
+        scene: Scene, v: Viewport, f: Frame, style: Style, xName: String = "x", yName: String = "y", ySuffix: String = "",
+        nameFont: Scene.Font = Scene.Font.Italic,
+        /** Letters in math italic inside roman names and labels (z in "Re z", i in "2i"). */
+        italic: Set<Char> = emptySet(),
+    ) {
         val stepX = Plot2D.niceStep(v.width, 6)
         val stepY = Plot2D.niceStep(v.height, 6)
         val ticks = ArrayList<DoubleArray>()
@@ -65,11 +70,11 @@ object Pgf {
             ticks += doubleArrayOf(f.left, py, f.left + TICK_LENGTH, py)
             ticks += doubleArrayOf(f.right, py, f.right - TICK_LENGTH, py)
             val text = tick(y, stepY).let { if (ySuffix.isNotEmpty() && it != "0") (if (it == "1") "" else if (it == "−1") "−" else it) + ySuffix else it }
-            scene.add(Scene.Label(f.left - 5, py, text, TICK_SIZE, style.ink, Scene.Anchor.End, Scene.Font.Roman))
+            scene.add(Scene.Label(f.left - 5, py, text, TICK_SIZE, style.ink, Scene.Anchor.End, Scene.Font.Roman, italic = italic))
         }
         scene.add(Scene.Stroke(ticks, style.ink, FRAME_WIDTH * 0.9))
         scene.add(Scene.Stroke(listOf(doubleArrayOf(f.left, f.top, f.right, f.top, f.right, f.bottom, f.left, f.bottom, f.left, f.top)), style.ink, FRAME_WIDTH))
-        scene.add(Scene.Label((f.left + f.right) / 2, f.bottom + 32, xName, NAME_SIZE, style.ink, Scene.Anchor.Middle, nameFont))
-        scene.add(Scene.Label(13.0, (f.top + f.bottom) / 2, yName, NAME_SIZE, style.ink, Scene.Anchor.Middle, nameFont, angle = 90.0))
+        scene.add(Scene.Label((f.left + f.right) / 2, f.bottom + 32, xName, NAME_SIZE, style.ink, Scene.Anchor.Middle, nameFont, italic = italic))
+        scene.add(Scene.Label(13.0, (f.top + f.bottom) / 2, yName, NAME_SIZE, style.ink, Scene.Anchor.Middle, nameFont, angle = 90.0, italic = italic))
     }
 }

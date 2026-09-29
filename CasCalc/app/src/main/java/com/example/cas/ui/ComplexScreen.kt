@@ -98,16 +98,12 @@ fun ComplexScreen(vm: ComplexViewModel, modifier: Modifier = Modifier) {
     val export = rememberGraphExporter("complex-plot", build)
     val shownView = vm.view
     if (exporting && shownView != null) ExportDialog(shownView, build, onExport = { r, share -> exporting = false; export(r, share) }, onDismiss = { exporting = false })
-    Column(modifier.fillMaxSize()) {
-        Box(Modifier.weight(1f).fillMaxWidth().onSizeChanged { plotSize = it }) {
+    GraphScaffold(vm, outputLabel = "f(z)", modifier = modifier) {
+        Box(Modifier.fillMaxSize().onSizeChanged { plotSize = it }) {
             ComplexCanvas(vm, Modifier.fillMaxSize())
             // (Top left holds the contour result, bottom right the toolbar.)
             GraphBottomBar(vm, Modifier.align(Alignment.BottomCenter), onExport = { if (vm.view != null) exporting = true }, tools = { PlotTools(vm) })
             vm.contourResult?.let { ContourCard(it, onClose = vm::clearContour, modifier = Modifier.align(Alignment.TopStart).padding(12.dp)) }
-        }
-        FunctionList(vm, outputLabel = "f(z)")
-        AnimatedVisibility(visible = vm.active != null && !vm.keypadHidden, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-            Keypad(vm)
         }
     }
 }
@@ -418,7 +414,7 @@ internal fun complexScene(vm: ComplexViewModel, view: Viewport, size: Double, da
         val tx = cx + rx; val ty = cy - 5
         scene.add(Scene.Fill(listOf(doubleArrayOf(tx, ty, tx - 4, ty + 7, tx + 4, ty + 7)), color))
         val shown = runCatching { roundedComplex(com.example.cas.cas.Numeric.eval(cc.value)) }.getOrDefault("?")
-        scene.add(Scene.Label(minOf(cx + rx * 0.72, frame.right - 4), maxOf(cy - ry * 0.72 - 8, frame.top + 10), "Integral ≈ $shown", 13.0, white, Scene.Anchor.Start, Scene.Font.Roman))
+        scene.add(Scene.Label(minOf(cx + rx * 0.72, frame.right - 4), maxOf(cy - ry * 0.72 - 8, frame.top + 10), "Integral ≈ $shown", 13.0, white, Scene.Anchor.Start, Scene.Font.Roman, italic = setOf('i')))
     }
     if (vm.contour.size > 1) {
         val pts = DoubleArray(vm.contour.size * 2 + if (vm.contourResult != null) 2 else 0)
@@ -427,7 +423,8 @@ internal fun complexScene(vm: ComplexViewModel, view: Viewport, size: Double, da
         outlined(listOf(pts), white)
     }
     scene.add(Scene.ClipEnd)
-    Pgf.axes(scene, v, frame, style, xName = "Re z", yName = "Im z", ySuffix = "i", nameFont = Scene.Font.Roman)
+    // Re and Im upright, z and i in math italic, as LaTeX sets them.
+    Pgf.axes(scene, v, frame, style, xName = "Re z", yName = "Im z", ySuffix = "i", nameFont = Scene.Font.Roman, italic = setOf('z', 'i'))
     return scene
 }
 

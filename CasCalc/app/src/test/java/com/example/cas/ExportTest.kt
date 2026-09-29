@@ -46,4 +46,13 @@ class ExportTest {
         assertEquals(0xFFFF0000.toInt(), img.getRGB(0, 0))
         assertEquals(0x8000FF00.toInt(), img.getRGB(1, 0))
     }
+
+    @Test fun italicLettersInRomanLabels() {
+        val sc = Scene(100.0, 100.0, 0xFFFFFFFF.toInt())
+        sc.add(Scene.Label(50.0, 50.0, "Re z", 12.0, 0xFF000000.toInt(), Scene.Anchor.Middle, Scene.Font.Roman, italic = setOf('z')))
+        val svg = SvgWriter.write(sc)
+        assertTrue(svg, svg.contains(">Re <tspan font-style=\"italic\">z</tspan></text>"))
+        assertEquals(listOf("Re " to false, "z" to true), (sc.items.single() as Scene.Label).runs())
+        DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(svg.byteInputStream())
+    }
 }

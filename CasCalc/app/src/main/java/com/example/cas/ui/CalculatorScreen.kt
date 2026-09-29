@@ -71,6 +71,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material.icons.filled.Clear
@@ -176,6 +177,20 @@ import com.example.cas.ui.theme.equalsKey
 @Composable
 fun CalculatorScreen(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, modifier: Modifier = Modifier) {
     BackHandler(enabled = vm.historyMode) { vm.historyMode = false }
+    if (isTabletLayout()) {
+        // Tablets: the keyboard in a column on one side (Settings chooses), history and input on the other.
+        val colors = MaterialTheme.colorScheme
+        val keypad = @Composable { Keypad(vm, Modifier.width(tabletKeypadWidth()).fillMaxHeight().background(colors.surfaceContainerLow), tablet = true) }
+        Row(modifier.fillMaxSize()) {
+            if (AppSettings.keypadSide == 0) keypad()
+            Box(Modifier.weight(1f).fillMaxHeight()) {
+                Display(vm, onGraph, Modifier.fillMaxSize())
+                if (vm.busy) Busy(Modifier.align(Alignment.BottomStart).padding(16.dp))
+            }
+            if (AppSettings.keypadSide != 0) keypad()
+        }
+        return
+    }
     Column(modifier.fillMaxSize()) {
         Box(Modifier.weight(1f)) {
             Display(vm, onGraph, Modifier.fillMaxSize())
@@ -195,7 +210,7 @@ fun CalculatorScreen(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, m
  * follow the screen, like Google Calculator.
  */
 @Composable
-fun Keypad(host: KeypadHost, modifier: Modifier = Modifier) {
+fun Keypad(host: KeypadHost, modifier: Modifier = Modifier, tablet: Boolean = false) {
     var showMatrixPicker by remember { mutableStateOf(false) }
     var showConstants by remember { mutableStateOf(false) }
     var showBuilder by remember { mutableStateOf(false) }
@@ -214,10 +229,14 @@ fun Keypad(host: KeypadHost, modifier: Modifier = Modifier) {
     val screen = LocalConfiguration.current.screenHeightDp.dp
     // A little shorter than Google Calculator's keys, to leave more room for the maths.
     // The same size in all four modes (calculator, 2D, 3D, complex).
-    val mainRow = (screen * 0.052f * AppSettings.keypadScale).coerceIn(34.dp, 74.dp)
+    // On a tablet the keyboard has a whole column to itself, so its keys are taller.
+    val mainRow = if (tablet) (screen * 0.075f * AppSettings.keypadScale).coerceIn(44.dp, 88.dp)
+    else (screen * 0.052f * AppSettings.keypadScale).coerceIn(34.dp, 74.dp)
     val fnRow = mainRow * 0.76f
-    Column(modifier) {
-        KeypadHandle(onHide = { host.keypadHidden = true })
+    // On a tablet the keys sit at the bottom of their column, where the thumbs are, with no handle
+    // (the keyboard is always there).
+    Column(modifier, verticalArrangement = if (tablet) Arrangement.Bottom else Arrangement.Top) {
+        if (!tablet) KeypadHandle(onHide = { host.keypadHidden = true })
         // The graphs' other plotting letters (y, r, θ, t…) as chips, one tap each.
         if (host.quickVariables.isNotEmpty()) QuickVariables(host)
         ControlRow(host)
@@ -1286,6 +1305,8 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 if (!wallpaperColors || !AppSettings.dynamicColor) ThemeColorChoice()
                 SettingsChoice("Maths size", listOf("Small", "Medium", "Large"), AppSettings.mathSize, AppSettings::changeMathSize)
                 SettingsChoice("Keypad size", listOf("Compact", "Medium", "Tall"), AppSettings.keypadSize, AppSettings::changeKeypadSize)
+                // Tablets (and unfolded foldables) put the keyboard beside the maths.
+                SettingsChoice("Keyboard side on tablets", listOf("Left", "Right"), AppSettings.keypadSide, AppSettings::changeKeypadSide)
                 SettingsToggle("Expressive motion", "Springy animations; off for calmer ones", AppSettings.expressiveMotion, AppSettings::changeExpressiveMotion)
 
                 SettingsSection("Calculator")
@@ -1298,7 +1319,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                     AppSettings.changeHistoryLimit(listOf(50, 100, 500, 0)[it])
                 }
                 SettingsToggle("Ask before clearing history", null, AppSettings.confirmClearHistory, AppSettings::changeConfirmClearHistory)
-                SettingsToggle("Ask before deleting a calculation", "Swiping one away asks first", AppSettings.confirmDeleteEntry, AppSettings::changeConfirmDeleteEntry)
+                SettingsToggle("Ask before deleting", "A calculation, or a line in a graph", AppSettings.confirmDeleteEntry, AppSettings::changeConfirmDeleteEntry)
 
                 SettingsSection("Numbers")
                 if (vm != null) Column {
