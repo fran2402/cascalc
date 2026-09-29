@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Calculator with an integral and a fraction, in the Pixel Watch icon style. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M45,31 H63 A14,14 0 0 1 77,45 V63 A14,14 0 0 1 63,77 H45 A14,14 0 0 1 31,63 V45 A14,14 0 0 1 45,31 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="radial" android:centerX="60" android:centerY="46" android:gradientRadius="36">
+                <item android:offset="0" android:color="#FFACB2FF" />
+                <item android:offset="0.55" android:color="#FF7C92F7" />
+                <item android:offset="1" android:color="#FF5471EE" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:strokeColor="#FFF6F4FF" android:strokeWidth="3.6" android:strokeLineCap="round"
+        android:pathData="M50.5,39.5 C49,36.8 45.2,37.4 44.8,41 L42.6,67 C42.2,70.6 38.4,71.2 36.9,68.5" />
+    <path android:fillColor="#FF1E2157" android:pathData="M57.8,45 A3.2,3.2 0 1,0 64.2,45 A3.2,3.2 0 1,0 57.8,45 Z" />
+    <path android:strokeColor="#FF1E2157" android:strokeWidth="3.4" android:strokeLineCap="round" android:pathData="M53.5,54 H68.5" />
+    <path android:fillColor="#FFF2DDF0" android:pathData="M57.8,63 A3.2,3.2 0 1,0 64.2,63 A3.2,3.2 0 1,0 57.8,63 Z" />
+</vector>

@@ -1,0 +1,353 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+/* Google Sans Flex is always fully rounded; fonts without a ROND axis ignore this. */ *{font-variation-settings:"ROND" 100 !important}
+
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:Rob;src:url(../app/src/main/res/font/roboto.ttf);font-weight:100 900}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+*{box-sizing:border-box}
+body{margin:0;background:#dcd8cf;font-family:GSF,Rob;display:flex;gap:44px;padding:44px;align-items:flex-start}
+.phone{position:relative;width:412px;height:915px;border-radius:44px;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.dark{--tc:#4E4A2B;--otc:#EBE3B5;--swc:#0D0E08;--swb:#34352C;--outv:#47473B;--inv:#E5E3D6;--oninv:#303129;--err:#FFB4AB;--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--card:#1F2018;--dig:#292A22;--sec:#3D3F28;--onsec:#E0E1C4;--pc:#525727;--onpc:#E6E9A8;--eq:#FFE3C0;--oneq:#4A3610;--pri:#C5CB86;--onpri:#2F3300;--line:#47473B}
+.light{--tc:#E7E1B0;--otc:#1E1C04;--swc:#FFFFFF;--swb:#EBE9DC;--outv:#C8C7B5;--inv:#313129;--oninv:#F3F1E4;--err:#BA1A1A;--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--card:#F1EEE2;--dig:#EBE9DC;--sec:#E2E4C4;--onsec:#1B1D0A;--pc:#DEE5A0;--onpc:#1A1E00;--eq:#FFDDB6;--oneq:#2A1800;--pri:#5B6133;--onpri:#fff;--line:#C8C7B5}
+.phone{background:var(--bg);color:var(--on)}
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font-size:14px;font-weight:500;color:var(--on)}
+.top{height:52px;display:flex;justify-content:space-between;align-items:center;padding:0 14px;color:var(--onv)}
+.disp{flex:1;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;padding:0 12px 6px}
+.card{flex-shrink:0;background:var(--card);border-radius:24px;padding:14px 20px;margin-top:8px}
+.cexpr{color:var(--onv);font-size:24px}
+.cres{display:flex;align-items:center;margin-top:10px}
+.chip{display:inline-flex;align-items:center;gap:4px;border-radius:99px;padding:5px 14px 5px 8px;font-size:15px;font-weight:500;background:var(--pc);color:var(--onpc)}
+.chip.on{background:var(--pri);color:var(--onpri)}
+.eqs{margin-left:auto;color:var(--pri);font-size:26px;margin-right:12px;font-family:CMR}
+.res{font-size:30px}
+.input{flex-shrink:0;text-align:right;padding:10px 12px 0;font-size:42px;white-space:nowrap}
+.prev{text-align:right;padding:2px 12px 6px;color:var(--onv);font-size:22px;min-height:34px;flex-shrink:0}
+.ctrl{height:46px;display:flex;align-items:center;padding:0 12px;color:var(--onv);gap:6px}
+.seg{display:flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;height:32px;font-size:13px;font-weight:500}
+.seg span{padding:0 14px;display:flex;align-items:center}
+.seg .sel{background:var(--sec);color:var(--onsec)}
+.tabs{display:flex;gap:6px;padding:2px 12px 6px;font-size:14px;font-weight:500;color:var(--onv);white-space:nowrap}
+.tabs>span{color:inherit;height:34px;padding:0 15px;border-radius:99px;display:flex;align-items:center}
+.tabs .sel{background:var(--sec);color:var(--onsec)}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:0 8px}
+.k{border-radius:99px;display:flex;align-items:center;justify-content:center;font-variation-settings:"ROND" 100}
+.fn{height:44px;background:var(--sec);color:var(--onsec);font-size:19px}
+.mk{height:58px;font-size:29px}
+.d{background:var(--dig);color:var(--on)} .o{background:var(--sec);color:var(--onsec)} .ac{background:var(--pc);color:var(--onpc);font-size:26px} .eq{background:var(--eq);color:var(--oneq)}
+.main{margin-top:20px;margin-bottom:14px}
+.pressed{border-radius:28%}
+svg.mv{display:inline-block}
+.tabs svg.mv{max-height:26px;max-width:42px;width:auto;height:auto}
+.tabs>span{font-size:20px}
+.mk svg.mv,.fn svg.mv{display:block;max-height:80%;max-width:80%;width:auto;height:auto}
+</style></head><body></body>
+<script src="gsf_cmap.js"></script><script src="cm_cmap.js"></script><script src="examples.js"></script><script src="graphs.js"></script><script src="tabicons.js"></script><script src="consts.js"></script><script src="complex.js"></script><script src="graphs2.js"></script><script src="coords.js"></script><script src="divsteps.js"></script><script src="mathlayout.js"></script>
+<script>
+const I={hist:'<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3a9 9 0 0 0-9 9H1l3.9 3.9L8.8 12H6a7 7 0 1 1 2.05 4.95l-1.42 1.42A9 9 0 1 0 13 3zm-1 5v5l4.25 2.52.77-1.28-3.52-2.09V8z"/></svg>',
+more:'<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>',
+fold:'<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M7.41 18.59 8.83 20 12 16.83 15.17 20l1.41-1.41L12 14zm9.18-13.18L15.17 4 12 7.17 8.83 4 7.41 5.41 12 10z"/></svg>',
+left:'<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 16.59 10.83 12l4.58-4.59L14 6l-6 6 6 6z"/></svg>',
+right:'<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><path d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>',
+chev:'<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>',
+chevd:'<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="transform:rotate(90deg)"><path d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>',
+bs:'<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M8 5h12v14H8l-6-7z"/><path d="M11 9l6 6M17 9l-6 6" stroke-linecap="round"/></svg>'};
+const {R,S,frac,pow,sqrt,root,func,sum,int,diff,binom,mat,cst,THIN}=MT;
+const TH=S(THIN);
+const PAL={dark:{on:'#E5E3D6',onv:'#C8C7B5',pri:'#C5CB86',onsec:'#E0E1C4'},light:{on:'#1C1C16',onv:'#47473B',pri:'#5B6133',onsec:'#1B1D0A'}};
+const faint=c=>{const n=parseInt(c.slice(1),16);return `rgba(${n>>16},${(n>>8)&255},${n&255},.45)`};
+let P=PAL.dark;
+const mv=(row,size,color,opt={})=>MT.render(row,{size,color,accent:P.pri,faint:faint(color),...opt});
+/** Groups digits like Formatter.addNumber: "69.99971981" → 69.999 719 81 */
+function num(t){const r=[];let s=t;if(s[0]=='-'){r.push(S('−'));s=s.slice(1)}const [a,b]=s.split('.');
+ [...a].forEach((c,k)=>{if(k>0&&(a.length-k)%3==0&&a.length>4)r.push(TH);r.push(S(c))});
+ if(b!==undefined){r.push(S('.'));[...b].forEach((c,k)=>{if(k>0&&k%3==0&&b.length>4)r.push(TH);r.push(S(c))})}return r}
+const sci=(m,e)=>[...num(m),S('×'),S('1'),S('0'),pow(R(e))];
+// Material icon paths (24×24), matching the icons the app uses.
+const ICON={
+ Simplify:'M7.5 5.6 10 7 8.6 4.5 10 2 7.5 3.4 5 2l1.4 2.5L5 7zm12 9.8L17 14l1.4 2.5L17 19l2.5-1.4L22 19l-1.4-2.5L22 14zM22 2l-2.5 1.4L17 2l1.4 2.5L17 7l2.5-1.4L22 7l-1.4-2.5zm-7.63 5.29a.996.996 0 0 0-1.41 0L1.29 18.96a.996.996 0 0 0 0 1.41l2.34 2.34c.39.39 1.02.39 1.41 0L16.7 11.05a.996.996 0 0 0 0-1.41l-2.33-2.35zm-1.03 5.49-2.12-2.12 2.44-2.44 2.12 2.12-2.44 2.44z',
+ Expand:'M21 11V3h-8l3.29 3.29-10 10L3 13v8h8l-3.29-3.29 10-10z',
+ Factor:'M22 3.41 16.71 8.7 20 12h-8V4l3.29 3.29L20.59 2 22 3.41zM3.41 22l5.29-5.29L12 20v-8H4l3.29 3.29L2 20.59 3.41 22z',
+ Apart:'M14 4l2.29 2.29-2.88 2.88 1.42 1.42 2.88-2.88L20 10V4zm-4 0H4v6l2.29-2.29 4.71 4.7V20h2v-8.41l-5.29-5.3z',
+ Together:'M17 20.41 18.41 19 15 15.59 13.59 17 17 20.41zM7.5 8H11v5.59L5.59 19 7 20.41l6-6V8h3.5L12 3.5 7.5 8z',
+ Answer:'M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z',
+ MoreConstants:'M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z',
+ Science:'M19.8 18.4 14 10.67V6.5l1.35-1.69c.26-.33.03-.81-.39-.81H9.04c-.42 0-.65.48-.39.81L10 6.5v4.17L4.2 18.4c-.49.66-.02 1.6.8 1.6h14c.82 0 1.29-.94.8-1.6z',
+};
+Object.assign(ICON,{
+ Share:'M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z',
+ Undo:'M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z',
+ Redo:'M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z',
+ Calc:'M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5.97 4.06L14.09 6l1.41 1.41L16.91 6l1.06 1.06-1.41 1.41 1.41 1.41-1.06 1.06-1.41-1.4-1.41 1.41-1.06-1.06 1.41-1.41-1.41-1.42zm-6.78.66h5v1.5h-5v-1.5zM11.5 16h-2v2H8v-2H6v-1.5h2v-2h1.5v2h2V16zm6.5 1.25h-5v-1.5h5v1.5zm0-2.5h-5v-1.5h5v1.5z',
+ Chart:'M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z',
+ Ar:'M18.25 7.6l-5.5-3.18c-.46-.27-1.04-.27-1.5 0L5.75 7.6c-.46.27-.75.76-.75 1.3v6.35c0 .54.29 1.03.75 1.3l5.5 3.18c.46.27 1.04.27 1.5 0l5.5-3.18c.46-.27.75-.76.75-1.3V8.9c0-.54-.29-1.03-.75-1.3zM7 14.96v-4.62l4 2.32v4.61l-4-2.31zm5-4.03L8 8.61l4-2.31 4 2.31-4 2.32zm1 6.34v-4.61l4-2.32v4.62l-4 2.31zM7 2H3.5C2.67 2 2 2.67 2 3.5V7h2V4h3V2zm10 0h3.5c.83 0 1.5.67 1.5 1.5V7h-2V4h-3V2zM7 22H3.5c-.83 0-1.5-.67-1.5-1.5V17h2v3h3v2zm10 0h3.5c.83 0 1.5-.67 1.5-1.5V17h-2v3h-3v2z',
+ Focus:'M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm-7 7H3v4c0 1.1.9 2 2 2h4v-2H5v-4zM5 5h4V3H5c-1.1 0-2 .9-2 2v4h2V5zm14-2h-4v2h4v4h2V5c0-1.1-.9-2-2-2zm0 16h-4v2h4c1.1 0 2-.9 2-2v-4h-2v4z',
+ Rotate:'M12 0l-.66.03 3.81 3.81 1.33-1.33c3.27 1.55 5.61 4.72 5.96 8.48h1.5C23.44 4.84 18.29 0 12 0zM7.52 21.48C4.25 19.94 1.91 16.76 1.55 13H.05C.56 19.16 5.71 24 12 24l.66-.03-3.81-3.81-1.33 1.32zM12 8l-5 3v5l5 3 5-3v-5z',
+ Close:'M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z',
+ Add:'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z',
+ Remove:'M19 13H5v-2h14v2z',
+});
+const icon=(id,size=22)=>id.startsWith('TAB:')?tabIcon(id.slice(4),size):id=='Triangle'
+ ?`<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19H20V5Z" stroke-width="2"/><path d="M9.5 19A5.5 5.5 0 0 0 8.1 15.4M17 19V16H20" stroke-width="1.6"/></svg>`
+ :id=='SineWave'
+ ?`<svg width="${size}" height="${size}" viewBox="0 0 24 24"><path d="M2 12C4.5 3 7.5 3 12 12S19.5 21 22 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`
+ :`<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor"><path d="${ICON[id]}"/></svg>`;
+const L=(...xs)=>xs.map(S);   // letters("x","=","?")
+const I_=id=>({icon:id});
+// Tab icons and key labels, as in Keys.kt (order: √x, trig, algebra, calculus, matrices, constants, more, letters).
+const TABS=['Roots','Triangle','Balance','Area','Nabla','Matrix','ComplexC','Atom','Abs','Letters'].map(id=>({tab:id}));
+const trigRow=f=>[L(f),R(S(f),pow(R('−1'))),L(f+'h'),R(S(f+'h'),pow(R('−1')))];
+const LETTERS=(()=>{const k=[':='];for(const c of 'abcdfghjklmnopqrstuvy')k.push(R(c));for(const c of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')k.push(R(c));for(const c of 'αβγδεζηθικλμνξρστυφχψωΓΔΘΛΞΠΣΦΨΩ')k.push(R(c));const rows=[];for(let i=0;i<k.length;i+=6)rows.push(k.slice(i,i+6));return rows})();
+const TABKEYS={
+ 0:[['π','e',R('e',pow(R('x'))),R('×10',pow(R('n')))],[R('x',pow(R('2'))),R('x',pow(R('n'))),R(sqrt(R('x'))),R(root(R('n'),R('x')))],[R(func('ln',R('x'))),R(func('log',R('a'),R('x'))),R('10',pow(R('n'))),L('Ans')]],
+ 1:[trigRow('sin'),trigRow('cos'),trigRow('tan')],
+ 2:[[L('x','=','?'),'=',',',I_('Simplify')],[I_('Expand'),I_('Factor'),I_('Apart'),I_('Together')],['<','>','≤','≥']],
+ 3:[[R(int([],[],R('f'),R('x'))),R(frac(R('d'),R('dx')),'f'),R(frac(R('d',pow(R('n'))),R('dx',pow(R('n')))),'f'),R(func('lim',[],L('x','→','a')))],[L('f','≈','Σ'),L('y′','=','f'),L('y','′'),'∞'],['Σ','Π','n!',R(binom(R('n'),R('k')))]],
+ 4:[[R(frac(R('∂'),R('∂x')),'f'),R(frac(R('∂',pow(R('n'))),R('∂x',pow(R('n')))),'f'),R(int([],[],R(int([],[],R('f'),R('y'))),R('x'))),R(int([],[],R(int([],[],R(int([],[],R('f'),R('z'))),R('y'))),R('x')))],[R(func('grad',R('f'))),R(func('div',R('F'))),R(func('curl',R('F'))),R(func('laplacian',R('f')))],[R(func('jacobian',R('F'))),R(func('hessian',R('f'))),R(mat(2,1)),R(mat(3,1))]],
+ 5:[[R(mat(2,2)),R(mat(2,2),pow(R('−1'))),R(mat(2,2),pow(R('T'))),R(func('abs',R('A')))],[L('λ'),L('A','v','=','λ','v'),L('p','(','λ',')'),R(func('tr',R('A')))],[R(mat(2,3,[R('1'),R('0'),R('*'),R('0'),R('1'),R('*')])),R(func('rk',R('A'))),L('u','·','v'),L('u','×','v')]],
+ 6:[[R('i'),L('ℜ','z'),L('ℑ','z'),R('z',pow(R('*')))],[L('∠','z'),R('e',pow(R('iθ'))),R(func('gamma',R('z'))),R(func('zeta',R('z')))],[R('z'),R('w'),R(frac(R('1'),R('z'))),R(frac(R('az+b'),R('cz+d')))]],
+ 7:(()=>{const k=[I_('MoreConstants'),...CONSTS_ALL.map(c=>R(cst(c.id)))];const rows=[];for(let i=0;i<k.length;i+=4)rows.push(k.slice(i,i+4));return rows})(),
+ 8:[[R(func('abs',R('x'))),R(func('floor',R('x'))),R(func('ceil',R('x'))),R(func('round',R('x')))],[R(func('gcd',R('a'),R('b'))),R(func('lcm',R('a'),R('b'))),L('a','mod','b'),'%'],[R(func('frac',R('x'))),R(func('sgn',R('x'))),R(func('min',R('a'),R('b'))),R(func('max',R('a'),R('b')))]],
+ 9:LETTERS};
+const label=(k,color,size)=>k.tab?tabIcon(k.tab,22):typeof k=='string'?fb(k):k.icon?icon(k.icon,size==18?24:22):mv(k,size,color,{dots:true,cm:false});
+const fb=t=>[...t].map(c=>GSF_HAS.has(c.codePointAt(0))||c==' '||c=='\u00a0'?c:`<span style="font-family:Rob">${c}</span>`).join('');
+// Mirrors Answer.isStatement: solutions and assignments get no extra "=".
+const stmt=k=>/^(fn:solve|fn:eigvals|fn:eigvecs|'a;':=)/.test(EX[k].e);
+// Mirrors Answer.isApproximate: numerical fallbacks show ≈.
+const approxSign=k=>/^'?[−-]?\d/.test(EX[k].x)&&EX[k].x.includes("'.;")&&!EX[k].a?'≈':'=';
+// The M3 Expressive button group at the top, as in ModeSwitcher.kt.
+function topRow(mode,leftIcon,rightIcon){
+ const btn=(i,id)=>`<span style="height:48px;width:${i==mode?88:48}px;border-radius:99px;display:flex;align-items:center;justify-content:center;background:${i==mode?'var(--pri)':'var(--swb)'};color:${i==mode?'var(--onpri)':'var(--on)'}">${icon(id,24)}</span>`;
+ return `<div class="top" style="height:64px;padding:0 8px"><span style="width:48px;display:flex;justify-content:center">${leftIcon||''}</span>
+  <span style="display:flex;gap:6px;padding:6px;border-radius:99px;background:var(--swc);box-shadow:0 2px 8px rgba(0,0,0,.25)">${btn(0,'Calc')}${btn(1,'Chart')}${btn(2,'Ar')}${btn(3,'TAB:Complex')}</span>
+  <span style="width:48px;display:flex;justify-content:center">${rightIcon||''}</span></div>`}
+function phone(theme,o){
+ P=PAL[theme];
+ const p=document.createElement('div');p.className='phone '+theme;
+ let h=`<div class="status"><span>12:30</span><span>▾ ▴ ▮</span></div>${topRow(0,`<span style="color:${o.hist?'var(--pri)':'inherit'}">${I.hist}</span>`,I.more)}<div class="disp">`;
+ o.cards.forEach(k=>{const c=EX[k];const hasA=!!c.a;
+   const graphable=(o.graphable||[]).includes(k);
+   h+=`<div class="card" style="padding:12px 8px 16px 20px"><div style="display:flex;align-items:flex-start"><div class="cexpr" style="flex:1;overflow:hidden;padding-top:4px">${mv(MT.decode(c.e),24,P.onv)}</div>${graphable?`<span style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--pri)">${icon('Chart',22)}</span>`:''}<span style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--onv)">${icon('Share',22)}</span></div><div class="cres" style="padding-right:12px">${hasA?`<span class="chip">${I.chev}≈</span>`:''}${stmt(k)?'<span style="margin-left:auto"></span>':'<span class="eqs">'+approxSign(k)+'</span>'}<span class="res" style="overflow:hidden">${mv(MT.decode(c.x),28,P.on)}</span></div></div>`});
+ if(!o.hist){
+  const inp=MT.decode(EX[o.input].e);
+  let cr=inp,ci=inp.length;
+  if(o.cursorInBody&&inp[0].t=='int'){cr=inp[0].body;ci=cr.length}
+  if(o.cursorInVar){cr=inp[0].v;ci=cr.length}
+  if(o.cursorInDen){const fr=inp.find(n=>n.t=='frac');cr=fr.den;ci=cr.length}
+  h+=`<div class="input">${mv(inp,40,P.on,{cursorRow:cr,cursorIndex:ci})}</div><div class="prev">${!EX[o.input].x?'':((stmt(o.input)?'':'<span style="font-size:22px;font-family:CMR">'+approxSign(o.input)+' </span>')+mv(MT.decode(EX[o.input].x),22,P.onv))}</div></div>`;
+  const onC=o.tab==7,onN=o.tab==4,units=['SI','Planck','Atomic','Natural'];
+  const coordSets=[['x','y','z'],['r','θ','z'],['r','θ','φ']],ck=o.coords==null?0:o.coords;
+  if(onN)h+=`<div class="ctrl">${I.fold}<span class="seg">${coordSets.map((c,i)=>`<span class="${ck==i?'sel':''}" style="padding:0 12px;font:italic 16px CMI">${c.join('\u200A')}</span>`).join('')}</span><span style="color:var(--onv);display:flex;margin-left:4px"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a.996.996 0 0 0 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></span><span style="margin-left:auto">${icon('Undo',24)}</span><span style="opacity:.38">${icon('Redo',24)}</span></div>`;
+  else h+=`<div class="ctrl">${I.fold}${onC?`<span class="seg">${units.map(u=>`<span class="${(o.units||'SI')==u?'sel':''}" style="padding:0 10px">${u}</span>`).join('')}</span>`:`<span class="seg"><span class="${o.deg?'':'sel'}">Rad</span><span class="${o.deg?'sel':''}">Deg</span></span>`}<span style="margin-left:auto;opacity:${o.canUndo===false?.38:1}">${icon('Undo',24)}</span><span style="opacity:.38">${icon('Redo',24)}</span>${onC?'':I.left+I.right}</div>`;
+  h+=`<div class="tabs">${TABS.map((t,i)=>`<span class="${i==o.tab?'sel':''}" style="width:52px;padding:0;justify-content:center">${label(t,i==o.tab?P.onsec:P.onv,20)}</span>`).join('')}</div>`;
+  const rowsT=TABKEYS[o.tab],cols=rowsT[0].length,tall=rowsT.length>3;
+  h+=`<div style="position:relative;${tall?'height:173px;overflow:hidden':''}"><div class="grid" style="grid-template-columns:repeat(${cols},1fr);${o.scroll?`transform:translateY(-${o.scroll}px)`:''}">${rowsT.flat().map((k,idx)=>`<div class="k fn" style="position:relative">${label(k,P.onsec,18)}${o.hint&&o.hint[0]==idx?`<span style="position:absolute;bottom:52px;left:50%;transform:translateX(-50%);white-space:nowrap;border-radius:99px;padding:8px 14px;background:var(--inv);color:var(--oninv);font:14px GSF;z-index:3">${o.hint[1]}</span>`:''}</div>`).join('')}</div>${tall?'<div style="position:absolute;left:0;right:0;bottom:0;height:18px;background:linear-gradient(transparent,var(--bg))"></div>':''}</div>`;
+  if(o.sheet){const u=['SI','Planck','Atomic','Natural'].indexOf(o.units||'SI');
+   h+=`<div style="position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:5"><div style="position:absolute;left:0;right:0;bottom:0;height:600px;border-radius:28px 28px 0 0;background:var(--dig);overflow:hidden;color:var(--on)">
+    <div style="width:32px;height:4px;border-radius:2px;background:var(--onv);opacity:.4;margin:12px auto 10px"></div>
+    <div style="font:18px GSF;padding:4px 24px 10px">Physical constants · ${o.units||'SI'} units</div>
+    ${CONSTS_ALL.slice(o.sheetFrom||0,(o.sheetFrom||0)+9).map(c=>`<div style="display:flex;align-items:center;padding:10px 24px">
+      <span style="width:72px">${mv(R(cst(c.id)),22,P.on)}</span>
+      <span style="flex:1"><div style="font:15px GSF">${c.d}</div><div style="display:flex;align-items:center;gap:6px">${mv(MT.decode(c.v[u]),15,P.onv)}${u==0&&c.u?`<span style="font:13px GSF;color:var(--onv)">${c.u}</span>`:''}</div></span>
+      ${c.exact&&u==0?'<span style="font:13px GSF;color:var(--pri)">exact</span>':''}</div>`).join('')}</div></div>`}
+  if(o.coordsDialog){const roles=['Distance from the origin','Angle from the z-axis','Angle around the z-axis'],pick=['r','θ','φ'],letters=['x','y','z','r','ρ','θ','φ','s','ϕ','ψ'];
+   h+=`<div style="position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:5"><div style="width:340px;border-radius:28px;background:var(--dig);padding:24px;color:var(--on)">
+    <div style="font:400 24px GSF;margin-bottom:16px">Spherical coordinates</div>
+    ${roles.map((rl,k)=>`<div style="font:500 14px GSF;color:var(--onv);margin:10px 0 6px">${rl}</div><div style="display:flex;gap:6px;overflow:hidden">${letters.map(L2=>{const on=pick[k]==L2,taken=!on&&pick.includes(L2);return `<span style="flex:none;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:${on?'var(--pri)':'var(--swb)'};color:${on?'var(--onpri)':'var(--on)'};opacity:${taken?.3:1};font:20px CMI">${L2}</span>`}).join('')}</div>`).join('')}
+    <div style="display:flex;justify-content:flex-end;gap:24px;margin-top:22px;font:500 15px GSF;color:var(--pri)"><span>Reset to r, θ, φ</span><span>Done</span></div></div></div>`}
+  if(o.settings)h+=`<div style="position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:5">
+   <div style="width:320px;border-radius:28px;background:var(--dig);padding:24px;color:var(--on)">
+   <div style="font:400 24px GSF;margin-bottom:18px">Settings</div>
+   <div style="font:16px GSF">Decimal places: 10 significant digits</div>
+   <div style="position:relative;height:44px;display:flex;align-items:center;margin:4px 0 14px"><span style="position:absolute;left:0;right:0;height:16px;border-radius:8px;background:var(--sec)"></span><span style="position:absolute;left:0;width:54%;height:16px;border-radius:8px 2px 2px 8px;background:var(--pri)"></span><span style="position:absolute;left:calc(54% + 3px);width:4px;height:44px;border-radius:2px;background:var(--pri)"></span></div>
+   <div style="display:flex;align-items:center"><div style="flex:1"><div style="font:16px GSF">Show decimals first</div><div style="font:13px GSF;color:var(--onv)">The exact form stays one tap away</div></div>
+   <span style="width:52px;height:32px;border-radius:16px;border:2px solid var(--outv);display:flex;align-items:center;padding-left:6px;box-sizing:border-box"><span style="width:16px;height:16px;border-radius:50%;background:var(--onv)"></span></span></div>
+   <div style="text-align:right;margin-top:20px;font:500 15px GSF;color:var(--pri)">Done</div></div></div>`;
+  const MK=[['AC','ac'],['( )','o'],[`<span style="font-family:CMI">x</span>`,'o'],['÷','o'],['7','d'],['8','d'],['9','d'],['×','o'],['4','d'],['5','d'],['6','d'],['−','o'],['1','d'],['2','d'],['3','d'],['+','o'],['0','d'],['.','d'],[I.bs,'d'],['=','eq']];
+  h+=`<div class="grid main">${MK.map(([l,c])=>`<div class="k mk ${c}">${l}</div>`).join('')}</div>`;
+ } else h+='<div style="height:30px"></div></div>';
+ p.innerHTML=h;document.body.appendChild(p);
+}
+const sinx=R(func('sin',R('x')));
+
+// ---- Graph screens (Graph2DScreen.kt / Graph3DScreen.kt / GraphCommon.kt), drawn from engine output in graphs.js
+const PLOT={dark:['#C5CB86','#FFE3C0','#4C8DF6','#E8710A','#1E9E54','#FFB4AB'],light:['#5B6133','#7A5A2C','#4C8DF6','#E8710A','#1E9E54','#BA1A1A']};
+const hex=c=>[1,3,5].map(i=>parseInt(c.slice(i,i+2),16));
+const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
+function svg2d(d,theme){
+ const pal=PLOT[theme],on=theme=='dark'?'#C8C7B5':'#47473B',grid=theme=='dark'?'71,71,59':'200,199,181',bg=theme=='dark'?'#12130C':'#FCF9EE';
+ let o=`<svg width="${d.w}" height="${d.h}" style="display:block">`;
+ d.minorX.forEach(x=>o+=`<line x1="${x}" y1="0" x2="${x}" y2="${d.h}" stroke="rgba(${grid},.35)" stroke-width="1"/>`);
+ d.minorY.forEach(y=>o+=`<line x1="0" y1="${y}" x2="${d.w}" y2="${y}" stroke="rgba(${grid},.35)" stroke-width="1"/>`);
+ d.majorX.forEach(([x])=>o+=`<line x1="${x}" y1="0" x2="${x}" y2="${d.h}" stroke="rgba(${grid},.9)" stroke-width="1.2"/>`);
+ d.majorY.forEach(([y])=>o+=`<line x1="0" y1="${y}" x2="${d.w}" y2="${y}" stroke="rgba(${grid},.9)" stroke-width="1.2"/>`);
+ const [ox,oy]=d.origin;
+ o+=`<line x1="0" y1="${oy}" x2="${d.w}" y2="${oy}" stroke="${on}" stroke-width="2"/><line x1="${ox}" y1="0" x2="${ox}" y2="${d.h}" stroke="${on}" stroke-width="2"/>`;
+ const ly=Math.min(Math.max(oy,2),d.h-16),lx=Math.min(Math.max(ox,2),d.w-40);
+ d.majorX.forEach(([x,t])=>{if(t)o+=`<text x="${x}" y="${ly+14}" text-anchor="middle" font-size="11" fill="${on}" style="font-family:GSF;font-weight:500">${t}</text>`});
+ d.majorY.forEach(([y,t])=>{if(t)o+=`<text x="${lx+4}" y="${y+4}" font-size="11" fill="${on}" style="font-family:GSF;font-weight:500">${t}</text>`});
+ d.curves.forEach(c=>c.lines.forEach(l=>o+=`<polyline points="${l.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${pal[c.c]}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`));
+ d.points.forEach(([x,y,c])=>o+=`<circle cx="${x}" cy="${y}" r="5" fill="${bg}" stroke="${pal[c]}" stroke-width="2"/>`);
+ if(d.trace){const t=d.trace;cv0.font='13px GSF';const tw=cv0.measureText(t.text).width;const w=tw+16,h=31;
+  const left=Math.min(Math.max(t.x-w/2,4),d.w-w-4),top=t.y-h-14>0?t.y-h-14:t.y+14;
+  o+=`<circle cx="${t.x}" cy="${t.y}" r="7" fill="${pal[t.c]}"/><circle cx="${t.x}" cy="${t.y}" r="3" fill="var(--inv)"/>`;
+  if(!d.useBubble)o+=`<rect x="${left}" y="${top}" width="${w}" height="${h}" rx="${h/2}" fill="var(--inv)"/><text x="${left+8}" y="${top+20}" font-size="13" fill="var(--oninv)" style="font-family:GSF">${t.text}</text>`}
+ return o+'</svg>';
+}
+const cv0=document.createElement('canvas').getContext('2d');
+function svg3d(d,theme){
+ const pal=PLOT[theme],grid=theme=='dark'?'#47473B':'#C8C7B5',on=theme=='dark'?'#E5E3D6':'#1C1C16';
+ let o=`<svg width="${d.w}" height="${d.h}" style="display:block">`;
+ d.box.forEach(([a,b,c,e])=>o+=`<line x1="${a}" y1="${b}" x2="${c}" y2="${e}" stroke="${grid}" stroke-width="1"/>`);
+ d.faces.forEach(f=>{const [x0,y0,x1,y1,x2,y2,x3,y3,shade,hgt,s]=f;const c=hex(pal[s]);
+  const lo=mix(c,[0,0,0],.35),hi=mix(c,[255,255,255],.45),b=mix(lo,hi,hgt).map(v=>Math.round(v*shade));
+  o+=`<path d="M${x0} ${y0}L${x1} ${y1}L${x2} ${y2}L${x3} ${y3}Z" fill="rgb(${b})" stroke="${on}" stroke-opacity=".12" stroke-width=".6"/>`});
+ d.labels.forEach(([n,x,y])=>o+=`<text x="${x}" y="${y+6}" text-anchor="middle" font-size="18" fill="var(--onv)" style="font-family:CMI">${n}</text>`);
+ o+=`<text x="${d.w-12}" y="24" text-anchor="end" font-size="11" fill="var(--onv)" style="font-family:GSF">z max ${d.zmax}</text><text x="${d.w-12}" y="39" text-anchor="end" font-size="11" fill="var(--onv)" style="font-family:GSF">z min ${d.zmin}</text>`;
+ return o+'</svg>';
+}
+function fnRow(code,c,out,active){
+ const r=MT.decode(code);const cur=active?{cursorRow:r,cursorIndex:r.length}:{};
+ return `<div style="display:flex;align-items:center;border-radius:20px;background:${active?'var(--dig)':'var(--card)'};padding:6px 4px 6px 8px">
+  <span style="width:40px;display:flex;justify-content:center"><span style="width:18px;height:18px;border-radius:50%;background:${PLOT[P==PAL.dark?'dark':'light'][c]}"></span></span>
+  <span style="font-family:CMI;font-size:24px;color:var(--onv);margin-right:8px">${out.replace('(','<span style="font-family:CMR">(</span>').replace(')','<span style="font-family:CMR">)</span>')} =</span>
+  <span style="flex:1;overflow:hidden">${mv(r,26,P.on,cur)}</span>
+  <span style="width:48px;display:flex;justify-content:center;color:var(--onv)">${icon('Close',24)}</span></div>`}
+function slider(name,val,pct){
+ return `<div style="display:flex;align-items:center;padding:0 8px;gap:8px"><span style="font-family:CMI;font-size:22px;width:28px">${name}</span>
+  <span style="flex:1;position:relative;height:44px;display:flex;align-items:center"><span style="position:absolute;left:0;right:0;height:16px;border-radius:8px;background:var(--sec)"></span>
+  <span style="position:absolute;left:0;width:${pct}%;height:16px;border-radius:8px 2px 2px 8px;background:var(--pri)"></span>
+  <span style="position:absolute;left:calc(${pct}% + 3px);width:4px;height:44px;border-radius:2px;background:var(--pri)"></span></span>
+  <span style="font-family:CMR;font-size:18px;width:40px;color:var(--onv)">${val}</span></div>`}
+function addBtn(out){return `<span style="align-self:flex-start;display:flex;align-items:center;gap:8px;border-radius:99px;background:var(--sec);color:var(--onsec);padding:10px 16px">${icon('Add',20)}<span style="font-family:CMI;font-size:18px">${out} =</span></span>`}
+function compactKeys(v='x'){
+ const MK=[['AC','ac'],['( )','o'],[`<span style="font-family:CMI">${v}</span>`,'o'],['÷','o'],['7','d'],['8','d'],['9','d'],['×','o'],['4','d'],['5','d'],['6','d'],['−','o'],['1','d'],['2','d'],['3','d'],['+','o'],['0','d'],['.','d'],[I.bs,'d'],['=','eq']];
+ return `<div class="ctrl">${I.fold.replace('M7.41 18.59','M7.41 18.59')}<span class="seg"><span class="sel">Rad</span><span>Deg</span></span><span style="margin-left:auto">${I.left}</span>${I.right}</div>
+  <div class="grid main" style="margin-top:0">${MK.map(([l,c])=>`<div class="k mk ${c}" style="height:48px;font-size:26px">${l}</div>`).join('')}</div>`}
+function phoneG2(theme,d,rows,o={}){
+ P=PAL[theme];const p=document.createElement('div');p.className='phone '+theme;
+ let h=`<div class="status"><span>12:30</span><span>▾ ▴ ▮</span></div>${topRow(1,`<span style="color:var(--onv)">${icon('Focus',24)}</span>`,'')}`;
+ d.useBubble=!!o.useBubble;
+ let bubble='';
+ if(o.useBubble&&d.trace){const t=d.trace;const chip=n=>`<span style="margin-left:6px;border-radius:99px;padding:6px 12px;background:var(--pri);color:var(--inv);font:13px GSF">Use ${n}</span>`;
+  bubble=`<span style="position:absolute;left:${Math.max(8,Math.min(d.w-330,t.x-165))}px;top:${t.y-58}px;display:flex;align-items:center;border-radius:99px;padding:4px 4px 4px 14px;background:var(--inv);color:var(--oninv);font:13px GSF;white-space:nowrap">${t.text}${chip('x')}${chip('y')}</span>`}
+ h+=`<div style="height:${d.h}px;overflow:hidden;position:relative">${svg2d(d,theme)}${bubble}</div>`;
+ h+=`<div style="display:flex;flex-direction:column;gap:6px;padding:6px 12px">${rows.map(([code,c,act])=>fnRow(code,c,'y',act)).join('')}${(o.sliders||[]).map(s=>slider(...s)).join('')}${o.keys?'':addBtn('y')}</div>`;
+ if(o.keys)h+=compactKeys();
+ p.innerHTML=h;document.body.appendChild(p)}
+// ---- Complex plot (ComplexScreen.kt), images from DomainColoring.kt via complexshots.kt
+function jsNiceStep(span,target){const raw=span/target,mag=Math.pow(10,Math.floor(Math.log10(raw))),n=raw/mag;return mag*(n<1.5?1:n<3.5?2:n<7.5?5:10)}
+function jsTicks(a,b,t){const s=jsNiceStep(b-a,t),out=[];for(let v=Math.ceil(a/s)*s;v<=b+s*1e-9;v+=s)out.push(Math.abs(v)<s*1e-9?0:v);return {s,out}}
+function jsLabel(v,s){const d=Math.max(0,-Math.floor(Math.log10(s)));return v.toFixed(d).replace('-','−')}
+// Same as polarText in ComplexScreen.kt: |z|∠arg z, with simple multiples of π written as such.
+function polarText(re,im){const m=Math.hypot(re,im);if(m<1e-12)return '0';const a=Math.atan2(im,re),k=a/Math.PI*12;
+ const sh=v=>{const r=Math.round(v*1e4)/1e4;return (Number.isInteger(r)?String(r):String(r)).replace('-','−')};
+ let ang;if(Math.abs(k-Math.round(k))<1e-9){const n=Math.round(k),g=(function gcd(a,b){return b?gcd(b,a%b):a})(Math.abs(n),12)||1,num=n/g,den=12/g;
+  ang=num==0?'0':(num==1?'':num==-1?'−':sh(num))+'π'+(den==1?'':'/'+den)}else ang=sh(a);return sh(m)+'∠'+ang}
+function phoneCX(theme,d,img,o={}){
+ P=PAL[theme];const p=document.createElement('div');p.className='phone '+theme;
+ const [x0,x1,y0,y1]=d.view,W=412,H=d.h,sx=x=>(x-x0)/(x1-x0)*W,sy=y=>(y1-y)/(y1-y0)*H;
+ let h=`<div class="status"><span>12:30</span><span>▾ ▴ ▮</span></div>${topRow(3,`<span style="color:var(--onv)">${icon('Focus',24)}</span>`,'')}`;
+ let ov=`<svg width="${W}" height="${H}" style="position:absolute;left:0;top:0">`;
+ const ox=sx(0),oy=sy(0),sh='paint-order:stroke;stroke:#000;stroke-width:3px;stroke-opacity:.6';
+ if(oy>=0&&oy<=H)ov+=`<line x1="0" y1="${oy}" x2="${W}" y2="${oy}" stroke="rgba(255,255,255,.7)" stroke-width="1.5"/>`;
+ if(ox>=0&&ox<=W)ov+=`<line x1="${ox}" y1="0" x2="${ox}" y2="${H}" stroke="rgba(255,255,255,.7)" stroke-width="1.5"/>`;
+ const tx=jsTicks(x0,x1,5),ty=jsTicks(y0,y1,6),lyy=Math.min(Math.max(oy,2),H-18)+15,lxx=Math.min(Math.max(ox,2),W-44)+4;
+ tx.out.filter(v=>Math.abs(v)>tx.s/2).forEach(v=>ov+=`<text x="${sx(v)}" y="${lyy}" text-anchor="middle" font-size="11" fill="#fff" style="font-family:GSF;${sh}">${jsLabel(v,tx.s)}</text>`);
+ ty.out.filter(v=>Math.abs(v)>ty.s/2).forEach(v=>ov+=`<text x="${lxx}" y="${sy(v)+4}" font-size="11" fill="#fff" style="font-family:GSF;${sh}">${jsLabel(v,ty.s)}i</text>`);
+ if(o.polarGrid){const far=Math.max(...[[x0,y0],[x0,y1],[x1,y0],[x1,y1]].map(([a,b])=>Math.hypot(a,b))),st=jsNiceStep(Math.min(x1-x0,y1-y0)/2,4),pxu=W/(x1-x0);
+  for(let r=st;r<=far;r+=st)ov+=`<circle cx="${ox}" cy="${oy}" r="${r*pxu}" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/>`;
+  for(let a=0;a<12;a++){const an=a*Math.PI/6;ov+=`<line x1="${ox}" y1="${oy}" x2="${ox+2000*Math.cos(an)}" y2="${oy-2000*Math.sin(an)}" stroke="rgba(255,255,255,.55)" stroke-width="1.2"/>`}}
+ if(d.loop){const pts=d.loop.map(([a,b])=>`${sx(a)},${sy(b)}`).join(' ');ov+=`<polygon points="${pts}" fill="none" stroke="rgba(0,0,0,.5)" stroke-width="5" stroke-linejoin="round"/><polygon points="${pts}" fill="none" stroke="#fff" stroke-width="2.5" stroke-linejoin="round"/>`}
+ let extra='';
+ if(o.probe&&d.probe){const px=sx(d.probe[0]),py=sy(d.probe[1]);ov+=`<circle cx="${px}" cy="${py}" r="7" fill="#000"/><circle cx="${px}" cy="${py}" r="5" fill="#fff"/>`;
+  extra+=`<span style="position:absolute;left:${Math.max(8,px-80)}px;top:${Math.max(8,py-64)}px;border-radius:16px;background:var(--inv);color:var(--oninv);font:13px/1.35 GSF;padding:8px 12px;white-space:pre">z = ${d.z}${o.polarGrid?'  =  '+polarText(d.probe[0],d.probe[1]):''}\nf(z) = ${d.w}${o.polarGrid&&d.wv?'  =  '+polarText(d.wv[0],d.wv[1]):''}</span>`}
+ ov+='</svg>';
+ if(d.integral)extra+=`<span style="position:absolute;left:12px;top:12px;display:flex;align-items:center;border-radius:20px;background:var(--dig);padding:10px 4px 10px 16px;color:var(--on)"><span><div style="font:18px CMR">∮ f(z) dz ≈ ${d.integral}</div><div style="font:15px CMR;color:var(--onv)">Σ residues inside ≈ ${d.residues}</div><div style="font:12px GSF;color:var(--onv)">for a loop drawn anticlockwise</div></span><span style="width:40px;display:flex;justify-content:center;color:var(--onv)">${icon('Close',22)}</span></span>`;
+ const tools=[['Bands',o.bands!==false],['Phase',!!o.phase],['Grid',!!o.grid],['PolarGrid',!!o.polarGrid],['Loop',!!o.loop]];
+ extra+=`<span style="position:absolute;right:12px;bottom:12px;display:flex;gap:4px;padding:4px;border-radius:99px;background:var(--swc);box-shadow:0 2px 8px rgba(0,0,0,.3)">${tools.map(([id,on])=>`<span style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:${on?'var(--pri)':'transparent'};color:${on?'var(--onpri)':'var(--on)'}">${tabIcon(id,22)}</span>`).join('')}</span>`;
+ h+=`<div style="height:${H}px;position:relative;overflow:hidden;background:#000"><img src="${img}" width="${W}" height="${H}" style="display:block">${ov}${extra}</div>`;
+ h+=`<div style="display:flex;flex-direction:column;gap:6px;padding:6px 12px">${fnRow(d.row,0,'f(z)',!!o.editing)}${(o.sliders||[]).map(s=>slider(...s)).join('')}${o.editing?'':addBtn('f(z)')}</div>`;
+ if(o.panel!=null){
+   h+=`<div class="ctrl">${I.fold}<span class="seg"><span class="sel">Rad</span><span>Deg</span></span><span style="margin-left:auto">${icon('Undo',24)}</span><span style="opacity:.38">${icon('Redo',24)}</span>${I.left}${I.right}</div>`;
+   h+=`<div class="tabs">${TABS.map((t,i)=>`<span class="${i==o.panel?'sel':''}" style="width:52px;padding:0;justify-content:center">${label(t,i==o.panel?P.onsec:P.onv,20)}</span>`).join('')}</div>`;
+   const rowsT=TABKEYS[o.panel];
+   h+=`<div class="grid" style="grid-template-columns:repeat(${rowsT[0].length},1fr)">${rowsT.flat().map(k=>`<div class="k fn">${label(k,P.onsec,18)}</div>`).join('')}</div>`;
+   const MK=[['AC','ac'],['( )','o'],['<span style="font-family:CMI">z</span>','o'],['÷','o'],['7','d'],['8','d'],['9','d'],['×','o'],['4','d'],['5','d'],['6','d'],['−','o'],['1','d'],['2','d'],['3','d'],['+','o'],['0','d'],['.','d'],[I.bs,'d'],['=','eq']];
+   h+=`<div class="grid main">${MK.map(([l,c])=>`<div class="k mk ${c}" style="height:44px;font-size:24px">${l}</div>`).join('')}</div>`;
+ } else if(o.editing)h+=compactKeys('z');
+ p.innerHTML=h;document.body.appendChild(p)}
+// ---- 2D graph kinds (Graph2DScreen.kt), shapes from graphs2.kt
+function svg2dKinds(d,theme){
+ const pal=PLOT[theme],on=theme=='dark'?'#C8C7B5':'#47473B',grid=theme=='dark'?'71,71,59':'200,199,181',bg=theme=='dark'?'#12130C':'#FCF9EE';
+ let o=`<svg width="${d.w}" height="${d.h}" style="display:block">`;
+ const [ox,oy]=d.origin;
+ if(d.polar){
+  d.polar.circles.forEach(([r,major])=>o+=`<circle cx="${ox}" cy="${oy}" r="${r}" fill="none" stroke="rgba(${grid},${major?.9:.35})" stroke-width="${major?1.2:1}"/>`);
+  for(let a=0;a<12;a++){const R=2000,an=a*Math.PI/6;o+=`<line x1="${ox}" y1="${oy}" x2="${ox+R*Math.cos(an)}" y2="${oy-R*Math.sin(an)}" stroke="${a%3==0?on:`rgba(${grid},.9)`}" stroke-width="${a%3==0?2:1.2}"/>`}
+  d.polar.labels.forEach(([x,y,t])=>o+=`<text x="${x}" y="${y+14}" text-anchor="middle" font-size="11" fill="${on}" style="font-family:GSF">${t}</text>`);
+  d.polar.angles.forEach(([x,y,t])=>o+=`<text x="${x}" y="${y+4}" text-anchor="middle" font-size="11" fill="${on}" style="font-family:GSF">${t}</text>`);
+ } else {
+  d.minorX.forEach(x=>o+=`<line x1="${x}" y1="0" x2="${x}" y2="${d.h}" stroke="rgba(${grid},.35)"/>`);
+  d.minorY.forEach(y=>o+=`<line x1="0" y1="${y}" x2="${d.w}" y2="${y}" stroke="rgba(${grid},.35)"/>`);
+  d.majorX.forEach(([x])=>o+=`<line x1="${x}" y1="0" x2="${x}" y2="${d.h}" stroke="rgba(${grid},.9)" stroke-width="1.2"/>`);
+  d.majorY.forEach(([y])=>o+=`<line x1="0" y1="${y}" x2="${d.w}" y2="${y}" stroke="rgba(${grid},.9)" stroke-width="1.2"/>`);
+  o+=`<line x1="0" y1="${oy}" x2="${d.w}" y2="${oy}" stroke="${on}" stroke-width="2"/><line x1="${ox}" y1="0" x2="${ox}" y2="${d.h}" stroke="${on}" stroke-width="2"/>`;
+  const ly=Math.min(Math.max(oy,2),d.h-16),lx=Math.min(Math.max(ox,2),d.w-40);
+  d.majorX.forEach(([x,t])=>{if(t)o+=`<text x="${x}" y="${ly+14}" text-anchor="middle" font-size="11" fill="${on}" style="font-family:GSF">${t}</text>`});
+  d.majorY.forEach(([y,t])=>{if(t)o+=`<text x="${lx+4}" y="${y+4}" font-size="11" fill="${on}" style="font-family:GSF">${t}</text>`});
+ }
+ d.parts.forEach(p=>{const col=pal[p.c];
+  if(p.mask){const cw=d.w/p.mask.nx,ch=d.h/p.mask.ny;o+=`<path d="${p.mask.runs.map(([j,i0,i1])=>`M${i0*cw} ${j*ch}H${i1*cw+.5}V${(j+1)*ch+.5}H${i0*cw}Z`).join('')}" fill="${col}" fill-opacity=".22"/>`}
+  if(p.segs&&p.segs.length){o+=`<path d="${p.segs.map(s=>`M${s[0]} ${s[1]}L${s[2]} ${s[3]}`).join('')}" stroke="${col}" stroke-width="${p.mask?2:3}" stroke-linecap="round" fill="none" ${p.dashed?'stroke-dasharray="8 6"':''}/>`}
+  (p.lines||[]).forEach(l=>o+=`<polyline points="${l.map(q=>q.join(',')).join(' ')}" fill="none" stroke="${col}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`)});
+ if(d.trace){const t=d.trace;o+=`<circle cx="${t.x}" cy="${t.y}" r="7" fill="${pal[t.c]}"/><circle cx="${t.x}" cy="${t.y}" r="3" fill="var(--inv)"/>`}
+ return o+'</svg>';
+}
+function fnRowL(code,c,label,active){
+ const r=MT.decode(code);const cur=active?{cursorRow:r,cursorIndex:r.length}:{};
+ return `<div style="display:flex;align-items:center;border-radius:20px;background:${active?'var(--dig)':'var(--card)'};padding:6px 4px 6px 8px">
+  <span style="width:40px;display:flex;justify-content:center"><span style="width:18px;height:18px;border-radius:50%;background:${PLOT[P==PAL.dark?'dark':'light'][c]}"></span></span>
+  ${label?`<span style="font-family:CMI;font-size:24px;color:var(--onv);margin-right:8px">${label.replace('(','<span style="font-family:CMR">(</span>').replace(')','<span style="font-family:CMR">)</span>').replace(',','<span style="font-family:CMR">,</span>')}</span>`:''}
+  <span style="flex:1;overflow:hidden">${mv(r,26,P.on,cur)}</span>
+  <span style="width:48px;display:flex;justify-content:center;color:var(--onv)">${icon('Close',24)}</span></div>`}
+function sliderPlay(name,val,pct,playing){
+ return `<div style="display:flex;align-items:center;padding:0 8px;gap:4px"><span style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:${playing?'var(--pri)':'var(--onv)'}">${playing?'<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>':'<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'}</span>
+  <span style="font-family:CMI;font-size:22px;width:28px">${name}</span>
+  <span style="flex:1;position:relative;height:44px;display:flex;align-items:center"><span style="position:absolute;left:0;right:0;height:16px;border-radius:8px;background:var(--sec)"></span>
+  <span style="position:absolute;left:0;width:${pct}%;height:16px;border-radius:8px 2px 2px 8px;background:var(--pri)"></span>
+  <span style="position:absolute;left:calc(${pct}% + 3px);width:4px;height:44px;border-radius:2px;background:var(--pri)"></span></span>
+  <span style="font-family:CMR;font-size:18px;width:40px;color:var(--onv);padding-left:6px">${val}</span></div>`}
+function phoneKinds(theme,d,o={}){
+ P=PAL[theme];const p=document.createElement('div');p.className='phone '+theme;
+ let h=`<div class="status"><span>12:30</span><span>▾ ▴ ▮</span></div>${topRow(1,`<span style="color:var(--onv)">${icon('Focus',24)}</span>`,'')}`;
+ let extra=`<span style="position:absolute;right:12px;bottom:12px;display:flex;padding:4px;border-radius:99px;background:var(--swc);box-shadow:0 2px 8px rgba(0,0,0,.3)"><span style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:${d.polar?'var(--pri)':'transparent'};color:${d.polar?'var(--onpri)':'var(--on)'}">${tabIcon('PolarGrid',22)}</span></span>`;
+ if(o.bubble&&d.trace){const t=d.trace;const chip=n=>`<span style="margin-left:6px;border-radius:99px;padding:6px 12px;background:var(--pri);color:var(--inv);font:13px GSF">Use ${n}</span>`;
+  extra+=`<span style="position:absolute;left:${Math.max(8,Math.min(d.w-300,t.x-150))}px;top:${t.y-58}px;display:flex;align-items:center;border-radius:99px;padding:4px 4px 4px 14px;background:var(--inv);color:var(--oninv);font:13px GSF;white-space:nowrap">${t.text}${chip('r')}${chip('θ')}</span>`}
+ h+=`<div style="height:${d.h}px;overflow:hidden;position:relative">${svg2dKinds(d,theme)}${extra}</div>`;
+ const rows=d.rows.map((r,i)=>fnRowL(r.row,r.c,r.label,o.editing&&i==0)).join('');
+ h+=`<div style="display:flex;flex-direction:column;gap:6px;padding:6px 12px;position:relative">${rows}${(o.sliders||[]).map(s=>sliderPlay(...s)).join('')}${o.editing?'':`<span style="align-self:flex-start;display:flex;align-items:center;gap:8px;border-radius:99px;background:var(--sec);color:var(--onsec);padding:10px 16px">${icon('Add',20)}<span style="font-family:CMI;font-size:18px">y =</span></span>`}</div>`;
+ if(o.menu){const items=[[R('y'),'function of x'],[L('r','='),'polar curve'],[L('(',',',')'),'parametric curve in t'],[L('='),'equation in x and y'],[L('y','<'),'shaded region']];
+  h+=`<div style="position:absolute;left:24px;bottom:${o.menuBottom||40}px;width:250px;border-radius:12px;background:var(--dig);box-shadow:0 4px 16px rgba(0,0,0,.35);padding:8px 0;z-index:6">${items.map(([m,t])=>`<div style="display:flex;align-items:center;padding:10px 16px"><span style="width:56px">${mv(m,18,P.on)}</span><span style="font:15px GSF;color:var(--on)">${t}</span></div>`).join('')}</div>`}
+ if(o.editing){
+  h+=`<div style="display:flex;gap:8px;padding:4px 12px">${['y','r','θ','t'].map(v=>`<span style="height:36px;min-width:52px;border-radius:99px;display:flex;align-items:center;justify-content:center;background:var(--tc,#E0E7C8);color:var(--otc,#1A1E0B);font:20px CMI;padding:0 14px;box-sizing:border-box">${v}</span>`).join('')}</div>`;
+  h+=compactKeys('x');
+ }
+ p.innerHTML=h;document.body.appendChild(p)}
+function phoneG3(theme,d,rows){
+ P=PAL[theme];const p=document.createElement('div');p.className='phone '+theme;
+ let h=`<div class="status"><span>12:30</span><span>▾ ▴ ▮</span></div>${topRow(2,`<span style="color:var(--onv)">${icon('Rotate',24)}</span>`,'')}`;
+ h+=`<div style="height:${d.h}px;position:relative;overflow:hidden">${svg3d(d,theme)}
+   <span style="position:absolute;left:12px;bottom:12px;display:flex;align-items:center;border-radius:99px;background:var(--dig);color:var(--on)">
+   <span style="width:48px;height:48px;display:flex;align-items:center;justify-content:center">${icon('Remove',24)}</span><span style="font-family:CMR;font-size:16px">x, y ∈ [−3, 3]</span><span style="width:48px;height:48px;display:flex;align-items:center;justify-content:center">${icon('Add',24)}</span></span></div>`;
+ h+=`<div style="display:flex;flex-direction:column;gap:6px;padding:6px 12px">${rows.map(([code,c])=>fnRow(code,c,'z',false)).join('')}${addBtn('z')}</div>`;
+ p.innerHTML=h;document.body.appendChild(p)}
+const STEP=['1  Type 3x²y','2  Press ÷ : all of it moves up','3  Type the denominator'];
+function caption(i){const p=document.body.lastChild;const w=document.createElement('div');w.style.cssText='display:flex;flex-direction:column;align-items:center;gap:14px';
+ p.replaceWith(w);w.appendChild(p);const c=document.createElement('div');c.textContent=STEP[i];c.style.cssText='font:500 22px GSF;color:#3a3830';w.appendChild(c)}
+Promise.all(['GSF','Rob','CMR','CMI'].map(f=>document.fonts.load('400 20px '+f))).then(()=>{
+ phone('dark',{tab:0,cards:['sqrt8'],input:'div1'});caption(0);
+ phone('dark',{tab:0,cards:['sqrt8'],input:'div2',cursorInDen:true});caption(1);
+ phone('dark',{tab:0,cards:['sqrt8'],input:'div3',cursorInDen:true});caption(2);
+ document.title='ready'});
+</script></html>
