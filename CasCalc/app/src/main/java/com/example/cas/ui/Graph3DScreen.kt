@@ -68,6 +68,11 @@ import com.example.cas.graph.Polygon
 import com.example.cas.graph.Surface3D
 import com.example.cas.ui.theme.CasFonts
 import kotlin.math.abs
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material.icons.filled.Tune
+import com.example.cas.graph.Coordinates3D
 import androidx.compose.ui.graphics.toArgb
 import com.example.cas.graph.Viewport
 import com.example.cas.graph.Scene
@@ -88,7 +93,20 @@ fun Graph3DScreen(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
         Box(Modifier.weight(1f).fillMaxWidth().onSizeChanged { plotSize = it }) {
             SurfaceCanvas(vm, Modifier.fillMaxSize())
             RangeControl(vm, Modifier.align(Alignment.TopStart).padding(12.dp))
-            GraphBottomBar(vm, Modifier.align(Alignment.BottomCenter), onExport = { if (plotSize.width > 0) exporting = true })
+            var settings by remember { mutableStateOf(false) }
+            if (settings) LimitsDialog(vm, onDismiss = { settings = false })
+            GraphBottomBar(vm, Modifier.align(Alignment.BottomCenter), onExport = { if (plotSize.width > 0) exporting = true }, tools = {
+                // Cylindrical and spherical coordinates, as the polar grid is in 2D.
+                ToolToggle(PlotIcons.Cylindrical, "Cylindrical coordinates (r, θ, z)", vm.coordinates3D == Coordinates3D.Mode.Cylindrical) {
+                    vm.toggleCoordinates(Coordinates3D.Mode.Cylindrical)
+                }
+                ToolToggle(PlotIcons.Spherical, "Spherical coordinates (ρ, θ, φ)", vm.coordinates3D == Coordinates3D.Mode.Spherical) {
+                    vm.toggleCoordinates(Coordinates3D.Mode.Spherical)
+                }
+                IconButton(onClick = { settings = true }) {
+                    Icon(Icons.Default.Tune, contentDescription = "Graph settings", tint = MaterialTheme.colorScheme.onSurface)
+                }
+            })
         }
         FunctionList(vm, outputLabel = "z")
         AnimatedVisibility(visible = vm.active != null && !vm.keypadHidden, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
@@ -127,7 +145,7 @@ private fun RangeControl(vm: Graph3DViewModel, modifier: Modifier) {
     }
 }
 
-/** Custom limits for x, y and (optionally) z. */
+/** The 3D graph's settings: limits for x, y and (optionally) z, the coordinates, and the surface detail. */
 @Composable
 private fun LimitsDialog(vm: Graph3DViewModel, onDismiss: () -> Unit) {
     fun text(v: Double) = shortNumber(v).replace("−", "-")
@@ -146,7 +164,7 @@ private fun LimitsDialog(vm: Graph3DViewModel, onDismiss: () -> Unit) {
     val valid = ok(xs) && ok(ys) && (autoZ || ok(zs))
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Limits") },
+        title = { Text("Graph settings") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 LimitRow("x", x0, x1, { x0 = it }, { x1 = it })
@@ -157,6 +175,30 @@ private fun LimitsDialog(vm: Graph3DViewModel, onDismiss: () -> Unit) {
                 }
                 if (!autoZ) LimitRow("z", z0, z1, { z0 = it }, { z1 = it })
                 if (!valid) Text("Each lower limit must be below its upper limit.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                Text("Coordinates", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    Coordinates3D.Mode.entries.forEachIndexed { k, m ->
+                        SegmentedButton(
+                            selected = vm.coordinates3D == m,
+                            onClick = { if (vm.coordinates3D != m) vm.toggleCoordinates(if (m == Coordinates3D.Mode.Cartesian) vm.coordinates3D else m) },
+                            shape = SegmentedButtonDefaults.itemShape(k, 3),
+                            icon = {},
+                            label = { Text(when (m) { Coordinates3D.Mode.Cartesian -> "x y z"; Coordinates3D.Mode.Cylindrical -> "r θ z"; else -> "ρ θ φ" }, maxLines = 1) },
+                        )
+                    }
+                }
+                Text("Surface detail", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    listOf("Low", "Medium", "High").forEachIndexed { k, name ->
+                        SegmentedButton(
+                            selected = AppSettings.surfaceDetail == k,
+                            onClick = { AppSettings.changeSurfaceDetail(k) },
+                            shape = SegmentedButtonDefaults.itemShape(k, 3),
+                            icon = {},
+                            label = { Text(name, maxLines = 1) },
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
@@ -239,6 +281,15 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier) {
             val h = size.height
             val edge = colors.outlineVariant
             Surface3D.box(camera, w, h).forEach { drawLine(edge, Offset(it.x1, it.y1), Offset(it.x2, it.y2), 1.dp.toPx()) }
+            // Cylindrical or spherical guides: rings and rays on the floor, or a wire sphere.
+            coordinateGuides(vm.coordinates3D, bounds).forEach { line ->
+                val path = Path()
+                line.forEachIndexed { k, p ->
+                    val (sx, sy) = Surface3D.project(p[0], p[1], p[2], bounds, camera, w, h)
+                    if (k == 0) path.moveTo(sx, sy) else path.lineTo(sx, sy)
+                }
+                drawPath(path, edge.copy(alpha = 0.8f), style = Stroke(0.8.dp.toPx()))
+            }
             val wire = colors.onSurface.copy(alpha = 0.12f)
             val hairline = Stroke(0.6.dp.toPx())
             for (face in faces) {
@@ -339,41 +390,40 @@ private fun surfacePolygons(vm: Graph3DViewModel, bounds: Bounds): List<Polygon>
     }.getOrElse { emptyList() } }
 
 /**
- * The 3D graph for exporting, [w] × [h] units (dp), seen from the current camera: the box, the
- * shaded surfaces (as filled polygons, back to front), axis names, points and space curves.
+ * The 3D graph for exporting, drawn like a pgfplots 3D axis (see [com.example.cas.graph.Pgf3D]),
+ * seen from the current camera: the back walls with their grid, surfaces as pgfplots' faceted
+ * "surf" plots colored by height with viridis (or shaded in a color you picked), points and
+ * space curves, then the tick labels and axis names. Square, [size] units across.
  */
 internal fun surface3DScene(vm: Graph3DViewModel, r: ExportRequest, size: Double, dark: Boolean): Scene {
-    // pgfplots' colors and Computer Modern, as in the 2D export.
     val style = if (dark) com.example.cas.graph.Pgf.Style.DARK else com.example.cas.graph.Pgf.Style.LIGHT
-    val w = size; val h = size
-    val scene = Scene(w, h, style.background)
+    val scene = Scene(size, size, style.background)
     val base = surfaceBounds(vm, r.view.xMin, r.view.xMax, r.view.yMin, r.view.yMax)
     val bounds = r.z?.let { (a, b) -> base.copy(z0 = a, z1 = b) } ?: base
-    val camera = vm.camera
-    val fw = w.toFloat(); val fh = h.toFloat()
-    val gradients = (0 until GraphViewModel.PLOT_COLOR_COUNT).map { k ->
-        val c = Color(vm.functions.firstOrNull { it.colorIndex == k }?.customColor ?: style.cycle[k % style.cycle.size])
-        lerp(c, Color.Black, 0.35f) to lerp(c, Color.White, 0.45f)
-    }
-    val ink = Color(style.ink)
-    scene.add(Scene.Stroke(Surface3D.box(camera, fw, fh).map { doubleArrayOf(it.x1.toDouble(), it.y1.toDouble(), it.x2.toDouble(), it.y2.toDouble()) }, style.ink, com.example.cas.graph.Pgf.FRAME_WIDTH))
-    val faces = Surface3D.faces(surfacePolygons(vm, bounds), bounds, camera, fw, fh)
-    val wire = ink.copy(alpha = 0.15f).toArgb()
+    // A little further back than on screen, so the labels fit round the box.
+    val camera = vm.camera.copy(zoom = vm.camera.zoom * 0.78)
+    val fw = size.toFloat()
+    com.example.cas.graph.Pgf3D.back(scene, bounds, camera, size, style)
+    val viridis = com.example.cas.graph.Colormap.VIRIDIS
+    val mesh = Color(style.ink).copy(alpha = 0.3f).toArgb()
+    val faces = Surface3D.faces(surfacePolygons(vm, bounds), bounds, camera, fw, fw)
     for (face in faces) {
         val pts = DoubleArray(face.xs.size * 2) { k -> if (k % 2 == 0) face.xs[k / 2].toDouble() else face.ys[k / 2].toDouble() }
-        val (lo, hi) = gradients[face.surface % gradients.size]
-        val c = lerp(lo, hi, face.height)
-        scene.add(Scene.Fill(listOf(pts), Color(c.red * face.shade, c.green * face.shade, c.blue * face.shade, 1f).toArgb()))
-        if (face.xs.size == 4) scene.add(Scene.Stroke(listOf(pts + doubleArrayOf(pts[0], pts[1])), wire, 0.6))
+        val picked = vm.functions.firstOrNull { it.colorIndex == face.surface }?.customColor
+        val fill = if (picked != null) {
+            val c = Color(picked)
+            lerp(lerp(c, Color.Black, 0.35f), lerp(c, Color.White, 0.45f), face.height).toArgb()
+        } else 0xFF000000.toInt() or viridis.rgb(face.height.toDouble())
+        scene.add(Scene.Fill(listOf(pts), fill))
+        scene.add(Scene.Stroke(listOf(pts + doubleArrayOf(pts[0], pts[1])), mesh, 0.3))
     }
-    Surface3D.axisLabels(camera, fw, fh).forEach { (name, p) ->
-        scene.add(Scene.Label(p.first.toDouble(), p.second.toDouble(), name, com.example.cas.graph.Pgf.NAME_SIZE, style.ink, Scene.Anchor.Middle, Scene.Font.Italic))
+    // Cylindrical or spherical guides, light like the grid.
+    coordinateGuides(vm.coordinates3D, bounds).forEach { line ->
+        scene.add(Scene.Stroke(listOf(line.flatMap { q -> Surface3D.project(q[0], q[1], q[2], bounds, camera, fw, fw).let { (a, b) -> listOf(a.toDouble(), b.toDouble()) } }.toDoubleArray()), style.grid, 0.5))
     }
-    scene.add(Scene.Label(w - 12, 20.0, "z from ${shortNumber(bounds.z0)} to ${shortNumber(bounds.z1)}", com.example.cas.graph.Pgf.TICK_SIZE, style.ink, Scene.Anchor.End, Scene.Font.Roman))
     vm.functions.filter { it.visible && it.space != null }.forEach { fn ->
         val (fx, fy, fz) = fn.space!!
-        val (lo, hi) = gradients[fn.colorIndex % gradients.size]
-        val color = lerp(lo, hi, 0.5f).toArgb()
+        val color = fn.customColor ?: style.cycle[fn.colorIndex % style.cycle.size]
         if (fn.spaceIsCurve) {
             val periodic = listOf(0.3, 1.1, 2.9).all { t -> abs(vm.call(fn, fx, t) - vm.call(fn, fx, t + 2 * PI)) < 1e-9 && abs(vm.call(fn, fz, t) - vm.call(fn, fz, t + 2 * PI)) < 1e-9 }
             val (a, b) = if (periodic) 0.0 to 2 * PI else -10.0 to 10.0
@@ -383,19 +433,51 @@ internal fun surface3DScene(vm: Graph3DViewModel, r: ExportRequest, size: Double
                 val t = a + (b - a) * k / 600
                 val x = vm.call(fn, fx, t); val y = vm.call(fn, fy, t); val z = vm.call(fn, fz, t)
                 if (!x.isFinite() || !y.isFinite() || !z.isFinite()) { if (cur.size >= 4) paths += cur.toDoubleArray(); cur = ArrayList(); continue }
-                val (sx, sy) = Surface3D.project(x, y, z, bounds, camera, fw, fh)
+                val (sx, sy) = Surface3D.project(x, y, z, bounds, camera, fw, fw)
                 cur += sx.toDouble(); cur += sy.toDouble()
             }
             if (cur.size >= 4) paths += cur.toDoubleArray()
-            scene.add(Scene.Stroke(paths, color, 3.0))
+            scene.add(Scene.Stroke(paths, color, 1.5))
         } else {
             val x = vm.call(fn, fx); val y = vm.call(fn, fy); val z = vm.call(fn, fz)
             if (x.isFinite() && y.isFinite() && z.isFinite()) {
-                val (sx, sy) = Surface3D.project(x, y, z, bounds, camera, fw, fh)
-                scene.add(Scene.Circle(sx.toDouble(), sy.toDouble(), 7.0, fill = color))
-                scene.add(Scene.Circle(sx.toDouble(), sy.toDouble(), 2.5, fill = style.background))
+                val (sx, sy) = Surface3D.project(x, y, z, bounds, camera, fw, fw)
+                scene.add(Scene.Circle(sx.toDouble(), sy.toDouble(), 2.8, fill = color))
             }
         }
     }
+    com.example.cas.graph.Pgf3D.front(scene, bounds, camera, size, style)
     return scene
+}
+
+
+/**
+ * Guides for the 3D coordinates, as polylines of (x, y, z) points: in cylindrical, circles of
+ * constant r and rays every 30° on the floor of the box; in spherical, a wire sphere of
+ * latitude and longitude circles. Nothing in Cartesian (the box is the guide).
+ */
+internal fun coordinateGuides(mode: Coordinates3D.Mode, b: Bounds): List<List<DoubleArray>> {
+    val cx = (b.x0 + b.x1) / 2; val cy = (b.y0 + b.y1) / 2
+    val half = minOf(b.x1 - b.x0, b.y1 - b.y0) / 2
+    fun circle(r: Double, z: Double, x0: Double = cx, y0: Double = cy) = (0..64).map { k -> val t = k * 2 * PI / 64; doubleArrayOf(x0 + r * kotlin.math.cos(t), y0 + r * kotlin.math.sin(t), z) }
+    return when (mode) {
+        Coordinates3D.Mode.Cartesian -> emptyList()
+        Coordinates3D.Mode.Cylindrical -> {
+            val step = com.example.cas.graph.Plot2D.niceStep(half, 3)
+            val rings = generateSequence(step) { it + step }.takeWhile { it <= half + 1e-9 }.map { circle(it, b.z0) }.toList()
+            val rays = (0 until 12).map { a -> val t = a * PI / 6; listOf(doubleArrayOf(cx, cy, b.z0), doubleArrayOf(cx + half * kotlin.math.cos(t), cy + half * kotlin.math.sin(t), b.z0)) }
+            // The z-axis, up the middle.
+            rings + rays + listOf(listOf(doubleArrayOf(cx, cy, b.z0), doubleArrayOf(cx, cy, b.z1)))
+        }
+        Coordinates3D.Mode.Spherical -> {
+            val cz = (b.z0 + b.z1) / 2
+            val r = minOf(half, (b.z1 - b.z0) / 2) * 0.9
+            val latitudes = listOf(-60.0, -30.0, 0.0, 30.0, 60.0).map { lat -> val phi = lat * PI / 180; circle(r * kotlin.math.cos(phi), cz + r * kotlin.math.sin(phi)) }
+            val meridians = (0 until 6).map { m ->
+                val t = m * PI / 6
+                (0..64).map { k -> val phi = k * 2 * PI / 64; doubleArrayOf(cx + r * kotlin.math.sin(phi) * kotlin.math.cos(t), cy + r * kotlin.math.sin(phi) * kotlin.math.sin(t), cz + r * kotlin.math.cos(phi)) }
+            }
+            latitudes + meridians
+        }
+    }
 }

@@ -20,8 +20,8 @@ class Colormap private constructor(
     private val qualitative: Boolean,
     private val samples: IntArray?,
 ) {
-    /** Shown in the app: the name as matplotlib writes it. */
-    val label: String get() = name
+    /** Shown in the app: one word, from matplotlib's name (Viridis, RdBu, Dusk for twilight_shifted). */
+    val label: String get() = LABELS[name] ?: name.replaceFirstChar { it.uppercaseChar() }
 
     /** The colour (RGB, no alpha) at [t] from 0 to 1 (arg f from −π to π for the non-cyclic maps). */
     fun rgb(t: Double): Int {
@@ -58,6 +58,13 @@ class Colormap private constructor(
 
         /** The groups in order, for listing. */
         val CATEGORIES: List<String> by lazy { ALL.map { it.category }.distinct() }
+
+        /** One-word names for matplotlib's longer ones (the gist_ maps, nipy_spectral…). */
+        private val LABELS = mapOf(
+            "twilight_shifted" to "Dusk", "gist_yarg" to "Yarg", "gist_gray" to "Graphite", "gist_heat" to "Heat",
+            "gist_earth" to "Earth", "gist_stern" to "Stern", "gist_rainbow" to "Spectrum", "gist_ncar" to "Ncar",
+            "nipy_spectral" to "Nipy", "CMRmap" to "CMRmap",
+        )
 
         /** The maps offered first until the list is changed. */
         val DEFAULT_FAVOURITES = listOf("classic", "twilight", "twilight_shifted", "viridis", "plasma", "magma", "cividis", "turbo")

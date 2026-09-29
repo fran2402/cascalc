@@ -85,6 +85,22 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
     var connectPoints by mutableStateOf(false)
     /** How strongly an inequality's region is shaded, 0 to 1. */
     var fillOpacity by mutableStateOf(0.22f)
+    /** 2D points: their mark's size (radius in dp) and shape ([com.example.cas.graph.Marker]). */
+    var pointSize by mutableStateOf(6f)
+    var pointShape by mutableStateOf(0)
+    /** 2D lists of points: closed up and filled, as a polygon. */
+    var closedShape by mutableStateOf(false)
+    /** A line with a list in it (y = [1, 2, 3]x): one hidden line per entry, drawn in its place. */
+    var family: List<PlotFunction> = emptyList()
+        internal set
+    /** Text instead of maths: a note, or a folder's title (see [isFolder]). */
+    var note by mutableStateOf<String?>(null)
+    /** A folder: the lines after it, up to the next folder, are in it. */
+    var isFolder by mutableStateOf(false)
+    /** A folder showing only its title. */
+    var collapsed by mutableStateOf(false)
+    /** Notes and folders aren't drawn. */
+    val isText get() = note != null
 }
 
 /** A contour integral typed on the complex plane: its circle and its value. */
@@ -120,6 +136,16 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     AndroidViewModel(app), KeypadHost {
 
     private val prefs = app.getSharedPreferences("calculator", Context.MODE_PRIVATE)
+
+    /**
+     * The 3D graph's coordinates: what a line without "=" means (z, r or ρ as a function of the
+     * others) and the guides drawn. Kept here, before anything is compiled, as compiling reads it.
+     */
+    var coordinates3D by mutableStateOf(
+        runCatching { com.example.cas.graph.Coordinates3D.Mode.valueOf(prefs.getString("${key}_coordinates", null) ?: "") }
+            .getOrDefault(com.example.cas.graph.Coordinates3D.Mode.Cartesian),
+    )
+        private set
 
     val functions = mutableStateListOf<PlotFunction>()
     val parameters = mutableStateMapOf<String, Double>()
@@ -172,7 +198,17 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         val rows = get("functions")?.lines()?.filter { it.isNotBlank() }?.mapNotNull { runCatching { MathCodec.decode(it) }.getOrNull() } ?: fallback
         // Each line's color slot, so reopened lines keep their theme colors.
         val slots = get("slots")?.split(",")?.map { it.toIntOrNull()?.takeIf { k -> k in 0 until PLOT_COLOR_COUNT } }
-        rows.forEachIndexed { i, r -> addFunction(r, slots?.getOrNull(i)) }
+        // Notes and folders: their text, by position in the list.
+        val texts = runCatching { org.json.JSONArray(get("notes") ?: "[]") }.getOrNull()
+        rows.forEachIndexed { i, r ->
+            val t = texts?.optJSONObject(i)
+            val f = addFunction(if (t != null) MathRow() else r, slots?.getOrNull(i))
+            if (t != null) {
+                f.note = t.optString("text", "")
+                f.isFolder = t.optBoolean("folder", false)
+                f.collapsed = t.optBoolean("collapsed", false)
+            }
+        }
         get("colors")?.split(",")?.forEachIndexed { i, c ->
             functions.getOrNull(i)?.customColor = c.toLongOrNull()?.toInt()
         }
@@ -187,8 +223,10 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 f.colormap = map
                 f.colormapReversed = reversed
                 // Then flags (L label, C connect) and the fill opacity.
-                parts.getOrNull(3)?.let { flags -> f.showLabel = 'L' in flags; f.connectPoints = 'C' in flags }
+                parts.getOrNull(3)?.let { flags -> f.showLabel = 'L' in flags; f.connectPoints = 'C' in flags; f.closedShape = 'S' in flags }
                 parts.getOrNull(4)?.toFloatOrNull()?.let { f.fillOpacity = it.coerceIn(0f, 1f) }
+                parts.getOrNull(5)?.toFloatOrNull()?.let { f.pointSize = it.coerceIn(2f, 16f) }
+                parts.getOrNull(6)?.toIntOrNull()?.let { f.pointShape = it.coerceIn(0, com.example.cas.graph.Marker.entries.lastIndex) }
             }
         }
         get("ranges").orEmpty().lines().forEach { line ->
@@ -202,10 +240,11 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
 
     /** The graph as its saved values (lines, colors, styles, color slots, ranges, sliders), in the forms [save] writes. */
     private fun currentData(): Map<String, String> = mapOf(
-        "functions" to functions.joinToString("\n") { MathCodec.encode(it.editor.root) },
+        "functions" to functions.joinToString("\n") { encodeLine(it) },
         "colors" to functions.joinToString(",") { f -> f.customColor?.let { (it.toLong() and 0xFFFFFFFFL).toString() } ?: "" },
         "styles" to functions.joinToString(",") { f -> styleText(f) },
         "slots" to functions.joinToString(",") { it.colorIndex.toString() },
+        "notes" to notesJson(),
         "ranges" to ranges.entries.joinToString("\n") { "${it.key}\t${it.value.first}\t${it.value.second}" },
         "parameters" to parameters.entries.joinToString("\n") { "${it.key}\t${it.value}" },
     )
@@ -383,7 +422,12 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         if (f != null) keypadHidden = false
     }
 
-    fun toggleVisible(f: PlotFunction) { f.visible = !f.visible; version++ }
+    fun toggleVisible(f: PlotFunction) {
+        f.visible = !f.visible
+        // A folder shows or hides everything in it.
+        if (f.isFolder) folderMembers(f).forEach { it.visible = f.visible }
+        version++
+    }
 
     fun setParameter(name: String, value: Double) {
         playing.remove(name) // dragging a slider stops its animation
@@ -404,8 +448,15 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         return out
     }
 
+    /** Every line compiled afresh (after the coordinates change). */
+    protected fun recompileAll() {
+        functions.forEach { recompile(it) }
+        version++
+    }
+
     private fun recompile(f: PlotFunction) {
         version++
+        if (f.isText) { f.compiled = null; f.complexCompiled = null; f.plot = null; f.family = emptyList(); f.parameters = emptyList(); f.error = null; return }
         if (f.editor.isEmpty) { f.compiled = null; f.complexCompiled = null; f.plot = null; f.error = null; return }
         if (plotVars == listOf("x")) { recompile2D(f); return }
         if (plotVars.size == 2) { recompile3D(f); return }
@@ -452,6 +503,16 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     private fun recompile2D(f: PlotFunction) {
         f.definesFunction = null
         f.restrictions = emptyList()
+        f.family = emptyList()
+        // y = [1, 2, 3]x: a line for each entry, each compiled on its own.
+        com.example.cas.editor.ListFamily.expand(f.editor.root)?.let { rows ->
+            val members = rows.map { r -> PlotFunction(r, f.colorIndex).also { m -> m.customColor = f.customColor; recompile2D(m) } }
+            f.family = members
+            f.plot = null; f.compiled = null; f.definition = null
+            f.parameters = members.flatMap { it.parameters }.distinct()
+            f.error = members.firstNotNullOfOrNull { it.error }
+            return
+        }
         try {
             val ev = evaluatorFor(f)
             var items: List<com.example.cas.editor.Node> = f.editor.root.items
@@ -596,9 +657,16 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     private val plotLetters: Set<String>
         get() = when {
             isComplex -> setOf("z", "w", "x", "y", "r", "θ")
-            plotVars.size == 2 -> setOf("x", "y", "z")
+            plotVars.size == 2 -> setOf("x", "y", "z") + com.example.cas.graph.Coordinates3D.LETTERS
             else -> setOf("x", "y", "r", "θ", "t")
         }
+
+    /** Switches the 3D coordinates to [m] (or back to Cartesian if it's on already), redrawing every line. */
+    fun toggleCoordinates(m: com.example.cas.graph.Coordinates3D.Mode) {
+        coordinates3D = if (coordinates3D == m) com.example.cas.graph.Coordinates3D.Mode.Cartesian else m
+        prefs.edit().putString("${key}_coordinates", coordinates3D.name).apply()
+        recompileAll()
+    }
 
     /** "a = 3" (a number for a letter that isn't a coordinate) defines that letter instead of plotting. */
     private fun asDefinition(f: PlotFunction, e: com.example.cas.cas.Expr): Boolean {
@@ -712,7 +780,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 else { f.compiled = null; f.implicit3D = null; f.parameters = emptyList(); f.definition = null; f.error = null; return }
             }
             if (asDefinition(f, e)) return
-            when (val spec = com.example.cas.graph.PlotSpec3D.classify(e)) {
+            // r, θ, φ and ρ are cylindrical and spherical coordinates, written in x, y and z.
+            when (val spec = com.example.cas.graph.Coordinates3D.classify(e, coordinates3D)) {
                 is com.example.cas.graph.PlotSpec3D.Explicit -> {
                     spec.parameters.forEach { if (it !in parameters) parameters[it] = 1.0 }
                     f.compiled = Compiler.compile(spec.f, listOf("x", "y") + spec.parameters)
@@ -851,7 +920,12 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     override val quickVariables: List<String>
         get() = when {
             isComplex -> listOf("z", "x", "y", "r", "θ")
-            plotVars.size == 2 -> listOf("x", "y", "z")
+            // Every 3D coordinate letter, those of the current coordinates first.
+            plotVars.size == 2 -> when (coordinates3D) {
+                com.example.cas.graph.Coordinates3D.Mode.Cartesian -> listOf("x", "y", "z", "r", "θ", "φ", "ρ")
+                com.example.cas.graph.Coordinates3D.Mode.Cylindrical -> listOf("r", "θ", "z", "x", "y", "φ", "ρ")
+                com.example.cas.graph.Coordinates3D.Mode.Spherical -> listOf("ρ", "θ", "φ", "x", "y", "z", "r")
+            }
             else -> listOf("x", "y", "r", "θ", "t")
         }
 
@@ -885,11 +959,74 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
 
     private fun save() {
         prefs.edit()
-            .putString("${key}_functions", functions.joinToString("\n") { MathCodec.encode(it.editor.root) })
+            .putString("${key}_functions", functions.joinToString("\n") { encodeLine(it) })
+            .putString("${key}_notes", notesJson())
             .putString("${key}_colors", functions.joinToString(",") { f -> f.customColor?.let { (it.toLong() and 0xFFFFFFFFL).toString() } ?: "" })
             .putString("${key}_styles", functions.joinToString(",") { f -> styleText(f) })
             .putString("${key}_slots", functions.joinToString(",") { it.colorIndex.toString() })
             .apply()
+    }
+
+    /** A line as saved: its maths, or for a note or folder a placeholder (its text is in [notesJson]). */
+    private fun encodeLine(f: PlotFunction) = if (f.isText) MathCodec.encode(MathRow(mutableListOf(com.example.cas.editor.Sym("…")))) else MathCodec.encode(f.editor.root)
+
+    /** Notes' and folders' texts, by position (null for maths lines). */
+    private fun notesJson(): String = org.json.JSONArray().apply {
+        functions.forEach { f ->
+            put(if (!f.isText) org.json.JSONObject.NULL else org.json.JSONObject().apply { put("text", f.note); put("folder", f.isFolder); put("collapsed", f.collapsed) })
+        }
+    }.toString()
+
+    /** Adds a note (text between lines) or, with [folder], a folder that holds the lines after it. */
+    fun addText(folder: Boolean) {
+        val f = addFunction(MathRow())
+        f.note = if (folder) "Folder" else ""
+        f.isFolder = folder
+        active = null
+        version++
+        save()
+    }
+
+    fun setNote(f: PlotFunction, text: String) { f.note = text; save() }
+
+    /** The lines in a folder: those after it, up to the next folder. */
+    fun folderMembers(folder: PlotFunction): List<PlotFunction> {
+        val i = functions.indexOf(folder)
+        if (i < 0 || !folder.isFolder) return emptyList()
+        return functions.drop(i + 1).takeWhile { !it.isFolder }
+    }
+
+    /** The folder a line is in, if any. */
+    fun folderOf(f: PlotFunction): PlotFunction? = functions.take(functions.indexOf(f).coerceAtLeast(0)).lastOrNull { it.isFolder }
+
+    fun toggleCollapsed(folder: PlotFunction) { folder.collapsed = !folder.collapsed; save() }
+
+    /** Replaces a line with a list of points (from its table), written [(x₁, y₁), …]. */
+    fun setPoints(f: PlotFunction, points: List<Pair<Double, Double>>) {
+        val r = MathRow()
+        fun MathRow.number(v: Double) = com.example.cas.graph.Csv.numberText(v).forEach { add(com.example.cas.editor.Sym(it.toString())) }
+        r.add(com.example.cas.editor.Sym("["))
+        points.forEachIndexed { i, (x, y) ->
+            if (i > 0) r.add(com.example.cas.editor.Sym(","))
+            r.add(com.example.cas.editor.Sym("(")); r.number(x); r.add(com.example.cas.editor.Sym(",")); r.number(y); r.add(com.example.cas.editor.Sym(")"))
+        }
+        r.add(com.example.cas.editor.Sym("]"))
+        f.editor.load(r)
+        recompile(f)
+        version++
+        save()
+    }
+
+    /** The line whose points are open as a table, if any. */
+    var tableFor by mutableStateOf<PlotFunction?>(null)
+
+    /** A new, empty table (a list of points to fill in), opened straight away. */
+    fun addTable() {
+        val f = addFunction(MathRow())
+        active = null
+        version++
+        save()
+        tableFor = f
     }
 
     /** Line style (0 solid, 1 dashed, 2 dotted) and thickness in dp. */
@@ -899,14 +1036,19 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         save()
     }
 
-    /** A line's saved style: style:thickness:colormap:flags:opacity. */
+    /** A line's saved style: style:thickness:colormap:flags:opacity:point size:point shape. */
     private fun styleText(f: PlotFunction) =
         "${f.lineStyle}:${f.thickness}:${com.example.cas.graph.Colormap.save(f.colormap, f.colormapReversed)}:" +
-            (if (f.showLabel) "L" else "") + (if (f.connectPoints) "C" else "") + ":${f.fillOpacity}"
+            (if (f.showLabel) "L" else "") + (if (f.connectPoints) "C" else "") + (if (f.closedShape) "S" else "") + ":${f.fillOpacity}:${f.pointSize}:${f.pointShape}"
 
     /** Label, connect-the-points and fill opacity, from a line's options. */
-    fun setOptions(f: PlotFunction, label: Boolean = f.showLabel, connect: Boolean = f.connectPoints, opacity: Float = f.fillOpacity) {
+    fun setOptions(
+        f: PlotFunction, label: Boolean = f.showLabel, connect: Boolean = f.connectPoints, opacity: Float = f.fillOpacity,
+        size: Float = f.pointSize, shape: Int = f.pointShape, closed: Boolean = f.closedShape,
+    ) {
+        f.closedShape = closed
         f.showLabel = label; f.connectPoints = connect; f.fillOpacity = opacity.coerceIn(0f, 1f)
+        f.pointSize = size.coerceIn(2f, 16f); f.pointShape = shape
         version++
         save()
     }
@@ -1081,6 +1223,8 @@ class Graph3DViewModel(app: Application) : GraphViewModel(app, "g3", listOf("x",
     var yMax by mutableStateOf(3.0)
     /** Null: fit z to the surfaces (and use the x range for implicit ones). */
     var zRange by mutableStateOf<Pair<Double, Double>?>(null)
+
+
 
     /** Zooms the x and y ranges about their centres (the − and + buttons). */
     fun scaleRanges(factor: Double) {

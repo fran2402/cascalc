@@ -67,6 +67,18 @@ object TabIcons {
 
 /** Toolbar icons for the complex plot, in the same style. */
 object PlotIcons {
+    /** A cylinder: cylindrical coordinates (r, θ, z) in 3D. */
+    val Cylindrical: ImageVector by lazy {
+        icon("Cylindrical",
+            stroke = listOf("M5 6.5a7 2.6 0 1 0 14 0a7 2.6 0 1 0-14 0z", "M5 6.5v11", "M19 6.5v11", "M5 17.5a7 2.6 0 0 0 14 0"),
+            thin = listOf("M12 6.5v11", "M12 6.5l6 1.6"))
+    }
+    /** A globe of meridian and equator: spherical coordinates (ρ, θ, φ) in 3D. */
+    val Spherical: ImageVector by lazy {
+        icon("Spherical",
+            stroke = listOf("M3.5 12a8.5 8.5 0 1 0 17 0a8.5 8.5 0 1 0-17 0z"),
+            thin = listOf("M3.5 12a8.5 3 0 1 0 17 0a8.5 3 0 1 0-17 0z", "M12 3.5a3.2 8.5 0 1 0 0 17a3.2 8.5 0 1 0 0-17z"))
+    }
     /** Circles and rays from the origin: the polar grid. */
     val PolarGrid: ImageVector by lazy { icon("PolarGrid", stroke = listOf("M3.5 12a8.5 8.5 0 1 0 17 0a8.5 8.5 0 1 0-17 0z"), thin = listOf("M8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0z", "M12 12H20.5", "M12 12L18 6", "M12 12V3.5", "M12 12L6 6"), fill = listOf("M10.8 12a1.2 1.2 0 1 0 2.4 0a1.2 1.2 0 1 0-2.4 0z")) }
     /** Concentric rings: contours of |f|. */

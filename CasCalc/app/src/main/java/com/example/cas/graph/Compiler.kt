@@ -126,6 +126,8 @@ object Compiler {
             "Re", "conj" -> f
             "Im" -> RealFunction { 0.0 }
             "arg" -> one { if (it < 0) PI else 0.0 }
+            // atan2(y, x): the angle of (x, y), from −π to π (θ in cylindrical and spherical coordinates).
+            "atan2" -> { val g = a[1]; RealFunction { v -> kotlin.math.atan2(f(v), g(v)) } }
             else -> throw MathError("${e.name} can't be graphed")
         }
     }

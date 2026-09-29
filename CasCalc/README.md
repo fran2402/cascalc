@@ -195,6 +195,29 @@ Constants and symbols are long lists and scroll up and down in place; the others
 Groups: Basic, Trigonometry, Calculus, Vector calculus, Linear algebra, Statistics, Complex
 numbers, Physical constants, Symbols.
 
+## Latest changes (29 September, fourth round)
+- **Colormap picker** is a popup again: one-word names (Viridis, RdBu, Dusk…); your maps are
+  dragged by their handle to reorder and swiped away to remove; More colormaps opens below
+  with + on each; ⇄ runs a map backwards.
+- **Swipe a line away** to delete it in the 2D, 3D and complex graphs (lines scroll sideways
+  only while being edited, so the swipe isn't taken by the scroll).
+- **Points**: shape (circle, ring, square, diamond, triangle, cross) and size, in the line's
+  options; used in exports too.
+- **3D coordinates**: r, θ, φ and ρ are always coordinates (ρ = 2 is a sphere, r = 1 a
+  cylinder, φ = π/4 a cone). The cylinder and globe buttons switch to cylindrical or spherical
+  coordinates: guides are drawn and a line without "=" means r = … or ρ = …. All seven letters
+  are on the chips above the keypad.
+- **3D view** now looks down on the graph (the camera looked up from below before), and the
+  **3D export** is drawn like pgfplots: back walls with a grid, viridis-coloured faceted
+  surfaces, Computer Modern ticks and labels.
+- **Graph settings** in 3D (limits, coordinates, surface detail) and on the complex plane
+  (limits, plot quality).
+- **Keys**: pinning no longer switches the open card to another key; formulas in the cards
+  are one line that scrolls sideways; Σ and Π start with x.
+- **From Desmos**: lists in lines (y = [1, 2, 3]x draws three lines); closed shapes (polygons)
+  from lists of points; tables (edit a list of points row by row, or hold + for a new table);
+  notes and folders (hold + ; a folder's arrow closes it and its eye hides everything in it).
+
 ## Latest changes (29 September, third round)
 - **Fixed**: the ∂ key crashed (it asked the editor for half a path into the derivative);
   EveryKeyTest now presses every key, types, evaluates and backspaces, so no key can crash it.

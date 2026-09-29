@@ -125,7 +125,9 @@ object Surface3D {
         val x1 = p[0] * cy - p[1] * sy
         val y1 = p[0] * sy + p[1] * cy
         val cp = cos(cam.pitch); val sp = sin(cam.pitch)
-        return doubleArrayOf(x1, y1 * cp + p[2] * sp, -y1 * sp + p[2] * cp)
+        // A positive pitch looks down from above (as pgfplots does): the top is nearer, the far
+        // side higher on the page.
+        return doubleArrayOf(x1, y1 * cp - p[2] * sp, y1 * sp + p[2] * cp)
     }
 
     private fun screen(r: DoubleArray, cam: Camera, w: Float, h: Float): Pair<Float, Float> {
@@ -190,6 +192,9 @@ object Surface3D {
         "y" to screen(rotate(doubleArrayOf(-1.0, 1.2, -0.8), cam), cam, w, h),
         "z" to screen(rotate(doubleArrayOf(-1.0, -1.0, 1.0), cam), cam, w, h),
     )
+
+    /** How far a data point is from the viewer (larger is farther), to tell back from front. */
+    fun depth(x: Double, y: Double, z: Double, b: Bounds, cam: Camera): Double = rotate(b.scene(x, y, z), cam)[1]
 
     /** Where a data point appears on screen (for marking a picked point). */
     fun project(x: Double, y: Double, z: Double, b: Bounds, cam: Camera, w: Float, h: Float): Pair<Float, Float> =

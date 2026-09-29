@@ -287,8 +287,8 @@ val FunctionTabs: List<FunctionTab> = listOf(
                 math(row(Sym("∂"), Sym("f")), KeyAction.Insert(1) { Derivative(row("x"), MathRow(), partial = true) }, "partial derivative"),
                 math(row(Integral(body = row("f"), variable = row("x"))), KeyAction.Insert(2) { Integral(variable = row("x")) }, "integral"),
                 notation(letters("lim"), KeyAction.Insert(0) { Func("lim", listOf(MathRow(), MathRow(mutableListOf(Sym("x"), Sym("→"), Sym("0"), Pow(MathRow()))))) }, "limit"),
-                text("Σ", KeyAction.Insert(1) { BigOp(BigOpKind.Sum, variable = row("k")) }, spoken = "sum"),
-                text("Π", KeyAction.Insert(1) { BigOp(BigOpKind.Product, variable = row("k")) }, spoken = "product"),
+                text("Σ", KeyAction.Insert(1) { BigOp(BigOpKind.Sum, variable = row("x")) }, spoken = "sum"),
+                text("Π", KeyAction.Insert(1) { BigOp(BigOpKind.Product, variable = row("x")) }, spoken = "product"),
             ),
             listOf(
                 notation(letters("f", "≈", "Σ"), KeyAction.Insert(0) { Func("taylor", listOf(MathRow(), letters("x", "→", "0"), row("5"))) }, "Taylor series"),

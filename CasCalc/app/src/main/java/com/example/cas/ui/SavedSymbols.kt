@@ -73,12 +73,10 @@ object FavouriteColormaps {
     fun add(name: String) { if (name !in list) { list.add(name); save() } }
     fun remove(name: String) { list.remove(name); save() }
 
-    /** Moves a favourite one place up (−1) or down (+1). */
-    fun move(name: String, by: Int) {
-        val i = list.indexOf(name)
-        val j = i + by
-        if (i < 0 || j !in list.indices) return
-        list.removeAt(i); list.add(j, name)
+    /** Moves the favourite at [from] to [to] (dragging it in the list). */
+    fun move(from: Int, to: Int) {
+        if (from !in list.indices || to !in list.indices || from == to) return
+        list.add(to, list.removeAt(from))
         save()
     }
 

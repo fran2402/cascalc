@@ -755,6 +755,10 @@ private fun GroupDots(vm: KeypadHost) {
 @Composable
 private fun KeyGrid(rows: List<List<KeySpec>>, rowHeight: Dp, onKey: (KeyAction) -> Unit, fontSize: Float, modifier: Modifier = Modifier, fill: Boolean = false, host: KeypadHost? = null) {
     val columns = rows.maxOfOrNull { it.size } ?: 1
+    // The key whose explanation is open, by what it is rather than where it is: pinning moves
+    // keys around, and the card must stay with its own key.
+    var helpFor by remember { mutableStateOf<String?>(null) }
+    fun id(spec: KeySpec) = spec.spoken + "\u0000" + spec.pinId
     Column(modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
         rows.forEach { keys ->
             // With [fill] the rows share the group's fixed height, so fewer rows means taller keys.
@@ -762,17 +766,34 @@ private fun KeyGrid(rows: List<List<KeySpec>>, rowHeight: Dp, onKey: (KeyAction)
                 (if (fill) Modifier.weight(1f) else Modifier.height(rowHeight)).fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(7.dp),
             ) {
-                keys.forEach { spec -> CalcKey(spec, fontSize, onKey, Modifier.weight(1f), host) }
+                keys.forEach { spec -> CalcKey(spec, fontSize, onKey, Modifier.weight(1f), host, onHelp = { helpFor = id(spec) }) }
                 // A short last row keeps the key widths of the full rows.
                 repeat(columns - keys.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
+    val open = helpFor?.let { h -> rows.asSequence().flatten().firstOrNull { id(it) == h } }
+    if (open != null) {
+        val typed = (open.action as? KeyAction.Type)?.text
+        val defined = typed != null && open.pinnable && host != null && typed in host.definedSymbols
+        KeyHelpDialog(
+            open.spoken,
+            onDismiss = { helpFor = null },
+            // A symbol you built can be removed from its card.
+            onRemove = typed?.takeIf { open.spoken == "saved symbol" }?.let { t ->
+                { SavedSymbols.remove(t); if (PinnedKeys.isPinned(t)) PinnedKeys.toggle(t); helpFor = null }
+            },
+            pinned = if (open.pinnable) PinnedKeys.isPinned(open.pinId) else null,
+            onPin = { PinnedKeys.toggle(open.pinId) },
+            onUndefine = if (defined && typed != null) ({ host?.undefine(typed); helpFor = null }) else null,
+            symbol = typed?.takeIf { open.pinnable },
+        )
+    } else if (helpFor != null) helpFor = null
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, modifier: Modifier, host: KeypadHost? = null) {
+private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, modifier: Modifier, host: KeypadHost? = null, onHelp: () -> Unit = {}) {
     val colors = MaterialTheme.colorScheme
     val view = LocalView.current
     // A letter or symbol with a value (a := 5) is tinted, so you can see what's defined.
@@ -787,8 +808,6 @@ private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, 
         KeyRole.Clear -> colors.primaryContainer to colors.onPrimaryContainer
         KeyRole.Equals -> colors.equalsKey
     }
-    // Long-press shows what a key does: formula, a line of theory and how to use it.
-    var hint by remember { mutableStateOf(false) }
     // Expressive press: the pill squares up, then springs back.
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -812,7 +831,7 @@ private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, 
                     else -> ({
                         if (AppSettings.haptics) view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                         // The explanation, unless turned off in settings (pinnable keys always open it, for Pin).
-                        if (AppSettings.keyHelp || spec.pinnable) hint = true
+                        if (AppSettings.keyHelp || spec.pinnable) onHelp()
                     })
                 },
                 onLongClickLabel = if (spec.action == KeyAction.Backspace) "Clear all" else if (spec.role == KeyRole.Digit) null else "Explain",
@@ -832,18 +851,6 @@ private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, 
                 modifier = Modifier.align(Alignment.TopStart).padding(start = 6.dp, top = 4.dp).size(11.dp).rotate(-30f),
             )
         }
-        if (hint) KeyHelpDialog(
-            spec.spoken,
-            onDismiss = { hint = false },
-            // A symbol you built can be removed from its card.
-            onRemove = (spec.action as? KeyAction.Type)?.takeIf { spec.spoken == "saved symbol" }?.let { t ->
-                { SavedSymbols.remove(t.text); if (PinnedKeys.isPinned(t.text)) PinnedKeys.toggle(t.text); hint = false }
-            },
-            pinned = if (spec.pinnable) pinned else null,
-            onPin = { PinnedKeys.toggle(spec.pinId) },
-            onUndefine = if (defined && typed != null) ({ host?.undefine(typed); hint = false }) else null,
-            symbol = typed?.takeIf { spec.pinnable },
-        )
     }
 }
 
@@ -883,7 +890,8 @@ private fun KeyHelpDialog(
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // All on one line, scrolling sideways, rather than stacked.
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
                             lines.forEach { MathView(it, 22.sp, colors.onSurface) }
                         }
                     }
@@ -974,8 +982,9 @@ private fun TextWithMaths(text: String, style: TextStyle, color: Color) {
 private fun QuickVariables(host: KeypadHost) {
     val colors = MaterialTheme.colorScheme
     val view = LocalView.current
+    // Scrolls sideways when there are more letters than fit (the 3D graph has seven).
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -58,7 +58,7 @@ class LatexParserTest {
 
     // Constants' help formulas: proper LaTeX, upright units, every command supported.
     private fun constant(id: String) = com.example.cas.engine.Constant.entries.first { it.id == id }
-    @Test fun neutronMassLatex() = assertEquals("m_{\\mathrm{n}} =\n1.674\\,927\\,500\\,56 \\times 10^{-27}\\;\\mathrm{kg}", com.example.cas.ui.ConstantLatex.formula(constant("mn")))
+    @Test fun neutronMassLatex() = assertEquals("m_{\\mathrm{n}} = 1.674\\,927\\,500\\,56 \\times 10^{-27}\\;\\mathrm{kg}", com.example.cas.ui.ConstantLatex.formula(constant("mn")))
     @Test fun unitsBecomeNegativePowers() = assertEquals("\\mathrm{m}^{3}\\,\\mathrm{kg}^{-1}\\,\\mathrm{s}^{-2}", com.example.cas.ui.ConstantLatex.unit("m³/(kg·s²)"))
     @Test fun thousandsGrouped() = assertEquals("12\\,906.403", com.example.cas.ui.ConstantLatex.value("12906.403"))
     @Test fun unitsAreUpright() {

@@ -283,7 +283,8 @@ object ConstantLatex {
         val v = value(k.decimal)
         val u = unit(k.unit)
         val rhs = v + if (u.isEmpty()) "" else "\\;$u"
-        return if (k.decimal.length + k.unit.length > 16) "$sym =\n$rhs" else "$sym = $rhs"
+        // One line: the card scrolls sideways for long values.
+        return "$sym = $rhs"
     }
 
     /** NIST CODATA codes for the common constants; others link to NIST's constants index. */

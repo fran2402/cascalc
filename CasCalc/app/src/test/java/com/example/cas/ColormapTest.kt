@@ -74,6 +74,13 @@ class ColormapTest {
         assertTrue(close(Colormap.byName("tab10").rgb(0.02), 0x1F77B4, 0))
     }
 
+    @Test fun namesAreOneWordAndDistinct() {
+        for (m in Colormap.ALL) assertTrue(m.label, m.label.none { it == '_' || it == ' ' })
+        assertEquals(Colormap.ALL.size, Colormap.ALL.map { it.label.lowercase() }.toSet().size)
+        assertEquals("Dusk", Colormap.byName("twilight_shifted").label)
+        assertEquals("Viridis", Colormap.VIRIDIS.label)
+    }
+
     @Test fun byNameFallsBackToClassic() {
         assertEquals(Colormap.MAGMA, Colormap.byName("MAGMA"))
         assertEquals(Colormap.CLASSIC, Colormap.byName("nonsense"))

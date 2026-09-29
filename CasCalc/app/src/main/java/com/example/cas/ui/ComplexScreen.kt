@@ -65,6 +65,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.cas.cas.CD
 import com.example.cas.graph.DomainColoring
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import com.example.cas.graph.Scene
 import com.example.cas.graph.Pgf
 import androidx.compose.material.icons.filled.IosShare
@@ -343,11 +347,16 @@ fun complexText(z: CD): String {
 /** A floating toolbar of toggles: modulus bands, phase lines, the conformal grid and the polar grid. */
 @Composable
 private fun androidx.compose.foundation.layout.RowScope.PlotTools(vm: ComplexViewModel) {
+    var settings by remember { mutableStateOf(false) }
+    if (settings) vm.view?.let { v -> ComplexSettingsDialog(vm, v, onDismiss = { settings = false }) }
     run {
         ToolToggle(PlotIcons.Bands, "Modulus bands", vm.options.modulusBands) { vm.options = vm.options.copy(modulusBands = !vm.options.modulusBands) }
         ToolToggle(PlotIcons.Phase, "Phase lines", vm.options.phaseLines) { vm.options = vm.options.copy(phaseLines = !vm.options.phaseLines) }
         ToolToggle(PlotIcons.Grid, "Grid lines of Re f and Im f", vm.options.grid) { vm.options = vm.options.copy(grid = !vm.options.grid) }
         ToolToggle(PlotIcons.PolarGrid, "Polar grid: circles of |z| and rays of arg z", vm.polarGrid) { vm.polarGrid = !vm.polarGrid }
+        IconButton(onClick = { settings = true }) {
+            Icon(Icons.Default.Tune, contentDescription = "Graph settings", tint = MaterialTheme.colorScheme.onSurface)
+        }
     }
 }
 
@@ -471,4 +480,46 @@ fun roundedComplex(z: CD): String {
         re == 0.0 -> (if (im == 1.0) "" else if (im == -1.0) "-" else part(im)) + "i"
         else -> part(re) + (if (im < 0) " − " else " + ") + part(kotlin.math.abs(im)).let { if (it == "1") "" else it } + "i"
     }.replace("-", "−")
+}
+
+
+/** The complex plane's settings: its limits typed exactly, and how finely it's coloured. */
+@Composable
+private fun ComplexSettingsDialog(vm: ComplexViewModel, view: Viewport, onDismiss: () -> Unit) {
+    fun text(v: Double) = shortNumber(v).replace("−", "-")
+    val fields = remember { androidx.compose.runtime.mutableStateListOf(text(view.xMin), text(view.xMax), text(view.yMin), text(view.yMax)) }
+    fun num(t: String) = t.trim().replace("−", "-").replace(",", ".").toDoubleOrNull()?.takeIf { it.isFinite() }
+    val n = fields.map { num(it) }
+    val valid = n.all { it != null } && n[0]!! < n[1]!! && n[2]!! < n[3]!!
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Graph settings") },
+        text = {
+            Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                listOf(0 to "Re z", 2 to "Im z").forEach { (k, name) ->
+                    Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                        androidx.compose.material3.OutlinedTextField(fields[k], { fields[k] = it }, singleLine = true, label = { Text("$name from") }, modifier = Modifier.weight(1f))
+                        androidx.compose.material3.OutlinedTextField(fields[k + 1], { fields[k + 1] = it }, singleLine = true, label = { Text("$name to") }, modifier = Modifier.weight(1f))
+                    }
+                }
+                if (!valid) Text("Each “from” must be a number below its “to”.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                Text("Plot quality", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    listOf("Standard", "High").forEachIndexed { k, name ->
+                        SegmentedButton(
+                            selected = AppSettings.complexQuality == k,
+                            onClick = { AppSettings.changeComplexQuality(k) },
+                            shape = SegmentedButtonDefaults.itemShape(k, 2),
+                            icon = {},
+                            label = { Text(name) },
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(enabled = valid, onClick = { vm.view = Viewport(n[0]!!, n[1]!!, n[2]!!, n[3]!!); onDismiss() }) { Text("Done") }
+        },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }

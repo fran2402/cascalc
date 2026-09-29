@@ -31,8 +31,11 @@ From the list of 28 September, in the order I'd tackle them.
   list, pins, reordering and inverting; CSV import; draggable points, labels, joined points,
   fill opacity and graph settings.
 
-## Ideas from Desmos not done yet
-- Lists inside expressions (y = [1, 2, 3]x drawing a family of curves).
-- Tables that can be edited cell by cell.
-- Polygons, and folders and notes in the list of lines.
+- Fourth round: colormap popup with drag, swipe and one-word names; swipe to delete lines;
+  point shapes and sizes; cylindrical and spherical 3D coordinates; pgfplots-style 3D export;
+  graph settings in 3D and complex; pin card bug; one-line formulas; Σ/Π with x; lists in
+  lines, polygons, tables, notes and folders.
 
+## Ideas not done yet
+- Desmos's list ranges ([1...10]) and list comprehensions.
+- Folders inside folders.

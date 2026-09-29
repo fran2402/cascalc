@@ -96,6 +96,8 @@ private class Plotted(
     val mask: BooleanArray? = null,
     val maskSize: IntSize = IntSize.Zero,
     val dashed: Boolean = false,
+    /** A closed list of points: the polygon to fill. */
+    val fill: List<Pair<Double, Double>>? = null,
 )
 
 private data class Special(val x: Double, val y: Double, val label: String, val colorIndex: Int)
@@ -241,13 +243,16 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                     drawCircle(palette[f.colorIndex], radius = 6.dp.toPx(), center = o)
                 }
             }
-            plotted.flatMap { it.points }.forEach { s ->
+            plotted.forEach { p -> p.points.forEach { s ->
                 val o = toScreen(v, s.x, s.y)
-                drawCircle(colors.surface, radius = 5.dp.toPx(), center = o)
-                // Plotted points are filled dots; found points (zeros, extrema…) are rings.
-                if (s.label == "point") drawCircle(palette[s.colorIndex], radius = 6.dp.toPx(), center = o)
-                else drawCircle(palette[s.colorIndex], radius = 5.dp.toPx(), center = o, style = Stroke(2.dp.toPx()))
-            }
+                // Plotted points in their line's mark and size; found points (zeros, extrema…) are rings.
+                if (s.label == "point") {
+                    drawMarker(com.example.cas.graph.Marker.of(p.f.pointShape), o, p.f.pointSize.dp.toPx(), palette[s.colorIndex])
+                } else {
+                    drawCircle(colors.surface, radius = 5.dp.toPx(), center = o)
+                    drawCircle(palette[s.colorIndex], radius = 5.dp.toPx(), center = o, style = Stroke(2.dp.toPx()))
+                }
+            } }
             // Coordinates beside points whose line has "Show coordinates" on.
             val labelStyle = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 13.sp, color = colors.onSurface)
             plotted.filter { it.f.showLabel }.forEach { p ->
@@ -318,7 +323,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 ).show()
             }
         }
-        GraphBottomBar(vm, Modifier.align(Alignment.BottomCenter), onExport = { if (size.width > 0) exporting = true }, leading = {
+        GraphBottomBar(vm, Modifier.align(Alignment.BottomCenter), onExport = { if (size.width > 0) exporting = true }, tables = true, leading = {
             Spacer(Modifier.width(8.dp))
             Box(
                 Modifier.size(48.dp).shadow(6.dp, CircleShape).clip(CircleShape).background(colors.secondaryContainer)
@@ -424,32 +429,40 @@ private fun TraceBubble(s: Special, polar: Boolean, degrees: Boolean, onUse: (Do
  * fill up with dots.
  */
 private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighted: PlotFunction?): List<Plotted> {
-    val fns = vm.functions.filter { it.visible && it.plot != null }
+    val fns = vm.functions.filter { it.visible && (it.plot != null || it.family.isNotEmpty()) }
     val samples = (size.width / 2).coerceIn(200, 900)
     val nx = (size.width / 6).coerceIn(40, 240)
     val ny = (size.height / 6).coerceIn(40, 320)
     val out = ArrayList<Plotted>()
-    for (f in fns) {
-        when (val k = f.plot!!) {
+    // A line with a list in it is drawn as each of its members (g), in the line's own style (f).
+    for (f in fns) for (g in f.family.ifEmpty { listOf(f) }) {
+        val k = g.plot ?: continue
+        when (k) {
             is Plot2DKind.Vector -> {
-                val x = vm.call(f, k.x); val y = vm.call(f, k.y)
-                val x0 = k.fromX?.let { vm.call(f, it) } ?: 0.0
-                val y0 = k.fromY?.let { vm.call(f, it) } ?: 0.0
+                val x = vm.call(g, k.x); val y = vm.call(g, k.y)
+                val x0 = k.fromX?.let { vm.call(g, it) } ?: 0.0
+                val y0 = k.fromY?.let { vm.call(g, it) } ?: 0.0
                 if (listOf(x, y, x0, y0).all { it.isFinite() }) out += Plotted(f, listOf(listOf(x0 to y0, x to y)), emptyList(), arrow = true)
             }
             is Plot2DKind.PointList -> {
                 val pts = k.xs.indices.filter { k.xs[it].isFinite() && k.ys[it].isFinite() }.map { Special(k.xs[it], k.ys[it], "point", f.colorIndex) }
-                // "Join the points": a line through them in order.
-                val joined = if (f.connectPoints && pts.size > 1) listOf(pts.map { it.x to it.y }) else emptyList()
-                out += Plotted(f, joined, pts)
+                // "Join the points": a line through them in order; a closed shape also joins the last to
+                // the first and is filled, as a polygon.
+                val path = pts.map { it.x to it.y }
+                val joined = when {
+                    f.closedShape && pts.size > 2 -> listOf(path + path.first())
+                    f.connectPoints && pts.size > 1 -> listOf(path)
+                    else -> emptyList()
+                }
+                out += Plotted(f, joined, pts, fill = if (f.closedShape && pts.size > 2) path else null)
             }
             is Plot2DKind.Point -> {
-                val px = vm.call(f, k.x); val py = vm.call(f, k.y)
-                if (px.isFinite() && py.isFinite() && vm.allowed(f, px, py)) out += Plotted(f, emptyList(), listOf(Special(px, py, "point", f.colorIndex)))
+                val px = vm.call(g, k.x); val py = vm.call(g, k.y)
+                if (px.isFinite() && py.isFinite() && vm.allowed(g, px, py)) out += Plotted(f, emptyList(), listOf(Special(px, py, "point", f.colorIndex)))
             }
             is Plot2DKind.Explicit -> {
                 // Conditions after commas (0 < x < 2) leave gaps where they fail.
-                val fx = { x: Double -> vm.call(f, k.f, x).let { y -> if (vm.allowed(f, x, y)) y else Double.NaN } }
+                val fx = { x: Double -> vm.call(g, k.f, x).let { y -> if (vm.allowed(g, x, y)) y else Double.NaN } }
                 val points = ArrayList<Special>()
                 if (f === highlighted && AppSettings.specialPoints) {
                     Plot2D.zeros(fx, view.xMin, view.xMax, 400).forEach { points += Special(it, 0.0, "zero", f.colorIndex) }
@@ -462,12 +475,12 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
                 out += Plotted(f, Plot2D.sample(fx, view, samples), points)
             }
             is Plot2DKind.Polar -> {
-                val r = { t: Double -> vm.call(f, k.r, t).let { rr -> if (vm.allowed(f, rr * kotlin.math.cos(t), rr * kotlin.math.sin(t), theta = t, r = rr)) rr else Double.NaN } }
+                val r = { t: Double -> vm.call(g, k.r, t).let { rr -> if (vm.allowed(g, rr * kotlin.math.cos(t), rr * kotlin.math.sin(t), theta = t, r = rr)) rr else Double.NaN } }
                 out += Plotted(f, Curves.polar(r, view, turns = periodTurns(listOf(r)).toDouble()), emptyList())
             }
             is Plot2DKind.Parametric -> {
-                val x = { t: Double -> vm.call(f, k.x, t).let { xx -> if (vm.allowed(f, xx, vm.call(f, k.y, t), t = t)) xx else Double.NaN } }
-                val y = { t: Double -> vm.call(f, k.y, t) }
+                val x = { t: Double -> vm.call(g, k.x, t).let { xx -> if (vm.allowed(g, xx, vm.call(g, k.y, t), t = t)) xx else Double.NaN } }
+                val y = { t: Double -> vm.call(g, k.y, t) }
                 // Closed curves go round once; open ones like (t, t²) run over −10 ≤ t ≤ 10.
                 val turns = periodTurns(listOf(x, y))
                 val (t0, t1) = if (turns <= 6) 0.0 to 2 * PI * turns else -10.0 to 10.0
@@ -475,14 +488,14 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
             }
             is Plot2DKind.Implicit -> {
                 // Sliders read once for the whole grid.
-                val g0 = vm.caller2(f, k.f); val ok = vm.allowedCaller(f)
+                val g0 = vm.caller2(g, k.f); val ok = vm.allowedCaller(g)
                 val g = { x: Double, y: Double -> if (ok(x, y)) g0(x, y) else Double.NaN }
                 out += Plotted(f, emptyList(), emptyList(), segments = Curves.implicit(g, view, nx, ny))
             }
             is Plot2DKind.Region -> {
                 val values = DoubleArray(k.parts.size)
-                val parts = k.parts.map { vm.caller2(f, it) }
-                val ok = vm.allowedCaller(f)
+                val parts = k.parts.map { vm.caller2(g, it) }
+                val ok = vm.allowedCaller(g)
                 val test = { x: Double, y: Double ->
                     for (p in parts.indices) values[p] = parts[p](x, y)
                     Curves.holds(values, k.ops) && ok(x, y)
@@ -493,7 +506,7 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
                 val mask = Curves.regionAdaptive(test, view, mx, my)
                 // The edge: where each compared pair is equal.
                 val edges = k.ops.indices.flatMap { p ->
-                    val a = parts[p]; val b = vm.caller2(f, k.parts[p + 1])
+                    val a = parts[p]; val b = vm.caller2(g, k.parts[p + 1])
                     Curves.implicit({ x, y -> a(x, y) - b(x, y) }, view, nx, ny)
                 }
                 out += Plotted(f, emptyList(), emptyList(), segments = edges, mask = mask, maskSize = IntSize(mx, my), dashed = k.ops.all { it == "<" || it == ">" })
@@ -501,7 +514,7 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
         }
     }
     // Where two functions of x cross.
-    val explicit = fns.filter { it.plot is Plot2DKind.Explicit }
+    val explicit = fns.filter { it.plot is Plot2DKind.Explicit && it.family.isEmpty() }
     val crossings = ArrayList<Special>()
     for (a in explicit.indices) for (b in a + 1 until explicit.size) {
         if (!AppSettings.specialPoints || (explicit[a] !== highlighted && explicit[b] !== highlighted)) continue
@@ -611,6 +624,22 @@ private fun DrawScope.drawPolarGrid(v: Viewport, gridColor: Color, axisColor: Co
     }
 }
 
+/** A point's mark: the shape's outlines filled (the cross stroked), [r] pixels across from the centre. */
+internal fun DrawScope.drawMarker(marker: com.example.cas.graph.Marker, center: Offset, r: Float, color: Color) {
+    val (fills, strokes) = marker.outline(center.x.toDouble(), center.y.toDouble(), r.toDouble())
+    if (fills.isNotEmpty()) {
+        val path = Path()
+        fills.forEach { pts ->
+            path.moveTo(pts[0].toFloat(), pts[1].toFloat())
+            var k = 2
+            while (k + 1 < pts.size) { path.lineTo(pts[k].toFloat(), pts[k + 1].toFloat()); k += 2 }
+            path.close()
+        }
+        drawPath(path, color)
+    }
+    strokes.forEach { sg -> drawLine(color, Offset(sg[0].toFloat(), sg[1].toFloat()), Offset(sg[2].toFloat(), sg[3].toFloat()), r / 2.5f, cap = StrokeCap.Round) }
+}
+
 /** The arrowhead at the end of a vector. */
 private fun DrawScope.drawArrowHead(from: Offset, to: Offset, color: Color, width: Float) {
     val dx = to.x - from.x
@@ -654,6 +683,12 @@ private fun DrawScope.drawCurve(v: Viewport, p: Plotted, color: Color) {
                 area.addRect(androidx.compose.ui.geometry.Rect(start * cw, j * ch, i * cw + 0.5f, (j + 1) * ch + 0.5f))
             }
         }
+        drawPath(area, color.copy(alpha = p.f.fillOpacity))
+    }
+    p.fill?.let { poly ->
+        val area = Path()
+        poly.forEachIndexed { i, (x, y) -> val o = toScreen(v, x, y); if (i == 0) area.moveTo(o.x, o.y) else area.lineTo(o.x, o.y) }
+        area.close()
         drawPath(area, color.copy(alpha = p.f.fillOpacity))
     }
     if (p.segments.isNotEmpty()) {
@@ -757,6 +792,7 @@ internal fun graph2DScene(vm: Graph2DViewModel, view: Viewport, size: Double, da
             }
             scene.add(Scene.Fill(rects, withAlpha(color, p.f.fillOpacity)))
         }
+        p.fill?.let { poly -> scene.add(Scene.Fill(listOf(poly.flatMap { (x, y) -> listOf(sx(x), sy(y)) }.toDoubleArray()), withAlpha(color, p.f.fillOpacity))) }
         if (p.segments.isNotEmpty()) {
             val segW = if (p.mask != null) 1.0 else lw
             scene.add(Scene.Stroke(p.segments.map { sg -> doubleArrayOf(sx(sg[0]), sy(sg[1]), sx(sg[2]), sy(sg[3])) }, color, segW, if (p.dashed) doubleArrayOf(6.0, 4.0) else dash))
@@ -778,7 +814,8 @@ internal fun graph2DScene(vm: Graph2DViewModel, view: Viewport, size: Double, da
             }
         }
         // Points as pgfplots' mark=*: small filled dots.
-        p.points.forEach { pt -> scene.add(Scene.Circle(sx(pt.x), sy(pt.y), 2.6, fill = palette[pt.colorIndex])) }
+        // Marks at the line's shape, scaled like its size on screen (pgfplots' marks are small).
+        p.points.forEach { pt -> com.example.cas.graph.Marker.of(p.f.pointShape).addTo(scene, sx(pt.x), sy(pt.y), p.f.pointSize * 0.43, palette[pt.colorIndex]) }
         if (p.f.showLabel) p.points.filter { it.label == "point" }.take(200).forEach { pt ->
             scene.add(Scene.Label(sx(pt.x) + 5, sy(pt.y) - 9, "(" + shortNumber(pt.x) + ", " + shortNumber(pt.y) + ")", Pgf.TICK_SIZE * 0.85, style.ink, Scene.Anchor.Start, Scene.Font.Roman))
         }
