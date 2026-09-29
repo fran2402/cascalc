@@ -38,7 +38,7 @@ object LatexParser {
         "approx" to "≈", "to" to "→", "rightarrow" to "→", "mapsto" to "↦", "sim" to "∼", "in" to "∈",
         "ldots" to "…", "dots" to "…", "cdots" to "⋯", "mid" to "|", "vert" to "|", "lfloor" to "⌊", "rfloor" to "⌋",
         "lceil" to "⌈", "rceil" to "⌉", "langle" to "⟨", "rangle" to "⟩", "{" to "{", "}" to "}", "angle" to "∠",
-        "Re" to "ℜ", "Im" to "ℑ", "hbar" to "ℏ", "ell" to "ℓ", "circ" to "∘", "prime" to "′",
+        "Re" to "ℜ", "Im" to "ℑ", "hbar" to "ℏ", "ell" to "ℓ", "circ" to "∘", "otimes" to "⊗", "oplus" to "⊕", "prime" to "′",
     )
     /** Upright function names: \sin → sin. */
     private val WORDS = setOf(
@@ -197,7 +197,7 @@ object LatexParser {
                         val t = s.substring(i + 1, end)
                         // A single upright letter (the m of a unit, the n of m_n) is marked, since one-letter
                         // symbols are otherwise drawn italic; \mathit leaves it italic.
-                        out.add(Sym(if (t.length == 1 && t[0].isLetter() && name != "mathit") UPRIGHT + t else t))
+                        if (t.isNotEmpty()) out.add(Sym(if (t.length == 1 && t[0].isLetter() && name != "mathit") UPRIGHT + t else t))
                         i = end + 1
                     }
                     attachScripts(out)
@@ -227,7 +227,8 @@ object LatexParser {
                 }
                 else -> {
                     if (name !in SYMBOLS && name !in WORDS && name.length > 1) unknown += name
-                    out.add(Sym(SYMBOLS[name] ?: name))
+                    // A lone backslash (\\ where a line break can't be) adds nothing.
+                    (SYMBOLS[name] ?: name).takeIf { it.isNotEmpty() }?.let { out.add(Sym(it)) }
                     if (name in WORDS) { attachScripts(out); operatorSpace(out); return }
                 }
             }

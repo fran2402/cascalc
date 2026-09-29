@@ -30,3 +30,26 @@ object SavedSymbols {
 
     private fun save() { prefs?.edit()?.putString("symbols", list.joinToString("\n"))?.apply() }
 }
+
+/**
+ * Letters, built symbols and constants pinned from their long-press card: they move to the
+ * front of their group, after its special keys. Kept in preferences, in the order pinned.
+ */
+object PinnedKeys {
+    private var prefs: SharedPreferences? = null
+    val list = mutableStateListOf<String>()
+
+    fun init(context: Context) {
+        val p = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        prefs = p
+        list.clear()
+        list.addAll(p.getString("pinned", "").orEmpty().split('\n').filter { it.isNotEmpty() })
+    }
+
+    fun isPinned(id: String) = id in list
+
+    fun toggle(id: String) {
+        if (!list.remove(id)) list.add(id)
+        prefs?.edit()?.putString("pinned", list.joinToString("\n"))?.apply()
+    }
+}

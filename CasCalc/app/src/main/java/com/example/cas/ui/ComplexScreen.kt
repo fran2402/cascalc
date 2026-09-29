@@ -91,19 +91,17 @@ fun ComplexScreen(vm: ComplexViewModel, modifier: Modifier = Modifier) {
     var exporting by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val density = androidx.compose.ui.platform.LocalDensity.current.density
-    val export = rememberGraphExporter("complex-plot") { r ->
-        complexScene(vm, r.view, plotSize.width / density.toDouble(), plotSize.height / density.toDouble(), com.example.cas.ui.theme.appColorScheme(context, r.dark))
+    val build = { r: ExportRequest ->
+        complexScene(vm, r.view, plotSize.width / density.toDouble(), plotSize.height / density.toDouble(), com.example.cas.ui.theme.appColorScheme(context, r.dark), quick = r.preview)
     }
+    val export = rememberGraphExporter("complex-plot", build)
     val shownView = vm.view
-    if (exporting && shownView != null) ExportDialog(shownView, onExport = { r, share -> exporting = false; export(r, share) }, onDismiss = { exporting = false })
+    if (exporting && shownView != null) ExportDialog(shownView, build, onExport = { r, share -> exporting = false; export(r, share) }, onDismiss = { exporting = false })
     Column(modifier.fillMaxSize()) {
         Box(Modifier.weight(1f).fillMaxWidth().onSizeChanged { plotSize = it }) {
             ComplexCanvas(vm, Modifier.fillMaxSize())
             // (Top left holds the contour result, bottom right the toolbar.)
-            if (vm.active != null && vm.keypadHidden) {
-                ShowKeypadButton(onClick = { vm.keypadHidden = false }, modifier = Modifier.align(Alignment.BottomStart).padding(12.dp))
-            }
-            PlotToolbar(vm, Modifier.align(Alignment.BottomEnd).padding(12.dp), onExport = { exporting = true })
+            GraphBottomBar(vm, Modifier.align(Alignment.BottomCenter), onExport = { if (vm.view != null) exporting = true }, tools = { PlotTools(vm) }, addLabel = false)
             vm.contourResult?.let { ContourCard(it, onClose = vm::clearContour, modifier = Modifier.align(Alignment.TopStart).padding(12.dp)) }
         }
         FunctionList(vm, outputLabel = "f(z)")
@@ -347,9 +345,8 @@ fun complexText(z: CD): String {
 
 /** A floating toolbar of toggles: modulus bands, phase lines, the conformal grid, and the loop tool. */
 @Composable
-private fun PlotToolbar(vm: ComplexViewModel, modifier: Modifier, onExport: () -> Unit) {
-    val tap = rememberKeyTap()
-    ExpressiveToolbar(modifier) {
+private fun androidx.compose.foundation.layout.RowScope.PlotTools(vm: ComplexViewModel) {
+    run {
         ToolToggle(PlotIcons.Bands, "Modulus bands", vm.options.modulusBands) { vm.options = vm.options.copy(modulusBands = !vm.options.modulusBands) }
         ToolToggle(PlotIcons.Phase, "Phase lines", vm.options.phaseLines) { vm.options = vm.options.copy(phaseLines = !vm.options.phaseLines) }
         ToolToggle(PlotIcons.Grid, "Grid lines of Re f and Im f", vm.options.grid) { vm.options = vm.options.copy(grid = !vm.options.grid) }
@@ -357,9 +354,6 @@ private fun PlotToolbar(vm: ComplexViewModel, modifier: Modifier, onExport: () -
         ToolToggle(PlotIcons.Loop, "Draw a loop for a contour integral", vm.contourMode) {
             vm.contourMode = !vm.contourMode
             if (!vm.contourMode) vm.clearContour()
-        }
-        IconButton(onClick = { tap(); onExport() }, enabled = vm.view != null) {
-            Icon(Icons.Default.IosShare, contentDescription = "Export the plot", tint = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -369,7 +363,7 @@ private fun PlotToolbar(vm: ComplexViewModel, modifier: Modifier, onExport: () -
  * picture (rendered afresh for the export), with the axes, polar grid, curves, ∮ loops and a
  * drawn loop as lines on top. The plane stays dark as on screen; [scheme] colors the ∮ labels.
  */
-internal fun complexScene(vm: ComplexViewModel, view: Viewport, w: Double, h: Double, scheme: androidx.compose.material3.ColorScheme): Scene {
+internal fun complexScene(vm: ComplexViewModel, view: Viewport, w: Double, h: Double, scheme: androidx.compose.material3.ColorScheme, quick: Boolean = false): Scene {
     val scene = Scene(w, h, 0xFF000000.toInt())
     val v = view
     fun sx(x: Double) = (x - v.xMin) / v.width * w
@@ -380,7 +374,8 @@ internal fun complexScene(vm: ComplexViewModel, view: Viewport, w: Double, h: Do
     val c = f?.complexCompiled
     if (f != null && c != null) {
         // Two pixels per unit (about the phone's own), at most 1600 across.
-        val scale = minOf(2.0, 1600 / w)
+        // (Half a pixel per unit for the dialog's preview.)
+        val scale = if (quick) 0.5 else minOf(2.0, 1600 / w)
         val pw = (w * scale).toInt().coerceAtLeast(1); val ph = (h * scale).toInt().coerceAtLeast(1)
         DomainColoring.render(c, vm.parameterValues(f), v, pw, ph, vm.options.copy(colormap = f.colormap))?.let { px ->
             scene.add(Scene.Image(0.0, 0.0, w, h, px, pw, ph))

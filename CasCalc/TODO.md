@@ -8,9 +8,6 @@ From the list of 28 September, in the order I'd tackle them.
   crash couldn't be reproduced without a phone, so check it there; if it still crashes, the
   line from `adb logcat -b crash -d | grep -A25 "Process: com.example.cas"` will say where.
 
-## Graphs
-- Export from the 3D graph (2D and complex are done).
-
 ## Done
 - Keypad: one size in all four modes; the extended keypad is three rows tall. Earlier: mod
   takes the whole product after it; √ with an empty index means 2; the power key with nothing
@@ -23,5 +20,9 @@ From the list of 28 September, in the order I'd tackle them.
 - Graphs: drag to reorder; "+ Add" always visible; lists of points and Fit; saved graphs
   (projects); a colormap picker for the complex plane (matplotlib's maps), with a plain color
   for ∮ loops and curves; export as PDF (default), PNG, JPG or SVG with the limits and light
-  or dark chosen (2D and complex).
+  or dark chosen and a live preview (2D, complex and 3D).
+- Second round: long-press crashes on the complex keys and symbols fixed; pinning; undefine and
+  tinted defined letters; no long-press on digits; immediate ≤ ≥; free reordering with a
+  handle; swipe to delete lines; Fit in the row; + Add and export on the graph's bottom bar;
+  saved line colors; faster inequalities; settings reordered; fuller acknowledgements.
 - Settings: the ⋮ menu in all four modes; custom app colors when Material You is off.

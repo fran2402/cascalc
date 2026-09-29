@@ -68,18 +68,31 @@ import com.example.cas.graph.Polygon
 import com.example.cas.graph.Surface3D
 import com.example.cas.ui.theme.CasFonts
 import kotlin.math.abs
+import androidx.compose.ui.graphics.toArgb
+import com.example.cas.graph.Viewport
+import com.example.cas.graph.Scene
 import kotlin.math.PI
 
 @Composable
 fun Graph3DScreen(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
     BackHandler(enabled = vm.active != null) { vm.edit(null) }
+    var plotSize by remember { mutableStateOf(IntSize.Zero) }
+    var exporting by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val density = androidx.compose.ui.platform.LocalDensity.current.density
+    val build = { r: ExportRequest ->
+        surface3DScene(vm, r, plotSize.width / density.toDouble(), plotSize.height / density.toDouble(), com.example.cas.ui.theme.appColorScheme(context, r.dark))
+    }
+    val export = rememberGraphExporter("graph-3d", build)
+    if (exporting) {
+        val b = surfaceBounds(vm)
+        ExportDialog(Viewport(vm.xMin, vm.xMax, vm.yMin, vm.yMax), build, onExport = { r, share -> exporting = false; export(r, share) }, onDismiss = { exporting = false }, z = b.z0 to b.z1)
+    }
     Column(modifier.fillMaxSize()) {
-        Box(Modifier.weight(1f).fillMaxWidth()) {
+        Box(Modifier.weight(1f).fillMaxWidth().onSizeChanged { plotSize = it }) {
             SurfaceCanvas(vm, Modifier.fillMaxSize())
-            RangeControl(vm, Modifier.align(Alignment.BottomStart).padding(12.dp))
-            if (vm.active != null && vm.keypadHidden) {
-                ShowKeypadButton(onClick = { vm.keypadHidden = false }, modifier = Modifier.align(Alignment.TopStart).padding(12.dp))
-            }
+            RangeControl(vm, Modifier.align(Alignment.TopStart).padding(12.dp))
+            GraphBottomBar(vm, Modifier.align(Alignment.BottomCenter), onExport = { if (plotSize.width > 0) exporting = true })
         }
         FunctionList(vm, outputLabel = "z")
         AnimatedVisibility(visible = vm.active != null && !vm.keypadHidden, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
@@ -187,25 +200,8 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier) {
     val limits = listOf(vm.xMin, vm.xMax, vm.yMin, vm.yMax)
 
     // The box: x and y as set; z as set, or fitted to the explicit surfaces.
-    val bounds = remember(version, limits, vm.zRange, params) {
-        val fns = vm.functions.filter { it.visible }
-        val z = vm.zRange ?: run {
-            val fitted = fns.filter { it.compiled != null }.map { f -> Surface3D.autoZ({ x, y -> vm.evaluate(f, x, y) }, vm.xMin, vm.xMax, vm.yMin, vm.yMax) }
-            if (fitted.isEmpty()) vm.xMin to vm.xMax else fitted.minOf { it.first } to fitted.maxOf { it.second }
-        }
-        Bounds(vm.xMin, vm.xMax, vm.yMin, vm.yMax, z.first, z.second)
-    }
-    val polygons = remember(version, bounds, params, AppSettings.surfaceDetail) {
-        vm.functions.filter { it.visible }.flatMap { f -> runCatching {
-            val implicit = f.implicit3D
-            when {
-                // Grid sizes from the 3D detail setting.
-                implicit != null -> Surface3D.implicit({ x, y, z -> vm.call(f, implicit, x, y, z) }, bounds, AppSettings.surfaceGrid.second, f.colorIndex)
-                f.compiled != null -> Surface3D.explicit({ x, y -> vm.evaluate(f, x, y) }, bounds, AppSettings.surfaceGrid.first, f.colorIndex)
-                else -> emptyList<Polygon>()
-            }
-        }.getOrElse { emptyList() } }
-    }
+    val bounds = remember(version, limits, vm.zRange, params) { surfaceBounds(vm) }
+    val polygons = remember(version, bounds, params, AppSettings.surfaceDetail) { surfacePolygons(vm, bounds) }
     val camera = vm.camera
     val faces: List<Face> = remember(polygons, camera, size) {
         if (size.width == 0) emptyList() else Surface3D.faces(polygons, bounds, camera, size.width.toFloat(), size.height.toFloat())
@@ -322,4 +318,85 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier) {
             )
         }
     }
+}
+
+
+/** The box: x and y as set; z as set, or fitted to the explicit surfaces. */
+private fun surfaceBounds(vm: Graph3DViewModel, x0: Double = vm.xMin, x1: Double = vm.xMax, y0: Double = vm.yMin, y1: Double = vm.yMax): Bounds {
+    val fns = vm.functions.filter { it.visible }
+    val z = vm.zRange ?: run {
+        val fitted = fns.filter { it.compiled != null }.map { f -> Surface3D.autoZ({ x, y -> vm.evaluate(f, x, y) }, x0, x1, y0, y1) }
+        if (fitted.isEmpty()) x0 to x1 else fitted.minOf { it.first } to fitted.maxOf { it.second }
+    }
+    return Bounds(x0, x1, y0, y1, z.first, z.second)
+}
+
+/** Every visible surface as polygons, at the 3D detail setting's grid sizes. */
+private fun surfacePolygons(vm: Graph3DViewModel, bounds: Bounds): List<Polygon> =
+    vm.functions.filter { it.visible }.flatMap { f -> runCatching {
+        val implicit = f.implicit3D
+        when {
+            implicit != null -> Surface3D.implicit({ x, y, z -> vm.call(f, implicit, x, y, z) }, bounds, AppSettings.surfaceGrid.second, f.colorIndex)
+            f.compiled != null -> Surface3D.explicit({ x, y -> vm.evaluate(f, x, y) }, bounds, AppSettings.surfaceGrid.first, f.colorIndex)
+            else -> emptyList<Polygon>()
+        }
+    }.getOrElse { emptyList() } }
+
+/**
+ * The 3D graph for exporting, [w] × [h] units (dp), seen from the current camera: the box, the
+ * shaded surfaces (as filled polygons, back to front), axis names, points and space curves.
+ */
+internal fun surface3DScene(vm: Graph3DViewModel, r: ExportRequest, w: Double, h: Double, scheme: androidx.compose.material3.ColorScheme): Scene {
+    val scene = Scene(w, h, scheme.surface.toArgb())
+    val base = surfaceBounds(vm, r.view.xMin, r.view.xMax, r.view.yMin, r.view.yMax)
+    val bounds = r.z?.let { (a, b) -> base.copy(z0 = a, z1 = b) } ?: base
+    val camera = vm.camera
+    val fw = w.toFloat(); val fh = h.toFloat()
+    val themeColors = plotColors(scheme)
+    val gradients = (0 until GraphViewModel.PLOT_COLOR_COUNT).map { k ->
+        val c = vm.functions.firstOrNull { it.colorIndex == k }?.customColor?.let { Color(it) } ?: themeColors[k]
+        lerp(c, Color.Black, 0.35f) to lerp(c, Color.White, 0.45f)
+    }
+    scene.add(Scene.Stroke(Surface3D.box(camera, fw, fh).map { doubleArrayOf(it.x1.toDouble(), it.y1.toDouble(), it.x2.toDouble(), it.y2.toDouble()) }, scheme.outlineVariant.toArgb(), 1.0))
+    val faces = Surface3D.faces(surfacePolygons(vm, bounds), bounds, camera, fw, fh)
+    val wire = scheme.onSurface.copy(alpha = 0.12f).toArgb()
+    for (face in faces) {
+        val pts = DoubleArray(face.xs.size * 2) { k -> if (k % 2 == 0) face.xs[k / 2].toDouble() else face.ys[k / 2].toDouble() }
+        val (lo, hi) = gradients[face.surface % gradients.size]
+        val c = lerp(lo, hi, face.height)
+        scene.add(Scene.Fill(listOf(pts), Color(c.red * face.shade, c.green * face.shade, c.blue * face.shade, 1f).toArgb()))
+        if (face.xs.size == 4) scene.add(Scene.Stroke(listOf(pts + doubleArrayOf(pts[0], pts[1])), wire, 0.6))
+    }
+    Surface3D.axisLabels(camera, fw, fh).forEach { (name, p) ->
+        scene.add(Scene.Label(p.first.toDouble(), p.second.toDouble(), name, 18.0, scheme.onSurfaceVariant.toArgb(), Scene.Anchor.Middle))
+    }
+    scene.add(Scene.Label(w - 12, 20.0, "z from ${shortNumber(bounds.z0)} to ${shortNumber(bounds.z1)}", 11.0, scheme.onSurfaceVariant.toArgb(), Scene.Anchor.End))
+    vm.functions.filter { it.visible && it.space != null }.forEach { fn ->
+        val (fx, fy, fz) = fn.space!!
+        val (lo, hi) = gradients[fn.colorIndex % gradients.size]
+        val color = lerp(lo, hi, 0.5f).toArgb()
+        if (fn.spaceIsCurve) {
+            val periodic = listOf(0.3, 1.1, 2.9).all { t -> abs(vm.call(fn, fx, t) - vm.call(fn, fx, t + 2 * PI)) < 1e-9 && abs(vm.call(fn, fz, t) - vm.call(fn, fz, t + 2 * PI)) < 1e-9 }
+            val (a, b) = if (periodic) 0.0 to 2 * PI else -10.0 to 10.0
+            val paths = ArrayList<DoubleArray>()
+            var cur = ArrayList<Double>()
+            for (k in 0..600) {
+                val t = a + (b - a) * k / 600
+                val x = vm.call(fn, fx, t); val y = vm.call(fn, fy, t); val z = vm.call(fn, fz, t)
+                if (!x.isFinite() || !y.isFinite() || !z.isFinite()) { if (cur.size >= 4) paths += cur.toDoubleArray(); cur = ArrayList(); continue }
+                val (sx, sy) = Surface3D.project(x, y, z, bounds, camera, fw, fh)
+                cur += sx.toDouble(); cur += sy.toDouble()
+            }
+            if (cur.size >= 4) paths += cur.toDoubleArray()
+            scene.add(Scene.Stroke(paths, color, 3.0))
+        } else {
+            val x = vm.call(fn, fx); val y = vm.call(fn, fy); val z = vm.call(fn, fz)
+            if (x.isFinite() && y.isFinite() && z.isFinite()) {
+                val (sx, sy) = Surface3D.project(x, y, z, bounds, camera, fw, fh)
+                scene.add(Scene.Circle(sx.toDouble(), sy.toDouble(), 7.0, fill = color))
+                scene.add(Scene.Circle(sx.toDouble(), sy.toDouble(), 2.5, fill = scheme.surface.toArgb()))
+            }
+        }
+    }
+    return scene
 }

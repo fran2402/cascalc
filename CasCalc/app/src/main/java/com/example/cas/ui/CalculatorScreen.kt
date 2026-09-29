@@ -71,6 +71,11 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -235,7 +240,7 @@ fun Keypad(host: KeypadHost, modifier: Modifier = Modifier) {
         } else if (host.mainVariable == "x") MainKeys else MainKeys.map { r ->
             r.map { k -> if (k.spoken == "x") KeySpec(KeyLabel.Math(row(com.example.cas.editor.Sym(host.mainVariable))), KeyAction.Type(host.mainVariable), k.role, host.mainVariable) else k }
         }
-        KeyGrid(pad, mainRow, onKey, fontSize = 28f, modifier = Modifier.padding(bottom = 12.dp))
+        KeyGrid(pad, mainRow, onKey, fontSize = 28f, modifier = Modifier.padding(bottom = 12.dp), host = host)
     }
     if (showMatrixPicker) {
         MatrixPickerDialog(
@@ -655,14 +660,19 @@ private fun FunctionPanel(vm: KeypadHost, rowHeight: Dp, onKey: (KeyAction) -> U
             ) { index ->
             val shown = FunctionTabs[index]
             // The letters group starts with the symbol builder and the symbols built with it.
-            val rows = if (shown.title == "Symbols") letterRows(SavedSymbols.list) else shown.keys
+            // Pinned letters, symbols and constants come first (after the special keys).
+            val rows = when (shown.title) {
+                "Symbols" -> letterRows(SavedSymbols.list, PinnedKeys.list)
+                "Physical constants" -> constantRows(PinnedKeys.list)
+                else -> shown.keys
+            }
             if (!shown.scrolls) {
-                KeyGrid(rows, rowHeight, onKey, fontSize = if (shown.columns >= 5) 18f else 20f, modifier = Modifier.height(gridHeight).padding(vertical = 8.dp), fill = true)
+                KeyGrid(rows, rowHeight, onKey, fontSize = if (shown.columns >= 5) 18f else 20f, modifier = Modifier.height(gridHeight).padding(vertical = 8.dp), fill = true, host = vm)
             } else {
                 // Constants and symbols are long lists: they scroll up and down in place.
                 val scroll = key(index) { rememberScrollState() }
                 Box(Modifier.height(gridHeight)) {
-                    KeyGrid(rows, rowHeight, onKey, fontSize = if (shown.columns >= 5) 18f else 20f, modifier = Modifier.verticalScroll(scroll).padding(vertical = 8.dp))
+                    KeyGrid(rows, rowHeight, onKey, fontSize = if (shown.columns >= 5) 18f else 20f, modifier = Modifier.verticalScroll(scroll).padding(vertical = 8.dp), host = vm)
                     if (scroll.value < scroll.maxValue) {
                         Box(
                             Modifier
@@ -743,7 +753,7 @@ private fun GroupDots(vm: KeypadHost) {
 }
 
 @Composable
-private fun KeyGrid(rows: List<List<KeySpec>>, rowHeight: Dp, onKey: (KeyAction) -> Unit, fontSize: Float, modifier: Modifier = Modifier, fill: Boolean = false) {
+private fun KeyGrid(rows: List<List<KeySpec>>, rowHeight: Dp, onKey: (KeyAction) -> Unit, fontSize: Float, modifier: Modifier = Modifier, fill: Boolean = false, host: KeypadHost? = null) {
     val columns = rows.maxOfOrNull { it.size } ?: 1
     Column(modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
         rows.forEach { keys ->
@@ -752,7 +762,7 @@ private fun KeyGrid(rows: List<List<KeySpec>>, rowHeight: Dp, onKey: (KeyAction)
                 (if (fill) Modifier.weight(1f) else Modifier.height(rowHeight)).fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(7.dp),
             ) {
-                keys.forEach { spec -> CalcKey(spec, fontSize, onKey, Modifier.weight(1f)) }
+                keys.forEach { spec -> CalcKey(spec, fontSize, onKey, Modifier.weight(1f), host) }
                 // A short last row keeps the key widths of the full rows.
                 repeat(columns - keys.size) { Spacer(Modifier.weight(1f)) }
             }
@@ -762,10 +772,14 @@ private fun KeyGrid(rows: List<List<KeySpec>>, rowHeight: Dp, onKey: (KeyAction)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, modifier: Modifier) {
+private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, modifier: Modifier, host: KeypadHost? = null) {
     val colors = MaterialTheme.colorScheme
     val view = LocalView.current
-    val (bg, fg) = when (spec.role) {
+    // A letter or symbol with a value (a := 5) is tinted, so you can see what's defined.
+    val typed = (spec.action as? KeyAction.Type)?.text
+    val defined = typed != null && spec.pinnable && host != null && typed in host.definedSymbols
+    val pinned = spec.pinnable && PinnedKeys.isPinned(spec.pinId)
+    val (bg, fg) = if (defined) colors.tertiaryContainer to colors.onTertiaryContainer else when (spec.role) {
         KeyRole.Digit -> colors.surfaceContainerHigh to colors.onSurface
         // Function keys are a neutral block on the panel, as in the design; operators stay tinted.
         KeyRole.Function -> colors.surfaceContainerHighest to colors.onSurface
@@ -791,12 +805,17 @@ private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, 
             .combinedClickable(
                 interactionSource = interaction,
                 indication = null,
-                onLongClick = if (spec.action == KeyAction.Backspace) ({ onKey(KeyAction.Clear) }) else ({
-                    if (AppSettings.haptics) view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                    // The explanation, unless turned off in settings.
-                    if (AppSettings.keyHelp) hint = true
-                }),
-                onLongClickLabel = if (spec.action == KeyAction.Backspace) "Clear all" else "Show name",
+                onLongClick = when {
+                    spec.action == KeyAction.Backspace -> ({ onKey(KeyAction.Clear) })
+                    // Digits say nothing a long-press could add.
+                    spec.role == KeyRole.Digit -> null
+                    else -> ({
+                        if (AppSettings.haptics) view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                        // The explanation, unless turned off in settings (pinnable keys always open it, for Pin).
+                        if (AppSettings.keyHelp || spec.pinnable) hint = true
+                    })
+                },
+                onLongClickLabel = if (spec.action == KeyAction.Backspace) "Clear all" else if (spec.role == KeyRole.Digit) null else "Explain",
                 onClick = {
                     if (AppSettings.haptics) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     if (AppSettings.keySounds) view.playSoundEffect(android.view.SoundEffectConstants.CLICK)
@@ -807,13 +826,23 @@ private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, 
         contentAlignment = Alignment.Center,
     ) {
         LabelView(spec.label, fg, fontSize, iconSize = if (spec.label == KeyLabel.BackspaceIcon || spec.label == KeyLabel.EnterIcon) 28.dp else 24.dp)
+        if (pinned) {
+            Icon(
+                Icons.Default.PushPin, contentDescription = "Pinned", tint = fg.copy(alpha = 0.7f),
+                modifier = Modifier.align(Alignment.TopStart).padding(start = 6.dp, top = 4.dp).size(11.dp).rotate(-30f),
+            )
+        }
         if (hint) KeyHelpDialog(
             spec.spoken,
             onDismiss = { hint = false },
             // A symbol you built can be removed from its card.
-            onRemove = (spec.action as? KeyAction.Type)?.takeIf { spec.spoken == "saved symbol" }?.let { typed ->
-                { SavedSymbols.remove(typed.text); hint = false }
+            onRemove = (spec.action as? KeyAction.Type)?.takeIf { spec.spoken == "saved symbol" }?.let { t ->
+                { SavedSymbols.remove(t.text); if (PinnedKeys.isPinned(t.text)) PinnedKeys.toggle(t.text); hint = false }
             },
+            pinned = if (spec.pinnable) pinned else null,
+            onPin = { PinnedKeys.toggle(spec.pinId) },
+            onUndefine = if (defined && typed != null) ({ host?.undefine(typed); hint = false }) else null,
+            symbol = typed?.takeIf { spec.pinnable },
         )
     }
 }
@@ -823,8 +852,18 @@ private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, 
  * formula (LaTeX, drawn by the calculator's own renderer), a line of theory
  * with inline maths, and how to use it. It stays until Dismiss (or Back).
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun KeyHelpDialog(spoken: String, onDismiss: () -> Unit, onRemove: (() -> Unit)? = null) {
+private fun KeyHelpDialog(
+    spoken: String,
+    onDismiss: () -> Unit,
+    onRemove: (() -> Unit)? = null,
+    /** Null when the key can't be pinned. */
+    pinned: Boolean? = null,
+    onPin: () -> Unit = {},
+    onUndefine: (() -> Unit)? = null,
+    symbol: String? = null,
+) {
     val colors = MaterialTheme.colorScheme
     val help = KeyHelps.of(spoken)
     AlertDialog(
@@ -850,6 +889,26 @@ private fun KeyHelpDialog(spoken: String, onDismiss: () -> Unit, onRemove: (() -
                     }
                 }
                 if (help.about.isNotEmpty()) TextWithMaths(help.about, MaterialTheme.typography.bodyLarge, colors.onSurface)
+                // Pin, undefine and remove, as buttons on the card.
+                if (pinned != null || onUndefine != null || onRemove != null) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (pinned != null) FilledTonalButton(onClick = onPin) {
+                            Icon(if (pinned) Icons.Outlined.PushPin else Icons.Default.PushPin, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (pinned) "Unpin" else "Pin")
+                        }
+                        if (onUndefine != null) FilledTonalButton(onClick = onUndefine) {
+                            Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Undefine" + (symbol?.let { s -> com.example.cas.cas.CustomSymbol.decode(s)?.let { "" } ?: " $s" } ?: ""))
+                        }
+                        if (onRemove != null) OutlinedButton(onClick = onRemove) {
+                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.error)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Remove symbol", color = colors.error)
+                        }
+                    }
+                }
                 if (help.usage.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("How to use", style = MaterialTheme.typography.labelLarge, color = colors.primary)
@@ -878,9 +937,6 @@ private fun KeyHelpDialog(spoken: String, onDismiss: () -> Unit, onRemove: (() -
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Dismiss") } },
-        dismissButton = onRemove?.let { remove ->
-            { TextButton(onClick = remove) { Text("Remove symbol", color = MaterialTheme.colorScheme.error) } }
-        },
     )
 }
 
@@ -1211,6 +1267,30 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
     // A full-screen page, not a popup.
     FullScreenPage("Settings", onBack = onBack) {
             run {
+                SettingsSection("Appearance")
+                SettingsChoice("Theme", listOf("System", "Light", "Dark"), AppSettings.theme, AppSettings::changeTheme)
+                val wallpaperColors = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+                if (wallpaperColors) {
+                    SettingsToggle("Colors from your wallpaper", "Material You dynamic color", AppSettings.dynamicColor, AppSettings::changeDynamicColor)
+                }
+                // Without Material You, the colors grow from one you choose.
+                if (!wallpaperColors || !AppSettings.dynamicColor) ThemeColorChoice()
+                SettingsChoice("Maths size", listOf("Small", "Medium", "Large"), AppSettings.mathSize, AppSettings::changeMathSize)
+                SettingsChoice("Keypad size", listOf("Compact", "Medium", "Tall"), AppSettings.keypadSize, AppSettings::changeKeypadSize)
+                SettingsToggle("Expressive motion", "Springy animations; off for calmer ones", AppSettings.expressiveMotion, AppSettings::changeExpressiveMotion)
+
+                SettingsSection("Calculator")
+                SettingsToggle("Live answer", "The result under what you're typing", AppSettings.livePreview, AppSettings::changeLivePreview)
+                SettingsToggle("Continue from the answer", "An operator after = starts with Ans", AppSettings.continueFromAnswer, AppSettings::changeContinueFromAnswer)
+                SettingsToggle("Explanations on long-press", "Formula, theory and how to use each key", AppSettings.keyHelp, AppSettings::changeKeyHelp)
+
+                SettingsSection("History")
+                SettingsChoice("History keeps", listOf("50", "100", "500", "All"), when (AppSettings.historyLimit) { 50 -> 0; 100 -> 1; 500 -> 2; else -> 3 }) {
+                    AppSettings.changeHistoryLimit(listOf(50, 100, 500, 0)[it])
+                }
+                SettingsToggle("Ask before clearing history", null, AppSettings.confirmClearHistory, AppSettings::changeConfirmClearHistory)
+                SettingsToggle("Ask before deleting a calculation", "Swiping one away asks first", AppSettings.confirmDeleteEntry, AppSettings::changeConfirmDeleteEntry)
+
                 SettingsSection("Numbers")
                 if (vm != null) Column {
                     Text("${vm.digits} significant digits", color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
@@ -1227,33 +1307,6 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 SettingsChoice("Number format", listOf("Auto", "Scientific", "Engineering"), AppSettings.numberFormat, AppSettings::changeNumberFormat)
                 SettingsChoice("Complex decimals", listOf("a + bi", "Polar"), if (AppSettings.polarComplex) 1 else 0) { AppSettings.changePolarComplex(it == 1) }
 
-                SettingsSection("Calculator")
-                SettingsToggle("Live answer", "The result under what you're typing", AppSettings.livePreview, AppSettings::changeLivePreview)
-                SettingsToggle("Continue from the answer", "An operator after = starts with Ans", AppSettings.continueFromAnswer, AppSettings::changeContinueFromAnswer)
-                SettingsToggle("Explanations on long-press", "Formula, theory and how to use each key", AppSettings.keyHelp, AppSettings::changeKeyHelp)
-                SettingsChoice("History keeps", listOf("50", "100", "500", "All"), when (AppSettings.historyLimit) { 50 -> 0; 100 -> 1; 500 -> 2; else -> 3 }) {
-                    AppSettings.changeHistoryLimit(listOf(50, 100, 500, 0)[it])
-                }
-                SettingsToggle("Ask before clearing history", null, AppSettings.confirmClearHistory, AppSettings::changeConfirmClearHistory)
-                SettingsToggle("Ask before deleting a calculation", "Swiping one away asks first", AppSettings.confirmDeleteEntry, AppSettings::changeConfirmDeleteEntry)
-
-                SettingsSection("Appearance")
-                SettingsChoice("Theme", listOf("System", "Light", "Dark"), AppSettings.theme, AppSettings::changeTheme)
-                val wallpaperColors = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
-                if (wallpaperColors) {
-                    SettingsToggle("Colors from your wallpaper", "Material You dynamic color", AppSettings.dynamicColor, AppSettings::changeDynamicColor)
-                }
-                // Without Material You, the colors grow from one you choose.
-                if (!wallpaperColors || !AppSettings.dynamicColor) ThemeColorChoice()
-                SettingsChoice("Maths size", listOf("Small", "Medium", "Large"), AppSettings.mathSize, AppSettings::changeMathSize)
-                SettingsChoice("Keypad size", listOf("Compact", "Medium", "Tall"), AppSettings.keypadSize, AppSettings::changeKeypadSize)
-                SettingsToggle("Expressive motion", "Springy animations; off for calmer ones", AppSettings.expressiveMotion, AppSettings::changeExpressiveMotion)
-                SettingsToggle("Keep the screen on", "While the app is open", AppSettings.keepScreenOn, AppSettings::changeKeepScreenOn)
-
-                SettingsSection("Feel")
-                SettingsToggle("Haptic feedback", "A tap on each key and button", AppSettings.haptics, AppSettings::changeHaptics)
-                SettingsToggle("Key sounds", "A click on each key (uses the system's touch sounds)", AppSettings.keySounds, AppSettings::changeKeySounds)
-
                 SettingsSection("Graphs")
                 SettingsToggle("Grid lines", "The axes always show", AppSettings.showGrid, AppSettings::changeShowGrid)
                 SettingsToggle("Mark points on curves", "Zeros, extrema and crossings of the tapped curve", AppSettings.specialPoints, AppSettings::changeSpecialPoints)
@@ -1262,6 +1315,11 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 }
                 SettingsChoice("Complex plot quality", listOf("Standard", "High"), AppSettings.complexQuality, AppSettings::changeComplexQuality)
                 SettingsChoice("3D surface detail", listOf("Low", "Medium", "High"), AppSettings.surfaceDetail, AppSettings::changeSurfaceDetail)
+
+                SettingsSection("Touch and screen")
+                SettingsToggle("Haptic feedback", "A tap on each key and button", AppSettings.haptics, AppSettings::changeHaptics)
+                SettingsToggle("Key sounds", "A click on each key (uses the system's touch sounds)", AppSettings.keySounds, AppSettings::changeKeySounds)
+                SettingsToggle("Keep the screen on", "While the app is open", AppSettings.keepScreenOn, AppSettings::changeKeepScreenOn)
 
                 SettingsSection("About")
                 Row(

@@ -33,6 +33,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -146,8 +156,11 @@ object SceneExport {
     }
 }
 
-/** What to export: the format, the region of the plane, and light or dark colors. */
-class ExportRequest(val format: ExportFormat, val view: Viewport, val dark: Boolean)
+/**
+ * What to export: the format, the region of the plane (and the z range in 3D), and light or
+ * dark colors. [preview] asks for a quick low-resolution picture for the dialog's thumbnail.
+ */
+class ExportRequest(val format: ExportFormat, val view: Viewport, val dark: Boolean, val z: Pair<Double, Double>? = null, val preview: Boolean = false)
 
 /**
  * Returns a function that exports a graph: it builds the scene with [build] (off the main thread),
@@ -200,29 +213,64 @@ fun rememberGraphExporter(name: String, build: (ExportRequest) -> Scene): (Expor
 }
 
 /**
- * Export settings: the format (PDF first), the limits (the current view to start with) and
- * light or dark colors; then Save (choose where) or Share.
+ * Export settings: the format (PDF first), the limits (the current view to start with, and z in
+ * 3D) and light or dark colors, with a preview of the result; then Save (choose where) or Share.
  */
 @Composable
-fun ExportDialog(view: Viewport, showTheme: Boolean = true, onExport: (ExportRequest, Boolean) -> Unit, onDismiss: () -> Unit) {
+fun ExportDialog(
+    view: Viewport,
+    build: (ExportRequest) -> Scene,
+    onExport: (ExportRequest, Boolean) -> Unit,
+    onDismiss: () -> Unit,
+    z: Pair<Double, Double>? = null,
+) {
     val colors = MaterialTheme.colorScheme
+    val context = LocalContext.current
     var format by remember { mutableStateOf(ExportFormat.PDF) }
     var dark by remember { mutableStateOf(colors.surface.luminance() < 0.5f) }
-    fun text(v: Double) = String.format(Locale.US, "%.4g", v).let { if ('e' in it) it else it.trimEnd('0').trimEnd('.') }
-    var xMin by remember { mutableStateOf(text(view.xMin)) }
-    var xMax by remember { mutableStateOf(text(view.xMax)) }
-    var yMin by remember { mutableStateOf(text(view.yMin)) }
-    var yMax by remember { mutableStateOf(text(view.yMax)) }
+    fun text(v: Double) = String.format(Locale.US, "%.4g", v).let { if ('e' in it) it else if ('.' in it) it.trimEnd('0').trimEnd('.') else it }
+    val fields = remember { mutableStateListOf(text(view.xMin), text(view.xMax), text(view.yMin), text(view.yMax), text(z?.first ?: 0.0), text(z?.second ?: 0.0)) }
     fun num(t: String) = t.trim().replace("−", "-").replace(",", ".").toDoubleOrNull()?.takeIf { it.isFinite() }
-    val limits = listOf(num(xMin), num(xMax), num(yMin), num(yMax))
-    val valid = limits.all { it != null } && limits[0]!! < limits[1]!! && limits[2]!! < limits[3]!!
-    fun request() = ExportRequest(format, Viewport(limits[0]!!, limits[1]!!, limits[2]!!, limits[3]!!), dark)
+    val limits = fields.map { num(it) }
+    val pairs = listOf(0 to 1, 2 to 3) + if (z != null) listOf(4 to 5) else emptyList()
+    val valid = pairs.all { (a, b) -> limits[a] != null && limits[b] != null && limits[a]!! < limits[b]!! }
+    fun request(preview: Boolean = false) = ExportRequest(
+        format, Viewport(limits[0]!!, limits[1]!!, limits[2]!!, limits[3]!!), dark,
+        z = if (z != null) limits[4]!! to limits[5]!! else null, preview = preview,
+    )
+    // The preview: redrawn a moment after anything changes, off the main thread.
+    var preview by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+    var previewAspect by remember { mutableStateOf(0.75f) }
+    androidx.compose.runtime.LaunchedEffect(valid, fields.toList(), dark) {
+        if (!valid) return@LaunchedEffect
+        kotlinx.coroutines.delay(250)
+        val r = request(preview = true)
+        runCatching {
+            withContext(Dispatchers.Default) {
+                val scene = build(r)
+                val s = (480 / scene.width).toFloat()
+                val bmp = Bitmap.createBitmap((scene.width * s).toInt().coerceAtLeast(1), (scene.height * s).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+                SceneExport.draw(android.graphics.Canvas(bmp), scene, s, runCatching { ResourcesCompat.getFont(context, R.font.google_sans_flex) }.getOrNull())
+                bmp
+            }
+        }.onSuccess { previewAspect = it.height.toFloat() / it.width; preview = it.asImageBitmap() }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Export graph") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Format", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
+                // What the file will look like.
+                Box(
+                    Modifier.fillMaxWidth().aspectRatio(1f / previewAspect.coerceIn(0.3f, 2f)).clip(RoundedCornerShape(16.dp))
+                        .border(1.dp, colors.outlineVariant, RoundedCornerShape(16.dp))
+                        .background(colors.surfaceContainerHighest),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val p = preview
+                    if (p != null) androidx.compose.foundation.Image(p, contentDescription = "Preview of the export", modifier = Modifier.fillMaxSize())
+                    else Busy()
+                }
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     ExportFormat.entries.forEachIndexed { k, f ->
                         SegmentedButton(
@@ -234,28 +282,33 @@ fun ExportDialog(view: Viewport, showTheme: Boolean = true, onExport: (ExportReq
                         )
                     }
                 }
+                Text(
+                    when (format) {
+                        ExportFormat.PDF -> "Vector: sharp at any size, for documents and printing."
+                        ExportFormat.SVG -> "Vector: sharp at any size, editable in drawing programs."
+                        ExportFormat.PNG -> "Picture, 2400 pixels wide, without loss."
+                        ExportFormat.JPG -> "Picture, 2400 pixels wide, smaller files."
+                    },
+                    style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
+                )
                 Text("Limits", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(xMin, { xMin = it }, singleLine = true, label = { Text("x from") }, modifier = Modifier.weight(1f))
-                    OutlinedTextField(xMax, { xMax = it }, singleLine = true, label = { Text("x to") }, modifier = Modifier.weight(1f))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(yMin, { yMin = it }, singleLine = true, label = { Text("y from") }, modifier = Modifier.weight(1f))
-                    OutlinedTextField(yMax, { yMax = it }, singleLine = true, label = { Text("y to") }, modifier = Modifier.weight(1f))
+                pairs.forEach { (a, b) ->
+                    val letter = listOf("x", "y", "z")[a / 2]
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(fields[a], { fields[a] = it }, singleLine = true, label = { Text("$letter from") }, modifier = Modifier.weight(1f))
+                        OutlinedTextField(fields[b], { fields[b] = it }, singleLine = true, label = { Text("$letter to") }, modifier = Modifier.weight(1f))
+                    }
                 }
                 if (!valid) Text("Each limit needs a number, and “from” must be less than “to”.", style = MaterialTheme.typography.bodySmall, color = colors.error)
-                if (showTheme) {
-                    Text("Colors", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
-                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                        listOf("Light", "Dark").forEachIndexed { k, name ->
-                            SegmentedButton(
-                                selected = dark == (k == 1),
-                                onClick = { dark = k == 1 },
-                                shape = SegmentedButtonDefaults.itemShape(k, 2),
-                                icon = {},
-                                label = { Text(name, maxLines = 1) },
-                            )
-                        }
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    listOf("Light", "Dark").forEachIndexed { k, name ->
+                        SegmentedButton(
+                            selected = dark == (k == 1),
+                            onClick = { dark = k == 1 },
+                            shape = SegmentedButtonDefaults.itemShape(k, 2),
+                            icon = {},
+                            label = { Text(name, maxLines = 1) },
+                        )
                     }
                 }
             }

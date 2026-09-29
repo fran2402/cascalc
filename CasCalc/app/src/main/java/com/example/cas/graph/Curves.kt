@@ -163,6 +163,40 @@ object Curves {
         return out
     }
 
+    /**
+     * The same as [region], but faster: the test is first run once per [block] × [block] group
+     * of cells, and cells are only tested one by one in groups next to a change (where the
+     * boundary is). Away from the boundary every cell of a group takes the group's answer.
+     * Features thinner than a group can be missed, which at 4 cells (16 px) doesn't show.
+     */
+    fun regionAdaptive(test: (Double, Double) -> Boolean, view: Viewport, nx: Int, ny: Int, block: Int = 4): BooleanArray {
+        if (block <= 1) return region(test, view, nx, ny)
+        val bx = (nx + block - 1) / block
+        val by = (ny + block - 1) / block
+        // Each group tested at the centre of its middle cell.
+        val coarse = BooleanArray(bx * by)
+        for (J in 0 until by) for (I in 0 until bx) {
+            val i = minOf(I * block + block / 2, nx - 1); val j = minOf(J * block + block / 2, ny - 1)
+            coarse[J * bx + I] = test(view.xMin + (i + 0.5) / nx * view.width, view.yMax - (j + 0.5) / ny * view.height)
+        }
+        val out = BooleanArray(nx * ny)
+        for (J in 0 until by) for (I in 0 until bx) {
+            val v = coarse[J * bx + I]
+            var uniform = true
+            for (dj in -1..1) for (di in -1..1) {
+                val a = I + di; val b = J + dj
+                if (a in 0 until bx && b in 0 until by && coarse[b * bx + a] != v) uniform = false
+            }
+            for (j in J * block until minOf((J + 1) * block, ny)) {
+                val y = view.yMax - (j + 0.5) / ny * view.height
+                for (i in I * block until minOf((I + 1) * block, nx)) {
+                    out[j * nx + i] = if (uniform) v else test(view.xMin + (i + 0.5) / nx * view.width, y)
+                }
+            }
+        }
+        return out
+    }
+
     /** Evaluates a chain of comparisons like a < b ≤ c on numbers. */
     fun holds(values: DoubleArray, ops: List<String>): Boolean {
         for (k in ops.indices) {

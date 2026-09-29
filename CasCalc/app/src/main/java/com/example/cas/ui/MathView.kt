@@ -96,6 +96,11 @@ class MathEnv(
     val computerModern: Boolean,
     val mathGlyphs: MathGlyphs,
     val onTap: ((MathRow, Int) -> Unit)?,
+    /**
+     * Bumped on every edit. Edits that don't move the cursor (< then = becoming ≤) change
+     * nothing else MathView is given, so without this Compose would skip redrawing them.
+     */
+    val version: Int = 0,
 ) {
     fun scale(level: Int) = when (level) { 0 -> 1f; 1 -> 0.7f; 2 -> 0.56f; else -> 0.5f }
     fun size(level: Int): TextUnit = size * scale(level)
@@ -112,7 +117,7 @@ fun MathView(
     accent: Color = color,
     cursorRow: MathRow? = null,
     cursorIndex: Int = 0,
-    @Suppress("UNUSED_PARAMETER") version: Int = 0,
+    version: Int = 0,
     emptyAsDot: Boolean = false,
     computerModern: Boolean = true,
     onTap: ((MathRow, Int) -> Unit)? = null,
@@ -129,6 +134,7 @@ fun MathView(
         computerModern = computerModern,
         mathGlyphs = LocalMathGlyphs.current,
         onTap = onTap,
+        version = version,
     )
     CompositionLocalProvider(LocalMath provides env) {
         Box(modifier) { RowView(row, 0) }
@@ -438,7 +444,7 @@ private fun SymView(s: Sym, row: MathRow, index: Int, level: Int) {
                 val letter = t.isNotEmpty() && t[0].isLetter() && t.drop(1).all { it == '′' }
                 // Letters are italic, i, e and π included; capital Greek stays upright (as in TeX), and so
                 // does T, the transpose.
-                val upperGreek = t[0] in 'Α'..'Ω'
+                val upperGreek = t.firstOrNull() in 'Α'..'Ω'
                 val italic = letter && t != "T" && !upperGreek && !(t == "d" && !env.computerModern)
                 val pad = with(density) { (env.size(level).toPx() * if (spaced) 0.16f else 0f).toDp() }
                 // A little room after commas in lists like solve(x + y = 3, x − y = 1).

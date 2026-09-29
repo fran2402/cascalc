@@ -50,6 +50,10 @@ interface KeypadHost {
     /** Units for physical constants, chosen like Rad/Deg while the constants tab is open. */
     val unitSystem: com.example.cas.engine.UnitSystem
     fun selectUnitSystem(units: com.example.cas.engine.UnitSystem)
+    /** Letters and symbols with a value (a := 5) or a definition (f(x) := …); their keys are colored. */
+    val definedSymbols: Set<String> get() = emptySet()
+    /** Forgets a letter's value or a function's definition. */
+    fun undefine(name: String) {}
 }
 
 /** What pressing a key does to the expression. */
@@ -172,10 +176,34 @@ val SymbolBuilderKey = KeySpec(KeyLabel.Icon(IconId.SymbolBuilder), KeyAction.Op
  * The letters tab as shown: the symbol builder, then the symbols you've built (newest first),
  * then every letter.
  */
-fun letterRows(saved: List<String>): List<List<KeySpec>> =
-    (listOf(SymbolBuilderKey) +
-        saved.map { KeySpec(KeyLabel.Math(row(Sym(it)), latex = true), KeyAction.Type(it), KeyRole.Operator, "saved symbol") } +
-        LetterKeys.flatten()).chunked(6)
+fun letterRows(saved: List<String>, pinned: List<String> = emptyList()): List<List<KeySpec>> {
+    val letters = LetterKeys.flatten()
+    // The builder and := stay first; pinned keys come next, then the symbols you built, then the rest.
+    val special = listOf(SymbolBuilderKey) + letters.filter { it.role == KeyRole.Equals }
+    val rest = saved.map { KeySpec(KeyLabel.Math(row(Sym(it)), latex = true), KeyAction.Type(it), KeyRole.Operator, "saved symbol") } +
+        letters.filter { it.role != KeyRole.Equals }
+    return pinnedFirst(special, rest, pinned).chunked(6)
+}
+
+/** The constants group with pinned constants after the list key. */
+fun constantRows(pinned: List<String>): List<List<KeySpec>> {
+    val keys = ConstantKeys.flatten()
+    return pinnedFirst(keys.filter { it.role == KeyRole.Equals }, keys.filter { it.role != KeyRole.Equals }, pinned).chunked(5)
+}
+
+/** What a key is pinned by: the text it types (letters, symbols), or its name (constants). */
+val KeySpec.pinId: String get() = (action as? KeyAction.Type)?.text ?: spoken
+
+/** Letters, symbols and constants can be pinned; the groups' special keys (builder, :=, the list) can't. */
+val KeySpec.pinnable: Boolean get() = role != KeyRole.Equals && (label is KeyLabel.Math && (label.latex || spoken in ConstantNames))
+
+private val ConstantNames by lazy { com.example.cas.engine.Constant.entries.map { it.description.substringBefore(" (") }.toSet() }
+
+private fun pinnedFirst(special: List<KeySpec>, rest: List<KeySpec>, pinned: List<String>): List<KeySpec> {
+    val byId = rest.associateBy { it.pinId }
+    val front = pinned.mapNotNull { byId[it] }
+    return special + front + rest.filter { it !in front }
+}
 
 val LetterKeys: List<List<KeySpec>> = run {
     val keys = ArrayList<KeySpec>()
@@ -198,7 +226,7 @@ val LetterKeys: List<List<KeySpec>> = run {
  * Every constant from Wikipedia's list of physical constants, four to a row,
  * after a key that opens the full list with names, values and units.
  */
-private val ConstantKeys: List<List<KeySpec>> = run {
+internal val ConstantKeys: List<List<KeySpec>> = run {
     val keys = ArrayList<KeySpec>()
     // In the Ans color, like the other keys that open or keep things rather than type them.
     keys += KeySpec(KeyLabel.Icon(IconId.MoreConstants), KeyAction.MoreConstants, KeyRole.Equals, "list of constants with names")

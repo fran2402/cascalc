@@ -162,7 +162,9 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
      */
     private fun applyData(get: (String) -> String?, fallback: List<MathRow> = emptyList()) {
         val rows = get("functions")?.lines()?.filter { it.isNotBlank() }?.mapNotNull { runCatching { MathCodec.decode(it) }.getOrNull() } ?: fallback
-        rows.forEach { addFunction(it) }
+        // Each line's color slot, so reopened lines keep their theme colors.
+        val slots = get("slots")?.split(",")?.map { it.toIntOrNull()?.takeIf { k -> k in 0 until PLOT_COLOR_COUNT } }
+        rows.forEachIndexed { i, r -> addFunction(r, slots?.getOrNull(i)) }
         get("colors")?.split(",")?.forEachIndexed { i, c ->
             functions.getOrNull(i)?.customColor = c.toLongOrNull()?.toInt()
         }
@@ -184,11 +186,12 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         }
     }
 
-    /** The graph as its five saved values, in the same forms [save] writes. */
+    /** The graph as its saved values (lines, colors, styles, color slots, ranges, sliders), in the forms [save] writes. */
     private fun currentData(): Map<String, String> = mapOf(
         "functions" to functions.joinToString("\n") { MathCodec.encode(it.editor.root) },
         "colors" to functions.joinToString(",") { f -> f.customColor?.let { (it.toLong() and 0xFFFFFFFFL).toString() } ?: "" },
         "styles" to functions.joinToString(",") { f -> "${f.lineStyle}:${f.thickness}:${f.colormap.name}" },
+        "slots" to functions.joinToString(",") { it.colorIndex.toString() },
         "ranges" to ranges.entries.joinToString("\n") { "${it.key}\t${it.value.first}\t${it.value.second}" },
         "parameters" to parameters.entries.joinToString("\n") { "${it.key}\t${it.value}" },
     )
@@ -262,8 +265,12 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         storeProjects()
     }
 
-    private fun addFunction(r: MathRow): PlotFunction {
-        val f = PlotFunction(r, nextColor++ % PLOT_COLOR_COUNT)
+    private fun addFunction(r: MathRow, slot: Int? = null): PlotFunction {
+        // A new line takes the first color no other line has (or the next in turn if all six are used).
+        val used = functions.map { it.colorIndex }.toSet()
+        val index = slot ?: (0 until PLOT_COLOR_COUNT).firstOrNull { it !in used } ?: (nextColor % PLOT_COLOR_COUNT)
+        nextColor = index + 1
+        val f = PlotFunction(r, index)
         f.editor.onChange = {
             f.version++
             // Lines can use functions defined on other lines, so a list with definitions recompiles whole.
@@ -703,6 +710,38 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     }
 
     /** Evaluates a compiled 2D function at [at] (its plotting variables) with the current slider values. */
+    /**
+     * [fn] of (x, y) with the sliders read once, for the many evaluations of a shaded region or
+     * an equation's curve (reading each slider from Compose state every time is slow).
+     */
+    fun caller2(f: PlotFunction, fn: RealFunction): (Double, Double) -> Double {
+        val args = DoubleArray(2 + f.parameters.size)
+        f.parameters.forEachIndexed { i, p -> args[2 + i] = parameters[p] ?: 1.0 }
+        return { x, y ->
+            args[0] = x; args[1] = y
+            try { fn(args) } catch (e: RuntimeException) { Double.NaN }
+        }
+    }
+
+    /** [allowed] for (x, y) with the sliders read once. */
+    fun allowedCaller(f: PlotFunction): (Double, Double) -> Boolean {
+        if (f.restrictions.isEmpty()) return { _, _ -> true }
+        val nan = Double.NaN
+        val checks = f.restrictions.map { (parts, ops) ->
+            val calls = parts.map { part ->
+                val args = DoubleArray(5 + f.parameters.size)
+                f.parameters.forEachIndexed { i, p -> args[5 + i] = parameters[p] ?: 1.0 }
+                args[2] = nan; args[3] = nan; args[4] = nan
+                val one: (Double, Double) -> Double = { x, y -> args[0] = x; args[1] = y; try { part(args) } catch (e: RuntimeException) { nan } }
+                one
+            }
+            val values = DoubleArray(parts.size)
+            val check: (Double, Double) -> Boolean = { x, y -> for (k in calls.indices) values[k] = calls[k](x, y); com.example.cas.graph.Curves.holds(values, ops) }
+            check
+        }
+        return { x, y -> checks.all { it(x, y) } }
+    }
+
     fun call(f: PlotFunction, fn: RealFunction, vararg at: Double): Double {
         val args = DoubleArray(at.size + f.parameters.size)
         at.copyInto(args)
@@ -790,6 +829,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             .putString("${key}_functions", functions.joinToString("\n") { MathCodec.encode(it.editor.root) })
             .putString("${key}_colors", functions.joinToString(",") { f -> f.customColor?.let { (it.toLong() and 0xFFFFFFFFL).toString() } ?: "" })
             .putString("${key}_styles", functions.joinToString(",") { f -> "${f.lineStyle}:${f.thickness}:${f.colormap.name}" })
+            .putString("${key}_slots", functions.joinToString(",") { it.colorIndex.toString() })
             .apply()
     }
 

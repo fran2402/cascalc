@@ -94,9 +94,6 @@ fun Graph2DScreen(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, modifier: 
     Column(modifier.fillMaxSize()) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             Graph2DCanvas(vm, onUseValue, Modifier.fillMaxSize())
-            if (vm.active != null && vm.keypadHidden) {
-                ShowKeypadButton(onClick = { vm.keypadHidden = false }, modifier = Modifier.align(Alignment.BottomStart).padding(12.dp))
-            }
         }
         FunctionList(vm, outputLabel = "y")
         AnimatedVisibility(visible = vm.active != null && !vm.keypadHidden, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
@@ -244,20 +241,16 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
         var exporting by remember { mutableStateOf(false) }
         val context = androidx.compose.ui.platform.LocalContext.current
         val density = androidx.compose.ui.platform.LocalDensity.current.density
-        val export = rememberGraphExporter("graph") { r ->
-            graph2DScene(vm, r.view, size.width / density.toDouble(), size.height / density.toDouble(), com.example.cas.ui.theme.appColorScheme(context, r.dark))
-        }
-        if (exporting && view != null) ExportDialog(view, onExport = { r, share -> exporting = false; export(r, share) }, onDismiss = { exporting = false })
-        ExpressiveToolbar(Modifier.align(Alignment.BottomEnd).padding(12.dp)) {
+        val build = { r: ExportRequest -> graph2DScene(vm, r.view, size.width / density.toDouble(), size.height / density.toDouble(), com.example.cas.ui.theme.appColorScheme(context, r.dark)) }
+        val export = rememberGraphExporter("graph", build)
+        if (exporting && view != null) ExportDialog(view, build, onExport = { r, share -> exporting = false; export(r, share) }, onDismiss = { exporting = false })
+        GraphBottomBar(vm, Modifier.align(Alignment.BottomCenter), onExport = { if (size.width > 0) exporting = true }, tools = {
             ToolToggle(PlotIcons.PolarGrid, "Polar grid", vm.polarGrid) { vm.polarGrid = !vm.polarGrid }
             // Equal scales on both axes, so circles look round.
             IconButton(onClick = { tap(); vm.zoomSquare(size.width, size.height) }) {
                 Icon(Icons.Default.CropSquare, contentDescription = "Square zoom: equal scales", tint = colors.onSurface)
             }
-            IconButton(onClick = { tap(); exporting = true }, enabled = size.width > 0) {
-                Icon(Icons.Default.IosShare, contentDescription = "Export the graph", tint = colors.onSurface)
-            }
-        }
+        })
         // The point's coordinates, with buttons to use x or y (or r and θ) in the calculator.
         val t = trace
         if (t != null && view != null) {
@@ -391,21 +384,27 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
                 out += Plotted(f, Curves.parametric(x, y, t0, t1, view), emptyList())
             }
             is Plot2DKind.Implicit -> {
-                val g = { x: Double, y: Double -> if (vm.allowed(f, x, y)) vm.call(f, k.f, x, y) else Double.NaN }
+                // Sliders read once for the whole grid.
+                val g0 = vm.caller2(f, k.f); val ok = vm.allowedCaller(f)
+                val g = { x: Double, y: Double -> if (ok(x, y)) g0(x, y) else Double.NaN }
                 out += Plotted(f, emptyList(), emptyList(), segments = Curves.implicit(g, view, nx, ny))
             }
             is Plot2DKind.Region -> {
                 val values = DoubleArray(k.parts.size)
+                val parts = k.parts.map { vm.caller2(f, it) }
+                val ok = vm.allowedCaller(f)
                 val test = { x: Double, y: Double ->
-                    for (p in k.parts.indices) values[p] = vm.call(f, k.parts[p], x, y)
-                    Curves.holds(values, k.ops) && vm.allowed(f, x, y)
+                    for (p in parts.indices) values[p] = parts[p](x, y)
+                    Curves.holds(values, k.ops) && ok(x, y)
                 }
-                // A 4 px grid for the shading, so its edge isn't visibly stepped.
+                // A 4 px grid for the shading, so its edge isn't visibly stepped; tested cell by cell
+                // only near the edge (elsewhere 4 × 4 cells share one test).
                 val mx = (size.width / 4).coerceIn(40, 360); val my = (size.height / 4).coerceIn(40, 480)
-                val mask = Curves.region(test, view, mx, my)
+                val mask = Curves.regionAdaptive(test, view, mx, my)
                 // The edge: where each compared pair is equal.
                 val edges = k.ops.indices.flatMap { p ->
-                    Curves.implicit({ x, y -> vm.call(f, k.parts[p], x, y) - vm.call(f, k.parts[p + 1], x, y) }, view, nx, ny)
+                    val a = parts[p]; val b = vm.caller2(f, k.parts[p + 1])
+                    Curves.implicit({ x, y -> a(x, y) - b(x, y) }, view, nx, ny)
                 }
                 out += Plotted(f, emptyList(), emptyList(), segments = edges, mask = mask, maskSize = IntSize(mx, my), dashed = k.ops.all { it == "<" || it == ">" })
             }

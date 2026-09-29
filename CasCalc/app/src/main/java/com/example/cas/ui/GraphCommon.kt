@@ -1,5 +1,21 @@
 package com.example.cas.ui
 
+import androidx.compose.foundation.layout.fillMaxSize
+
+import androidx.compose.foundation.layout.RowScope
+
+import androidx.compose.foundation.gestures.detectDragGestures
+
+import androidx.compose.runtime.key
+
+import androidx.compose.ui.draw.shadow
+
+import androidx.compose.material.icons.filled.IosShare
+
+import androidx.compose.material.icons.filled.Delete
+
+import androidx.compose.material.icons.filled.DragIndicator
+
 import androidx.compose.foundation.background
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.mutableStateMapOf
@@ -108,11 +124,6 @@ fun ColormapPickerDialog(current: com.example.cas.graph.Colormap, onPick: (com.e
         title = { Text("Colormap") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    "The color shows arg f(z). Cyclic maps join up at ±π; the others have a seam along it.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.onSurfaceVariant,
-                )
                 com.example.cas.graph.Colormap.entries.forEach { map ->
                     val chosen = map == current
                     Row(
@@ -125,14 +136,7 @@ fun ColormapPickerDialog(current: com.example.cas.graph.Colormap, onPick: (com.e
                             .semantics { contentDescription = map.label + if (chosen) ", chosen" else "" },
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Column(Modifier.width(112.dp)) {
-                            Text(map.label, color = if (chosen) colors.onSecondaryContainer else colors.onSurface, style = MaterialTheme.typography.bodyLarge)
-                            Text(
-                                map.matplotlibName + if (map.cyclic) " · cyclic" else "",
-                                color = colors.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
+                        Text(map.label, color = if (chosen) colors.onSecondaryContainer else colors.onSurface, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.width(88.dp))
                         Box(Modifier.weight(1f).height(20.dp).clip(RoundedCornerShape(10.dp)).background(Brush.horizontalGradient(colormapStops(map))))
                     }
                 }
@@ -343,32 +347,11 @@ fun FunctionList(vm: GraphViewModel, outputLabel: String, modifier: Modifier = M
         if (editingNow != null) {
             shown.forEach { f -> FunctionRow(vm, f, outputLabel) }
         } else {
-            // Hold a row and drag it up or down to reorder the list.
-            ReorderableRows(vm) { f ->
-                Column {
-                    FunctionRow(vm, f, outputLabel)
-                    if (vm.canFit(f)) FitButton(vm, f)
-                }
-            }
+            // Drag a row by its handle (or hold it anywhere) to move it; swipe it away to delete it.
+            ReorderableRows(vm) { f, handle -> FunctionRow(vm, f, outputLabel, handle) }
         }
         val params = shown.filter { it.visible }.flatMap { it.parameters }.distinct() - vm.definedLetters
         params.forEach { p -> ParameterSlider(vm, p) }
-        // "Add" is always there, even while a line is being edited.
-        run {
-            // Add a line: type anything (a function, an equation, a point, a region…).
-            Row(
-                Modifier
-                    .clip(CircleShape)
-                    .background(colors.secondaryContainer)
-                    .clickable(onClickLabel = "Add a line") { vm.add() }
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Add", color = colors.onSecondaryContainer, style = MaterialTheme.typography.labelLarge)
-            }
-        }
     }
     // Moves playing sliders on every frame.
     val anyPlaying = vm.playing.isNotEmpty()
@@ -386,7 +369,7 @@ fun FunctionList(vm: GraphViewModel, outputLabel: String, modifier: Modifier = M
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String) {
+private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String, handle: Modifier? = null) {
     val colors = MaterialTheme.colorScheme
     val active = vm.active === f
     val color = if (vm.isComplex && isComplexLine(f)) complexLineColor(f) else functionColor(f)
@@ -400,8 +383,8 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             initial = color,
             onPick = { vm.setColor(f, it?.toArgb()); picking = false },
             onDismiss = { picking = false },
-            // 2D lines also get style and thickness.
-            lineStyle = if (vm.plotVars == listOf("x")) f.lineStyle else null,
+            // 2D lines also get style and thickness (points and lists of points don't).
+            lineStyle = if (vm.plotVars == listOf("x") && f.plot !is Plot2DKind.Point && f.plot !is Plot2DKind.PointList) f.lineStyle else null,
             thickness = f.thickness,
             onStyle = { st, w -> vm.setStyle(f, st, w) },
         )
@@ -471,8 +454,19 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
                     onTap = { r, i -> vm.tapAt(f, r, i) },
                 )
             }
+            // Fit sits at the end of the row once the graph has a list of points.
+            if (handle != null && vm.canFit(f)) FitButton(vm, f)
             IconButton(onClick = { vm.remove(f) }) {
                 Icon(Icons.Default.Close, contentDescription = "Remove", tint = colors.onSurfaceVariant)
+            }
+            // Drag here to move the line up or down the list.
+            if (handle != null) {
+                Icon(
+                    Icons.Default.DragIndicator,
+                    contentDescription = "Drag to reorder",
+                    tint = colors.onSurfaceVariant,
+                    modifier = handle.size(40.dp).padding(8.dp),
+                )
             }
         }
         f.error?.let {
@@ -635,46 +629,82 @@ fun sliderText(v: Double, decimals: Int): String =
  * moves, and passes a neighbour once it's gone halfway past it.
  */
 @Composable
-private fun ReorderableRows(vm: GraphViewModel, row: @Composable (PlotFunction) -> Unit) {
+private fun ReorderableRows(vm: GraphViewModel, row: @Composable (PlotFunction, Modifier) -> Unit) {
     val heights = remember { mutableStateMapOf<PlotFunction, Int>() }
     var dragging by remember { mutableStateOf<PlotFunction?>(null) }
     var offset by remember { mutableStateOf(0f) }
     val tap = rememberKeyTap()
     val gap = with(LocalDensity.current) { 6.dp.toPx() }
-    vm.functions.toList().forEach { f ->
-        val lifted = dragging === f
-        Box(
-            Modifier
-                .zIndex(if (lifted) 1f else 0f)
-                .offset { IntOffset(0, if (lifted) offset.roundToInt() else 0) }
-                .graphicsLayer { if (lifted) { shadowElevation = 12f; scaleX = 1.02f; scaleY = 1.02f } }
-                .onGloballyPositioned { heights[f] = it.size.height }
-                .pointerInput(f) {
-                    detectDragGesturesAfterLongPress(
-                        onDragStart = { tap(); dragging = f; offset = 0f },
-                        onDragEnd = { dragging = null; offset = 0f },
-                        onDragCancel = { dragging = null; offset = 0f },
-                        onDrag = { change, amount ->
-                            change.consume()
-                            offset += amount.y
-                            val i = vm.functions.indexOf(f)
-                            // Past half of the next row down, or the one above: swap with it.
-                            val below = vm.functions.getOrNull(i + 1)
-                            val above = vm.functions.getOrNull(i - 1)
-                            if (below != null && offset > (heights[below] ?: 0) / 2f + gap) {
-                                offset -= (heights[below] ?: 0) + gap
-                                vm.move(i, i + 1)
-                                tap()
-                            } else if (above != null && offset < -((heights[above] ?: 0) / 2f + gap)) {
-                                offset += (heights[above] ?: 0) + gap
-                                vm.move(i, i - 1)
-                                tap()
-                            }
-                        },
-                    )
-                },
-        ) { row(f) }
+    // Follows the finger as far as it goes, swapping with each row it passes the middle of.
+    fun dragBy(f: PlotFunction, dy: Float) {
+        offset += dy
+        while (true) {
+            val i = vm.functions.indexOf(f)
+            val below = vm.functions.getOrNull(i + 1)
+            val above = vm.functions.getOrNull(i - 1)
+            if (below != null && offset > (heights[below] ?: 0) / 2f + gap) {
+                offset -= (heights[below] ?: 0) + gap
+                vm.move(i, i + 1)
+                tap()
+            } else if (above != null && offset < -((heights[above] ?: 0) / 2f + gap)) {
+                offset += (heights[above] ?: 0) + gap
+                vm.move(i, i - 1)
+                tap()
+            } else break
+        }
     }
+    vm.functions.toList().forEach { f ->
+        // Keyed by the line, so its drag carries on after it moves past another.
+        key(f) {
+            val lifted = dragging === f
+            val handle = Modifier.pointerInput(f) {
+                detectDragGestures(
+                    onDragStart = { tap(); dragging = f; offset = 0f },
+                    onDragEnd = { dragging = null; offset = 0f },
+                    onDragCancel = { dragging = null; offset = 0f },
+                    onDrag = { change, amount -> change.consume(); dragBy(f, amount.y) },
+                )
+            }
+            Box(
+                Modifier
+                    .zIndex(if (lifted) 1f else 0f)
+                    .offset { IntOffset(0, if (lifted) offset.roundToInt() else 0) }
+                    .graphicsLayer { if (lifted) { shadowElevation = 12f; scaleX = 1.02f; scaleY = 1.02f } }
+                    .onGloballyPositioned { heights[f] = it.size.height }
+                    .pointerInput(f) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = { tap(); dragging = f; offset = 0f },
+                            onDragEnd = { dragging = null; offset = 0f },
+                            onDragCancel = { dragging = null; offset = 0f },
+                            onDrag = { change, amount -> change.consume(); dragBy(f, amount.y) },
+                        )
+                    },
+            ) {
+                SwipeToRemove(onRemove = { vm.remove(f) }) { row(f, handle) }
+            }
+        }
+    }
+}
+
+/** Swipe a line sideways (either way) to delete it; a red strip with a bin shows underneath. */
+@Composable
+private fun SwipeToRemove(onRemove: () -> Unit, content: @Composable () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val state = androidx.compose.material3.rememberSwipeToDismissBoxState(
+        confirmValueChange = { value -> if (value != androidx.compose.material3.SwipeToDismissBoxValue.Settled) { onRemove(); true } else false },
+    )
+    androidx.compose.material3.SwipeToDismissBox(
+        state = state,
+        backgroundContent = {
+            val end = state.dismissDirection == androidx.compose.material3.SwipeToDismissBoxValue.EndToStart
+            Box(
+                Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).background(colors.errorContainer).padding(horizontal = 20.dp),
+                contentAlignment = if (end) Alignment.CenterEnd else Alignment.CenterStart,
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = null, tint = colors.onErrorContainer)
+            }
+        },
+    ) { content() }
 }
 
 
@@ -687,20 +717,75 @@ private fun FitButton(vm: GraphViewModel, f: PlotFunction) {
     val colors = MaterialTheme.colorScheme
     val tap = rememberKeyTap()
     var failed by remember(f.version) { mutableStateOf(false) }
-    Row(Modifier.padding(start = 44.dp, top = 2.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+    // A failed fit turns the chip red ("No fit") until the line changes.
+    Box(
+        Modifier
+            .padding(horizontal = 2.dp)
+            .clip(CircleShape)
+            .background(if (failed) colors.errorContainer else colors.tertiaryContainer)
+            .clickable(onClickLabel = "Fit to the list") { tap(); failed = !vm.fit(f) }
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .semantics { if (failed) contentDescription = "Couldn't fit this to the points" },
+    ) {
+        Text(if (failed) "No fit" else "Fit", color = if (failed) colors.onErrorContainer else colors.onTertiaryContainer, style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+
+/**
+ * The bar along the bottom of a graph: + Add on the left (with the keyboard button while it's
+ * hidden, and any [leading] controls), the [tools] on the right, and export in its own circle
+ * at the far right.
+ */
+@Composable
+fun GraphBottomBar(
+    vm: GraphViewModel,
+    modifier: Modifier = Modifier,
+    onExport: (() -> Unit)?,
+    leading: @Composable RowScope.() -> Unit = {},
+    tools: (@Composable RowScope.() -> Unit)? = null,
+    /** Just "+" when the tools leave little room. */
+    addLabel: Boolean = true,
+) {
+    val colors = MaterialTheme.colorScheme
+    val tap = rememberKeyTap()
+    Row(modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Add a line: type anything (a function, an equation, a point, a region…).
         Row(
             Modifier
+                .shadow(6.dp, CircleShape)
                 .clip(CircleShape)
-                .background(colors.tertiaryContainer)
-                .clickable(onClickLabel = "Fit to the list") { tap(); failed = !vm.fit(f) }
-                .padding(horizontal = 14.dp, vertical = 6.dp),
+                .background(colors.secondaryContainer)
+                .clickable(onClickLabel = "Add a line") { tap(); vm.add() }
+                .padding(horizontal = if (addLabel) 16.dp else 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Fit", color = colors.onTertiaryContainer, style = MaterialTheme.typography.labelLarge)
+            Icon(Icons.Default.Add, contentDescription = if (addLabel) null else "Add a line", tint = colors.onSecondaryContainer, modifier = Modifier.size(24.dp))
+            if (addLabel) {
+                Spacer(Modifier.width(8.dp))
+                Text("Add", color = colors.onSecondaryContainer, style = MaterialTheme.typography.labelLarge)
+            }
         }
-        if (failed) {
-            Spacer(Modifier.width(10.dp))
-            Text("Couldn't fit this to the points", color = colors.error, style = MaterialTheme.typography.bodySmall)
+        if (vm.active != null && vm.keypadHidden) {
+            Spacer(Modifier.width(8.dp))
+            ShowKeypadButton(onClick = { vm.keypadHidden = false })
+        }
+        leading()
+        Spacer(Modifier.weight(1f))
+        if (tools != null) ExpressiveToolbar(content = tools)
+        if (onExport != null) {
+            Spacer(Modifier.width(8.dp))
+            Box(
+                Modifier
+                    .size(48.dp)
+                    .shadow(6.dp, CircleShape)
+                    .clip(CircleShape)
+                    .background(colors.surfaceContainerHigh)
+                    .clickable(onClickLabel = "Export the graph") { tap(); onExport() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Default.IosShare, contentDescription = "Export", tint = colors.onSurface)
+            }
         }
     }
 }

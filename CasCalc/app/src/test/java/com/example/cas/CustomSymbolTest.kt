@@ -1,5 +1,6 @@
 package com.example.cas
 
+import com.example.cas.ui.pinId
 import com.example.cas.cas.Accent
 import com.example.cas.cas.CustomSymbol
 import com.example.cas.cas.Printer
@@ -48,7 +49,20 @@ class CustomSymbolTest {
     @Test fun latexAccentWithScripts() = assertEquals("{\\hat{x}}_{1}", com.example.cas.engine.Latex.of(com.example.cas.engine.LatexParser.parse("\\hat{x}_1")))
     @Test fun lettersTabStartsWithTheBuilder() {
         val rows = com.example.cas.ui.letterRows(listOf(xHat1.encode()))
+        // The builder and := first, then the symbols you built.
         assertEquals("symbol builder", rows[0][0].spoken)
-        assertEquals("saved symbol", rows[0][1].spoken)
+        assertEquals("store in variable", rows[0][1].spoken)
+        assertEquals("saved symbol", rows[0][2].spoken)
+    }
+    @Test fun pinnedKeysComeAfterTheSpecialKeys() {
+        val rows = com.example.cas.ui.letterRows(listOf(xHat1.encode()), pinned = listOf("β", xHat1.encode())).flatten()
+        assertEquals(listOf("symbol builder", "store in variable", "beta", "saved symbol", "letter a"), rows.take(5).map { it.spoken })
+        // Each key appears once.
+        assertEquals(rows.size, rows.distinctBy { it.pinId }.size)
+    }
+    @Test fun pinnedConstantsComeAfterTheList() {
+        val rows = com.example.cas.ui.constantRows(listOf("Speed of light in vacuum")).flatten()
+        assertEquals("list of constants with names", rows[0].spoken)
+        assertEquals("Speed of light in vacuum", rows[1].spoken)
     }
 }

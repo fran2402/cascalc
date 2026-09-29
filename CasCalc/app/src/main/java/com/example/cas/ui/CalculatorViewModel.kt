@@ -222,7 +222,16 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
     // ---- Evaluation -----------------------------------------------------------
 
     /** Functions defined with f(x) := …, usable in later calculations as f(2), f′(x)… */
-    private val userFunctions = mutableMapOf<String, com.example.cas.engine.UserFunction>()
+    private val userFunctions = androidx.compose.runtime.mutableStateMapOf<String, com.example.cas.engine.UserFunction>()
+
+    override val definedSymbols: Set<String> get() = variables.keys + userFunctions.keys
+
+    override fun undefine(name: String) {
+        variables.remove(name)
+        userFunctions.remove(name)
+        save()
+        schedulePreview()
+    }
 
     /**
      * What Ans stands for: the newest answer still in the history (so deleting a calculation

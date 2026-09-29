@@ -85,6 +85,7 @@ object AppSettings {
         val p = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
         prefs = p
         SavedSymbols.init(context)
+        PinnedKeys.init(context)
         theme = p.getInt("theme", 0)
         dynamicColor = p.getBoolean("dynamicColor", true)
         themeColor = p.getInt("themeColor", 0)

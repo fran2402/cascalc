@@ -195,6 +195,32 @@ Constants and symbols are long lists and scroll up and down in place; the others
 Groups: Basic, Trigonometry, Calculus, Vector calculus, Linear algebra, Statistics, Complex
 numbers, Physical constants, Symbols.
 
+## Latest changes (29 September, second round)
+- **Fixed a crash** on long-pressing the new complex keys (Lambert W, Bessel J and Y) and every
+  letter and symbol: their explanations had doubled backslashes, which made an empty symbol the
+  renderer couldn't draw. The parser no longer makes empty symbols, the renderer copes with one,
+  and KeyHelpTest checks every key's explanation draws and has a description and an equation.
+- **Keys**: digits have no long-press. Letters, built symbols and constants can be pinned from
+  their card (Pin / Unpin): pinned keys move to the front of their group, after the special
+  keys, with a small pin in the corner. A letter with a value (a := 5) or a function definition
+  has a tinted key, and its card has Undefine.
+- **≤ and ≥** show as soon as the second key is typed (the display now redraws on every edit,
+  even one that doesn't move the cursor).
+- **Graph lines**: drag the handle (or hold a row) to move a line any distance; swipe a line
+  away to delete it; Fit sits at the end of its row. + Add is on the bar at the bottom left of
+  the graph, the tools on the right, and export in its own circle at the far right.
+- **Colors**: saved graphs keep each line's color slot as well as custom colors, dashes and
+  thickness; points and lists of points have no dash or thickness options. Colormap names are
+  single words (twilight shifted is Dusk).
+- **Export** works for 3D graphs too (with z limits), and the dialog shows a live preview.
+- **Inequalities** draw much faster: sliders are read once per redraw instead of at every
+  point, and the shading is tested 4 × 4 cells at a time away from the boundary (RegionTest
+  checks the picture is identical).
+- **Settings** are ordered Appearance, Calculator, History, Numbers, Graphs, Touch and screen,
+  About. The **acknowledgements** are grouped (fonts, libraries, data, numerical methods,
+  graphics, inspiration), each entry with its authors, what it's used for here, a line on what
+  it is and its licence.
+
 ## Latest changes (29 September)
 - **Export graphs**: the share button on the 2D and complex toolbars exports the graph as PDF
   (the default), PNG, JPG or SVG, with the limits you type (the current view to start with)
