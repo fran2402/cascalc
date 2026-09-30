@@ -80,19 +80,19 @@ def vector(body, comment):
 '''
 
 def launcher(res):
-    F = Frame(54, 54, radius=32)   # inside the 33 dp safe circle, with room for the stroke caps
+    F = Frame(54, 54, radius=26)   # well inside the 33 dp safe circle
     body = []
     for p, up in faces(F):
         c = 'FF' + (SURF_TOP if up else SURF_UNDER)[1:]
         body.append(f'    <path android:fillColor="#{c}" android:strokeColor="#{c}" android:strokeWidth="0.5" android:pathData="{p}"/>')
-    body.append(f'    <path android:strokeColor="#99{MINT[1:]}" android:strokeWidth="1.6" android:strokeLineJoin="round" android:pathData="{path([F.P(*q) for q in outline()], True)}"/>')
-    body.append(f'    <path android:strokeColor="#FF{MINT[1:]}" android:strokeWidth="4.2" android:strokeLineCap="round" android:pathData="{curve_x(F)}"/>')
-    body.append(f'    <path android:strokeColor="#FF{GOLD[1:]}" android:strokeWidth="4.2" android:strokeLineCap="round" android:pathData="{curve_y(F)}"/>')
+    body.append(f'    <path android:strokeColor="#99{MINT[1:]}" android:strokeWidth="1.3" android:strokeLineJoin="round" android:pathData="{path([F.P(*q) for q in outline()], True)}"/>')
+    body.append(f'    <path android:strokeColor="#FF{MINT[1:]}" android:strokeWidth="3.5" android:strokeLineCap="round" android:pathData="{curve_x(F)}"/>')
+    body.append(f'    <path android:strokeColor="#FF{GOLD[1:]}" android:strokeWidth="3.5" android:strokeLineCap="round" android:pathData="{curve_y(F)}"/>')
     open(os.path.join(res, 'drawable/ic_launcher_foreground.xml'), 'w').write(vector('\n'.join(body), 'The saddle z = x² − y² with its two curves: mint bends up, gold bends down.'))
     mono = [
-        f'    <path android:strokeColor="#FF000000" android:strokeWidth="2.4" android:strokeLineJoin="round" android:pathData="{path([F.P(*q) for q in outline()], True)}"/>',
-        f'    <path android:strokeColor="#FF000000" android:strokeWidth="3.4" android:strokeLineCap="round" android:pathData="{curve_x(F)}"/>',
-        f'    <path android:strokeColor="#FF000000" android:strokeWidth="3.4" android:strokeLineCap="round" android:pathData="{curve_y(F)}"/>',
+        f'    <path android:strokeColor="#FF000000" android:strokeWidth="2" android:strokeLineJoin="round" android:pathData="{path([F.P(*q) for q in outline()], True)}"/>',
+        f'    <path android:strokeColor="#FF000000" android:strokeWidth="2.8" android:strokeLineCap="round" android:pathData="{curve_x(F)}"/>',
+        f'    <path android:strokeColor="#FF000000" android:strokeWidth="2.8" android:strokeLineCap="round" android:pathData="{curve_y(F)}"/>',
     ]
     open(os.path.join(res, 'drawable/ic_launcher_monochrome.xml'), 'w').write(vector('\n'.join(mono), 'Themed icon (Android 13+): the saddle as line art.'))
     open(os.path.join(res, 'drawable/ic_launcher_background.xml'), 'w').write(f'''<?xml version="1.0" encoding="utf-8"?>
@@ -121,9 +121,10 @@ def feature(out, text=True):
     F = Frame(778 if text else 512, 252, width=400 if text else 520)
     words = ''
     if text:
-        words = f'''<text x="84" y="226" font-size="92" fill="#F2FBF8" style="font-family:GSF;font-weight:650;font-variation-settings:'ROND' 100">CasCalc</text>
-<text x="88" y="292" font-size="30" fill="{MINT}" style="font-family:GSF;font-weight:500;font-variation-settings:'ROND' 100">Algebra, calculus and graphing</text>
-<text x="88" y="334" font-size="30" fill="#BFD6DE" style="font-family:GSF;font-weight:450;font-variation-settings:'ROND' 100">in 2D, 3D and the complex plane</text>'''
+        words = f'''<text x="80" y="176" font-size="66" fill="#F2FBF8" style="font-family:GSF;font-weight:650;font-variation-settings:'ROND' 100">CAS Scientific</text>
+<text x="80" y="250" font-size="66" fill="#F2FBF8" style="font-family:GSF;font-weight:650;font-variation-settings:'ROND' 100">Calculator</text>
+<text x="84" y="316" font-size="28" fill="{MINT}" style="font-family:GSF;font-weight:500;font-variation-settings:'ROND' 100">Algebra, calculus and graphing</text>
+<text x="84" y="356" font-size="28" fill="#BFD6DE" style="font-family:GSF;font-weight:450;font-variation-settings:'ROND' 100">in 2D, 3D and the complex plane</text>'''
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}" viewBox="0 0 {W} {H}">
 {glow(F.cx, 230, 520, 'bg')}<rect width="{W}" height="{H}" fill="url(#bg)"/>
 {svg_saddle(F, 22)}

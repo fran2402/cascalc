@@ -9,7 +9,7 @@ import java.nio.ByteOrder
  * millimetres, with its lowest corner at the origin.
  */
 object Stl {
-    fun write(polygons: List<Polygon>, b: Bounds, size: Double = 100.0, name: String = "CasCalc graph"): ByteArray {
+    fun write(polygons: List<Polygon>, b: Bounds, size: Double = 100.0, name: String = "CAS Scientific Calculator graph"): ByteArray {
         val span = maxOf(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0).takeIf { it > 0 } ?: 1.0
         val k = size / span
         fun mm(p: DoubleArray) = doubleArrayOf((p[0] - b.x0) * k, (p[1] - b.y0) * k, (p[2] - b.z0) * k)

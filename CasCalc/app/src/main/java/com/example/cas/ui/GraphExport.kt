@@ -391,7 +391,7 @@ fun ExportDialog(
             androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical = 4.dp))
             Text("Graph file (.${graphFile.extension})", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
             Text(
-                "The graph itself, with its lines, colours and sliders, to open again in CasCalc (Saved graphs › Import).",
+                "The graph itself, with its lines, colours and sliders, to open again in CAS Scientific Calculator (Saved graphs › Import).",
                 style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

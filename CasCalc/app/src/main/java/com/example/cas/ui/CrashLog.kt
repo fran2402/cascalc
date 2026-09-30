@@ -37,7 +37,7 @@ object CrashLog {
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             runCatching {
                 val c = app.resources.configuration
-                val header = "CasCalc crash · Android ${android.os.Build.VERSION.SDK_INT} · ${android.os.Build.MODEL} · " +
+                val header = "CAS Scientific Calculator crash · Android ${android.os.Build.VERSION.SDK_INT} · ${android.os.Build.MODEL} · " +
                     "${c.screenWidthDp}×${c.screenHeightDp} dp\n\n"
                 file(app).writeText(header + error.stackTraceToString().take(20_000))
             }
@@ -60,7 +60,7 @@ fun CrashReportDialog() {
     val close = { CrashLog.clear(context); text = null }
     AlertDialog(
         onDismissRequest = close,
-        title = { Text("CasCalc closed unexpectedly") },
+        title = { Text("The app closed unexpectedly") },
         text = {
             Column {
                 Text("This is what went wrong. Copy it into a bug report to help fix it.", style = MaterialTheme.typography.bodyMedium)

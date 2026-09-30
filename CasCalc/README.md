@@ -195,6 +195,11 @@ Constants and symbols are long lists and scroll up and down in place; the others
 Groups: Basic, Trigonometry, Calculus, Vector calculus, Linear algebra, Statistics, Complex
 numbers, Physical constants, Symbols.
 
+## Latest changes (30 September, ninth round)
+- The app is now called **CAS Scientific Calculator** (launcher label, feature graphic, messages).
+  Graph files keep their format, so ones saved earlier still open.
+- The saddle in the launcher icon is smaller, with thinner lines to match.
+
 ## Latest changes (30 September, eighth round)
 - **New icon**: a saddle surface z = x² − y² with the curve that bends up (mint) and the one that
   bends down (gold), on deep blue-green. Launcher icon (adaptive, and a line-art themed icon on

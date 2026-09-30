@@ -41,9 +41,9 @@ object GraphFile {
         val text = bytes.toString(Charsets.UTF_8).removePrefix("﻿")
         val lines = text.split('\n').map { it.removeSuffix("\r") }
         val head = lines.firstOrNull().orEmpty()
-        require(head.startsWith(MAGIC)) { "This isn't a CasCalc graph file" }
+        require(head.startsWith(MAGIC)) { "This isn't a CAS Scientific Calculator graph file" }
         val version = head.removePrefix(MAGIC).trim().toIntOrNull() ?: 0
-        require(version in 1..VERSION) { "This graph file is from a newer version of CasCalc" }
+        require(version in 1..VERSION) { "This graph file is from a newer version of the app" }
         val entries = LinkedHashMap<String, String>()
         lines.drop(1).filter { it.isNotEmpty() }.forEach { line ->
             val tab = line.indexOf('\t')
