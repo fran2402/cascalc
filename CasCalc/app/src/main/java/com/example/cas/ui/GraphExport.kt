@@ -43,6 +43,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -250,14 +255,17 @@ fun rememberGraphExporter(
             }
         }
     }
+    // Files are named with when they were made, e.g. graph-2026-09-30_14-05-12.pdf.
+    fun stamped() = name + "-" + java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(java.util.Date())
     return { request, share ->
+        val fileName = stamped()
         if (share) {
             scope.launch {
                 runCatching {
                     val uri = withContext(Dispatchers.Default) {
                         val data = if (request.format == ExportFormat.STL && model != null) model(request) else SceneExport.bytes(context, build(request), request.format)
                         val dir = File(context.cacheDir, "shared").apply { mkdirs() }
-                        val file = File(dir, "$name.${request.format.extension}")
+                        val file = File(dir, "$fileName.${request.format.extension}")
                         file.writeBytes(data)
                         FileProvider.getUriForFile(context, context.packageName + ".files", file)
                     }
@@ -271,7 +279,7 @@ fun rememberGraphExporter(
             }
         } else {
             pending = request
-            launchers.getValue(request.format).launch("$name.${request.format.extension}")
+            launchers.getValue(request.format).launch("$fileName.${request.format.extension}")
         }
     }
 }
@@ -320,71 +328,99 @@ fun ExportDialog(
             }
         }.onSuccess { preview = it.asImageBitmap() }
     }
+    // What the file will look like.
+    val previewBox: @Composable () -> Unit = {
+        Box(
+            Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp))
+                .border(1.dp, colors.outlineVariant, RoundedCornerShape(16.dp))
+                .background(colors.surfaceContainerHighest),
+            contentAlignment = Alignment.Center,
+        ) {
+            val p = preview
+            if (p != null) androidx.compose.foundation.Image(p, contentDescription = "Preview of the export", modifier = Modifier.fillMaxSize())
+            else Busy()
+        }
+    }
+    val options: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            formats.forEachIndexed { k, f ->
+                SegmentedButton(
+                    selected = format == f,
+                    onClick = { format = f },
+                    shape = SegmentedButtonDefaults.itemShape(k, formats.size),
+                    icon = {},
+                    label = { Text(f.label, maxLines = 1) },
+                )
+            }
+        }
+        Text(
+            when (format) {
+                ExportFormat.PDF -> "Vector: sharp at any size, for documents and printing."
+                ExportFormat.SVG -> "Vector: sharp at any size, editable in drawing programs."
+                ExportFormat.PNG -> "Picture, 2400 × 2400 pixels, without loss."
+                ExportFormat.JPG -> "Picture, 2400 × 2400 pixels, smaller files."
+                ExportFormat.STL -> "3D model for printing: each surface closed off into a solid inside the box (the floor under z = f(x, y)), 100 mm across. The preview shows the graph."
+            },
+            style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
+        )
+        Text("Limits", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
+        pairs.forEach { (a, b) ->
+            val letter = listOf("x", "y", "z")[a / 2]
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(fields[a], { fields[a] = it }, singleLine = true, label = { Text("$letter from") }, modifier = Modifier.weight(1f))
+                OutlinedTextField(fields[b], { fields[b] = it }, singleLine = true, label = { Text("$letter to") }, modifier = Modifier.weight(1f))
+            }
+        }
+        if (!valid) Text("Each limit needs a number, and “from” must be less than “to”.", style = MaterialTheme.typography.bodySmall, color = colors.error)
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            listOf("Light", "Dark").forEachIndexed { k, name ->
+                SegmentedButton(
+                    selected = dark == (k == 1),
+                    onClick = { dark = k == 1 },
+                    shape = SegmentedButtonDefaults.itemShape(k, 2),
+                    icon = {},
+                    label = { Text(name, maxLines = 1) },
+                )
+            }
+        }
+    }
+    val buttons: @Composable () -> Unit = {
+        Row {
+            TextButton(enabled = valid, onClick = { onExport(request(), true) }) { Text("Share") }
+            TextButton(enabled = valid, onClick = { onExport(request(), false) }) { Text("Save") }
+        }
+    }
+    if (isTabletLayout()) {
+        // Tablets: the preview large on the left, the options beside it.
+        androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+            androidx.compose.material3.Surface(shape = RoundedCornerShape(28.dp), color = colors.surfaceContainerHigh, modifier = Modifier.width(940.dp).heightIn(max = 720.dp)) {
+                Column(Modifier.padding(24.dp)) {
+                    Text("Export graph", style = MaterialTheme.typography.headlineSmall)
+                    Spacer(Modifier.height(16.dp))
+                    Row(Modifier.weight(1f, fill = false), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                        Box(Modifier.weight(1.1f)) { previewBox() }
+                        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) { options() }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = onDismiss) { Text("Cancel") }
+                        buttons()
+                    }
+                }
+            }
+        }
+        return
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Export graph") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                // What the file will look like.
-                Box(
-                    Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp))
-                        .border(1.dp, colors.outlineVariant, RoundedCornerShape(16.dp))
-                        .background(colors.surfaceContainerHighest),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    val p = preview
-                    if (p != null) androidx.compose.foundation.Image(p, contentDescription = "Preview of the export", modifier = Modifier.fillMaxSize())
-                    else Busy()
-                }
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    formats.forEachIndexed { k, f ->
-                        SegmentedButton(
-                            selected = format == f,
-                            onClick = { format = f },
-                            shape = SegmentedButtonDefaults.itemShape(k, formats.size),
-                            icon = {},
-                            label = { Text(f.label, maxLines = 1) },
-                        )
-                    }
-                }
-                Text(
-                    when (format) {
-                        ExportFormat.PDF -> "Vector: sharp at any size, for documents and printing."
-                        ExportFormat.SVG -> "Vector: sharp at any size, editable in drawing programs."
-                        ExportFormat.PNG -> "Picture, 2400 × 2400 pixels, without loss."
-                        ExportFormat.JPG -> "Picture, 2400 × 2400 pixels, smaller files."
-                        ExportFormat.STL -> "3D model for printing: each surface closed off into a solid inside the box (the floor under z = f(x, y)), 100 mm across. The preview shows the graph."
-                    },
-                    style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
-                )
-                Text("Limits", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
-                pairs.forEach { (a, b) ->
-                    val letter = listOf("x", "y", "z")[a / 2]
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        OutlinedTextField(fields[a], { fields[a] = it }, singleLine = true, label = { Text("$letter from") }, modifier = Modifier.weight(1f))
-                        OutlinedTextField(fields[b], { fields[b] = it }, singleLine = true, label = { Text("$letter to") }, modifier = Modifier.weight(1f))
-                    }
-                }
-                if (!valid) Text("Each limit needs a number, and “from” must be less than “to”.", style = MaterialTheme.typography.bodySmall, color = colors.error)
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    listOf("Light", "Dark").forEachIndexed { k, name ->
-                        SegmentedButton(
-                            selected = dark == (k == 1),
-                            onClick = { dark = k == 1 },
-                            shape = SegmentedButtonDefaults.itemShape(k, 2),
-                            icon = {},
-                            label = { Text(name, maxLines = 1) },
-                        )
-                    }
-                }
+                previewBox()
+                options()
             }
         },
-        confirmButton = {
-            Row {
-                TextButton(enabled = valid, onClick = { onExport(request(), true) }) { Text("Share") }
-                TextButton(enabled = valid, onClick = { onExport(request(), false) }) { Text("Save") }
-            }
-        },
+        confirmButton = { buttons() },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }

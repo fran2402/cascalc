@@ -8,7 +8,23 @@ enum class Marker(val label: String) {
     Circle("Circle"), Ring("Ring"), Square("Square"), Diamond("Diamond"), Triangle("Triangle"), Cross("Cross"),
     // Added later, so saved lines keep their shapes (they're stored by position).
     Plus("Plus"), Star("Star"), Pentagon("Pentagon"), Hexagon("Hexagon"), TriangleDown("Triangle down"), Asterisk("Asterisk"),
-    OpenSquare("Open square"), OpenDiamond("Open diamond"), OpenTriangle("Open triangle");
+    OpenSquare("Open square"), OpenDiamond("Open diamond"), OpenTriangle("Open triangle"),
+    OpenPentagon("Open pentagon"), OpenHexagon("Open hexagon"), OpenStar("Open star"), OpenTriangleDown("Open triangle down");
+
+    /** The filled shape this is drawn from (itself when it's filled or a stroke). */
+    val base: Marker get() = when (this) {
+        Ring -> Circle; OpenSquare -> Square; OpenDiamond -> Diamond; OpenTriangle -> Triangle
+        OpenPentagon -> Pentagon; OpenHexagon -> Hexagon; OpenStar -> Star; OpenTriangleDown -> TriangleDown
+        else -> this
+    }
+
+    val hollow: Boolean get() = base != this
+
+    /** Crosses, pluses and asterisks are strokes, so they can't be filled or not. */
+    val fillable: Boolean get() = base !in listOf(Cross, Plus, Asterisk)
+
+    /** This shape filled or hollow. */
+    fun filled(on: Boolean): Marker = if (on || !fillable) base else entries.first { it.base == base && it.hollow }
 
     /**
      * The shape centred on (cx, cy) with "radius" [r], as closed outlines to fill (circle and
@@ -17,7 +33,6 @@ enum class Marker(val label: String) {
      */
     fun outline(cx: Double, cy: Double, r: Double): Pair<List<DoubleArray>, List<DoubleArray>> = when (this) {
         Circle -> listOf(ring(cx, cy, r, false)) to emptyList()
-        Ring -> listOf(ring(cx, cy, r, false), ring(cx, cy, r * 0.55, true)) to emptyList()
         Square -> listOf(doubleArrayOf(cx - r * 0.85, cy - r * 0.85, cx + r * 0.85, cy - r * 0.85, cx + r * 0.85, cy + r * 0.85, cx - r * 0.85, cy + r * 0.85)) to emptyList()
         Diamond -> listOf(doubleArrayOf(cx, cy - r * 1.15, cx + r * 1.15, cy, cx, cy + r * 1.15, cx - r * 1.15, cy)) to emptyList()
         Triangle -> listOf(doubleArrayOf(cx, cy - r * 1.2, cx + r * 1.1, cy + r * 0.75, cx - r * 1.1, cy + r * 0.75)) to emptyList()
@@ -36,10 +51,9 @@ enum class Marker(val label: String) {
         Hexagon -> listOf(polygon(cx, cy, r * 1.05, 6, 0.0)) to emptyList()
         TriangleDown -> listOf(doubleArrayOf(cx, cy + r * 1.2, cx - r * 1.1, cy - r * 0.75, cx + r * 1.1, cy - r * 0.75)) to emptyList()
         // Hollow ones: the outline, and a smaller copy running the other way (so it stays open).
-        OpenSquare, OpenDiamond, OpenTriangle -> {
-            val solid = when (this) { OpenSquare -> Square; OpenDiamond -> Diamond; else -> Triangle }
-            val outer = solid.outline(cx, cy, r).first.single()
-            val inner = solid.outline(cx, cy, r * 0.55).first.single()
+        else -> {
+            val outer = base.outline(cx, cy, r).first.single()
+            val inner = base.outline(cx, cy, r * 0.55).first.single()
             // Inner points in reverse order.
             val back = DoubleArray(inner.size) { k -> val p = inner.size / 2 - 1 - k / 2; inner[2 * p + k % 2] }
             listOf(outer, back) to emptyList()
@@ -55,6 +69,9 @@ enum class Marker(val label: String) {
 
     companion object {
         fun of(index: Int) = entries.getOrElse(index) { Circle }
+
+        /** The shapes offered (each can then be filled or hollow, when it's a closed shape). */
+        val bases = listOf(Circle, Square, Diamond, Triangle, TriangleDown, Pentagon, Hexagon, Star, Cross, Plus, Asterisk)
 
         private fun polygon(cx: Double, cy: Double, r: Double, n: Int, start: Double) = DoubleArray(2 * n) { k ->
             val a = start + (k / 2) * 2 * Math.PI / n

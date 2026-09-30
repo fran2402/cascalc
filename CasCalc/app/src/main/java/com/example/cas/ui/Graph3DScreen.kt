@@ -73,6 +73,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Edit
 import com.example.cas.graph.Coordinates3D
 import androidx.compose.ui.graphics.toArgb
 import com.example.cas.graph.Viewport
@@ -183,39 +184,35 @@ private fun LimitsDialog(vm: Graph3DViewModel, onDismiss: () -> Unit) {
                 if (!autoZ) LimitRow("z", z0, z1, { z0 = it }, { z1 = it })
                 if (!valid) Text("Each lower limit must be below its upper limit.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 Text("Coordinates", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                // As on the calculator's ∇ tab: the systems by their letters, and ✎ to choose them.
+                var choosing by remember { mutableStateOf(false) }
+                if (choosing) {
+                    val m = vm.coordinates3D
+                    val roles = when (m) {
+                        Coordinates3D.Mode.Cartesian -> listOf("First (across)", "Second (depth)", "Third (up)")
+                        Coordinates3D.Mode.Cylindrical -> listOf("Distance from the axis", "Angle around the axis", "Height")
+                        Coordinates3D.Mode.Spherical -> listOf("Distance from the origin", "Angle around the z-axis", "Angle down from the z-axis")
+                    }
+                    val name = when (m) { Coordinates3D.Mode.Cartesian -> "Cartesian"; Coordinates3D.Mode.Cylindrical -> "Cylindrical"; else -> "Spherical" }
+                    CoordinateLettersDialog("$name coordinates", roles, letters.getValue(m), Coordinates3D.DEFAULT_LETTERS.getValue(m), onDone = { letters[m] = it; choosing = false }, onDismiss = { choosing = false })
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
                     Coordinates3D.Mode.entries.forEachIndexed { k, m ->
                         SegmentedButton(
                             selected = vm.coordinates3D == m,
                             onClick = { if (vm.coordinates3D != m) vm.toggleCoordinates(if (m == Coordinates3D.Mode.Cartesian) vm.coordinates3D else m) },
                             shape = SegmentedButtonDefaults.itemShape(k, 3),
                             icon = {},
-                            label = { Text(vm.letters3D.getValue(m).joinToString(" "), maxLines = 1, style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 16.sp)) },
+                            label = { Text(letters.getValue(m).joinToString("\u200A"), maxLines = 1, style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 16.sp)) },
                         )
                     }
                 }
-                // The letters of each system: type your own (i, j, k…), and they're read as those coordinates.
-                Text("Letters", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Coordinates3D.Mode.entries.forEach { m ->
-                    val l = letters.getValue(m)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            when (m) { Coordinates3D.Mode.Cartesian -> "Cartesian"; Coordinates3D.Mode.Cylindrical -> "Cylindrical"; else -> "Spherical" },
-                            style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f),
-                        )
-                        (0 until 3).forEach { k ->
-                            androidx.compose.material3.OutlinedTextField(
-                                value = l.getOrElse(k) { "" },
-                                onValueChange = { t -> letters[m] = l.toMutableList().also { it[k] = t.trim().take(3) } },
-                                singleLine = true,
-                                isError = !lettersOk(l),
-                                textStyle = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 18.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center),
-                                modifier = Modifier.requiredWidth(56.dp),
-                            )
-                        }
-                    }
+                IconButton(onClick = { choosing = true }) {
+                    Icon(Icons.Default.Edit, contentDescription = "Choose the coordinate letters", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                TextButton(onClick = { letters.putAll(Coordinates3D.DEFAULT_LETTERS) }) { Text("Reset letters") }
+                }
+
                 Text("Surface detail", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf("Low", "Medium", "High").forEachIndexed { k, name ->

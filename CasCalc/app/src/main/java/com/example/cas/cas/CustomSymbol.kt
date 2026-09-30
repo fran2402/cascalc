@@ -14,7 +14,6 @@ enum class Accent(val latex: String, val glyph: String, val label: String) {
     Grave("\\grave", "`", "grave"),
     // Added later (saved symbols name their accent, so the order doesn't matter).
     Ring("\\mathring", "˚", "ring"),
-    TripleDot("\\dddot", "⋯", "triple dot"),
 }
 
 /**
@@ -32,12 +31,21 @@ data class CustomSymbol(
     val preSub: String = "",
     val preSup: String = "",
     val bold: Boolean = false,
+    /**
+     * Scripts written upright, as text rather than as maths (typed from the keyboard, or with
+     * italic off): letters from "s" subscript, "p" superscript, "l" left subscript, "q" left
+     * superscript; "u" is the letter itself upright (\mathrm{d}, or a word: \text{max}).
+     */
+    val upright: String = "",
 ) {
+    fun isUpright(slot: Char) = slot in upright
+
     init { require(base.isNotEmpty()) { "A symbol needs a letter" } }
 
     fun encode(): String {
         val core = MARK + base + SEP + (accent?.name ?: "") + SEP + sub + SEP + sup
-        return if (preSub.isEmpty() && preSup.isEmpty() && !bold) core else core + SEP + preSub + SEP + preSup + SEP + (if (bold) "b" else "")
+        val flags = (if (bold) "b" else "") + upright.toSortedSet().joinToString("")
+        return if (preSub.isEmpty() && preSup.isEmpty() && flags.isEmpty()) core else core + SEP + preSub + SEP + preSup + SEP + flags
     }
 
     /** LaTeX: {}_{1}^{2}\hat{x}_{1}^{2}, \boldsymbol{v}. Letters in scripts stay as typed; ′ becomes \prime. */
@@ -45,11 +53,14 @@ data class CustomSymbol(
         get() {
             val letter = com.example.cas.editor.MathAlphabets.decode(base.codePointAt(0))?.let { (style, c) -> com.example.cas.editor.MathAlphabets.latex(style, c) }
                 ?: LATEX_NAMES[base] ?: base
-            val b = if (bold) "\\boldsymbol{$letter}" else letter
+            val plainLetter = if (isUpright('u')) (if (base.length == 1) "\\mathrm{$base}" else "\\text{$base}") else letter
+            val b = if (bold) "\\boldsymbol{$plainLetter}" else plainLetter
             val withAccent = accent?.let { "${it.latex}{$b}" } ?: b
-            fun script(s: String) = s.map { LATEX_NAMES[it.toString()]?.let { n -> "$n " } ?: it.toString().replace("−", "-") }.joinToString("").trim()
-            val pre = if (preSub.isEmpty() && preSup.isEmpty()) "" else "{}" + (if (preSub.isNotEmpty()) "_{${script(preSub)}}" else "") + (if (preSup.isNotEmpty()) "^{${script(preSup)}}" else "")
-            return pre + withAccent + (if (sub.isNotEmpty()) "_{${script(sub)}}" else "") + (if (sup.isNotEmpty()) "^{${script(sup)}}" else "")
+            fun maths(s: String) = s.map { LATEX_NAMES[it.toString()]?.let { n -> "$n " } ?: it.toString().replace("−", "-") }.joinToString("").trim()
+            // An upright script is text: \text{max}.
+            fun script(s: String, slot: Char) = if (isUpright(slot)) "\\text{$s}" else maths(s)
+            val pre = if (preSub.isEmpty() && preSup.isEmpty()) "" else "{}" + (if (preSub.isNotEmpty()) "_{${script(preSub, 'l')}}" else "") + (if (preSup.isNotEmpty()) "^{${script(preSup, 'q')}}" else "")
+            return pre + withAccent + (if (sub.isNotEmpty()) "_{${script(sub, 's')}}" else "") + (if (sup.isNotEmpty()) "^{${script(sup, 'p')}}" else "")
         }
 
     /** Plain text for copying: x̂_1^2 (the accent as a combining mark). */
@@ -67,9 +78,10 @@ data class CustomSymbol(
             if (!isCustom(text)) return null
             val parts = text.removePrefix(MARK).split(SEP)
             if ((parts.size != 4 && parts.size != 7) || parts[0].isEmpty()) return null
+            val flags = parts.getOrElse(6) { "" }
             return CustomSymbol(
                 parts[0], parts[1].takeIf { it.isNotEmpty() }?.let { n -> Accent.entries.firstOrNull { it.name == n } }, parts[2], parts[3],
-                parts.getOrElse(4) { "" }, parts.getOrElse(5) { "" }, parts.getOrElse(6) { "" } == "b",
+                parts.getOrElse(4) { "" }, parts.getOrElse(5) { "" }, 'b' in flags, flags.filter { it in "splqu" },
             )
         }
 
@@ -84,7 +96,7 @@ data class CustomSymbol(
         private val COMBINING = mapOf(
             Accent.Dot to "̇", Accent.DoubleDot to "̈", Accent.Hat to "̂", Accent.Tilde to "̃", Accent.Bar to "̄",
             Accent.Vector to "⃗", Accent.Check to "̌", Accent.Breve to "̆", Accent.Acute to "́", Accent.Grave to "̀",
-            Accent.Ring to "̊", Accent.TripleDot to "⃛",
+            Accent.Ring to "̊",
         )
 
         /** Letters and signs with a LaTeX name. */
@@ -157,13 +169,24 @@ data class CustomSymbol(
                 }
                 return out.toString()
             }
+            /** The letter was written \mathrm{…} or \text{…}: upright. */
+            var uprightBase = false
+            /** Which scripts were written as \text{…} (upright): sub, sup. */
+            var uprightSub = false
+            var uprightSup = false
+            /** A script's content: \text{…}, \mathrm{…} or \textrm{…} (upright, kept as typed), or maths. */
+            fun script(g: String, set: (Boolean) -> Unit): String {
+                val m = Regex("""^\s*\\(text|mathrm|textrm|textit|operatorname)\s*\{(.*)\}\s*$""").find(g)
+                return if (m != null) { set(true); m.groupValues[2] } else { set(false); scriptText(g) }
+            }
             fun scripts(): Pair<String, String> {
                 var sub = ""; var sup = ""
+                uprightSub = false; uprightSup = false
                 while (true) {
                     skip()
                     when (peek()) {
-                        '_' -> { i++; sub = scriptText(group()) }
-                        '^' -> { i++; sup = scriptText(group()) }
+                        '_' -> { i++; sub = script(group()) { uprightSub = it } }
+                        '^' -> { i++; sup = script(group()) { uprightSup = it } }
                         '\'' -> { i++; sup += "′" }
                         else -> return sub to sup
                     }
@@ -185,7 +208,9 @@ data class CustomSymbol(
                     "mathcal" -> Triple(com.example.cas.editor.MathAlphabets.calligraphic(group().single()), null, false)
                     "mathfrak" -> Triple(com.example.cas.editor.MathAlphabets.fraktur(group().single()), null, false)
                     "mathbb" -> Triple(com.example.cas.editor.MathAlphabets.doubleStruck(group().single()), null, false)
-                    "mathrm", "text", "mathit" -> Triple(group().trim().also { require(it.length == 1) { "one letter" } }, null, false)
+                    // \text{…} as the letter: upright text (a word works too, as a name: \text{max}).
+                    "mathrm", "text", "textrm", "operatorname" -> { uprightBase = true; Triple(group().trim().also { require(it.isNotEmpty()) { "a letter" } }, null, false) }
+                    "mathit" -> Triple(group().trim().also { require(it.length == 1) { "one letter" } }, null, false)
                     else -> {
                         val greek = FROM_LATEX[name] ?: GREEK_CAPS[name] ?: error("unknown \\$name")
                         Triple(greek, null, false)
@@ -195,12 +220,19 @@ data class CustomSymbol(
             fun symbol(): CustomSymbol {
                 skip()
                 var preSub = ""; var preSup = ""
-                if (s.startsWith("{}", i)) { i += 2; val (a, b) = scripts(); preSub = a; preSup = b }
+                var upright = ""
+                if (s.startsWith("{}", i)) {
+                    i += 2
+                    val (a, b) = scripts(); preSub = a; preSup = b
+                    if (uprightSub) upright += "l"; if (uprightSup) upright += "q"
+                }
                 val (letter, accent, bold) = base()
                 val (sub, sup) = scripts()
+                if (uprightSub) upright += "s"; if (uprightSup) upright += "p"
+                if (uprightBase) upright += "u"
                 skip()
                 require(i >= s.length) { "one symbol" }
-                return CustomSymbol(letter, accent, sub, sup, preSub, preSup, bold)
+                return CustomSymbol(letter, accent, sub, sup, preSub, preSup, bold, upright.filter { c -> when (c) { 's' -> sub.isNotEmpty(); 'p' -> sup.isNotEmpty(); 'l' -> preSub.isNotEmpty(); 'q' -> preSup.isNotEmpty(); else -> true } })
             }
         }
 

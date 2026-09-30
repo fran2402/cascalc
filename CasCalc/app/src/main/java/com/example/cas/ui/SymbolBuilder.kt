@@ -3,6 +3,8 @@ package com.example.cas.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,15 +52,23 @@ import com.example.cas.editor.MathRow
 import com.example.cas.editor.Sym
 
 /** The alphabets a symbol's letter can come from, in the order they're offered. */
-private enum class Alphabet(val label: String, val letters: List<String>) {
-    Latin("Latin", ('a'..'z').map { it.toString() } + ('A'..'Z').map { it.toString() }),
+private enum class Alphabet(val label: String, val letters: List<String>, /** Its button: a capital and a small letter (or two), in its own shapes. */ val sample: String) {
+    Latin("Latin", ('a'..'z').map { it.toString() } + ('A'..'Z').map { it.toString() }, "Aa"),
     // Every Greek letter, including those shaped like Latin ones (ο, Α, Β…), and the variants.
-    Greek("Greek", "αβγδεζηθικλμνξοπρστυφχψω".map { it.toString() } + "ϵϑϰϖϱςϕ".map { it.toString() } + "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ".map { it.toString() }),
+    Greek("Greek", "αβγδεζηθικλμνξοπρστυφχψω".map { it.toString() } + "ϵϑϰϖϱςϕ".map { it.toString() } + "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ".map { it.toString() }, "Γγ"),
     // The mathematicians' ℵ ℶ ℷ ℸ, then the Hebrew alphabet.
-    Hebrew("Hebrew", listOf("ℵ", "ℶ", "ℷ", "ℸ") + "אבגדהוזחטיכלמנסעפצקרשת".map { it.toString() }),
-    Calligraphic("Calligraphic", ('A'..'Z').map { MathAlphabets.calligraphic(it) }),
-    Fraktur("Fraktur", ('A'..'Z').map { MathAlphabets.fraktur(it) } + ('a'..'z').map { MathAlphabets.fraktur(it) }),
-    Blackboard("Blackboard", ('A'..'Z').map { MathAlphabets.doubleStruck(it) }),
+    Hebrew("Hebrew", listOf("ℵ", "ℶ", "ℷ", "ℸ") + "אבגדהוזחטיכלמנסעפצקרשת".map { it.toString() }, "ℵב"),
+    Calligraphic("Calligraphic", ('A'..'Z').map { MathAlphabets.calligraphic(it) }, MathAlphabets.calligraphic('A') + MathAlphabets.calligraphic('B')),
+    Fraktur("Fraktur", ('A'..'Z').map { MathAlphabets.fraktur(it) } + ('a'..'z').map { MathAlphabets.fraktur(it) }, MathAlphabets.fraktur('A') + MathAlphabets.fraktur('a')),
+    Blackboard("Blackboard", ('A'..'Z').map { MathAlphabets.doubleStruck(it) }, MathAlphabets.doubleStruck('A') + MathAlphabets.doubleStruck('B')),
+}
+
+/** Each character (code point) of [text] as its own symbol. */
+private fun lettersRow(text: String): MathRow {
+    val out = MathRow()
+    var i = 0
+    while (i < text.length) { val n = Character.charCount(text.codePointAt(i)); out.add(Sym(text.substring(i, i + n))); i += n }
+    return out
 }
 
 /** What can go in a subscript or superscript, in three groups. */
@@ -69,7 +79,9 @@ private val SCRIPT_GROUPS: List<Pair<String, List<String>>> = listOf(
 )
 
 /** The four places a script can go: before or after the letter, below or above. */
-private enum class Slot(val label: String) { PreSup("Before, above"), PreSub("Before, below"), Sup("Superscript"), Sub("Subscript") }
+private enum class Slot(val label: String, /** Its letter in [CustomSymbol.upright]. */ val flag: Char) {
+    PreSup("Left superscript", 'q'), PreSub("Left subscript", 'l'), Sup("Right superscript", 'p'), Sub("Right subscript", 's'),
+}
 
 /**
  * Builds a symbol with a live preview: a letter from any of six alphabets (bold if you like), an
@@ -90,12 +102,16 @@ fun SymbolBuilderPage(onDone: (String?) -> Unit) {
     var slot by remember { mutableStateOf(Slot.Sub) }
     var alphabet by remember { mutableStateOf(Alphabet.Latin) }
     var scriptGroup by remember { mutableStateOf(0) }
+    // Scripts written as text (upright), and the letter written upright (\mathrm, \text).
+    val upright = remember { androidx.compose.runtime.mutableStateListOf<Char>() }
+    var typing by remember { mutableStateOf<Slot?>(null) }
     fun s(k: Slot) = scripts[k].orEmpty()
-    val symbol = CustomSymbol(base, accent, s(Slot.Sub), s(Slot.Sup), s(Slot.PreSub), s(Slot.PreSup), bold)
+    fun flags() = upright.filter { f -> f == 'u' || Slot.entries.any { it.flag == f && s(it).isNotEmpty() } }.joinToString("")
+    val symbol = CustomSymbol(base, accent, s(Slot.Sub), s(Slot.Sup), s(Slot.PreSub), s(Slot.PreSup), bold, flags())
     // The LaTeX field: follows the builder, and fills it in when what's typed is a symbol.
     var latex by remember { mutableStateOf(symbol.latex) }
     var latexError by remember { mutableStateOf(false) }
-    fun changed() { latex = CustomSymbol(base, accent, s(Slot.Sub), s(Slot.Sup), s(Slot.PreSub), s(Slot.PreSup), bold).latex; latexError = false }
+    fun changed() { latex = CustomSymbol(base, accent, s(Slot.Sub), s(Slot.Sup), s(Slot.PreSub), s(Slot.PreSup), bold, flags()).latex; latexError = false }
     fun typedLatex(t: String) {
         latex = t
         val parsed = CustomSymbol.fromLatex(t)
@@ -103,6 +119,7 @@ fun SymbolBuilderPage(onDone: (String?) -> Unit) {
         if (parsed != null) {
             base = parsed.base; accent = parsed.accent; bold = parsed.bold
             scripts[Slot.Sub] = parsed.sub; scripts[Slot.Sup] = parsed.sup; scripts[Slot.PreSub] = parsed.preSub; scripts[Slot.PreSup] = parsed.preSup
+            upright.clear(); upright.addAll(parsed.upright.toList())
             Alphabet.entries.firstOrNull { parsed.base in it.letters }?.let { alphabet = it }
         }
     }
@@ -129,8 +146,10 @@ fun SymbolBuilderPage(onDone: (String?) -> Unit) {
 
     val letter: @Composable ColumnScope.() -> Unit = {
         Step("1", "Letter")
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Alphabet.entries.forEach { a -> FilterChip(selected = alphabet == a, onClick = { alphabet = a }, label = { Text(a.label) }) }
+        // The alphabets as a connected button group, each button its letters in their own shapes.
+        ConnectedButtonGroup(Alphabet.entries.size, selected = alphabet.ordinal, onSelect = { alphabet = Alphabet.entries[it] }, description = { Alphabet.entries[it].label }) { k, on ->
+            val sample = Alphabet.entries[k].sample
+            MathView(lettersRow(sample), 20.sp, if (on) colors.onPrimary else colors.onSurface, computerModern = true)
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             alphabet.letters.forEach { l ->
@@ -165,20 +184,34 @@ fun SymbolBuilderPage(onDone: (String?) -> Unit) {
 
     val scriptSection: @Composable ColumnScope.() -> Unit = {
         Step("3", "Scripts")
-        Text("Tap a box, then type into it. Scripts can go after the letter, or before it (as in ¹⁴₆C).", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        Text("Tap a box, then type into it from the pad. Scripts can go on the right of the letter, or on its left (as in ¹⁴₆C).", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
         // The four boxes round the letter, where they'll appear.
+        Text("Double-tap a box to type into it with your keyboard (as upright text).", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        typing?.let { k ->
+            ScriptTextDialog(k.label, s(k), onDone = { t -> scripts[k] = t; if (k.flag !in upright) upright += k.flag; slot = k; typing = null; changed() }, onDismiss = { typing = null })
+        }
+        @Composable
+        fun box(k: Slot) = ScriptSlot(k.label, s(k), slot == k, k.flag in upright, onSelect = { slot = k }, onDoubleTap = { slot = k; typing = k })
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ScriptSlot(Slot.PreSup.label, s(Slot.PreSup), slot == Slot.PreSup) { slot = Slot.PreSup }
-                ScriptSlot(Slot.PreSub.label, s(Slot.PreSub), slot == Slot.PreSub) { slot = Slot.PreSub }
+                box(Slot.PreSup)
+                box(Slot.PreSub)
             }
             Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
                 MathView(MathRow(mutableListOf(Sym(CustomSymbol(base, accent, bold = bold).encode()))), 36.sp, colors.onSurface, computerModern = true)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ScriptSlot(Slot.Sup.label, s(Slot.Sup), slot == Slot.Sup) { slot = Slot.Sup }
-                ScriptSlot(Slot.Sub.label, s(Slot.Sub), slot == Slot.Sub) { slot = Slot.Sub }
+                box(Slot.Sup)
+                box(Slot.Sub)
             }
+        }
+        // Italic: letters in the chosen box as maths (italic) or as text (upright).
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Italic", style = MaterialTheme.typography.bodyLarge)
+                Text("Letters in the ${slot.label.lowercase()} as maths; off for upright text", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            }
+            Switch(checked = slot.flag !in upright, onCheckedChange = { on -> if (on) upright.remove(slot.flag) else if (slot.flag !in upright) upright += slot.flag; changed() })
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             SCRIPT_GROUPS.forEachIndexed { k, (name, _) -> FilterChip(selected = scriptGroup == k, onClick = { scriptGroup = k }, label = { Text(name) }) }
@@ -264,9 +297,10 @@ private fun Chip(selected: Boolean, description: String, onClick: () -> Unit, co
     ) { content() }
 }
 
-/** A script box: tap it to type into it; it shows what's in it. */
+/** A script box: tap it to type into it from the pad, double-tap to type with the keyboard; it shows what's in it. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun ScriptSlot(title: String, content: String, active: Boolean, onSelect: () -> Unit) {
+private fun ScriptSlot(title: String, content: String, active: Boolean, upright: Boolean, onSelect: () -> Unit, onDoubleTap: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Column(
         Modifier
@@ -274,14 +308,72 @@ private fun ScriptSlot(title: String, content: String, active: Boolean, onSelect
             .clip(RoundedCornerShape(16.dp))
             .background(if (active) colors.secondaryContainer else colors.surfaceContainer)
             .then(if (active) Modifier.border(2.dp, colors.primary, RoundedCornerShape(16.dp)) else Modifier)
-            .clickable(onClickLabel = "Type into $title", onClick = onSelect)
+            .combinedClickable(onClickLabel = "Type into the $title", onDoubleClick = onDoubleTap, onClick = onSelect)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(title, style = MaterialTheme.typography.labelMedium, color = if (active) colors.onSecondaryContainer else colors.onSurfaceVariant, maxLines = 1)
         Box(Modifier.height(28.dp), contentAlignment = Alignment.CenterStart) {
             if (content.isEmpty()) Text("empty", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant.copy(alpha = 0.6f))
-            else MathView(MathRow(content.map { Sym(it.toString()) }.toMutableList()), 20.sp, colors.onSurface, computerModern = true)
+            else MathView(
+                if (upright) MathRow(mutableListOf(Sym(if (content.length == 1) com.example.cas.engine.LatexParser.UPRIGHT + content else content)))
+                else MathRow(content.map { Sym(it.toString()) }.toMutableList()),
+                20.sp, colors.onSurface, computerModern = true,
+            )
+        }
+    }
+}
+
+/** Typing a script with the keyboard: kept as typed, upright (text, as \text{…}). */
+@Composable
+private fun ScriptTextDialog(title: String, initial: String, onDone: (String) -> Unit, onDismiss: () -> Unit) {
+    var text by remember { mutableStateOf(initial) }
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = text, onValueChange = { text = it.take(16) }, singleLine = true,
+                supportingText = { Text("Written upright, as text (eff, max, ext…)") },
+                modifier = Modifier.fillMaxWidth().focusRequester(focus),
+            )
+            androidx.compose.runtime.LaunchedEffect(Unit) { focus.requestFocus() }
+        },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = { onDone(text.trim()) }) { Text("Done") } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+/**
+ * Material 3 Expressive's connected button group: the buttons sit together with a small gap,
+ * outer corners fully round and inner ones small; the chosen one is filled and fully rounded.
+ */
+@Composable
+internal fun ConnectedButtonGroup(count: Int, selected: Int, onSelect: (Int) -> Unit, description: (Int) -> String, content: @Composable (Int, Boolean) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val tap = rememberKeyTap()
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        (0 until count).forEach { k ->
+            val on = k == selected
+            val outer = 24.dp
+            val inner = 8.dp
+            val shape = when {
+                on -> RoundedCornerShape(50)
+                k == 0 -> RoundedCornerShape(topStart = outer, bottomStart = outer, topEnd = inner, bottomEnd = inner)
+                k == count - 1 -> RoundedCornerShape(topStart = inner, bottomStart = inner, topEnd = outer, bottomEnd = outer)
+                else -> RoundedCornerShape(inner)
+            }
+            Box(
+                Modifier
+                    .weight(1f)
+                    .height(48.dp)
+                    .clip(shape)
+                    .background(if (on) colors.primary else colors.surfaceContainerHighest)
+                    .clickable(onClickLabel = description(k)) { tap(); onSelect(k) }
+                    .semantics { contentDescription = description(k) + if (on) ", chosen" else "" },
+                contentAlignment = Alignment.Center,
+            ) { content(k, on) }
         }
     }
 }

@@ -72,12 +72,32 @@ fun ExpressiveSlider(
                 colors = colors,
                 modifier = Modifier
                     .height(24.dp)
-                    .drawBehind { if (trackBrush != null) drawRoundRect(trackBrush, cornerRadius = CornerRadius(12.dp.toPx())) },
+                    .drawBehind { if (trackBrush != null) gappedTrack(trackBrush, (it.value - valueRange.start) / (valueRange.endInclusive - valueRange.start)) },
                 // A 24 dp track is fully rounded by default: 12 dp corners.
                 drawStopIndicator = null,
             )
         },
     )
+}
+
+/**
+ * The gradient track with the M3 Expressive gap: the track stops 6 dp either side of the thumb,
+ * its outer ends fully rounded and the ends at the thumb only slightly.
+ */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.gappedTrack(brush: Brush, fraction: Float) {
+    val w = size.width; val h = size.height
+    val cx = fraction.coerceIn(0f, 1f) * w
+    val gap = 8.dp.toPx() // half the 4 dp thumb plus the 6 dp gap
+    val outer = CornerRadius(h / 2); val inner = CornerRadius(2.dp.toPx())
+    fun piece(l: Float, r: Float, leftCorner: CornerRadius, rightCorner: CornerRadius) {
+        if (r - l < 1f) return
+        val path = androidx.compose.ui.graphics.Path().apply {
+            addRoundRect(androidx.compose.ui.geometry.RoundRect(l, 0f, r, h, leftCorner, rightCorner, rightCorner, leftCorner))
+        }
+        drawPath(path, brush)
+    }
+    piece(0f, cx - gap, outer, inner)
+    piece(cx + gap, w, inner, outer)
 }
 
 /**

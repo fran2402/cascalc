@@ -1429,7 +1429,7 @@ private fun shareText(context: Context, text: String) {
 
 /** Letters offered for coordinates: the usual ones in maths and physics. */
 // The usual choices (x, y, z, r, ρ, θ, φ) come first so they're visible without scrolling.
-private val COORDINATE_LETTERS = listOf("x", "y", "z", "r", "ρ", "θ", "φ", "s", "ϕ", "ψ", "u", "v", "w", "t", "q", "ξ", "η", "ζ")
+private val COORDINATE_LETTERS = listOf("x", "y", "z", "r", "ρ", "θ", "φ", "s", "ϕ", "ψ", "u", "v", "w", "t", "q", "ξ", "η", "ζ", "i", "j", "k", "a", "b", "c", "h", "l", "α", "β", "γ")
 
 /**
  * Picks the letters for the current coordinate system: one row of choices per
@@ -1437,23 +1437,33 @@ private val COORDINATE_LETTERS = listOf("x", "y", "z", "r", "ρ", "θ", "φ", "s
  */
 @Composable
 private fun CoordinatesDialog(current: com.example.cas.cas.Coordinates, onDone: (com.example.cas.cas.Coordinates) -> Unit, onDismiss: () -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    var names by remember { mutableStateOf(current.names) }
-    val valid = names.toSet().size == 3
     val roles = when (current.kind) {
         CoordinateKind.Cartesian -> listOf("First", "Second", "Third")
         CoordinateKind.Cylindrical -> listOf("Distance from the axis", "Angle around the axis", "Height")
         CoordinateKind.Spherical -> listOf("Distance from the origin", "Angle from the z-axis", "Angle around the z-axis")
     }
+    CoordinateLettersDialog("${current.kind.label} coordinates", roles, current.names, current.kind.defaults, onDone = { onDone(com.example.cas.cas.Coordinates(current.kind, it)) }, onDismiss = onDismiss)
+}
+
+/**
+ * Choosing three coordinate letters: a row of letters for each coordinate ([roles]), one tap
+ * each, letters in use elsewhere greyed out. Used by the calculator's ∇ tab and the 3D graph.
+ */
+@Composable
+internal fun CoordinateLettersDialog(title: String, roles: List<String>, current: List<String>, defaults: List<String>, onDone: (List<String>) -> Unit, onDismiss: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    var names by remember { mutableStateOf(current) }
+    val valid = names.toSet().size == 3
+    val letters = (defaults + COORDINATE_LETTERS + current).distinct()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("${current.kind.label} coordinates") },
+        title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 roles.forEachIndexed { k, role ->
                     Text(role, style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        COORDINATE_LETTERS.forEach { letter ->
+                        letters.forEach { letter ->
                             val on = names[k] == letter
                             val taken = !on && letter in names
                             Box(
@@ -1475,8 +1485,8 @@ private fun CoordinatesDialog(current: com.example.cas.cas.Coordinates, onDone: 
                 }
             }
         },
-        confirmButton = { TextButton(enabled = valid, onClick = { onDone(com.example.cas.cas.Coordinates(current.kind, names)) }) { Text("Done") } },
-        dismissButton = { TextButton(onClick = { names = current.kind.defaults }) { Text("Reset to ${current.kind.defaults.joinToString(", ")}") } },
+        confirmButton = { TextButton(enabled = valid, onClick = { onDone(names) }) { Text("Done") } },
+        dismissButton = { TextButton(onClick = { names = defaults }) { Text("Reset to ${defaults.joinToString(", ")}") } },
     )
 }
 

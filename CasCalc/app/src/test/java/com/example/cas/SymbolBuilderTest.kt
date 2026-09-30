@@ -38,6 +38,17 @@ class SymbolBuilderTest {
             assertEquals(s, CustomSymbol.fromLatex(s.latex))
     }
 
+    @Test fun textScriptsAreUpright() {
+        val eff = CustomSymbol("m", sub = "eff", upright = "s")
+        assertEquals("m_{\\text{eff}}", eff.latex)
+        assertEquals(eff, CustomSymbol.fromLatex("m_{\\text{eff}}"))
+        assertEquals(eff, CustomSymbol.decode(eff.encode()))
+        // An upright letter, and a word as the letter.
+        assertEquals(CustomSymbol("d", upright = "u"), CustomSymbol.fromLatex("\\mathrm{d}"))
+        assertEquals("\\text{max}_{i}", CustomSymbol("max", sub = "i", upright = "u").latex)
+        assertEquals(CustomSymbol("max", sub = "i", upright = "u"), CustomSymbol.fromLatex("\\text{max}_i"))
+    }
+
     @Test fun blackboardLetters() {
         assertEquals("ℝ", MathAlphabets.doubleStruck('R'))
         assertEquals(MathAlphabets.Style.DoubleStruck to 'R', MathAlphabets.decode("ℝ".codePointAt(0)))

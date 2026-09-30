@@ -195,6 +195,28 @@ Constants and symbols are long lists and scroll up and down in place; the others
 Groups: Basic, Trigonometry, Calculus, Vector calculus, Linear algebra, Statistics, Complex
 numbers, Physical constants, Symbols.
 
+## Latest changes (30 September, fourth round)
+- **Symbol builder**: the alphabet chooser is an M3 connected button group (Aa, Γγ, ℵב, 𝒜ℬ,
+  𝔄𝔞, 𝔸𝔹); the script boxes are named left/right superscript and left/right subscript;
+  double-tap a box to type text from the keyboard (upright, like \text), with an Italic toggle
+  per box; the LaTeX field reads \text, \mathrm, \operatorname and \mathit; the triple dot
+  is gone.
+- **Fonts**: blackboard bold, Hebrew, ħ and the Greek letters Computer Modern lacks (ϰ, and
+  capitals like Α that look Latin) come from New Computer Modern (GUST Font License), so they
+  match the rest of the maths; the ħ key and ħ in equations are drawn with the barred h.
+- **3D coordinates** are chosen like the calculus variables: a segmented row of the letters
+  and ✎ to pick your own.
+- **Colour sliders** leave the M3 Expressive gap either side of the thumb.
+- **Folders**: the arrow follows the theme; lines in a folder get a bar in the primary colour
+  (the red swipe strip no longer shows in the indent).
+- **Points**: eleven shapes and a Filled switch instead of fifteen shapes.
+- **Data tables**: the brackets in σ(x) and σ(y) are upright.
+- **Export**: preview beside the options on tablets; files are named with the date and time
+  (graph-2026-09-30_14-05-12.pdf).
+- **Defaults**: small maths and a compact keypad on phones, medium on tablets.
+- **Saved graphs**: one page for all graph modes, with filter chips and each mode's icon in the
+  card's corner; a grid on tablets; opening one switches to its mode.
+
 ## Latest changes (30 September, third round)
 - **3D inequalities**: x² + y² + z² ≤ 4, z < x² + y², ρ < 2… are drawn as solids: the boundary
   surface and, where the box cuts the solid, its walls (lighter and see-through).
@@ -204,7 +226,7 @@ numbers, Physical constants, Symbols.
   each of Cartesian, cylindrical and spherical. They're read as those coordinates and shown on
   the axes and the letter chips.
 - **Symbol builder**: every Greek letter (and the variants), Hebrew (ℵ ℶ ℷ ℸ and א–ת),
-  blackboard bold (ℝ), bold, two more accents (ring, triple dot), scripts before the letter
+  blackboard bold (ℝ), bold, two more accents (ring), scripts before the letter
   (¹⁴₆C) as well as after, many more script characters, a LaTeX field that fills in the builder,
   the vector arrow lifted clear of the letter, and two columns on tablets.
 - **Complex plots**: a new function takes the colormap at the top of your list.

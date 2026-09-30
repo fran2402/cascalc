@@ -47,13 +47,15 @@ data class Credit(val name: String, val by: String, val use: String, val about: 
 data class CreditGroup(val title: String, val intro: String, val credits: List<Credit>)
 
 val CREDITS: List<CreditGroup> = listOf(
-    CreditGroup("Fonts", "Every font is bundled with the app under the SIL Open Font License, whose text is in the app's source.", listOf(
+    CreditGroup("Fonts", "Every font is bundled with the app under an open font license (SIL Open Font License or GUST Font License), whose text is in the app's source.", listOf(
         Credit("Google Sans Flex", "Google", "Keys, labels, menus and all other text",
             "A variable font; the app always uses its fully rounded setting (ROND 100).", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Google+Sans+Flex"),
         Credit("Roboto", "Christian Robertson, Google", "Characters Google Sans Flex doesn't have",
             "Android's own typeface, used as the fallback.", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Roboto"),
         Credit("MathJax TeX fonts", "The MathJax Consortium, after Donald Knuth's Computer Modern", "All the maths: Main, Math Italic, Caligraphic, Fraktur and Size2 (the large ∫ and ∮)",
             "The fonts LaTeX documents are set in, so answers look as they would in print.", "SIL Open Font License 1.1", "https://github.com/mathjax/MathJax/tree/legacy-v2/fonts"),
+        Credit("New Computer Modern", "Antonis Tsolomitis, after Donald Knuth's Computer Modern", "Blackboard bold (ℝ, ℂ…), Hebrew letters (ℵ, ב…), ħ and the Greek letters Computer Modern lacks",
+            "Computer Modern extended with Unicode maths and more scripts, so these match the rest of the maths.", "GUST Font License", "https://ctan.org/pkg/newcomputermodern"),
         Credit("Material Symbols", "Google", "Icons",
             "Google's icon set, through Compose's extended icons.", "Apache License 2.0", "https://fonts.google.com/icons"),
     )),

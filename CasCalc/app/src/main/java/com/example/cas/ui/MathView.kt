@@ -1197,8 +1197,11 @@ internal fun CustomSymbolView(sym: com.example.cas.cas.CustomSymbol, level: Int,
     // Italic as TeX sets letters: Latin and small Greek; capital Greek, Hebrew (ℵ, א) and the
     // blackboard, calligraphic and Fraktur letters upright.
     val c = base.firstOrNull() ?: ' '
-    val italic = base.length == 1 && (c in 'a'..'z' || c in 'A'..'Z' || c in 'α'..'ω' || c in "ϵϑϕϱςϖϰ")
-    val scriptRow = { s: String -> MathRow(s.map { Sym(it.toString()) }.toMutableList()) }
+    val italic = !sym.isUpright('u') && base.length == 1 && (c in 'a'..'z' || c in 'A'..'Z' || c in 'α'..'ω' || c in "ϵϑϕϱςϖϰ")
+    // A script as maths (letters italic), or, written as text, upright as typed.
+    fun scriptRow(s: String, slot: Char): MathRow =
+        if (sym.isUpright(slot)) MathRow(mutableListOf(Sym(if (s.length == 1) com.example.cas.engine.LatexParser.UPRIGHT + s else s)))
+        else MathRow(s.map { Sym(it.toString()) }.toMutableList())
     val accented: @Composable () -> Unit = { AccentedLetter(base, sym.accent, italic, level, sym.bold) }
     val main: @Composable () -> Unit = {
         if (sym.sub.isEmpty() && sym.sup.isEmpty()) accented()
@@ -1206,8 +1209,8 @@ internal fun CustomSymbolView(sym: com.example.cas.cas.CustomSymbol, level: Int,
             level,
             Modifier,
             base = accented,
-            sub = if (sym.sub.isEmpty()) null else ({ RowView(scriptRow(sym.sub), level + 1) }),
-            sup = if (sym.sup.isEmpty()) null else ({ RowView(scriptRow(sym.sup), level + 1) }),
+            sub = if (sym.sub.isEmpty()) null else ({ RowView(scriptRow(sym.sub, 's'), level + 1) }),
+            sup = if (sym.sup.isEmpty()) null else ({ RowView(scriptRow(sym.sup, 'p'), level + 1) }),
         )
     }
     if (sym.preSub.isEmpty() && sym.preSup.isEmpty()) { Box(modifier) { main() }; return }
@@ -1218,8 +1221,8 @@ internal fun CustomSymbolView(sym: com.example.cas.cas.CustomSymbol, level: Int,
             level,
             Modifier,
             base = { Phantom { accented() } },
-            sub = if (sym.preSub.isEmpty()) null else ({ RowView(scriptRow(sym.preSub), level + 1) }),
-            sup = if (sym.preSup.isEmpty()) null else ({ RowView(scriptRow(sym.preSup), level + 1) }),
+            sub = if (sym.preSub.isEmpty()) null else ({ RowView(scriptRow(sym.preSub, 'l'), level + 1) }),
+            sup = if (sym.preSup.isEmpty()) null else ({ RowView(scriptRow(sym.preSup, 'q'), level + 1) }),
         )
         main()
     }

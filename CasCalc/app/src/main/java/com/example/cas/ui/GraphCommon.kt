@@ -90,6 +90,9 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateCentroid
@@ -790,8 +793,8 @@ fun FunctionList(vm: GraphViewModel, outputLabel: String, modifier: Modifier = M
             // Drag a row by its handle (or hold it anywhere) to move it; swipe it away to delete it.
             // Lines in a closed folder are left out.
             // Items are indented by how many folders they're in.
-            ReorderableRows(vm, hidden = { f -> vm.hiddenByFolder(f) }) { f, handle ->
-                Box(Modifier.padding(start = (14 * vm.enclosing(f).size).dp)) { FunctionRow(vm, f, outputLabel, handle) }
+            ReorderableRows(vm, hidden = { f -> vm.hiddenByFolder(f) }, depth = { f -> vm.enclosing(f).size }) { f, handle ->
+                FunctionRow(vm, f, outputLabel, handle)
             }
         }
         vm.tableFor?.let { f -> PointTableDialog(vm, f, onDismiss = { vm.tableFor = null }) }
@@ -1032,22 +1035,29 @@ private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable andro
     return {
         val colors = MaterialTheme.colorScheme
         if (points) {
-            // The mark: its shape (each chip draws it) and its size.
+            // The mark: its shape (each chip draws it), filled or hollow, and its size.
+            val current = com.example.cas.graph.Marker.of(f.pointShape)
+            val filled = !current.hollow
             Text("Point", style = MaterialTheme.typography.labelLarge, color = colors.primary)
             androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                com.example.cas.graph.Marker.entries.forEach { m ->
-                    val chosen = f.pointShape == m.ordinal
+                com.example.cas.graph.Marker.bases.forEach { b ->
+                    val m = b.filled(filled)
+                    val chosen = current.base == b
                     Box(
-                        Modifier.size(38.dp).clip(RoundedCornerShape(10.dp))
+                        Modifier.size(36.dp).clip(RoundedCornerShape(10.dp))
                             .background(if (chosen) colors.secondaryContainer else colors.surfaceContainerHigh)
-                            .clickable(onClickLabel = m.label) { vm.setOptions(f, shape = m.ordinal) }
-                            .semantics { contentDescription = m.label + if (chosen) ", chosen" else "" },
+                            .clickable(onClickLabel = b.label) { vm.setOptions(f, shape = m.ordinal) }
+                            .semantics { contentDescription = b.label + if (chosen) ", chosen" else "" },
                         contentAlignment = Alignment.Center,
                     ) {
                         val tint = if (chosen) colors.onSecondaryContainer else colors.onSurfaceVariant
-                        androidx.compose.foundation.Canvas(Modifier.size(22.dp)) { drawMarker(m, center, size.minDimension * 0.36f, tint) }
+                        androidx.compose.foundation.Canvas(Modifier.size(20.dp)) { drawMarker(m, center, size.minDimension * 0.36f, tint) }
                     }
                 }
+            }
+            if (current.fillable) Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Filled", modifier = Modifier.weight(1f), color = colors.onSurface)
+                androidx.compose.material3.Switch(checked = filled, onCheckedChange = { vm.setOptions(f, shape = current.filled(it).ordinal) })
             }
             Text("Size: ${"%.0f".format(f.pointSize)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
             ExpressiveSlider(value = f.pointSize, onValueChange = { vm.setOptions(f, size = it) }, valueRange = 2f..16f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Point size" })
@@ -1251,7 +1261,7 @@ fun sliderText(v: Double, decimals: Int): String =
  * moves, and passes a neighbour once it's gone halfway past it.
  */
 @Composable
-private fun ReorderableRows(vm: GraphViewModel, hidden: (PlotFunction) -> Boolean = { false }, row: @Composable (PlotFunction, Modifier) -> Unit) {
+private fun ReorderableRows(vm: GraphViewModel, hidden: (PlotFunction) -> Boolean = { false }, depth: (PlotFunction) -> Int = { 0 }, row: @Composable (PlotFunction, Modifier) -> Unit) {
     val heights = remember { mutableStateMapOf<PlotFunction, Int>() }
     var dragging by remember { mutableStateOf<PlotFunction?>(null) }
     var offset by remember { mutableStateOf(0f) }
@@ -1297,7 +1307,22 @@ private fun ReorderableRows(vm: GraphViewModel, hidden: (PlotFunction) -> Boolea
                     // (Holding a line renames it; lines move by their handle.)
                     .onGloballyPositioned { heights[f] = it.size.height },
             ) {
-                SwipeToRemove(onRemove = { vm.requestRemove(f) }, asks = { AppSettings.confirmDeleteEntry }) { row(f, handle) }
+                // Inside a folder: indented, with a bar in the primary colour for each folder it's in
+                // (outside the swipe box, so its red strip doesn't show in the gap).
+                val levels = depth(f)
+                val bars = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
+                Box(
+                    Modifier
+                        .drawBehind {
+                            repeat(levels) { k ->
+                                val x = (5 + 14 * k).dp.toPx()
+                                drawRoundRect(bars[k % 2], topLeft = Offset(x, 6.dp.toPx()), size = Size(4.dp.toPx(), size.height - 12.dp.toPx()), cornerRadius = CornerRadius(2.dp.toPx()))
+                            }
+                        }
+                        .padding(start = (14 * levels).dp),
+                ) {
+                    SwipeToRemove(onRemove = { vm.requestRemove(f) }, asks = { AppSettings.confirmDeleteEntry }) { row(f, handle) }
+                }
             }
         }
     }
@@ -1431,7 +1456,7 @@ private fun TextRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
     ) {
         if (f.isFolder) {
             IconButton(onClick = { vm.toggleCollapsed(f) }) {
-                Icon(if (f.collapsed) Icons.AutoMirrored.Filled.KeyboardArrowRight else Icons.Default.KeyboardArrowDown, contentDescription = if (f.collapsed) "Open the folder" else "Close the folder")
+                Icon(if (f.collapsed) Icons.AutoMirrored.Filled.KeyboardArrowRight else Icons.Default.KeyboardArrowDown, contentDescription = if (f.collapsed) "Open the folder" else "Close the folder", tint = colors.onSurface)
             }
             IconButton(onClick = { vm.toggleVisible(f) }) {
                 Icon(if (f.visible) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = if (f.visible) "Hide the folder's lines" else "Show the folder's lines", tint = colors.onSurfaceVariant)
@@ -1623,8 +1648,17 @@ private fun RoleChip(role: String?, onPick: (String?) -> Unit, onRemove: (() -> 
             Modifier.fillMaxWidth().height(32.dp).clip(CircleShape).background(bg).clickable(onClickLabel = "Choose this column's role") { open = true }.padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // Letters in italic, brackets upright, as in maths.
+            val text = if (role == null) androidx.compose.ui.text.AnnotatedString(label(role)) else androidx.compose.ui.text.buildAnnotatedString {
+                label(role).forEach { ch ->
+                    val upright = ch == '(' || ch == ')'
+                    pushStyle(androidx.compose.ui.text.SpanStyle(fontFamily = if (upright) CasFonts.CmRoman else CasFonts.CmItalic))
+                    append(ch)
+                    pop()
+                }
+            }
             Text(
-                label(role), color = fg, modifier = Modifier.weight(1f),
+                text, color = fg, modifier = Modifier.weight(1f),
                 style = if (role == null) MaterialTheme.typography.labelMedium else TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 17.sp),
             )
             Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = fg, modifier = Modifier.size(18.dp))

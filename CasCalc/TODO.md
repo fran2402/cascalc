@@ -7,6 +7,10 @@ From the list of 28 September, in the order I'd tackle them.
   Send it to fix this.
 
 ## Done
+- Round of 30 September (fourth): symbol builder button group, typed upright scripts and italic
+  toggle, New Computer Modern for blackboard/Hebrew/ħ, 3D letters chooser, slider gap, folder
+  colours, filled/hollow points, upright σ(x) brackets, tablet export, timestamped exports,
+  phone size defaults, saved graphs across modes.
 - Round of 30 September (third): 3D inequalities as solids, STL export, own 3D letters, symbol
   builder (Greek, Hebrew, blackboard, bold, scripts before, LaTeX input, tablet layout),
   complex default colormap, ∮/∫/Σ in the export legend.

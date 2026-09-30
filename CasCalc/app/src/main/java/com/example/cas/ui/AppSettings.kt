@@ -100,8 +100,10 @@ object AppSettings {
         themeColor = p.getInt("themeColor", 0)
         haptics = p.getBoolean("haptics", true)
         groupDigits = p.getBoolean("groupDigits", true)
-        mathSize = p.getInt("mathSize", 1)
-        keypadSize = p.getInt("keypadSize", 1)
+        // Until changed: small maths and a compact keypad on phones, medium on tablets.
+        val size = if (context.resources.configuration.smallestScreenWidthDp >= 600) 1 else 0
+        mathSize = p.getInt("mathSize", size)
+        keypadSize = p.getInt("keypadSize", size)
         keypadSide = p.getInt("keypadSide", 1)
         showGrid = p.getBoolean("showGrid", true)
         showLegend = p.getBoolean("showLegend", true)

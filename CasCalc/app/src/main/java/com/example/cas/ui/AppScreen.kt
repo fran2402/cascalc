@@ -61,10 +61,8 @@ fun AppScreen() {
                 // Graphs have no button here: double-tap a graph to reset its view.
                 when (mode) {
                     Mode.Calculator -> CalculatorLeadingAction(calculator)
-                    // Each graph mode keeps its own saved graphs.
-                    Mode.Graph2D -> ProjectsButton(graph2d, "2D graphs")
-                    Mode.Graph3D -> ProjectsButton(graph3d, "3D graphs")
-                    Mode.Complex -> ProjectsButton(complex, "Complex plots")
+                    // Saved graphs of every graph mode; opening one switches to its mode.
+                    else -> ProjectsButton(mode, mapOf(Mode.Graph2D to graph2d, Mode.Graph3D to graph3d, Mode.Complex to complex), onSwitch = switchTo)
                 }
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
