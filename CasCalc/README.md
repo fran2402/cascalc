@@ -195,6 +195,13 @@ Constants and symbols are long lists and scroll up and down in place; the others
 Groups: Basic, Trigonometry, Calculus, Vector calculus, Linear algebra, Statistics, Complex
 numbers, Physical constants, Symbols.
 
+## Latest changes (30 September, eighth round)
+- **New icon**: a saddle surface z = x² − y² with the curve that bends up (mint) and the one that
+  bends down (gold), on deep blue-green. Launcher icon (adaptive, and a line-art themed icon on
+  Android 13+) and the Play Store graphics in `store/`: `icon-512.png` (512 × 512) and
+  `feature-graphic.png` / `feature-graphic-plain.png` (1024 × 500). All generated from one
+  script, `preview-render/icon_saddle.py` (`render_store.py` makes the PNGs).
+
 ## Latest changes (30 September, seventh round)
 - **Complex plots**: the empty plane is white in light mode (black in dark mode), with dark
   axes and labels until something is plotted.
