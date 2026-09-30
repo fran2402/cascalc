@@ -39,7 +39,7 @@ object Latex {
 
     private fun node(n: Node): String = when (n) {
         is Sym -> SYMBOLS[n.text] ?: com.example.cas.cas.CustomSymbol.decode(n.text)?.latex ?: com.example.cas.editor.MathAlphabets.decode(n.text.codePointAt(0))?.takeIf { com.example.cas.editor.MathAlphabets.isMathLetter(n.text) }?.let { (style, c) ->
-            (if (style == com.example.cas.editor.MathAlphabets.Style.Calligraphic) "\\mathcal{" else "\\mathfrak{") + c + "}"
+            com.example.cas.editor.MathAlphabets.latex(style, c)
         } ?: when {
             n.text.length > 1 && Regex("[A-Z][0-9]+").matches(n.text) -> n.text[0] + "_{" + n.text.drop(1) + "}"
             n.text.length > 1 && n.text[0].isLetter() && n.text.drop(1).all { it == '′' } -> n.text[0] + "'".repeat(n.text.length - 1)

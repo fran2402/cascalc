@@ -48,6 +48,9 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
     /** For the 3D graph: an implicit surface F(x, y, z) = 0, compiled in (x, y, z) + sliders; null for z = f(x, y). */
     var implicit3D: RealFunction? = null
         internal set
+    /** In 3D: [implicit3D] is an inequality's g, the solid being where g < 0 (a region, not a surface). */
+    var region3D: Boolean = false
+        internal set
     /** Line style in the 2D graph: 0 solid, 1 dashed, 2 dotted; and thickness in dp. */
     var lineStyle by mutableStateOf(0)
     var thickness by mutableStateOf(3f)
@@ -155,6 +158,42 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             .getOrDefault(com.example.cas.graph.Coordinates3D.Mode.Cartesian),
     )
         private set
+
+    /**
+     * The 3D graph's letters for each coordinate system, as you've chosen them (x, y, z; r, θ, z;
+     * ρ, θ, φ unless changed: i, j, k for instance). They're read as those coordinates.
+     */
+    var letters3D by mutableStateOf(
+        com.example.cas.graph.Coordinates3D.Mode.entries.associateWith { m ->
+            prefs.getString("${key}_letters_${m.name}", null)?.split(",")?.takeIf { it.size == 3 && it.all(String::isNotBlank) }
+                ?: com.example.cas.graph.Coordinates3D.DEFAULT_LETTERS.getValue(m)
+        },
+    )
+        private set
+
+    /** Chooses the letters for one coordinate system and redraws everything with them. */
+    fun setLetters3D(mode: com.example.cas.graph.Coordinates3D.Mode, letters: List<String>) {
+        letters3D = letters3D + (mode to letters)
+        prefs.edit().putString("${key}_letters_${mode.name}", letters.joinToString(",")).apply()
+        functions.forEach { recompile(it) }
+        version++
+    }
+
+    /** A copy of [row] with the chosen 3D letters turned into the ones the graph works in (i → x…). */
+    private fun withStandardLetters(row: MathRow): MathRow {
+        val copy = MathCodec.copy(row)
+        val map = com.example.cas.graph.Coordinates3D.renaming(letters3D)
+        if (map.isEmpty()) return copy
+        fun walk(r: MathRow) {
+            for (k in r.items.indices) {
+                val n = r.items[k]
+                if (n is com.example.cas.editor.Sym && n.text in map) r.items[k] = com.example.cas.editor.Sym(map.getValue(n.text)).also { it.parent = r }
+                else n.slots.forEach { walk(it) }
+            }
+        }
+        walk(copy)
+        return copy
+    }
 
     val functions = mutableStateListOf<PlotFunction>()
     val parameters = mutableStateMapOf<String, Double>()
@@ -344,6 +383,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         val index = slot ?: (0 until PLOT_COLOR_COUNT).firstOrNull { it !in used } ?: (nextColor % PLOT_COLOR_COUNT)
         nextColor = index + 1
         val f = PlotFunction(r, index)
+        // On the complex plane a new function takes the colormap at the top of your list.
+        if (isComplex) FavouriteColormaps.list.firstOrNull()?.let { f.colormap = com.example.cas.graph.Colormap.byName(it) }
         f.editor.onChange = {
             f.version++
             // Lines can use functions defined on other lines, so a list with definitions recompiles whole.
@@ -763,9 +804,12 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     /** 3D lines: z = f(x, y) (or just f(x, y)) is a surface over the plane; any other equation in x, y, z is implicit. */
     private fun recompile3D(f: PlotFunction) {
         f.space = null
+        f.region3D = false
         try {
             // (a, b, c): a point; (x(t), y(t), z(t)): a curve in space.
-            val items = f.editor.root.items
+            // Your own letters for the coordinates (i, j, k…) read as x, y and z.
+            val root = withStandardLetters(f.editor.root)
+            val items = root.items
             val t0 = (items.firstOrNull() as? com.example.cas.editor.Sym)?.text
             val t1 = (items.lastOrNull() as? com.example.cas.editor.Sym)?.text
             if (t0 == "(" && t1 == ")" && items.size >= 7) {
@@ -784,7 +828,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 }
             }
             val ev3 = evaluatorFor(f)
-            var e = ev3.evaluate(MathCodec.copy(f.editor.root))
+            var e = ev3.evaluate(MathCodec.copy(root))
             // f(x, y) = … is drawn as the surface z = f(x, y); other definitions only define.
             ev3.definedFunction?.let { (_, fn) ->
                 if (fn.variables == listOf("x", "y")) e = fn.body
@@ -804,6 +848,13 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                     f.implicit3D = Compiler.compile(spec.f, listOf("x", "y", "z") + spec.parameters)
                     f.compiled = null
                     f.parameters = spec.parameters
+                }
+                is com.example.cas.graph.PlotSpec3D.Region -> {
+                    spec.parameters.forEach { if (it !in parameters) parameters[it] = 1.0 }
+                    f.implicit3D = Compiler.compile(spec.f, listOf("x", "y", "z") + spec.parameters)
+                    f.compiled = null
+                    f.parameters = spec.parameters
+                    f.region3D = true
                 }
             }
             f.error = null
@@ -932,10 +983,10 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         get() = when {
             isComplex -> listOf("z", "x", "y", "r", "θ")
             // Every 3D coordinate letter, those of the current coordinates first.
-            plotVars.size == 2 -> when (coordinates3D) {
-                com.example.cas.graph.Coordinates3D.Mode.Cartesian -> listOf("x", "y", "z", "r", "θ", "φ", "ρ")
-                com.example.cas.graph.Coordinates3D.Mode.Cylindrical -> listOf("r", "θ", "z", "x", "y", "φ", "ρ")
-                com.example.cas.graph.Coordinates3D.Mode.Spherical -> listOf("ρ", "θ", "φ", "x", "y", "z", "r")
+            plotVars.size == 2 -> {
+                // Your letters: the current system's first, then the others'.
+                val modes = listOf(coordinates3D) + (com.example.cas.graph.Coordinates3D.Mode.entries - coordinates3D)
+                modes.flatMap { letters3D.getValue(it) }.distinct()
             }
             else -> listOf("x", "y", "r", "θ", "t")
         }

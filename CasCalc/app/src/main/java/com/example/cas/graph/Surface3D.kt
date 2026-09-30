@@ -29,10 +29,10 @@ data class Bounds(val x0: Double, val x1: Double, val y0: Double, val y1: Double
 }
 
 /** A flat piece of a surface in data coordinates (x, y, z), belonging to surface [surface]. */
-class Polygon(val points: List<DoubleArray>, val surface: Int)
+class Polygon(val points: List<DoubleArray>, val surface: Int, val wall: Boolean = false)
 
 /** One polygon projected to the screen, ready to paint back to front. [center] is its middle in data coordinates. */
-class Face(val xs: FloatArray, val ys: FloatArray, val depth: Double, val shade: Float, val height: Float, val surface: Int, val center: DoubleArray)
+class Face(val xs: FloatArray, val ys: FloatArray, val depth: Double, val shade: Float, val height: Float, val surface: Int, val center: DoubleArray, val wall: Boolean = false)
 
 /** A line of the axis box, projected. */
 class Segment(val x1: Float, val y1: Float, val x2: Float, val y2: Float)
@@ -117,6 +117,49 @@ object Surface3D {
         return out
     }
 
+    /**
+     * The solid where g(x, y, z) < 0, inside the box: its boundary g = 0, and the parts of the
+     * box's six walls that are inside it ([Polygon.wall]), so it reads as a closed shape.
+     */
+    fun solid(g: (Double, Double, Double) -> Double, b: Bounds, n: Int = 24, surface: Int = 0): List<Polygon> =
+        implicit(g, b, n, surface) + walls(g, b, n, surface)
+
+    /** Each wall of the box on an n × n grid, each cell cut to where g < 0 (the corners' values interpolated). */
+    fun walls(g: (Double, Double, Double) -> Double, b: Bounds, n: Int = 24, surface: Int = 0): List<Polygon> {
+        val out = ArrayList<Polygon>()
+        // A wall: which axis is fixed (0 x, 1 y, 2 z) and at which end.
+        for (axis in 0..2) for (end in listOf(0.0, 1.0)) {
+            val (u, v) = when (axis) { 0 -> 1 to 2; 1 -> 0 to 2; else -> 0 to 1 }
+            val lo = doubleArrayOf(b.x0, b.y0, b.z0); val hi = doubleArrayOf(b.x1, b.y1, b.z1)
+            fun point(i: Int, j: Int) = DoubleArray(3).also { p ->
+                p[axis] = lo[axis] + (hi[axis] - lo[axis]) * end
+                p[u] = lo[u] + (hi[u] - lo[u]) * i / n
+                p[v] = lo[v] + (hi[v] - lo[v]) * j / n
+            }
+            val pts = Array(n + 1) { i -> Array(n + 1) { j -> point(i, j) } }
+            val vals = Array(n + 1) { i -> DoubleArray(n + 1) { j -> pts[i][j].let { g(it[0], it[1], it[2]) } } }
+            for (i in 0 until n) for (j in 0 until n) {
+                val corners = listOf(i to j, i + 1 to j, i + 1 to j + 1, i to j + 1)
+                val sv = corners.map { (a, c) -> vals[a][c] }
+                if (sv.any { !it.isFinite() } || sv.all { it >= 0 }) continue
+                val cp = corners.map { (a, c) -> pts[a][c] }
+                if (sv.all { it < 0 }) { out += Polygon(cp, surface, wall = true); continue }
+                // Cut the square along g = 0: keep inside corners and the crossings between.
+                val kept = ArrayList<DoubleArray>()
+                for (k in 0 until 4) {
+                    val a = sv[k]; val c = sv[(k + 1) % 4]
+                    if (a < 0) kept += cp[k]
+                    if ((a < 0) != (c < 0)) {
+                        val w = a / (a - c)
+                        kept += DoubleArray(3) { d -> cp[k][d] + w * (cp[(k + 1) % 4][d] - cp[k][d]) }
+                    }
+                }
+                if (kept.size >= 3) out += Polygon(kept, surface, wall = true)
+            }
+        }
+        return out
+    }
+
     // ---- Projection -------------------------------------------------------------------
 
     /** Rotates into view space: x right, y away from the viewer, z up. */
@@ -152,7 +195,7 @@ object Surface3D {
             val lambert = abs(nrm[0] * light[0] + nrm[1] * light[1] + nrm[2] * light[2])
             val height = ((scene.sumOf { it[2] } / scene.size + 0.8) / 1.6).coerceIn(0.0, 1.0)
             val center = DoubleArray(3) { d -> poly.points.sumOf { it[d] } / poly.points.size }
-            out += Face(xs, ys, depth, (0.35 + 0.65 * lambert).toFloat(), height.toFloat(), poly.surface, center)
+            out += Face(xs, ys, depth, (0.35 + 0.65 * lambert).toFloat(), height.toFloat(), poly.surface, center, poly.wall)
         }
         return out.sortedByDescending { it.depth }
     }

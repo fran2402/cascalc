@@ -195,6 +195,22 @@ Constants and symbols are long lists and scroll up and down in place; the others
 Groups: Basic, Trigonometry, Calculus, Vector calculus, Linear algebra, Statistics, Complex
 numbers, Physical constants, Symbols.
 
+## Latest changes (30 September, third round)
+- **3D inequalities**: x² + y² + z² ≤ 4, z < x² + y², ρ < 2… are drawn as solids: the boundary
+  surface and, where the box cuts the solid, its walls (lighter and see-through).
+- **STL export** from the 3D graph (the export dialog's new STL option): z = f(x, y) as the solid
+  under it, inequalities as their solids, other surfaces as they are; 100 mm across.
+- **Your own coordinate letters in 3D** (Graph settings › Letters): e.g. i, j, k for x, y, z, for
+  each of Cartesian, cylindrical and spherical. They're read as those coordinates and shown on
+  the axes and the letter chips.
+- **Symbol builder**: every Greek letter (and the variants), Hebrew (ℵ ℶ ℷ ℸ and א–ת),
+  blackboard bold (ℝ), bold, two more accents (ring, triple dot), scripts before the letter
+  (¹⁴₆C) as well as after, many more script characters, a LaTeX field that fills in the builder,
+  the vector arrow lifted clear of the letter, and two columns on tablets.
+- **Complex plots**: a new function takes the colormap at the top of your list.
+- **Export legend**: ∮, ∫ and Σ set in LaTeX.
+- Mock-ups: preview-render/round9.png.
+
 ## Latest changes (30 September, second round)
 - **Export legend set in LaTeX**: fractions stacked, exponents raised, roots and |x| drawn,
   brackets as tall as their contents, letters in math italic, all in Computer Modern with the

@@ -12,35 +12,53 @@ enum class Accent(val latex: String, val glyph: String, val label: String) {
     Breve("\\breve", "˘", "breve"),
     Acute("\\acute", "´", "acute"),
     Grave("\\grave", "`", "grave"),
+    // Added later (saved symbols name their accent, so the order doesn't matter).
+    Ring("\\mathring", "˚", "ring"),
+    TripleDot("\\dddot", "⋯", "triple dot"),
 }
 
 /**
- * A symbol built in the symbol builder: a base letter, an optional accent, and optional
- * subscript and superscript (x̂₁, ṽ², 𝔤ᵢ*). It's stored as one symbol text, so it's a variable
- * like any letter: a private-use marker, then the parts separated by U+001F.
+ * A symbol built in the symbol builder: a base letter, an optional accent, subscripts and
+ * superscripts after it and (as in isotopes, ²₁H) before it, and bold (x̂₁, ṽ², 𝔤ᵢ*, ¹⁴C,
+ * bold v). It's stored as one symbol text, so it's a variable like any letter: a private-use
+ * marker, then the parts separated by U+001F (the last three only when they're used, so
+ * symbols saved before they existed read the same).
  */
-data class CustomSymbol(val base: String, val accent: Accent? = null, val sub: String = "", val sup: String = "") {
+data class CustomSymbol(
+    val base: String,
+    val accent: Accent? = null,
+    val sub: String = "",
+    val sup: String = "",
+    val preSub: String = "",
+    val preSup: String = "",
+    val bold: Boolean = false,
+) {
     init { require(base.isNotEmpty()) { "A symbol needs a letter" } }
 
-    fun encode(): String = MARK + base + SEP + (accent?.name ?: "") + SEP + sub + SEP + sup
+    fun encode(): String {
+        val core = MARK + base + SEP + (accent?.name ?: "") + SEP + sub + SEP + sup
+        return if (preSub.isEmpty() && preSup.isEmpty() && !bold) core else core + SEP + preSub + SEP + preSup + SEP + (if (bold) "b" else "")
+    }
 
-    /** LaTeX: \hat{x}_{1}^{2}. Letters in scripts stay as typed; ′ becomes \prime. */
+    /** LaTeX: {}_{1}^{2}\hat{x}_{1}^{2}, \boldsymbol{v}. Letters in scripts stay as typed; ′ becomes \prime. */
     val latex: String
         get() {
-            val b = com.example.cas.editor.MathAlphabets.decode(base.codePointAt(0))?.let { (style, c) ->
-                (if (style == com.example.cas.editor.MathAlphabets.Style.Calligraphic) "\\mathcal{" else "\\mathfrak{") + c + "}"
-            } ?: GREEK_LATEX[base] ?: base
+            val letter = com.example.cas.editor.MathAlphabets.decode(base.codePointAt(0))?.let { (style, c) -> com.example.cas.editor.MathAlphabets.latex(style, c) }
+                ?: LATEX_NAMES[base] ?: base
+            val b = if (bold) "\\boldsymbol{$letter}" else letter
             val withAccent = accent?.let { "${it.latex}{$b}" } ?: b
-            fun script(s: String) = s.replace("′", "\\prime ").replace("−", "-").map { GREEK_LATEX[it.toString()] ?: it.toString() }.joinToString("")
-            return withAccent + (if (sub.isNotEmpty()) "_{${script(sub)}}" else "") + (if (sup.isNotEmpty()) "^{${script(sup)}}" else "")
+            fun script(s: String) = s.map { LATEX_NAMES[it.toString()]?.let { n -> "$n " } ?: it.toString().replace("−", "-") }.joinToString("").trim()
+            val pre = if (preSub.isEmpty() && preSup.isEmpty()) "" else "{}" + (if (preSub.isNotEmpty()) "_{${script(preSub)}}" else "") + (if (preSup.isNotEmpty()) "^{${script(preSup)}}" else "")
+            return pre + withAccent + (if (sub.isNotEmpty()) "_{${script(sub)}}" else "") + (if (sup.isNotEmpty()) "^{${script(sup)}}" else "")
         }
 
     /** Plain text for copying: x̂_1^2 (the accent as a combining mark). */
     val plain: String
-        get() = base + (accent?.let { COMBINING[it] } ?: "") + (if (sub.isNotEmpty()) "_$sub" else "") + (if (sup.isNotEmpty()) "^$sup" else "")
+        get() = (if (preSub.isNotEmpty()) "_$preSub" else "") + (if (preSup.isNotEmpty()) "^$preSup" else "") +
+            base + (accent?.let { COMBINING[it] } ?: "") + (if (sub.isNotEmpty()) "_$sub" else "") + (if (sup.isNotEmpty()) "^$sup" else "")
 
     companion object {
-        const val MARK = "\uE000"
+        const val MARK = ""
         const val SEP = "\u001F"
 
         fun isCustom(text: String) = text.startsWith(MARK)
@@ -48,20 +66,144 @@ data class CustomSymbol(val base: String, val accent: Accent? = null, val sub: S
         fun decode(text: String): CustomSymbol? {
             if (!isCustom(text)) return null
             val parts = text.removePrefix(MARK).split(SEP)
-            if (parts.size != 4 || parts[0].isEmpty()) return null
-            return CustomSymbol(parts[0], parts[1].takeIf { it.isNotEmpty() }?.let { n -> Accent.entries.firstOrNull { it.name == n } }, parts[2], parts[3])
+            if ((parts.size != 4 && parts.size != 7) || parts[0].isEmpty()) return null
+            return CustomSymbol(
+                parts[0], parts[1].takeIf { it.isNotEmpty() }?.let { n -> Accent.entries.firstOrNull { it.name == n } }, parts[2], parts[3],
+                parts.getOrElse(4) { "" }, parts.getOrElse(5) { "" }, parts.getOrElse(6) { "" } == "b",
+            )
         }
 
+        /**
+         * A symbol written in LaTeX, as the builder's text field takes it: an optional
+         * {}_{a}^{b} before, an accent (\hat, \vec…), \boldsymbol or \mathbf, a letter (x, \alpha,
+         * \aleph, \mathcal{A}, \mathfrak{g}, \mathbb{R}…), then _ and ^ (braced, or one character).
+         * Null if it isn't one symbol.
+         */
+        fun fromLatex(latex: String): CustomSymbol? = runCatching { LatexReader(latex.trim()).symbol() }.getOrNull()
+
         private val COMBINING = mapOf(
-            Accent.Dot to "\u0307", Accent.DoubleDot to "\u0308", Accent.Hat to "\u0302", Accent.Tilde to "\u0303", Accent.Bar to "\u0304",
-            Accent.Vector to "\u20D7", Accent.Check to "\u030C", Accent.Breve to "\u0306", Accent.Acute to "\u0301", Accent.Grave to "\u0300",
+            Accent.Dot to "̇", Accent.DoubleDot to "̈", Accent.Hat to "̂", Accent.Tilde to "̃", Accent.Bar to "̄",
+            Accent.Vector to "⃗", Accent.Check to "̌", Accent.Breve to "̆", Accent.Acute to "́", Accent.Grave to "̀",
+            Accent.Ring to "̊", Accent.TripleDot to "⃛",
         )
-        private val GREEK_LATEX = mapOf(
+
+        /** Letters and signs with a LaTeX name. */
+        val LATEX_NAMES: Map<String, String> = mapOf(
             "α" to "\\alpha", "β" to "\\beta", "γ" to "\\gamma", "δ" to "\\delta", "ε" to "\\epsilon", "ζ" to "\\zeta", "η" to "\\eta",
             "θ" to "\\theta", "ι" to "\\iota", "κ" to "\\kappa", "λ" to "\\lambda", "μ" to "\\mu", "ν" to "\\nu", "ξ" to "\\xi",
-            "π" to "\\pi", "ρ" to "\\rho", "σ" to "\\sigma", "τ" to "\\tau", "υ" to "\\upsilon", "φ" to "\\phi", "χ" to "\\chi",
-            "ψ" to "\\psi", "ω" to "\\omega", "Γ" to "\\Gamma", "Δ" to "\\Delta", "Θ" to "\\Theta", "Λ" to "\\Lambda", "Ξ" to "\\Xi",
-            "Π" to "\\Pi", "Σ" to "\\Sigma", "Φ" to "\\Phi", "Ψ" to "\\Psi", "Ω" to "\\Omega",
+            "ο" to "o", "π" to "\\pi", "ρ" to "\\rho", "σ" to "\\sigma", "τ" to "\\tau", "υ" to "\\upsilon", "φ" to "\\phi", "χ" to "\\chi",
+            "ψ" to "\\psi", "ω" to "\\omega", "ϵ" to "\\varepsilon", "ϑ" to "\\vartheta", "ϕ" to "\\varphi", "ϱ" to "\\varrho",
+            "ς" to "\\varsigma", "ϖ" to "\\varpi", "ϰ" to "\\varkappa",
+            "Α" to "\\mathrm{A}", "Β" to "\\mathrm{B}", "Γ" to "\\Gamma", "Δ" to "\\Delta", "Ε" to "\\mathrm{E}", "Ζ" to "\\mathrm{Z}", "Η" to "\\mathrm{H}",
+            "Θ" to "\\Theta", "Ι" to "\\mathrm{I}", "Κ" to "\\mathrm{K}", "Λ" to "\\Lambda", "Μ" to "\\mathrm{M}", "Ν" to "\\mathrm{N}", "Ξ" to "\\Xi",
+            "Ο" to "\\mathrm{O}", "Π" to "\\Pi", "Ρ" to "\\mathrm{P}", "Σ" to "\\Sigma", "Τ" to "\\mathrm{T}", "Υ" to "\\Upsilon", "Φ" to "\\Phi",
+            "Χ" to "\\mathrm{X}", "Ψ" to "\\Psi", "Ω" to "\\Omega",
+            "ℵ" to "\\aleph", "ℶ" to "\\beth", "ℷ" to "\\gimel", "ℸ" to "\\daleth", "ℓ" to "\\ell", "ℏ" to "\\hbar", "∂" to "\\partial", "∇" to "\\nabla",
+            "′" to "\\prime", "″" to "\\prime\\prime", "∞" to "\\infty", "†" to "\\dagger", "‡" to "\\ddagger", "∘" to "\\circ", "⊥" to "\\perp",
+            "∥" to "\\parallel", "±" to "\\pm", "∓" to "\\mp", "·" to "\\cdot", "×" to "\\times", "⋆" to "\\star", "°" to "^\\circ",
         )
+
+        /** Back from a LaTeX name to its character (\alpha → α). */
+        private val FROM_LATEX: Map<String, String> by lazy {
+            LATEX_NAMES.entries.filter { it.value.startsWith("\\") && !it.value.startsWith("\\mathrm") && !it.value.contains("\\prime\\prime") && !it.value.startsWith("^") }
+                .associate { it.value.removePrefix("\\") to it.key } +
+                mapOf("ast" to "*", "varepsilon" to "ϵ", "le" to "≤", "ge" to "≥")
+        }
+
+        private class LatexReader(val s: String) {
+            var i = 0
+            fun skip() { while (i < s.length && s[i] == ' ') i++ }
+            fun peek() = s.getOrNull(i)
+            fun command(): String {
+                i++ // the backslash
+                val start = i
+                while (i < s.length && s[i].isLetter()) i++
+                if (i == start && i < s.length) i++
+                return s.substring(start, i)
+            }
+            /** A braced group's raw text, or one character (or one command). */
+            fun group(): String {
+                skip()
+                return when (peek()) {
+                    '{' -> {
+                        var depth = 0; val start = i
+                        while (i < s.length) { if (s[i] == '{') depth++; if (s[i] == '}') { depth--; if (depth == 0) break }; i++ }
+                        require(i < s.length) { "unclosed" }
+                        s.substring(start + 1, i).also { i++ }
+                    }
+                    '\\' -> "\\" + command()
+                    null -> error("missing")
+                    else -> s[i++].toString()
+                }
+            }
+            /** A script's text: commands for letters and signs become the characters. */
+            fun scriptText(t: String): String {
+                val out = StringBuilder()
+                var k = 0
+                while (k < t.length) {
+                    val c = t[k]
+                    when {
+                        c == '\\' -> {
+                            var e = k + 1
+                            while (e < t.length && t[e].isLetter()) e++
+                            val name = t.substring(k + 1, e)
+                            out.append(FROM_LATEX[name] ?: error("unknown \\$name")); k = e
+                        }
+                        c == '{' || c == '}' || c == ' ' -> k++
+                        c == '-' -> { out.append('−'); k++ }
+                        c == '\'' -> { out.append('′'); k++ }
+                        else -> { out.append(c); k++ }
+                    }
+                }
+                return out.toString()
+            }
+            fun scripts(): Pair<String, String> {
+                var sub = ""; var sup = ""
+                while (true) {
+                    skip()
+                    when (peek()) {
+                        '_' -> { i++; sub = scriptText(group()) }
+                        '^' -> { i++; sup = scriptText(group()) }
+                        '\'' -> { i++; sup += "′" }
+                        else -> return sub to sup
+                    }
+                }
+            }
+            /** The letter, possibly inside an accent and \boldsymbol: (letter, accent, bold). */
+            fun base(): Triple<String, Accent?, Boolean> {
+                skip()
+                if (peek() == '{') {
+                    val inner = LatexReader(group()).base()
+                    return inner
+                }
+                if (peek() != '\\') { require(peek()?.isLetter() == true) { "a letter" }; return Triple(s[i++].toString(), null, false) }
+                val name = command()
+                val accent = Accent.entries.firstOrNull { it.latex == "\\$name" } ?: when (name) { "overline" -> Accent.Bar; "widehat" -> Accent.Hat; "widetilde" -> Accent.Tilde; "overrightarrow" -> Accent.Vector; else -> null }
+                if (accent != null) { val (l, _, bold) = LatexReader(group()).base(); return Triple(l, accent, bold) }
+                return when (name) {
+                    "boldsymbol", "mathbf", "bm" -> { val (l, a, _) = LatexReader(group()).base(); Triple(l, a, true) }
+                    "mathcal" -> Triple(com.example.cas.editor.MathAlphabets.calligraphic(group().single()), null, false)
+                    "mathfrak" -> Triple(com.example.cas.editor.MathAlphabets.fraktur(group().single()), null, false)
+                    "mathbb" -> Triple(com.example.cas.editor.MathAlphabets.doubleStruck(group().single()), null, false)
+                    "mathrm", "text", "mathit" -> Triple(group().trim().also { require(it.length == 1) { "one letter" } }, null, false)
+                    else -> {
+                        val greek = FROM_LATEX[name] ?: GREEK_CAPS[name] ?: error("unknown \\$name")
+                        Triple(greek, null, false)
+                    }
+                }
+            }
+            fun symbol(): CustomSymbol {
+                skip()
+                var preSub = ""; var preSup = ""
+                if (s.startsWith("{}", i)) { i += 2; val (a, b) = scripts(); preSub = a; preSup = b }
+                val (letter, accent, bold) = base()
+                val (sub, sup) = scripts()
+                skip()
+                require(i >= s.length) { "one symbol" }
+                return CustomSymbol(letter, accent, sub, sup, preSub, preSup, bold)
+            }
+        }
+
+        private val GREEK_CAPS = mapOf("Alpha" to "Α", "Beta" to "Β", "Epsilon" to "Ε", "Zeta" to "Ζ", "Eta" to "Η", "Iota" to "Ι", "Kappa" to "Κ", "Mu" to "Μ", "Nu" to "Ν", "Omicron" to "Ο", "Rho" to "Ρ", "Tau" to "Τ", "Chi" to "Χ", "omicron" to "ο")
     }
 }

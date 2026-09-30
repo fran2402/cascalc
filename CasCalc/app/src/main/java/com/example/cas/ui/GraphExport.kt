@@ -77,6 +77,7 @@ object SceneExport {
             SvgWriter.write(scene, fonts).toByteArray(Charsets.UTF_8)
         }
         ExportFormat.PDF -> pdf(context, scene)
+        ExportFormat.STL -> error("STL is made from the 3D model, not a picture")
         ExportFormat.PNG, ExportFormat.JPG -> {
             val s = (RASTER_WIDTH / scene.width).toFloat()
             val bitmap = Bitmap.createBitmap((scene.width * s).toInt().coerceAtLeast(1), (scene.height * s).toInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
@@ -225,7 +226,12 @@ class ExportRequest(val format: ExportFormat, val view: Viewport, val dark: Bool
  * then saves it where you choose (the system's save dialog) or shares it.
  */
 @Composable
-fun rememberGraphExporter(name: String, build: (ExportRequest) -> Scene): (ExportRequest, Boolean) -> Unit {
+fun rememberGraphExporter(
+    name: String,
+    build: (ExportRequest) -> Scene,
+    /** Files that aren't pictures (STL from the 3D graph), made directly. */
+    model: ((ExportRequest) -> ByteArray)? = null,
+): (ExportRequest, Boolean) -> Unit {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var pending by remember { mutableStateOf<ExportRequest?>(null) }
@@ -238,7 +244,7 @@ fun rememberGraphExporter(name: String, build: (ExportRequest) -> Scene): (Expor
             if (uri == null || request == null) return@rememberLauncherForActivityResult
             scope.launch {
                 runCatching {
-                    val data = withContext(Dispatchers.Default) { SceneExport.bytes(context, build(request), request.format) }
+                    val data = withContext(Dispatchers.Default) { if (request.format == ExportFormat.STL && model != null) model(request) else SceneExport.bytes(context, build(request), request.format) }
                     withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)?.use { it.write(data) } ?: error("the file couldn't be opened") }
                 }.onSuccess { Toast.makeText(context, "Graph saved", Toast.LENGTH_SHORT).show() }.onFailure(::failed)
             }
@@ -249,7 +255,7 @@ fun rememberGraphExporter(name: String, build: (ExportRequest) -> Scene): (Expor
             scope.launch {
                 runCatching {
                     val uri = withContext(Dispatchers.Default) {
-                        val data = SceneExport.bytes(context, build(request), request.format)
+                        val data = if (request.format == ExportFormat.STL && model != null) model(request) else SceneExport.bytes(context, build(request), request.format)
                         val dir = File(context.cacheDir, "shared").apply { mkdirs() }
                         val file = File(dir, "$name.${request.format.extension}")
                         file.writeBytes(data)
@@ -281,6 +287,8 @@ fun ExportDialog(
     onExport: (ExportRequest, Boolean) -> Unit,
     onDismiss: () -> Unit,
     z: Pair<Double, Double>? = null,
+    /** The formats offered: pictures, and STL for the 3D graph. */
+    formats: List<ExportFormat> = ExportFormat.entries - ExportFormat.STL,
 ) {
     val colors = MaterialTheme.colorScheme
     val context = LocalContext.current
@@ -329,11 +337,11 @@ fun ExportDialog(
                     else Busy()
                 }
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    ExportFormat.entries.forEachIndexed { k, f ->
+                    formats.forEachIndexed { k, f ->
                         SegmentedButton(
                             selected = format == f,
                             onClick = { format = f },
-                            shape = SegmentedButtonDefaults.itemShape(k, ExportFormat.entries.size),
+                            shape = SegmentedButtonDefaults.itemShape(k, formats.size),
                             icon = {},
                             label = { Text(f.label, maxLines = 1) },
                         )
@@ -345,6 +353,7 @@ fun ExportDialog(
                         ExportFormat.SVG -> "Vector: sharp at any size, editable in drawing programs."
                         ExportFormat.PNG -> "Picture, 2400 × 2400 pixels, without loss."
                         ExportFormat.JPG -> "Picture, 2400 × 2400 pixels, smaller files."
+                        ExportFormat.STL -> "3D model for printing: each surface closed off into a solid inside the box (the floor under z = f(x, y)), 100 mm across. The preview shows the graph."
                     },
                     style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
                 )

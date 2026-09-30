@@ -82,6 +82,8 @@ enum class ExportFormat(val label: String, val extension: String, val mime: Stri
     PNG("PNG", "png", "image/png"),
     JPG("JPG", "jpg", "image/jpeg"),
     SVG("SVG", "svg", "image/svg+xml"),
+    /** 3D graphs only: the surfaces as a solid, for 3D printing. */
+    STL("STL", "stl", "model/stl"),
 }
 
 /** Writes a [Scene] as an SVG document. */

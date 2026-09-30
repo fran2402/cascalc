@@ -180,13 +180,15 @@ private fun tapTo(row: MathRow, index: Int): Modifier {
 }
 
 @Composable
-private fun MathText(text: String, level: Int, modifier: Modifier = Modifier, italic: Boolean = false, color: Color? = null) {
+private fun MathText(text: String, level: Int, modifier: Modifier = Modifier, italic: Boolean = false, color: Color? = null, bold: Boolean = false) {
     val env = LocalMath.current
     BasicText(
         text = if (env.computerModern) env.mathGlyphs.style(text, italic) else env.glyphs.style(text),
         modifier = modifier,
         style = TextStyle(
             fontSize = env.size(level),
+            // Bold symbols (\boldsymbol): the font emboldened, as it has no bold of its own.
+            fontWeight = if (bold) androidx.compose.ui.text.font.FontWeight.Bold else null,
             fontFamily = when {
                 env.computerModern -> if (italic) CasFonts.CmItalic else CasFonts.CmRoman
                 else -> if (italic) CasFonts.MathItalic else CasFonts.Math
@@ -1192,31 +1194,55 @@ internal fun alreadyBracketed(row: MathRow): Boolean {
 @Composable
 internal fun CustomSymbolView(sym: com.example.cas.cas.CustomSymbol, level: Int, modifier: Modifier = Modifier) {
     val base = sym.base
-    val italic = base.length == 1 && base[0].isLetter() && base[0] !in 'Α'..'Ω'
+    // Italic as TeX sets letters: Latin and small Greek; capital Greek, Hebrew (ℵ, א) and the
+    // blackboard, calligraphic and Fraktur letters upright.
+    val c = base.firstOrNull() ?: ' '
+    val italic = base.length == 1 && (c in 'a'..'z' || c in 'A'..'Z' || c in 'α'..'ω' || c in "ϵϑϕϱςϖϰ")
     val scriptRow = { s: String -> MathRow(s.map { Sym(it.toString()) }.toMutableList()) }
-    val accented: @Composable () -> Unit = { AccentedLetter(base, sym.accent, italic, level) }
-    if (sym.sub.isEmpty() && sym.sup.isEmpty()) {
-        Box(modifier) { accented() }
-    } else {
-        Scripts(
+    val accented: @Composable () -> Unit = { AccentedLetter(base, sym.accent, italic, level, sym.bold) }
+    val main: @Composable () -> Unit = {
+        if (sym.sub.isEmpty() && sym.sup.isEmpty()) accented()
+        else Scripts(
             level,
-            modifier,
+            Modifier,
             base = accented,
             sub = if (sym.sub.isEmpty()) null else ({ RowView(scriptRow(sym.sub), level + 1) }),
             sup = if (sym.sup.isEmpty()) null else ({ RowView(scriptRow(sym.sup), level + 1) }),
         )
     }
+    if (sym.preSub.isEmpty() && sym.preSup.isEmpty()) { Box(modifier) { main() }; return }
+    // Scripts before the letter (²₁H): set as scripts on an invisible copy of the letter, so they
+    // sit at the same heights as those after it.
+    AxisRow(level, modifier) {
+        Scripts(
+            level,
+            Modifier,
+            base = { Phantom { accented() } },
+            sub = if (sym.preSub.isEmpty()) null else ({ RowView(scriptRow(sym.preSub), level + 1) }),
+            sup = if (sym.preSup.isEmpty()) null else ({ RowView(scriptRow(sym.preSup), level + 1) }),
+        )
+        main()
+    }
+}
+
+/** Its content's height and baseline but no width, and not drawn: a strut for placing scripts. */
+@Composable
+private fun Phantom(content: @Composable () -> Unit) {
+    Layout(content, Modifier.graphicsLayer { alpha = 0f }) { ms, _ ->
+        val p = ms[0].measure(Loose)
+        layout(0, p.height, mapOf(MathBaseline to p.axis())) { }
+    }
 }
 
 @Composable
-private fun AccentedLetter(base: String, accent: com.example.cas.cas.Accent?, italic: Boolean, level: Int) {
+private fun AccentedLetter(base: String, accent: com.example.cas.cas.Accent?, italic: Boolean, level: Int, bold: Boolean = false) {
     val env = LocalMath.current
-    if (accent == null) { MathText(base, level, italic = italic); return }
+    if (accent == null) { MathText(base, level, italic = italic, bold = bold); return }
     // TeX's vector arrow is small. An arrow's ink is centred in its box (unlike the other accents),
     // so it's placed at full size and scaled down about its own centre.
     val isVector = accent == com.example.cas.cas.Accent.Vector
     Layout(content = {
-        MathText(base, level, italic = italic)
+        MathText(base, level, italic = italic, bold = bold)
         MathText(accent.glyph, level, if (isVector) Modifier.graphicsLayer { scaleX = 0.7f; scaleY = 0.7f } else Modifier)
     }) { ms, _ ->
         val b = ms[0].measure(Loose)
@@ -1224,8 +1250,11 @@ private fun AccentedLetter(base: String, accent: com.example.cas.cas.Accent?, it
         val em = em(env, level)
         // The accent's ink sits high in its box: overlap it well down onto the letter, and further
         // on letters without an ascender (x, v, α…), as TeX lowers accents to the x-height.
-        val short = !isVector && base.length == 1 && base[0] in "acegmnopqrsuvwxyzαγεηικμνοπρστυφχψω"
-        val overlap = (a.height * 0.55f + if (short) em * 0.22f else 0f).roundToInt()
+        val short = base.length == 1 && base[0] in "acegmnopqrsuvwxyzαγεηικμνοπρστυφχψω"
+        // The arrow's ink is centred in its (tall) box, so it needs much less overlap than a hat
+        // or it sits on the letter: it's lifted to clear the letter's top.
+        val overlap = if (isVector) (a.height * 0.3f + if (short) em * 0.16f else 0f).roundToInt()
+            else (a.height * 0.55f + if (short) em * 0.22f else 0f).roundToInt()
         val top = max(0, a.height - overlap)
         val w = max(b.width, a.width)
         val shift = if (italic) (em * 0.08f).roundToInt() else 0

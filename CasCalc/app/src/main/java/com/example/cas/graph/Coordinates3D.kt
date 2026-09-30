@@ -24,6 +24,26 @@ object Coordinates3D {
     enum class Mode { Cartesian, Cylindrical, Spherical }
 
     val LETTERS = setOf("r", "θ", "φ", "ρ")
+
+    /** The letters each system works in (and offers until you choose others). */
+    val DEFAULT_LETTERS: Map<Mode, List<String>> = mapOf(
+        Mode.Cartesian to listOf("x", "y", "z"),
+        Mode.Cylindrical to listOf("r", "θ", "z"),
+        Mode.Spherical to listOf("ρ", "θ", "φ"),
+    )
+
+    /**
+     * From your letters to the ones the graph works in (i → x, j → y, k → z…), for the letters
+     * you changed. A letter chosen twice goes to the first system's coordinate.
+     */
+    fun renaming(chosen: Map<Mode, List<String>>): Map<String, String> {
+        val out = LinkedHashMap<String, String>()
+        for (m in Mode.entries) {
+            val mine = chosen[m] ?: continue
+            DEFAULT_LETTERS.getValue(m).forEachIndexed { k, std -> val l = mine.getOrNull(k); if (l != null && l != std && l !in out) out[l] = std }
+        }
+        return out
+    }
     private val X = Sym("x"); private val Y = Sym("y"); private val Z = Sym("z")
     private val HALF = com.example.cas.cas.Num(com.example.cas.math.Rational.of(1, 2))
 
@@ -46,7 +66,8 @@ object Coordinates3D {
 
     /** What a 3D line means in [mode], with the coordinate letters turned into x, y and z. */
     fun classify(e: Expr, mode: Mode): PlotSpec3D {
-        if (e is Rel) throw MathError("Inequalities can't be drawn in 3D")
+        // An inequality in any of the coordinates: a solid.
+        if (e is Rel) return PlotSpec3D.region(Rel(e.parts.map { toCartesian(it) }, e.ops))
         val uses = e.freeVars().any { it in LETTERS }
         if (!uses && mode == Mode.Cartesian) return PlotSpec3D.classify(e)
         val relation: Expr = when {

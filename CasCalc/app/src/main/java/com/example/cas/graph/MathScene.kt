@@ -192,12 +192,27 @@ object MathScene {
             is Root -> radical(row(n.arg, size), row(n.index, size * 0.55), size)
             is Scripted -> scripts(row(n.base, size), if (n.sup.isEmpty) null else row(n.sup, size * 0.7), if (n.sub.isEmpty) null else row(n.sub, size * 0.7), size)
             is Func -> func(n, size)
+            is com.example.cas.editor.Integral -> hbox(listOf(
+                scripts(integralSign(size, loop = false), if (n.upper.isEmpty) null else row(n.upper, size * 0.6), if (n.lower.isEmpty) null else row(n.lower, size * 0.6), size),
+                gap(0.1667 * size), row(n.body, size), gap(0.1667 * size), text("d", false, size), row(n.variable, size),
+            ))
+            is com.example.cas.editor.BigOp -> {
+                val lower = if (n.lower.isEmpty && n.variable.isEmpty) null
+                    else hbox(listOf(row(n.variable, size * 0.6), text("=", false, size * 0.6), row(n.lower, size * 0.6)))
+                hbox(listOf(
+                    bigOp(if (n.kind == com.example.cas.editor.BigOpKind.Sum) "Σ" else "Π", lower, if (n.upper.isEmpty) null else row(n.upper, size * 0.6), size),
+                    gap(0.1667 * size), row(n.body, size),
+                ))
+            }
             // Anything bigger (sums, integrals, matrices): written out in a line.
             else -> hbox(Legend.spans(MathRow(mutableListOf(n))).map { sp -> text(sp.text, sp.italic, if (sp.shift == 0) size else size * 0.7) })
         }
 
         fun sym(t: String, size: Double): Box = when {
             t.startsWith(LatexParser.UPRIGHT) -> text(t.removePrefix(LatexParser.UPRIGHT), false, size)
+            // In scripts TeX leaves relations and operators unspaced (|z|=1 under ∮).
+            t in RELATIONS && size < base * 0.9 -> text(t, false, size)
+            t in BINARY && size < base * 0.9 -> text(if (t == "-") "−" else t, false, size)
             t in RELATIONS -> hbox(listOf(gap(0.2778 * size), text(t, false, size), gap(0.2778 * size)))
             t in BINARY -> hbox(listOf(gap(0.2222 * size), text(if (t == "-") "−" else t, false, size), gap(0.2222 * size)))
             t == "," -> hbox(listOf(text(",", false, size), gap(0.1667 * size)))
@@ -206,9 +221,45 @@ object MathScene {
             else -> com.example.cas.cas.CustomSymbol.decode(t)?.let { text(it.plain, true, size) } ?: text(t, false, size)
         }
 
+        /** ∫, larger than the text and centred on the maths axis; with [loop], a small circle through it (∮). */
+        fun integralSign(size: Double, loop: Boolean): Box {
+            val s = size * 1.45
+            val w = m.width("∫", false, s)
+            val axis = 0.25 * size
+            val shift = axis - (0.75 * s - 0.25 * s) / 2
+            return Box(w, 0.75 * s + shift, 0.25 * s - shift) { scene, x, y ->
+                scene.add(Scene.Label(x, y - shift, "∫", s, color, Scene.Anchor.Start, Scene.Font.Roman, baseline = true))
+                if (loop) {
+                    val cx = x + w * 0.5; val cy = y - axis; val r = 0.2 * size
+                    scene.add(Scene.Stroke(listOf(DoubleArray(2 * 33) { k -> val t = (k / 2) * 2 * Math.PI / 32; if (k % 2 == 0) cx + r * Math.cos(t) else cy + r * Math.sin(t) }), color, 0.05 * size))
+                }
+            }
+        }
+
+        /** Σ or Π, large, with its limits under and over it. */
+        fun bigOp(sign: String, lower: Box?, upper: Box?, size: Double): Box {
+            val s = size * 1.35
+            val sb = text(sign, false, s)
+            val w = maxOf(sb.width, lower?.width ?: 0.0, upper?.width ?: 0.0)
+            val axis = 0.25 * size
+            val shift = axis - (0.7 * s - 0.0) / 2
+            val lowerDrop = 0.12 * size + (lower?.ascent ?: 0.0)
+            val upperRise = 0.7 * s + 0.1 * size + (upper?.descent ?: 0.0)
+            return Box(w, maxOf(0.7 * s + shift, upper?.let { shift + upperRise + it.ascent } ?: 0.0), maxOf(-shift, lower?.let { -shift + lowerDrop + it.descent } ?: 0.0)) { scene, x, y ->
+                sb.draw(scene, x + (w - sb.width) / 2, y - shift)
+                lower?.draw(scene, x + (w - lower.width) / 2, y - shift + lowerDrop)
+                upper?.draw(scene, x + (w - upper.width) / 2, y - shift - upperRise)
+            }
+        }
+
         fun func(f: Func, size: Double): Box {
             val a = f.args
             return when {
+                // ∮ over the loop (|z| = 1 underneath), the body, then dz.
+                f.name == "contour" && a.size == 2 -> hbox(listOf(
+                    scripts(integralSign(size, loop = true), null, row(a[1], size * 0.6), size),
+                    gap(0.1667 * size), row(a[0], size), gap(0.1667 * size), text("d", false, size), text("z", true, size),
+                ))
                 f.name == "abs" -> bars(row(a[0], size), size)
                 f.name in INVERSE -> hbox(listOf(scripts(text(INVERSE.getValue(f.name), false, size), text("−1", false, size * 0.7), null, size), fenced("(", row(a[0], size), ")", size)))
                 f.name == "log" && a.size == 2 -> hbox(listOf(scripts(text("log", false, size), null, row(a[0], size * 0.7), size), fenced("(", row(a[1], size), ")", size)))

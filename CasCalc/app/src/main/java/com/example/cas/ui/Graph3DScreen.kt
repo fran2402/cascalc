@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -84,10 +85,10 @@ fun Graph3DScreen(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
     var plotSize by remember { mutableStateOf(IntSize.Zero) }
     var exporting by remember { mutableStateOf(false) }
     val build = { r: ExportRequest -> surface3DScene(vm, r, EXPORT_SIZE, r.dark) }
-    val export = rememberGraphExporter("graph-3d", build)
+    val export = rememberGraphExporter("graph-3d", build, model = { r -> stlModel(vm, r) })
     if (exporting) {
         val b = surfaceBounds(vm)
-        ExportDialog(Viewport(vm.xMin, vm.xMax, vm.yMin, vm.yMax), build, onExport = { r, share -> exporting = false; export(r, share) }, onDismiss = { exporting = false }, z = b.z0 to b.z1)
+        ExportDialog(Viewport(vm.xMin, vm.xMax, vm.yMin, vm.yMax), build, onExport = { r, share -> exporting = false; export(r, share) }, onDismiss = { exporting = false }, z = b.z0 to b.z1, formats = com.example.cas.graph.ExportFormat.entries)
     }
     GraphScaffold(vm, outputLabel = "z", modifier = modifier) {
         Box(Modifier.fillMaxSize().onSizeChanged { plotSize = it }) {
@@ -120,8 +121,9 @@ fun Graph3DScreen(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
 /** "x ∈ [a, b],  y ∈ [c, d]" with the letters in italic Computer Modern, like the maths. */
 private fun limitsText(vm: Graph3DViewModel): AnnotatedString = buildAnnotatedString {
     fun letter(v: String) = withStyle(SpanStyle(fontFamily = CasFonts.CmItalic)) { append(v) }
-    letter("x"); append(" ∈ [${shortNumber(vm.xMin)}, ${shortNumber(vm.xMax)}],  ")
-    letter("y"); append(" ∈ [${shortNumber(vm.yMin)}, ${shortNumber(vm.yMax)}]")
+    val (lx, ly) = vm.letters3D.getValue(Coordinates3D.Mode.Cartesian)
+    letter(lx); append(" ∈ [${shortNumber(vm.xMin)}, ${shortNumber(vm.xMax)}],  ")
+    letter(ly); append(" ∈ [${shortNumber(vm.yMin)}, ${shortNumber(vm.yMax)}]")
 }
 
 /** − and + zoom the ranges; tapping the ranges opens the limits. */
@@ -163,7 +165,10 @@ private fun LimitsDialog(vm: Graph3DViewModel, onDismiss: () -> Unit) {
     val ys = num(y0) to num(y1)
     val zs = num(z0) to num(z1)
     fun ok(p: Pair<Double?, Double?>) = p.first != null && p.second != null && p.first!! < p.second!!
-    val valid = ok(xs) && ok(ys) && (autoZ || ok(zs))
+    // Your letters for each coordinate system (i, j, k for x, y, z…), edited here.
+    val letters = remember { androidx.compose.runtime.mutableStateMapOf<Coordinates3D.Mode, List<String>>().apply { putAll(vm.letters3D) } }
+    fun lettersOk(l: List<String>) = l.size == 3 && l.all { it.isNotBlank() && it.length <= 3 } && l.toSet().size == 3
+    val valid = ok(xs) && ok(ys) && (autoZ || ok(zs)) && letters.values.all(::lettersOk)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Graph settings") },
@@ -185,10 +190,32 @@ private fun LimitsDialog(vm: Graph3DViewModel, onDismiss: () -> Unit) {
                             onClick = { if (vm.coordinates3D != m) vm.toggleCoordinates(if (m == Coordinates3D.Mode.Cartesian) vm.coordinates3D else m) },
                             shape = SegmentedButtonDefaults.itemShape(k, 3),
                             icon = {},
-                            label = { Text(when (m) { Coordinates3D.Mode.Cartesian -> "x y z"; Coordinates3D.Mode.Cylindrical -> "r θ z"; else -> "ρ θ φ" }, maxLines = 1) },
+                            label = { Text(vm.letters3D.getValue(m).joinToString(" "), maxLines = 1, style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 16.sp)) },
                         )
                     }
                 }
+                // The letters of each system: type your own (i, j, k…), and they're read as those coordinates.
+                Text("Letters", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Coordinates3D.Mode.entries.forEach { m ->
+                    val l = letters.getValue(m)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            when (m) { Coordinates3D.Mode.Cartesian -> "Cartesian"; Coordinates3D.Mode.Cylindrical -> "Cylindrical"; else -> "Spherical" },
+                            style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f),
+                        )
+                        (0 until 3).forEach { k ->
+                            androidx.compose.material3.OutlinedTextField(
+                                value = l.getOrElse(k) { "" },
+                                onValueChange = { t -> letters[m] = l.toMutableList().also { it[k] = t.trim().take(3) } },
+                                singleLine = true,
+                                isError = !lettersOk(l),
+                                textStyle = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 18.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+                                modifier = Modifier.requiredWidth(56.dp),
+                            )
+                        }
+                    }
+                }
+                TextButton(onClick = { letters.putAll(Coordinates3D.DEFAULT_LETTERS) }) { Text("Reset letters") }
                 Text("Surface detail", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf("Low", "Medium", "High").forEachIndexed { k, name ->
@@ -208,6 +235,7 @@ private fun LimitsDialog(vm: Graph3DViewModel, onDismiss: () -> Unit) {
                 vm.xMin = xs.first!!; vm.xMax = xs.second!!
                 vm.yMin = ys.first!!; vm.yMax = ys.second!!
                 vm.zRange = if (autoZ) null else zs.first!! to zs.second!!
+                letters.forEach { (m, l) -> if (l != vm.letters3D[m]) vm.setLetters3D(m, l) }
                 onDismiss()
             }) { Text("Done") }
         },
@@ -302,17 +330,20 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier) {
                 }
                 val (lo, hi) = gradients[face.surface % gradients.size]
                 val base = lerp(lo, hi, face.height)
-                val lit = Color(base.red * face.shade, base.green * face.shade, base.blue * face.shade, 1f)
+                // A solid's walls (where the box cuts it) are lighter and see-through, as a cut face.
+                val lit = if (face.wall) lerp(base, Color.White, 0.35f).copy(alpha = 0.55f)
+                    else Color(base.red * face.shade, base.green * face.shade, base.blue * face.shade, 1f)
                 drawPath(path, lit)
                 if (face.xs.size == 4) drawPath(path, wire, style = hairline)
             }
             val labelStyle = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 18.sp, color = colors.onSurfaceVariant)
-            Surface3D.axisLabels(camera, w, h).forEach { (name, p) ->
-                val t = measurer.measure(name, labelStyle)
+            val names = vm.letters3D.getValue(Coordinates3D.Mode.Cartesian)
+            Surface3D.axisLabels(camera, w, h).forEachIndexed { k, (_, p) ->
+                val t = measurer.measure(names[k], labelStyle)
                 drawText(t, topLeft = Offset(p.first - t.size.width / 2f, p.second - t.size.height / 2f))
             }
             val style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 11.sp, color = colors.onSurfaceVariant)
-            val zText = measurer.measure("z from ${shortNumber(bounds.z0)} to ${shortNumber(bounds.z1)}", style)
+            val zText = measurer.measure("${names[2]} from ${shortNumber(bounds.z0)} to ${shortNumber(bounds.z1)}", style)
             drawText(zText, topLeft = Offset(w - zText.size.width - 12.dp.toPx(), 12.dp.toPx()))
             // Points and space curves, drawn over the surfaces.
             vm.functions.filter { it.visible && it.space != null }.asReversed().forEach { fn ->
@@ -385,6 +416,8 @@ private fun surfacePolygons(vm: Graph3DViewModel, bounds: Bounds): List<Polygon>
     vm.functions.filter { it.visible }.flatMap { f -> runCatching {
         val implicit = f.implicit3D
         when {
+            // An inequality: the solid, its boundary and the walls of the box inside it.
+            implicit != null && f.region3D -> Surface3D.solid({ x, y, z -> vm.call(f, implicit, x, y, z) }, bounds, AppSettings.surfaceGrid.second, f.colorIndex)
             implicit != null -> Surface3D.implicit({ x, y, z -> vm.call(f, implicit, x, y, z) }, bounds, AppSettings.surfaceGrid.second, f.colorIndex)
             f.compiled != null -> Surface3D.explicit({ x, y -> vm.evaluate(f, x, y) }, bounds, AppSettings.surfaceGrid.first, f.colorIndex)
             else -> emptyList<Polygon>()
@@ -416,7 +449,8 @@ internal fun surface3DScene(vm: Graph3DViewModel, r: ExportRequest, size: Double
     for (face in faces) {
         val pts = DoubleArray(face.xs.size * 2) { k -> if (k % 2 == 0) face.xs[k / 2].toDouble() else face.ys[k / 2].toDouble() }
         val fill = shade(exportColor(drawn.firstOrNull { it.colorIndex == face.surface }), face.height)
-        scene.add(Scene.Fill(listOf(pts), fill))
+        // A solid's walls: lighter and see-through.
+        scene.add(Scene.Fill(listOf(pts), if (face.wall) (lerp(Color(fill), Color.White, 0.35f).toArgb() and 0xFFFFFF) or 0x8C000000.toInt() else fill))
         scene.add(Scene.Stroke(listOf(pts + doubleArrayOf(pts[0], pts[1])), mesh, 0.3))
     }
     // Cylindrical or spherical guides, light like the grid.
@@ -448,7 +482,8 @@ internal fun surface3DScene(vm: Graph3DViewModel, r: ExportRequest, size: Double
             }
         }
     }
-    com.example.cas.graph.Pgf3D.front(scene, bounds, camera, size, style)
+    val names = vm.letters3D.getValue(Coordinates3D.Mode.Cartesian)
+    com.example.cas.graph.Pgf3D.front(scene, bounds, camera, size, style, Triple(names[0], names[1], names[2]))
     if (AppSettings.showLegend) {
         val entries = vm.functions.filter { drawn3D(it) && legendSource(it).isNotBlank() }.map { f ->
             val name = com.example.cas.graph.Legend.row(legendSource(f))
@@ -467,6 +502,28 @@ internal fun surface3DScene(vm: Graph3DViewModel, r: ExportRequest, size: Double
         com.example.cas.graph.Pgf.legend(scene, com.example.cas.graph.Pgf.Frame(0.0, 0.0, size, size), style, entries)
     }
     return scene
+}
+
+/**
+ * The 3D graph as an STL model over the export's limits: z = f(x, y) as the solid under it (down
+ * to the floor of the box), inequalities as their solids, other surfaces as they are.
+ */
+internal fun stlModel(vm: Graph3DViewModel, r: ExportRequest): ByteArray {
+    val base = surfaceBounds(vm, r.view.xMin, r.view.xMax, r.view.yMin, r.view.yMax)
+    val b = r.z?.let { (a, c) -> base.copy(z0 = a, z1 = c) } ?: base
+    val n = AppSettings.surfaceGrid.second
+    val polys = vm.functions.filter { it.visible && !it.isText }.flatMap { f ->
+        runCatching {
+            val implicit = f.implicit3D
+            when {
+                implicit != null && f.region3D -> Surface3D.solid({ x, y, z -> vm.call(f, implicit, x, y, z) }, b, n, f.colorIndex)
+                implicit != null -> Surface3D.implicit({ x, y, z -> vm.call(f, implicit, x, y, z) }, b, n, f.colorIndex)
+                f.compiled != null -> Surface3D.solid({ x, y, z -> z - vm.evaluate(f, x, y) }, b, n, f.colorIndex)
+                else -> emptyList()
+            }
+        }.getOrElse { emptyList() }
+    }
+    return com.example.cas.graph.Stl.write(polys, b)
 }
 
 /** Whether a 3D line draws something: a surface, a point or a space curve. */

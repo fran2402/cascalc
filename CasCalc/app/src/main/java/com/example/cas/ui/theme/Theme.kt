@@ -213,7 +213,7 @@ class GlyphFallback(context: Context) {
             val alpha = com.example.cas.editor.MathAlphabets.decode(cp)
             when {
                 // 𝒜, 𝔄, 𝔞…: TeX's Caligraphic or Fraktur shape on the plain letter.
-                alpha != null -> withStyle(SpanStyle(fontFamily = if (alpha.first == com.example.cas.editor.MathAlphabets.Style.Calligraphic) CasFonts.CmCal else CasFonts.CmFrak, fontStyle = androidx.compose.ui.text.font.FontStyle.Normal)) { append(alpha.second) }
+                alpha != null && alpha.first != com.example.cas.editor.MathAlphabets.Style.DoubleStruck -> withStyle(SpanStyle(fontFamily = if (alpha.first == com.example.cas.editor.MathAlphabets.Style.Calligraphic) CasFonts.CmCal else CasFonts.CmFrak, fontStyle = androidx.compose.ui.text.font.FontStyle.Normal)) { append(alpha.second) }
                 Character.isWhitespace(cp) || has(cp) -> append(chunk)
                 robotoHas(cp) -> withStyle(SpanStyle(fontFamily = fallback)) { append(chunk) }
                 else -> withStyle(SpanStyle(fontFamily = CasFonts.CmRoman)) { append(chunk) }
@@ -256,7 +256,7 @@ class MathGlyphs(context: Context) {
             val alpha = com.example.cas.editor.MathAlphabets.decode(cp)
             when {
                 // 𝒜, 𝔄, 𝔞…: TeX's Caligraphic or Fraktur shape on the plain letter.
-                alpha != null -> withStyle(SpanStyle(fontFamily = if (alpha.first == com.example.cas.editor.MathAlphabets.Style.Calligraphic) CasFonts.CmCal else CasFonts.CmFrak, fontStyle = androidx.compose.ui.text.font.FontStyle.Normal)) { append(alpha.second) }
+                alpha != null && alpha.first != com.example.cas.editor.MathAlphabets.Style.DoubleStruck -> withStyle(SpanStyle(fontFamily = if (alpha.first == com.example.cas.editor.MathAlphabets.Style.Calligraphic) CasFonts.CmCal else CasFonts.CmFrak, fontStyle = androidx.compose.ui.text.font.FontStyle.Normal)) { append(alpha.second) }
                 Character.isWhitespace(cp) || inMain -> append(chunk)
                 inOther -> withStyle(SpanStyle(fontFamily = if (italicRun) CasFonts.CmRoman else CasFonts.CmItalic)) { append(chunk) }
                 else -> withStyle(SpanStyle(fontFamily = fallback)) { append(chunk) }

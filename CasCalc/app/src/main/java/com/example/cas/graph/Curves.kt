@@ -75,17 +75,32 @@ sealed class PlotSpec3D {
     abstract val parameters: List<String>
     class Explicit(val f: Expr, override val parameters: List<String>) : PlotSpec3D()
     class Implicit(val f: Expr, override val parameters: List<String>) : PlotSpec3D()
+    /** An inequality: the solid where [f] < 0 (≤ 0 unless [strict]), drawn as its boundary and the box walls inside it. */
+    class Region(val f: Expr, override val parameters: List<String>, val strict: Boolean) : PlotSpec3D()
 
     companion object {
         private val SPACE = setOf("x", "y", "z")
         private fun params(e: Expr) = (e.freeVars() - SPACE).sorted()
+
+        /**
+         * a < b (or a ≤ b ≤ c…) as the solid where g < 0: each link gives a − b (or b − a for
+         * > and ≥), and a chain is where all of them hold, the largest being below 0.
+         */
+        fun region(e: Rel): Region {
+            val gs = e.ops.indices.map { k ->
+                val a = e.parts[k]; val b = e.parts[k + 1]
+                when (e.ops[k]) { "<", "≤" -> sub(a, b); ">", "≥" -> sub(b, a); else -> throw MathError("Use <, >, ≤ or ≥") }
+            }
+            val g = gs.reduce { a, b -> com.example.cas.cas.Fn("max", listOf(a, b)) }
+            return Region(g, params(g), strict = e.ops.all { it == "<" || it == ">" })
+        }
 
         fun classify(e: Expr): PlotSpec3D {
             val z = Sym("z")
             return when {
                 e is Eq && e.lhs == z && e.rhs.freeOf(z) -> Explicit(e.rhs, params(e.rhs))
                 e is Eq -> sub(e.lhs, e.rhs).let { Implicit(it, params(it)) }
-                e is Rel -> throw MathError("Inequalities can't be drawn in 3D")
+                e is Rel -> region(e)
                 !e.freeOf(z) -> throw MathError("Add = … to make it an equation in x, y and z")
                 else -> Explicit(e, params(e))
             }

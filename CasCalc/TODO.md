@@ -7,6 +7,9 @@ From the list of 28 September, in the order I'd tackle them.
   Send it to fix this.
 
 ## Done
+- Round of 30 September (third): 3D inequalities as solids, STL export, own 3D letters, symbol
+  builder (Greek, Hebrew, blackboard, bold, scripts before, LaTeX input, tablet layout),
+  complex default colormap, ∮/∫/Σ in the export legend.
 - Round of 30 September (second): LaTeX legend in exports, export and line colours, data sets
   not editable inline, tap-to-end and end-of-line cursor, thin space before functions, product
   keys before a matrix, colour and colormap pickers redone, 15 point shapes.

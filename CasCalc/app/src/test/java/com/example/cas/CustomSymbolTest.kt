@@ -17,7 +17,7 @@ class CustomSymbolTest {
     @Test fun roundTrip() = assertEquals(xHat1, CustomSymbol.decode(xHat1.encode()))
     @Test fun latex() = assertEquals("\\hat{x}_{1}", xHat1.latex)
     @Test fun latexWithEverything() = assertEquals("\\vec{\\mathfrak{g}}_{i}^{2}", CustomSymbol(com.example.cas.editor.MathAlphabets.fraktur('g'), Accent.Vector, "i", "2").latex)
-    @Test fun greekBaseAndPrime() = assertEquals("\\dot{\\theta}^{\\prime }", CustomSymbol("θ", Accent.Dot, "", "′").latex)
+    @Test fun greekBaseAndPrime() = assertEquals("\\dot{\\theta}^{\\prime}", CustomSymbol("θ", Accent.Dot, "", "′").latex)
     @Test fun plainText() = assertEquals("x\u0302_1", xHat1.plain)
     @Test fun survivesTheCodec() {
         val row = MathRow(mutableListOf(Sym(xHat1.encode())))

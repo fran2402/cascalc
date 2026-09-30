@@ -38,7 +38,7 @@ object LatexParser {
         "approx" to "≈", "to" to "→", "rightarrow" to "→", "mapsto" to "↦", "sim" to "∼", "in" to "∈",
         "ldots" to "…", "dots" to "…", "cdots" to "⋯", "mid" to "|", "vert" to "|", "lfloor" to "⌊", "rfloor" to "⌋",
         "lceil" to "⌈", "rceil" to "⌉", "langle" to "⟨", "rangle" to "⟩", "{" to "{", "}" to "}", "angle" to "∠",
-        "Re" to "ℜ", "Im" to "ℑ", "hbar" to "ℏ", "ell" to "ℓ", "circ" to "∘", "otimes" to "⊗", "oplus" to "⊕", "prime" to "′",
+        "Re" to "ℜ", "Im" to "ℑ", "hbar" to "ℏ", "aleph" to "ℵ", "beth" to "ℶ", "gimel" to "ℷ", "daleth" to "ℸ", "varrho" to "ϱ", "varsigma" to "ς", "varpi" to "ϖ", "ell" to "ℓ", "circ" to "∘", "otimes" to "⊗", "oplus" to "⊕", "prime" to "′",
     )
     /** Upright function names: \sin → sin. */
     private val WORDS = setOf(
@@ -220,10 +220,15 @@ object LatexParser {
                 "begin" -> { environment(out); return }
                 "bmod", "mod" -> out.add(Sym("mod"))
                 // \mathcal{A} and \mathfrak{g}: the Unicode maths letters.
-                "mathcal", "mathfrak" -> {
+                "mathcal", "mathfrak", "mathbb" -> {
                     skipSpaces()
                     val arg = if (i < s.length && s[i] == '{') { val end = s.indexOf('}', i); s.substring(i + 1, end).also { i = end + 1 } } else s[i++].toString()
-                    for (c in arg) out.add(Sym(if (!c.isLetter()) c.toString() else if (name == "mathcal") com.example.cas.editor.MathAlphabets.calligraphic(c.uppercaseChar()) else com.example.cas.editor.MathAlphabets.fraktur(c)))
+                    for (c in arg) out.add(Sym(when {
+                        !c.isLetter() -> c.toString()
+                        name == "mathcal" -> com.example.cas.editor.MathAlphabets.calligraphic(c.uppercaseChar())
+                        name == "mathbb" -> com.example.cas.editor.MathAlphabets.doubleStruck(c)
+                        else -> com.example.cas.editor.MathAlphabets.fraktur(c)
+                    }))
                 }
                 else -> {
                     if (name !in SYMBOLS && name !in WORDS && name.length > 1) unknown += name
