@@ -11,6 +11,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        com.example.cas.ui.CrashLog.install(this)
         com.example.cas.ui.AppSettings.init(this)
         setContent {
             CasTheme {
@@ -19,6 +20,8 @@ class MainActivity : ComponentActivity() {
                 val keepOn = com.example.cas.ui.AppSettings.keepScreenOn
                 androidx.compose.runtime.SideEffect { view.keepScreenOn = keepOn }
                 AppScreen()
+                // The last crash's stack trace, if the app closed unexpectedly.
+                com.example.cas.ui.CrashReportDialog()
             }
         }
     }

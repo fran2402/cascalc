@@ -98,6 +98,8 @@ private class Plotted(
     val dashed: Boolean = false,
     /** A closed list of points: the polygon to fill. */
     val fill: List<Pair<Double, Double>>? = null,
+    /** Error bars of a data table's points: (x, y, σx, σy), with NaN for a missing σ. */
+    val errors: List<DoubleArray> = emptyList(),
 )
 
 private data class Special(val x: Double, val y: Double, val label: String, val colorIndex: Int)
@@ -228,17 +230,12 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                     drawPath(path, palette[ar.f.colorIndex].copy(alpha = 0.28f))
                 }
             }
-            // The first line in the list is drawn last, so it sits on top.
-            plotted.asReversed().forEach { p -> drawCurve(v, p, palette[p.f.colorIndex]) }
-            vm.areaStart?.let { (f, a) ->
-                val fn = (f.plot as? Plot2DKind.Explicit)?.f
-                if (fn != null) {
-                    val o = toScreen(v, a, vm.call(f, fn, a))
-                    drawLine(palette[f.colorIndex], Offset(o.x, 0f), Offset(o.x, size.height), 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx())))
-                    drawCircle(palette[f.colorIndex], radius = 6.dp.toPx(), center = o)
-                }
-            }
-            plotted.asReversed().forEach { p -> p.points.forEach { s ->
+            // Line by line, the first in the list last, so it sits on top of all the others: its
+            // curve, region and points together, over everything from the lines below it.
+            plotted.asReversed().forEach { p ->
+                drawCurve(v, p, palette[p.f.colorIndex])
+                drawErrorBars(v, p.errors, palette[p.f.colorIndex])
+                p.points.forEach { s ->
                 val o = toScreen(v, s.x, s.y)
                 // Plotted points in their line's mark and size; found points (zeros, extrema…) are rings.
                 if (s.label == "point") {
@@ -248,6 +245,14 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                     drawCircle(palette[s.colorIndex], radius = 5.dp.toPx(), center = o, style = Stroke(2.dp.toPx()))
                 }
             } }
+            vm.areaStart?.let { (f, a) ->
+                val fn = (f.plot as? Plot2DKind.Explicit)?.f
+                if (fn != null) {
+                    val o = toScreen(v, a, vm.call(f, fn, a))
+                    drawLine(palette[f.colorIndex], Offset(o.x, 0f), Offset(o.x, size.height), 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx())))
+                    drawCircle(palette[f.colorIndex], radius = 6.dp.toPx(), center = o)
+                }
+            }
             // Coordinates beside points whose line has "Show coordinates" on.
             val labelStyle = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 13.sp, color = colors.onSurface)
             plotted.filter { it.f.showLabel }.forEach { p ->
@@ -265,6 +270,14 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 drawCircle(colors.inverseSurface, radius = 3.dp.toPx(), center = o)
             }
         }
+        // The legend, top left: each drawn line's name, in list order.
+        GraphLegend(
+            remember(version, palette) {
+                vm.functions.filter { it.visible && !it.isText && (it.plot != null || it.family.isNotEmpty()) && legendSource(it).isNotBlank() }
+                    .map { screenLegendEntry2D(it, palette[it.colorIndex]) }
+            },
+            Modifier.align(Alignment.TopStart).padding(10.dp),
+        )
         if (vm.areaStart != null) {
             Text(
                 "Tap where the area should end",
@@ -304,16 +317,18 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
         val importer = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
             if (uri == null) return@rememberLauncherForActivityResult
             scope.launch {
-                val lists = runCatching {
+                val table = runCatching {
                     withContext(Dispatchers.IO) {
                         val text = context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } ?: ""
-                        com.example.cas.graph.Csv.pointLists(com.example.cas.graph.Csv.parse(text)).map { it.second }
+                        com.example.cas.graph.Csv.parse(text)
                     }
-                }.getOrDefault(emptyList())
-                val n = if (lists.isEmpty()) 0 else vm.importPoints(lists)
+                }.getOrNull()
+                // One line for the file: its first column against its second. The other columns
+                // (more y values, σ(x), σ(y)) are picked in the table, which opens straight away.
+                val n = if (table == null || table.columns.isEmpty()) 0 else vm.importTable(table)
                 android.widget.Toast.makeText(
                     context,
-                    if (n == 0) "No numbers found in that file" else "$n points in ${lists.size} list${if (lists.size == 1) "" else "s"}",
+                    if (n == 0) "No numbers found in that file" else "$n points" + if ((table?.columns?.size ?: 0) > 2) " · ${table!!.columns.size} columns, pick more in the table" else "",
                     android.widget.Toast.LENGTH_SHORT,
                 ).show()
             }
@@ -440,7 +455,13 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
                 if (listOf(x, y, x0, y0).all { it.isFinite() }) out += Plotted(f, listOf(listOf(x0 to y0, x to y)), emptyList(), arrow = true)
             }
             is Plot2DKind.PointList -> {
-                val pts = k.xs.indices.filter { k.xs[it].isFinite() && k.ys[it].isFinite() }.map { Special(k.xs[it], k.ys[it], "point", f.colorIndex) }
+                val shown = k.xs.indices.filter { k.xs[it].isFinite() && k.ys[it].isFinite() }
+                val pts = shown.map { Special(k.xs[it], k.ys[it], "point", f.colorIndex) }
+                // σ(x) and σ(y) from the line's table, when columns were picked for them.
+                val (ex, ey) = if (g === f) vm.errorsOf(f) else null to null
+                val errors = if (ex == null && ey == null) emptyList() else shown.map { i ->
+                    doubleArrayOf(k.xs[i], k.ys[i], ex?.getOrNull(i) ?: Double.NaN, ey?.getOrNull(i) ?: Double.NaN)
+                }
                 // "Join the points": a line through them in order; a closed shape also joins the last to
                 // the first and is filled, as a polygon.
                 val path = pts.map { it.x to it.y }
@@ -449,7 +470,7 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
                     f.connectPoints && pts.size > 1 -> listOf(path)
                     else -> emptyList()
                 }
-                out += Plotted(f, joined, pts, fill = if (f.closedShape && pts.size > 2) path else null)
+                out += Plotted(f, joined, pts, fill = if (f.closedShape && pts.size > 2) path else null, errors = errors)
             }
             is Plot2DKind.Point -> {
                 val px = vm.call(g, k.x); val py = vm.call(g, k.y)
@@ -620,6 +641,28 @@ private fun DrawScope.drawPolarGrid(v: Viewport, gridColor: Color, axisColor: Co
 }
 
 /** A point's mark: the shape's outlines filled (the cross stroked), [r] pixels across from the centre. */
+/** Error bars: a line from y − σy to y + σy (and x − σx to x + σx), with short caps at the ends. */
+private fun DrawScope.drawErrorBars(v: Viewport, errors: List<DoubleArray>, color: Color) {
+    if (errors.isEmpty()) return
+    val cap = 4.dp.toPx()
+    val w = 1.5.dp.toPx()
+    for (e in errors) {
+        val (x, y, sx, sy) = e.toList()
+        if (sy.isFinite() && sy > 0) {
+            val a = toScreen(v, x, y - sy); val b = toScreen(v, x, y + sy)
+            drawLine(color, a, b, w)
+            drawLine(color, Offset(a.x - cap, a.y), Offset(a.x + cap, a.y), w)
+            drawLine(color, Offset(b.x - cap, b.y), Offset(b.x + cap, b.y), w)
+        }
+        if (sx.isFinite() && sx > 0) {
+            val a = toScreen(v, x - sx, y); val b = toScreen(v, x + sx, y)
+            drawLine(color, a, b, w)
+            drawLine(color, Offset(a.x, a.y - cap), Offset(a.x, a.y + cap), w)
+            drawLine(color, Offset(b.x, b.y - cap), Offset(b.x, b.y + cap), w)
+        }
+    }
+}
+
 internal fun DrawScope.drawMarker(marker: com.example.cas.graph.Marker, center: Offset, r: Float, color: Color) {
     val (fills, strokes) = marker.outline(center.x.toDouble(), center.y.toDouble(), r.toDouble())
     if (fills.isNotEmpty()) {
@@ -724,10 +767,10 @@ internal fun graph2DScene(vm: Graph2DViewModel, view: Viewport, size: Double, da
     fun sx(x: Double) = Pgf.sx(v, frame, x)
     fun sy(y: Double) = Pgf.sy(v, frame, y)
     fun withAlpha(c: Int, a: Float) = (((c ushr 24) * a).toInt().coerceIn(0, 255) shl 24) or (c and 0xFFFFFF)
-    // A picked color stays; otherwise the line takes pgfplots' color for its place.
-    val palette = (0 until GraphViewModel.PLOT_COLOR_COUNT).map { k ->
-        vm.functions.firstOrNull { it.colorIndex == k }?.customColor ?: style.cycle[k % style.cycle.size]
-    }
+    // The app's colors are for the screen: exported, the lines take SciencePlots' colors in turn,
+    // in the order of the list.
+    val drawn = vm.functions.filter { it.visible && (it.plot != null || it.family.isNotEmpty()) }
+    fun colorOf(f: PlotFunction): Int = style.cycle[(drawn.indexOf(f).coerceAtLeast(0)) % style.cycle.size]
     if (AppSettings.showGrid && !vm.polarGrid) Pgf.grid(scene, v, frame, style)
     scene.add(Scene.ClipStart(frame.left, frame.top, frame.width, frame.height))
     if (vm.polarGrid) {
@@ -760,14 +803,14 @@ internal fun graph2DScene(vm: Graph2DViewModel, view: Viewport, size: Double, da
                 pts += sx(x); pts += sy(y)
             }
             pts += sx(hi); pts += sy(0.0)
-            scene.add(Scene.Fill(listOf(pts.toDoubleArray()), withAlpha(palette[ar.f.colorIndex], 0.25f)))
+            scene.add(Scene.Fill(listOf(pts.toDoubleArray()), withAlpha(colorOf(ar.f), 0.25f)))
         }
     }
     // Sampled finely: three samples per unit of width.
     val plotted = runCatching { plot(vm, v, IntSize((frame.width * 3).toInt().coerceAtLeast(1), (frame.height * 3).toInt().coerceAtLeast(1)), null) }.getOrElse { emptyList() }
     // The first line in the list last, on top, as on screen.
     for (p in plotted.asReversed()) {
-        val color = palette[p.f.colorIndex]
+        val color = colorOf(p.f)
         // pgfplots' "thick" for the usual 3 dp line, scaled with the line's own thickness.
         val lw = p.f.thickness * 0.5
         val dash = when (p.f.lineStyle) { 1 -> doubleArrayOf(4 * lw, 3 * lw); 2 -> doubleArrayOf(0.01, 2.5 * lw); else -> null }
@@ -809,16 +852,50 @@ internal fun graph2DScene(vm: Graph2DViewModel, view: Viewport, size: Double, da
                 scene.add(Scene.Fill(listOf(doubleArrayOf(tx, ty, bx - uy * head * 0.4, by + ux * head * 0.4, bx + uy * head * 0.4, by - ux * head * 0.4)), color))
             }
         }
+        // Error bars, thin with short caps (as matplotlib's errorbar), under the marks.
+        if (p.errors.isNotEmpty()) {
+            val bars = ArrayList<DoubleArray>()
+            val cap = 2.5
+            for (e in p.errors) {
+                val (x, y, ex, ey) = e.toList()
+                if (ey.isFinite() && ey > 0) {
+                    val px = sx(x); val a = sy(y - ey); val b = sy(y + ey)
+                    bars += doubleArrayOf(px, a, px, b); bars += doubleArrayOf(px - cap, a, px + cap, a); bars += doubleArrayOf(px - cap, b, px + cap, b)
+                }
+                if (ex.isFinite() && ex > 0) {
+                    val py = sy(y); val a = sx(x - ex); val b = sx(x + ex)
+                    bars += doubleArrayOf(a, py, b, py); bars += doubleArrayOf(a, py - cap, a, py + cap); bars += doubleArrayOf(b, py - cap, b, py + cap)
+                }
+            }
+            scene.add(Scene.Stroke(bars, color, 0.8))
+        }
         // Points as pgfplots' mark=*: small filled dots.
         // Marks at the line's shape, scaled like its size on screen (pgfplots' marks are small).
-        p.points.forEach { pt -> com.example.cas.graph.Marker.of(p.f.pointShape).addTo(scene, sx(pt.x), sy(pt.y), p.f.pointSize * 0.43, palette[pt.colorIndex]) }
+        p.points.forEach { pt -> com.example.cas.graph.Marker.of(p.f.pointShape).addTo(scene, sx(pt.x), sy(pt.y), p.f.pointSize * 0.43, color) }
         if (p.f.showLabel) p.points.filter { it.label == "point" }.take(200).forEach { pt ->
             scene.add(Scene.Label(sx(pt.x) + 5, sy(pt.y) - 9, "(" + shortNumber(pt.x) + ", " + shortNumber(pt.y) + ")", Pgf.TICK_SIZE * 0.85, style.ink, Scene.Anchor.Start, Scene.Font.Roman))
         }
     }
     scene.add(Scene.ClipEnd)
     Pgf.axes(scene, v, frame, style)
+    if (AppSettings.showLegend) Pgf.legend(scene, frame, style, drawn.filter { legendSource(it).isNotBlank() }.map { f -> legendEntry2D(f, colorOf(f)) })
     return scene
+}
+
+/** A 2D line's legend entry in an export: a stroke in its style, a mark, or a shaded swatch. */
+internal fun legendEntry2D(f: PlotFunction, color: Int): Pgf.LegendEntry {
+    val spans = com.example.cas.graph.Legend.spans(com.example.cas.graph.Legend.row(legendSource(f)))
+    val lw = f.thickness * 0.5
+    val dash = when (f.lineStyle) { 1 -> doubleArrayOf(4 * lw, 3 * lw); 2 -> doubleArrayOf(0.01, 2.5 * lw); else -> null }
+    fun alpha(c: Int, a: Float) = ((255 * a).toInt().coerceIn(0, 255) shl 24) or (c and 0xFFFFFF)
+    return when (f.plot) {
+        is Plot2DKind.PointList, is Plot2DKind.Point -> Pgf.LegendEntry(
+            spans, color, line = f.connectPoints || f.closedShape, width = lw,
+            marker = com.example.cas.graph.Marker.of(f.pointShape), markerSize = f.pointSize * 0.43,
+        )
+        is Plot2DKind.Region -> Pgf.LegendEntry(spans, color, line = true, width = 1.0, fill = alpha(color, f.fillOpacity))
+        else -> Pgf.LegendEntry(spans, color, dash = dash, width = lw)
+    }
 }
 
 /** A special point near the tap if there is one, otherwise the nearest curve at the tapped x. */

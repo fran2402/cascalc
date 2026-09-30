@@ -17,6 +17,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.icons.outlined.FontDownload
+import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
+import androidx.compose.material.icons.outlined.Dataset
+import androidx.compose.material.icons.outlined.Functions
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Lightbulb
+import androidx.compose.material.icons.automirrored.outlined.ShowChart
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.size
@@ -108,46 +118,65 @@ val CREDITS: List<CreditGroup> = listOf(
 /** The acknowledgements: each group with a line on what it is, then a card per credit that opens its link. */
 @Composable
 fun AcknowledgementsDialog(onDismiss: () -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    val uri = LocalUriHandler.current
-    // A full-screen page, not a popup.
-    FullScreenPage("Acknowledgements", onBack = onDismiss) {
-        Text(
-            "CAS Calculator is built on the work of many people. Tap any entry to read more.",
-            style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
-        )
-        CREDITS.forEach { group ->
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-                Text(group.title, style = MaterialTheme.typography.titleMedium, color = colors.primary)
-                Text(group.intro, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-                group.credits.forEach { c ->
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(colors.surfaceContainer)
-                            .clickable(onClickLabel = "Open ${c.name}") { runCatching { uri.openUri(c.url) } }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(c.name, style = MaterialTheme.typography.titleSmall, color = colors.onSurface, modifier = Modifier.weight(1f))
-                            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(16.dp))
-                        }
-                        if (c.by != "—") Text(c.by, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-                        Text("Used for: " + c.use, style = MaterialTheme.typography.bodyMedium, color = colors.onSurface)
-                        Text(c.about, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-                        if (c.licence != "—") {
-                            Text(
-                                c.licence,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = colors.onSecondaryContainer,
-                                modifier = Modifier.padding(top = 4.dp).clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 8.dp, vertical = 2.dp),
-                            )
+    val tablet = isTabletLayout()
+    // One page on a phone; on a tablet the groups are listed on the left and their cards sit two across.
+    SectionedPage(
+        "Acknowledgements",
+        onBack = onDismiss,
+        intro = "CAS Calculator is built on the work of many people. Tap any entry to read more.",
+        sections = CREDITS.map { group ->
+            PageSection(group.title, iconFor(group.title)) {
+                Text(group.intro, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (tablet) {
+                    group.credits.chunked(2).forEach { pair ->
+                        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            pair.forEach { c -> CreditCard(c, Modifier.weight(1f).fillMaxHeight()) }
+                            if (pair.size == 1) androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
                         }
                     }
-                }
+                } else group.credits.forEach { c -> CreditCard(c, Modifier.fillMaxWidth()) }
             }
+        },
+    )
+}
+
+private fun iconFor(group: String): androidx.compose.ui.graphics.vector.ImageVector = when (group) {
+    "Fonts" -> Icons.Outlined.FontDownload
+    "Libraries" -> Icons.AutoMirrored.Outlined.LibraryBooks
+    "Data" -> Icons.Outlined.Dataset
+    "Numerical methods" -> Icons.Outlined.Functions
+    "Graphics" -> Icons.AutoMirrored.Outlined.ShowChart
+    "Inspiration" -> Icons.Outlined.Lightbulb
+    else -> Icons.Outlined.Info
+}
+
+/** One credit: name, who made it, what it's used for, a line about it and its licence. Tap to open its page. */
+@Composable
+private fun CreditCard(c: Credit, modifier: Modifier) {
+    val colors = MaterialTheme.colorScheme
+    val uri = LocalUriHandler.current
+    Column(
+        modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(colors.surfaceContainer)
+            .clickable(onClickLabel = "Open ${c.name}") { runCatching { uri.openUri(c.url) } }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(c.name, style = MaterialTheme.typography.titleSmall, color = colors.onSurface, modifier = Modifier.weight(1f))
+            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(16.dp))
+        }
+        if (c.by != "—") Text(c.by, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        Text("Used for: " + c.use, style = MaterialTheme.typography.bodyMedium, color = colors.onSurface)
+        Text(c.about, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        if (c.licence != "—") {
+            Text(
+                c.licence,
+                style = MaterialTheme.typography.labelSmall,
+                color = colors.onSecondaryContainer,
+                modifier = Modifier.padding(top = 4.dp).clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 8.dp, vertical = 2.dp),
+            )
         }
     }
 }

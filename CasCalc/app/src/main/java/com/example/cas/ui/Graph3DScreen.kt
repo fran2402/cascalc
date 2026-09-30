@@ -92,7 +92,13 @@ fun Graph3DScreen(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
     GraphScaffold(vm, outputLabel = "z", modifier = modifier) {
         Box(Modifier.fillMaxSize().onSizeChanged { plotSize = it }) {
             SurfaceCanvas(vm, Modifier.fillMaxSize())
-            RangeControl(vm, Modifier.align(Alignment.TopStart).padding(12.dp))
+            // The range control top left, and the legend under it.
+            Column(Modifier.align(Alignment.TopStart).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                RangeControl(vm)
+                val version = vm.version
+                val theme = (0 until GraphViewModel.PLOT_COLOR_COUNT).map { k -> plotColor(k) }
+                GraphLegend(remember(version, theme) { legend3D(vm, theme) })
+            }
             var settings by remember { mutableStateOf(false) }
             if (settings) LimitsDialog(vm, onDismiss = { settings = false })
             GraphBottomBar(vm, Modifier.align(Alignment.BottomCenter), onExport = { if (plotSize.width > 0) exporting = true }, tools = {
@@ -120,7 +126,7 @@ private fun limitsText(vm: Graph3DViewModel): AnnotatedString = buildAnnotatedSt
 
 /** − and + zoom the ranges; tapping the ranges opens the limits. */
 @Composable
-private fun RangeControl(vm: Graph3DViewModel, modifier: Modifier) {
+private fun RangeControl(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     val tap = rememberKeyTap()
     var editing by remember { mutableStateOf(false) }
@@ -309,7 +315,7 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier) {
             val zText = measurer.measure("z from ${shortNumber(bounds.z0)} to ${shortNumber(bounds.z1)}", style)
             drawText(zText, topLeft = Offset(w - zText.size.width - 12.dp.toPx(), 12.dp.toPx()))
             // Points and space curves, drawn over the surfaces.
-            vm.functions.filter { it.visible && it.space != null }.forEach { fn ->
+            vm.functions.filter { it.visible && it.space != null }.asReversed().forEach { fn ->
                 val (fx, fy, fz) = fn.space!!
                 val (lo, hi) = gradients[fn.colorIndex % gradients.size]
                 val color = lerp(lo, hi, 0.5f)
@@ -417,7 +423,7 @@ internal fun surface3DScene(vm: Graph3DViewModel, r: ExportRequest, size: Double
     coordinateGuides(vm.coordinates3D, bounds).forEach { line ->
         scene.add(Scene.Stroke(listOf(line.flatMap { q -> Surface3D.project(q[0], q[1], q[2], bounds, camera, fw, fw).let { (a, b) -> listOf(a.toDouble(), b.toDouble()) } }.toDoubleArray()), style.grid, 0.5))
     }
-    vm.functions.filter { it.visible && it.space != null }.forEach { fn ->
+    vm.functions.filter { it.visible && it.space != null }.asReversed().forEach { fn ->
         val (fx, fy, fz) = fn.space!!
         val color = fn.customColor ?: style.cycle[fn.colorIndex % style.cycle.size]
         if (fn.spaceIsCurve) {
@@ -443,8 +449,42 @@ internal fun surface3DScene(vm: Graph3DViewModel, r: ExportRequest, size: Double
         }
     }
     com.example.cas.graph.Pgf3D.front(scene, bounds, camera, size, style)
+    if (AppSettings.showLegend) {
+        val entries = vm.functions.filter { drawn3D(it) && legendSource(it).isNotBlank() }.map { f ->
+            val spans = com.example.cas.graph.Legend.spans(com.example.cas.graph.Legend.row(legendSource(f)))
+            val color = f.customColor ?: style.cycle[f.colorIndex % style.cycle.size]
+            when {
+                f.space != null && f.spaceIsCurve -> com.example.cas.graph.Pgf.LegendEntry(spans, color, width = 1.5)
+                f.space != null -> com.example.cas.graph.Pgf.LegendEntry(spans, color, line = false, marker = com.example.cas.graph.Marker.Circle, markerSize = 2.8)
+                else -> {
+                    // A surface: its shades, low to high.
+                    val strip = (0..5).map { k ->
+                        val t = k / 5f
+                        f.customColor?.let { c -> lerp(lerp(Color(c), Color.Black, 0.35f), lerp(Color(c), Color.White, 0.45f), t).toArgb() }
+                            ?: (0xFF000000.toInt() or viridis.rgb(t.toDouble()))
+                    }
+                    com.example.cas.graph.Pgf.LegendEntry(spans, color, line = false, strip = strip)
+                }
+            }
+        }
+        com.example.cas.graph.Pgf.legend(scene, com.example.cas.graph.Pgf.Frame(0.0, 0.0, size, size), style, entries)
+    }
     return scene
 }
+
+/** Whether a 3D line draws something: a surface, a point or a space curve. */
+private fun drawn3D(f: PlotFunction) = f.visible && !f.isText && (f.compiled != null || f.implicit3D != null || f.space != null)
+
+/** The 3D legend on screen: surfaces as a strip of their shades, curves as a stroke, points as a dot. */
+private fun legend3D(vm: Graph3DViewModel, theme: List<Color>): List<ScreenLegendEntry> =
+    vm.functions.filter { drawn3D(it) && legendSource(it).isNotBlank() }.map { f ->
+        val c = f.customColor?.let { Color(it) } ?: theme[f.colorIndex % theme.size]
+        when {
+            f.space != null && f.spaceIsCurve -> ScreenLegendEntry(legendSource(f), c)
+            f.space != null -> ScreenLegendEntry(legendSource(f), c, line = false, marker = com.example.cas.graph.Marker.Circle)
+            else -> ScreenLegendEntry(legendSource(f), c, line = false, strip = (0..5).map { k -> lerp(lerp(c, Color.Black, 0.35f), lerp(c, Color.White, 0.45f), k / 5f) })
+        }
+    }
 
 
 /**

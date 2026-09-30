@@ -102,6 +102,26 @@ object TonalScheme {
         )
     }
 
+    /**
+     * Colors for graph lines from a theme, as Material 3 Expressive's scheme spreads its accents
+     * round the color wheel: the theme's primary and tertiary, then the primary's hue turned
+     * 180°, 240°, 120° and 300°, vivid and at the primary's tone (so they read alike on the
+     * surface). [count] colors, ARGB.
+     */
+    fun graphColors(primary: Int, tertiary: Int, dark: Boolean, count: Int = 6): List<Int> =
+        graphCache.getOrPut(listOf(primary, tertiary, if (dark) 1 else 0, count)) { makeGraphColors(primary, tertiary, dark, count) }
+
+    private val graphCache = java.util.concurrent.ConcurrentHashMap<List<Int>, List<Int>>()
+
+    private fun makeGraphColors(primary: Int, tertiary: Int, dark: Boolean, count: Int): List<Int> {
+        val (_, a, b) = ColorMath.toOklab(ColorMath.fromArgb(primary))
+        val hue = atan2(b, a)
+        val tone = if (dark) 80.0 else 40.0
+        val turns = listOf(180.0, 240.0, 120.0, 300.0, 30.0, 210.0)
+        val made = turns.map { d -> tone(tone, hue + Math.toRadians(d), 0.14) }
+        return (listOf(primary, tertiary) + made).take(count)
+    }
+
     /** Seeds offered as swatches in settings (0 is the built-in olive palette). */
     val PRESETS: List<Pair<String, Int>> = listOf(
         "Olive" to 0,

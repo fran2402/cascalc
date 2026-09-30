@@ -33,9 +33,15 @@ class Scene(val width: Double, val height: Double, val background: Int) {
         val anchor: Anchor = Anchor.Start, val font: Font = Font.Sans, val angle: Double = 0.0,
         /** Letters drawn in math italic within a roman label (the z of "Re z", the i of "2i"). */
         val italic: Set<Char> = emptySet(),
+        /** Maths set as runs (italic letters, raised exponents, lowered indices), instead of [text]. */
+        val spans: List<Span>? = null,
     ) : Item() {
+        /** The label as runs: [spans], or [text] split by font. */
+        fun allSpans(): List<Span> = spans ?: runs().map { (t, ital) -> Span(t, ital) }
+
         /** The text in runs of one font: (piece, italic?). */
         fun runs(): List<Pair<String, Boolean>> {
+            spans?.let { sp -> return sp.map { it.text to it.italic } }
             if (italic.isEmpty()) return listOf(text to (font == Font.Italic))
             val out = ArrayList<Pair<String, Boolean>>()
             for (c in text) {
@@ -44,6 +50,16 @@ class Scene(val width: Double, val height: Double, val background: Int) {
             }
             return out
         }
+    }
+
+    /**
+     * A run of a maths label: its text, italic (math italic) or roman, and [shift] 1 for an
+     * exponent, −1 for an index (drawn smaller, raised or lowered), 0 on the line.
+     */
+    class Span(val text: String, val italic: Boolean, val shift: Int = 0) {
+        val scale get() = if (shift == 0) 1.0 else 0.7
+        /** How far the run's middle moves up, in label sizes. */
+        val rise get() = when { shift > 0 -> 0.38; shift < 0 -> -0.22; else -> 0.0 }
     }
 
     /** Everything up to the matching [ClipEnd] is cut to this rectangle (a plot's frame). */
@@ -140,7 +156,21 @@ object SvgWriter {
                 if (item.angle != 0.0) append(" transform=\"rotate(${n(-item.angle)} ${n(item.x)} ${n(item.y)})\"")
                 append(">")
                 val runs = item.runs()
-                if (runs.size == 1) append(escape(item.text))
+                if (item.spans != null && item.spans.any { it.shift != 0 }) {
+                    // Raised and lowered runs: each moves up or down from the one before (dy), smaller.
+                    var at = 0.0
+                    item.spans.forEach { sp ->
+                        val target = -sp.rise * item.size
+                        append("<tspan")
+                        if (sp.italic && item.font != Scene.Font.Italic) {
+                            if (Scene.Font.Italic in embedded) append(" font-family=\"CMItalic, Latin Modern Roman, CMU Serif, serif\"") else append(" font-style=\"italic\"")
+                        }
+                        if (target != at) append(" dy=\"${n(target - at)}\"")
+                        if (sp.shift != 0) append(" font-size=\"${n(item.size * sp.scale)}\"")
+                        append(">").append(escape(sp.text)).append("</tspan>")
+                        at = target
+                    }
+                } else if (runs.size == 1) append(escape(item.text))
                 else runs.forEach { (piece, ital) ->
                     // Italic pieces of a roman label: the embedded italic font, or a slant.
                     if (ital && item.font != Scene.Font.Italic) {

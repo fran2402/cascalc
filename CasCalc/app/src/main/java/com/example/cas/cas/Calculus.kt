@@ -421,10 +421,33 @@ object Calculus {
             return limit(Algebra.simplify(f.subst(x, div(sign, t))), t, ZERO, side = 1, depth = depth)
         }
         runCatching { Algebra.simplify(f.subst(x, a)) }.getOrNull()?.let { if (finite(it)) return it }
+        // |B| and (B²ᵐ)ʳ near a: from one side B has one sign, so they can be written without the
+        // absolute value (x → 0⁺: (x²)^{3/2} = x³), which L'Hôpital can then work with. For a
+        // limit from both sides, each side is worked out that way and they must agree.
+        if (depth < 6 && a.isConstant && f.contains { hasSignedRoot(it) }) {
+            if (side != 0) {
+                val resolved = resolveSigns(f, x, a, side)
+                if (resolved != f) return limit(Algebra.simplify(resolved), x, a, side, depth + 1)
+                leadingPowers(f, x, a, side, depth)?.let { (c, rest) ->
+                    return Algebra.simplify(mul(c, limit(Algebra.simplify(rest), x, a, side, depth + 1)))
+                }
+            } else {
+                val l = runCatching { limit(f, x, a, -1, depth) }.getOrNull()
+                val r = runCatching { limit(f, x, a, 1, depth) }.getOrNull()
+                if (l != null && r != null) {
+                    if (l == r) return r
+                    val lv = runCatching { Numeric.real(l) }.getOrNull()
+                    val rv = runCatching { Numeric.real(r) }.getOrNull()
+                    if (lv != null && rv != null && kotlin.math.abs(lv - rv) <= 1e-9 * maxOf(1.0, kotlin.math.abs(lv))) return r
+                    throw MathError("The limits from the left and right differ")
+                }
+            }
+        }
         val simplified = Algebra.simplify(f)
         if (simplified != f) runCatching { Algebra.simplify(simplified.subst(x, a)) }.getOrNull()?.let { if (finite(it)) return it }
         if (depth < 6) {
-            val (n, d) = Algebra.together(f)
+            // Negative fractional powers count as the denominator too: sin x/√x is sin x over x^{1/2}.
+            val (n, d) = Algebra.together(f).let { nd -> if (nd.second.freeOf(x)) negativePowersApart(f) ?: nd else nd }
             if (!d.freeOf(x)) {
                 val nv = runCatching { Algebra.simplify(n.subst(x, a)) }.getOrNull()
                 val dv = runCatching { Algebra.simplify(d.subst(x, a)) }.getOrNull()
@@ -435,6 +458,89 @@ object Calculus {
             }
         }
         return numericLimit(f, x, a, side)
+    }
+
+    /** A product with some negative powers as (the other factors, those powers made positive); null if none. */
+    private fun negativePowersApart(f: Expr): Pair<Expr, Expr>? {
+        val factors = if (f is Mul) f.factors else listOf(f)
+        val num = ArrayList<Expr>()
+        val den = ArrayList<Expr>()
+        for (g in factors) {
+            val r = ((g as? Pow)?.exp as? Num)?.q
+            if (g is Pow && r != null && r.num.signum() < 0) den += pow(g.base, Num(Rational.of(r.num.negate(), r.den))) else num += g
+        }
+        if (den.isEmpty()) return null
+        return mul(num) to mul(den)
+    }
+
+    /** |B|, or a fractional power Bʳ: both depend on the sign of B near the point. */
+    private fun hasSignedRoot(e: Expr): Boolean = (e is Fn && e.name == "abs" && e.args.size == 1) ||
+        (e is Pow && (e.exp as? Num)?.q?.isInteger == false)
+
+    private fun isEvenRoot(e: Expr): Boolean = e is Pow && e.base is Pow &&
+        ((e.base as Pow).exp as? Num)?.q?.let { it.isInteger && it.num.testBit(0).not() } == true && (e.exp as? Num)?.q?.isInteger == false
+
+    /**
+     * Fractional powers Bʳ among [f]'s factors whose base → 0 at [a] from [side]: B is t^k·Q with
+     * t = |x − a| and Q → c > 0, so Bʳ is t^{kr}·Qʳ and Qʳ → cʳ. Returns (the product of the cʳ,
+     * f with each Bʳ replaced by t^{kr}), or null if there's none. So
+     * (x − sin x)/(x sin x)^{3/2} as x → 0⁺ is 1 · lim (x − sin x)/x³ = 1/6, which L'Hôpital can do.
+     */
+    private fun leadingPowers(f: Expr, x: Sym, a: Expr, side: Int, depth: Int): Pair<Expr, Expr>? {
+        val t = if (side > 0) sub(x, a) else sub(a, x)
+        val factors = if (f is Mul) f.factors else listOf(f)
+        val constants = ArrayList<Expr>()
+        var changed = false
+        val out = factors.map { g ->
+            val r = ((g as? Pow)?.exp as? Num)?.q
+            if (g !is Pow || r == null || r.isInteger) return@map g
+            val b0 = runCatching { limit(g.base, x, a, side, depth + 1) }.getOrNull()
+            if (b0 == null || !LinearAlgebra.isZero(b0)) return@map g
+            for (k in 1..6) {
+                val q = runCatching { limit(Algebra.simplify(div(g.base, pow(t, k.toLong()))), x, a, side, depth + 1) }.getOrNull() ?: break
+                if (isInfinite(q)) break
+                if (LinearAlgebra.isZero(q)) continue
+                val qv = runCatching { Numeric.real(q) }.getOrNull() ?: break
+                if (qv <= 0) break
+                val replaced = pow(t, Num(Rational.of(k.toLong()) * r))
+                // Already a plain power of x − a: nothing to gain.
+                if (replaced == g) break
+                constants += pow(q, g.exp)
+                changed = true
+                return@map replaced
+            }
+            g
+        }
+        if (!changed) return null
+        return mul(constants) to mul(out)
+    }
+
+    /** [e] with |B| and (B²ᵐ)ʳ rewritten by the sign B has just beside [a] on [side]. */
+    private fun resolveSigns(e: Expr, x: Sym, a: Expr, side: Int): Expr {
+        val at = runCatching { Numeric.real(a) }.getOrNull() ?: return e
+        fun sign(b: Expr): Int {
+            // The sign a little way off, checked twice so a sign change right there doesn't mislead.
+            val near = listOf(1e-6, 1e-8).map { h -> runCatching { Numeric.real(b, mapOf(x.name to at + side * h)) }.getOrNull() ?: return 0 }
+            return when { near.all { it > 0 } -> 1; near.all { it < 0 } -> -1; else -> 0 }
+        }
+        fun walk(e: Expr): Expr = when {
+            e is Fn && e.name == "abs" && e.args.size == 1 -> {
+                val b = walk(e.args[0])
+                when (sign(b)) { 1 -> b; -1 -> neg(b); else -> Fn("abs", listOf(b)) }
+            }
+            e is Pow && isEvenRoot(e) -> {
+                val inner = e.base as Pow
+                val b = walk(inner.base)
+                val power = Num((inner.exp as Num).q * (e.exp as Num).q)
+                when (sign(b)) { 1 -> Pow(b, power); -1 -> Pow(neg(b), power); else -> Pow(Pow(b, inner.exp), e.exp) }
+            }
+            e is Add -> Add(e.terms.map { walk(it) })
+            e is Mul -> Mul(e.factors.map { walk(it) })
+            e is Pow -> Pow(walk(e.base), walk(e.exp))
+            e is Fn -> Fn(e.name, e.args.map { walk(it) })
+            else -> e
+        }
+        return walk(e)
     }
 
     private fun finite(e: Expr): Boolean {
@@ -476,7 +582,10 @@ object Calculus {
             if (kotlin.math.abs(last) > 1e7 && tail.zipWithNext().all { (u, w) -> kotlin.math.abs(w) > kotlin.math.abs(u) * 1.5 && u * w > 0 }) {
                 return if (last > 0) Double.POSITIVE_INFINITY else Double.NEGATIVE_INFINITY
             }
-            return if (kotlin.math.abs(last - prev) <= 1e-5 * maxOf(1.0, kotlin.math.abs(last))) last else null
+            if (kotlin.math.abs(last - prev) <= 1e-5 * maxOf(1.0, kotlin.math.abs(last))) return last
+            // Shrinking steadily towards 0 (like √h): the limit is 0.
+            if (kotlin.math.abs(last) < 1e-4 && tail.zipWithNext().all { (u, w) -> kotlin.math.abs(w) < kotlin.math.abs(u) * 0.8 }) return 0.0
+            return null
         }
         fun toExpr(v: Double): Expr = when {
             v == Double.POSITIVE_INFINITY -> INF

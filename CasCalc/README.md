@@ -195,6 +195,28 @@ Constants and symbols are long lists and scroll up and down in place; the others
 Groups: Basic, Trigonometry, Calculus, Vector calculus, Linear algebra, Statistics, Complex
 numbers, Physical constants, Symbols.
 
+## Latest changes (30 September)
+- **Legend**: each line has a name, shown top left on all three graphs (under the range control
+  in 3D) and in exports, SciencePlots-style. Hold a line to rename it; names are text with
+  LaTeX maths between $ signs. The default is the line's maths, "Data" for a list, the point
+  itself for a point. Settings › Graphs › Legend turns it off.
+- **Data tables**: a file imports as one line, its first column x and its second y. The table
+  opens full screen from the table button on the line (before ✕); each column's role is x, y,
+  σ(x), σ(y) or unused, and σ columns draw error bars (on screen and exported).
+- **Exports** use SciencePlots' colour cycle, one colour per line in list order.
+- **Line colours** come from the theme (Material You's when on): primary, tertiary, then the
+  primary's hue turned round the wheel, unless a colour is picked.
+- **The first line is drawn over everything below it** (its points and region too), in 2D, 3D
+  and on the complex plane.
+- **Cursor**: long lines scroll to keep the cursor in view, the cursor at the end isn't cut
+  off, and tapping after the end of a line puts the cursor there.
+- **u·v, u×v, ∘, ⊗** after a matrix, a letter or a bracket take it as the first operand.
+- **Limits** with fractional powers: lim x→0⁺ (x − sin x)/(x sin x)^{3/2} = 1/6 (was 0),
+  one-sided limits of |B| and (B²)^{r}, and sin x/√x → 0.
+- **Tablets**: Settings and Acknowledgements in two panes; "Keyboard side" only on tablets.
+- **Crash report**: after a crash the app shows what went wrong, with Copy, for bug reports.
+- Mock-ups: preview-render/round7.png (build_round7.py, shot_round7.py).
+
 ## Latest changes (29 September, sixth round)
 - **Tablets** (screens at least 840 dp wide and 600 dp on the short side): the keyboard has a
   column of its own, always showing, with taller keys sitting at the bottom and no hide

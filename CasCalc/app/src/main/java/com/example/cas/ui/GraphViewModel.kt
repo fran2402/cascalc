@@ -103,6 +103,13 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
     var folderLevel by mutableStateOf(0)
     /** Notes and folders aren't drawn. */
     val isText get() = note != null
+    /**
+     * The line's name in the legend, as LaTeX-style text with maths between $ signs
+     * ("Data", "$\sin x$"); null for the default (see [legendSource]).
+     */
+    var name by mutableStateOf<String?>(null)
+    /** A list of points' table: every column of an imported file, and which are x, y, σ(x), σ(y). */
+    var table by mutableStateOf<com.example.cas.graph.DataTable?>(null)
 }
 
 /** A contour integral typed on the complex plane: its circle and its value. */
@@ -232,6 +239,15 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 parts.getOrNull(6)?.toIntOrNull()?.let { f.pointShape = it.coerceIn(0, com.example.cas.graph.Marker.entries.lastIndex) }
             }
         }
+        // Names and data tables, by position (null where there's none).
+        runCatching { org.json.JSONArray(get("extras") ?: "[]") }.getOrNull()?.let { extras ->
+            for (i in 0 until extras.length()) {
+                val o = extras.optJSONObject(i) ?: continue
+                val f = functions.getOrNull(i) ?: continue
+                if (o.has("name")) f.name = o.optString("name")
+                if (o.has("table")) f.table = com.example.cas.graph.DataTable.decode(o.optString("table"))
+            }
+        }
         get("ranges").orEmpty().lines().forEach { line ->
             val bits = line.split('\t')
             if (bits.size == 3) { val lo = bits[1].toDoubleOrNull(); val hi = bits[2].toDoubleOrNull(); if (lo != null && hi != null && lo < hi) ranges[bits[0]] = lo to hi }
@@ -248,6 +264,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         "styles" to functions.joinToString(",") { f -> styleText(f) },
         "slots" to functions.joinToString(",") { it.colorIndex.toString() },
         "notes" to notesJson(),
+        "extras" to extrasJson(),
         "ranges" to ranges.entries.joinToString("\n") { "${it.key}\t${it.value.first}\t${it.value.second}" },
         "parameters" to parameters.entries.joinToString("\n") { "${it.key}\t${it.value}" },
     )
@@ -336,29 +353,6 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         }
         functions += f
         return f
-    }
-
-    /**
-     * Adds each list of points (read from a CSV file) as its own line, written as the list
-     * [(x₁, y₁), (x₂, y₂), …] so it can be edited like a typed one. Returns the number of points.
-     */
-    fun importPoints(lists: List<List<Pair<Double, Double>>>): Int {
-        fun MathRow.number(v: Double) = com.example.cas.graph.Csv.numberText(v).forEach { add(com.example.cas.editor.Sym(it.toString())) }
-        for (points in lists) {
-            if (points.isEmpty()) continue
-            val r = MathRow()
-            r.add(com.example.cas.editor.Sym("["))
-            points.forEachIndexed { i, (x, y) ->
-                if (i > 0) r.add(com.example.cas.editor.Sym(","))
-                r.add(com.example.cas.editor.Sym("(")); r.number(x); r.add(com.example.cas.editor.Sym(",")); r.number(y); r.add(com.example.cas.editor.Sym(")"))
-            }
-            r.add(com.example.cas.editor.Sym("]"))
-            recompile(addFunction(r))
-        }
-        active = null
-        version++
-        save()
-        return lists.sumOf { it.size }
     }
 
     fun add() {
@@ -974,6 +968,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         prefs.edit()
             .putString("${key}_functions", functions.joinToString("\n") { encodeLine(it) })
             .putString("${key}_notes", notesJson())
+            .putString("${key}_extras", extrasJson())
             .putString("${key}_colors", functions.joinToString(",") { f -> f.customColor?.let { (it.toLong() and 0xFFFFFFFFL).toString() } ?: "" })
             .putString("${key}_styles", functions.joinToString(",") { f -> styleText(f) })
             .putString("${key}_slots", functions.joinToString(",") { it.colorIndex.toString() })
@@ -989,6 +984,66 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             put(if (!f.isText) org.json.JSONObject.NULL else org.json.JSONObject().apply { put("text", f.note); put("folder", f.isFolder); put("collapsed", f.collapsed); put("level", f.folderLevel) })
         }
     }.toString()
+
+    /** Names and tables, by position (null for lines with neither). */
+    private fun extrasJson(): String = org.json.JSONArray().apply {
+        functions.forEach { f ->
+            if (f.name == null && f.table == null) put(org.json.JSONObject.NULL)
+            else put(org.json.JSONObject().apply { f.name?.let { put("name", it) }; f.table?.let { put("table", it.encode()) } })
+        }
+    }.toString()
+
+    /** Renames a line in the legend: null goes back to the default name, "" leaves it out of the legend. */
+    fun rename(f: PlotFunction, name: String?) {
+        f.name = name
+        version++
+        save()
+    }
+
+    /**
+     * A list of points' table, made from its points if it has none yet, or if the list was typed
+     * over since (then the other columns can't be matched up, so they go).
+     */
+    fun tableOf(f: PlotFunction): com.example.cas.graph.DataTable {
+        val k = f.plot as? Plot2DKind.PointList
+        val t = f.table
+        if (t != null && (k == null || matches(t, k))) return t
+        return if (k != null) com.example.cas.graph.DataTable.fromPoints(k.xs, k.ys) else com.example.cas.graph.DataTable(listOf("", ""), listOf(listOf(""), listOf("")), 0, 1)
+    }
+
+    private fun matches(t: com.example.cas.graph.DataTable, k: Plot2DKind.PointList): Boolean {
+        val p = t.points()
+        return p.size == k.xs.size && p.indices.all { i -> close(p[i].first, k.xs[i]) && close(p[i].second, k.ys[i]) }
+    }
+
+    private fun close(a: Double, b: Double) = a == b || kotlin.math.abs(a - b) <= 1e-9 * maxOf(1.0, kotlin.math.abs(a))
+
+    /** σ(x) and σ(y) for a list's points, from its table, while the table still matches the list. */
+    fun errorsOf(f: PlotFunction): Pair<DoubleArray?, DoubleArray?> {
+        val k = f.plot as? Plot2DKind.PointList ?: return null to null
+        val t = f.table ?: return null to null
+        return if (matches(t, k)) t.errors() else null to null
+    }
+
+    /** Keeps a table's columns and roles and plots its points. */
+    fun setTable(f: PlotFunction, t: com.example.cas.graph.DataTable) {
+        f.table = t
+        setPoints(f, t.points())
+    }
+
+    /** An imported file as one line: its first column x, its second y (the rest can be picked in the table). */
+    fun importTable(t: com.example.cas.graph.Csv.Table): Int {
+        val table = com.example.cas.graph.DataTable.fromCsv(t)
+        val points = table.points()
+        if (points.isEmpty()) return 0
+        val f = addFunction(MathRow())
+        f.table = table
+        setPoints(f, points)
+        active = null
+        version++
+        save()
+        return points.size
+    }
 
     /** Adds a note (text between lines) or, with [folder], a folder that holds the lines after it. */
     fun addText(folder: Boolean) {

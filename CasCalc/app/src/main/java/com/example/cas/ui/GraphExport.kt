@@ -155,17 +155,25 @@ object SceneExport {
                 val fm = paint.fontMetrics
                 val x = (item.x * s).toFloat(); val y = (item.y * s).toFloat()
                 if (item.angle != 0.0) { canvas.save(); canvas.rotate(-item.angle.toFloat(), x, y) }
-                val runs = item.runs()
-                if (runs.size == 1) {
+                val spans = item.allSpans()
+                if (spans.size == 1 && spans[0].shift == 0 && item.spans == null) {
                     canvas.drawText(item.text, x, y - (fm.ascent + fm.descent) / 2, paint)
                 } else {
-                    // Mixed fonts: each run measured in its own font, the whole placed by the anchor.
-                    val italicPaint = Paint(paint).apply { typeface = fonts.italic }
-                    paint.textAlign = Paint.Align.LEFT; italicPaint.textAlign = Paint.Align.LEFT
-                    val widths = runs.map { (piece, ital) -> (if (ital) italicPaint else paint).measureText(piece) }
+                    // Mixed fonts and sizes: each run measured in its own font and size (exponents and
+                    // indices smaller, raised or lowered), the whole placed by the anchor.
+                    paint.textAlign = Paint.Align.LEFT
+                    val paints = spans.map { sp ->
+                        Paint(paint).apply {
+                            if (sp.italic && item.font != Scene.Font.Italic) typeface = fonts.italic
+                            textSize = (item.size * sp.scale * s).toFloat()
+                        }
+                    }
+                    val widths = spans.mapIndexed { k, sp -> paints[k].measureText(sp.text) }
                     var at = x - when (item.anchor) { Scene.Anchor.Start -> 0f; Scene.Anchor.Middle -> widths.sum() / 2; Scene.Anchor.End -> widths.sum() }
-                    runs.forEachIndexed { k, (piece, ital) ->
-                        canvas.drawText(piece, at, y - (fm.ascent + fm.descent) / 2, if (ital) italicPaint else paint)
+                    spans.forEachIndexed { k, sp ->
+                        val m = paints[k].fontMetrics
+                        val mid = y - (sp.rise * item.size * s).toFloat()
+                        canvas.drawText(sp.text, at, mid - (m.ascent + m.descent) / 2, paints[k])
                         at += widths[k]
                     }
                 }

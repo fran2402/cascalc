@@ -36,6 +36,8 @@ object AppSettings {
     var keypadSide by mutableStateOf(1)
         private set
     var showGrid by mutableStateOf(true)
+    /** A legend with each line's name, on the graphs and in exported ones. */
+    var showLegend by mutableStateOf(true)
         private set
     /** Numbers along the 2D graph's axes. */
     var axisNumbers by mutableStateOf(true)
@@ -102,6 +104,7 @@ object AppSettings {
         keypadSize = p.getInt("keypadSize", 1)
         keypadSide = p.getInt("keypadSide", 1)
         showGrid = p.getBoolean("showGrid", true)
+        showLegend = p.getBoolean("showLegend", true)
         axisNumbers = p.getBoolean("axisNumbers", true)
         numberFormat = p.getInt("numberFormat", 0)
         polarComplex = p.getBoolean("polarComplex", false)
@@ -139,6 +142,7 @@ object AppSettings {
     fun changeKeypadSize(v: Int) { keypadSize = v; save("keypadSize", v) }
     fun changeKeypadSide(v: Int) { keypadSide = v; save("keypadSide", v) }
     fun changeShowGrid(v: Boolean) { showGrid = v; save("showGrid", v) }
+    fun changeShowLegend(v: Boolean) { showLegend = v; save("showLegend", v) }
     fun changeAxisNumbers(v: Boolean) { axisNumbers = v; save("axisNumbers", v) }
     fun changeNumberFormat(v: Int) { numberFormat = v; com.example.cas.engine.Formatter.numberFormat = v; save("numberFormat", v) }
     fun changePolarComplex(v: Boolean) { polarComplex = v; com.example.cas.engine.Formatter.polarComplex = v; save("polarComplex", v) }

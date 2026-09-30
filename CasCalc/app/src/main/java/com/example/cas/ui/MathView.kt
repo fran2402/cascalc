@@ -1,6 +1,9 @@
 package com.example.cas.ui
 
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.layout.onSizeChanged
 
 import androidx.compose.ui.input.pointer.PointerEventPass
 
@@ -334,7 +337,10 @@ fun RowView(row: MathRow, level: Int) {
         }
         parenIndices.forEach { k -> asc = max(asc, axes[k]); desc = max(desc, placeables[k]!!.height - axes[k]) }
         val cursor = cursorM?.measure(Constraints.fixed(2.dp.roundToPx(), max(asc + desc, (em * 1.05f).roundToInt())))
-        val width = placeables.sumOf { it!!.width }
+        val sum = placeables.sumOf { it!!.width }
+        // The whole line with the cursor at its end: room for the cursor, so it isn't cut in half
+        // by a scrolling box that ends where the maths does.
+        val width = if (active && row.parent == null && items.isNotEmpty() && env.cursorIndex >= items.size) sum + (cursor?.width ?: 0) else sum
         layout(width, asc + desc, mapOf(MathBaseline to asc)) {
             var x = 0
             var cursorX = 0
@@ -365,7 +371,22 @@ private fun Cursor(modifier: Modifier) {
         animationSpec = infiniteRepeatable(tween(530, delayMillis = 300), RepeatMode.Reverse),
         label = "alpha",
     )
-    Box(modifier.background(env.accent.copy(alpha = alpha)))
+    // Scrolls a long line (in the calculator or a graph's list) so the cursor stays in sight,
+    // with a little room either side, whenever it moves or the line changes.
+    val bring = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
+    val room = with(LocalDensity.current) { 24.dp.toPx() }
+    var height by remember { androidx.compose.runtime.mutableIntStateOf(1) }
+    androidx.compose.runtime.LaunchedEffect(env.cursorRow, env.cursorIndex, env.version) {
+        // After the layout that moved it.
+        androidx.compose.runtime.withFrameNanos { }
+        runCatching { bring.bringIntoView(androidx.compose.ui.geometry.Rect(-room, 0f, room, height.toFloat())) }
+    }
+    Box(
+        modifier
+            .bringIntoViewRequester(bring)
+            .onSizeChanged { height = it.height.coerceAtLeast(1) }
+            .background(env.accent.copy(alpha = alpha)),
+    )
 }
 
 @Composable

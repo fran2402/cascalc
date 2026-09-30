@@ -67,6 +67,14 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -469,13 +477,90 @@ private fun ColorTrack(label: String, fraction: Float, track: Brush, onChange: (
     }
 }
 
-/** Colors for successive functions; the first two follow the theme. */
+/** Colors for successive functions, all from the theme (Material You's when it's on). */
 @Composable
 fun plotColor(index: Int): Color = plotColors(MaterialTheme.colorScheme)[index % GraphViewModel.PLOT_COLOR_COUNT]
 
-/** The graph colors in a color scheme, in the order functions take them. */
-fun plotColors(c: androidx.compose.material3.ColorScheme): List<Color> =
-    listOf(c.primary, c.tertiary, Color(0xFF4C8DF6), Color(0xFFE8710A), Color(0xFF1E9E54), c.error)
+/**
+ * The graph colors in a color scheme, in the order lines take them when no color has been
+ * picked: primary, tertiary, then the primary's hue round the wheel at the same tone.
+ */
+fun plotColors(c: androidx.compose.material3.ColorScheme): List<Color> {
+    val dark = c.surface.luminance() < 0.5f
+    return TonalScheme.graphColors(c.primary.toArgb(), c.tertiary.toArgb(), dark, GraphViewModel.PLOT_COLOR_COUNT).map { Color(it) }
+}
+
+/** A line's name as written (text with $maths$): the one it was given, or its default. */
+fun legendSource(f: PlotFunction): String =
+    f.name ?: com.example.cas.graph.Legend.defaultSource(f.editor.root, isData = f.plot is Plot2DKind.PointList || f.table != null)
+
+/** One line of the legend on screen: the name (text with $maths$) and how its sample is drawn. */
+class ScreenLegendEntry(
+    val source: String,
+    val color: Color,
+    val line: Boolean = true,
+    val dash: Boolean = false,
+    val marker: com.example.cas.graph.Marker? = null,
+    val fill: Float? = null,
+    /** A colormap's colors (the complex plane) or a surface's shades (3D), as a strip. */
+    val strip: List<Color>? = null,
+)
+
+/**
+ * The legend, SciencePlots-style: a short sample of each line and its name in LaTeX's font,
+ * in the order of the list, on a faint panel so it reads over the graph. Tap it to fold it to
+ * a small "Legend" chip, and again to open it.
+ */
+@Composable
+fun GraphLegend(entries: List<ScreenLegendEntry>, modifier: Modifier = Modifier) {
+    if (!AppSettings.showLegend || entries.isEmpty()) return
+    val colors = MaterialTheme.colorScheme
+    var folded by remember { mutableStateOf(false) }
+    Column(
+        modifier
+            .widthIn(max = 260.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(colors.surface.copy(alpha = 0.82f))
+            .clickable(onClickLabel = if (folded) "Show the legend" else "Fold the legend") { folded = !folded }
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        if (folded) {
+            Text("Legend", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+            return@Column
+        }
+        entries.take(12).forEach { e ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.foundation.Canvas(Modifier.size(width = 24.dp, height = 14.dp)) {
+                    val mid = size.height / 2
+                    e.strip?.let { strip ->
+                        val w = size.width / strip.size
+                        strip.forEachIndexed { k, c -> drawRect(c, topLeft = Offset(k * w, mid - 4.dp.toPx()), size = androidx.compose.ui.geometry.Size(w + 0.5f, 8.dp.toPx())) }
+                    }
+                    e.fill?.let { a -> drawRect(e.color.copy(alpha = a), topLeft = Offset(0f, mid - 5.dp.toPx()), size = androidx.compose.ui.geometry.Size(size.width, 10.dp.toPx())) }
+                    if (e.line) drawLine(
+                        e.color, Offset(0f, mid), Offset(size.width, mid), 2.5.dp.toPx(), cap = StrokeCap.Round,
+                        pathEffect = if (e.dash) PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 3.dp.toPx())) else null,
+                    )
+                    e.marker?.let { m -> drawMarker(m, Offset(size.width / 2, mid), 4.dp.toPx(), e.color) }
+                }
+                Spacer(Modifier.width(8.dp))
+                val row = remember(e.source) { com.example.cas.graph.Legend.row(e.source) }
+                Box(Modifier.horizontalScroll(rememberScrollState())) {
+                    MathView(row, 14.sp, colors.onSurface, modifier = Modifier.semantics { contentDescription = com.example.cas.graph.Legend.plain(e.source) })
+                }
+            }
+        }
+    }
+}
+
+/** A 2D line's legend entry on screen. */
+fun screenLegendEntry2D(f: PlotFunction, color: Color): ScreenLegendEntry = when (f.plot) {
+    is Plot2DKind.PointList, is Plot2DKind.Point ->
+        ScreenLegendEntry(legendSource(f), color, line = f.connectPoints || f.closedShape, marker = com.example.cas.graph.Marker.of(f.pointShape))
+    is Plot2DKind.Region -> ScreenLegendEntry(legendSource(f), color, fill = f.fillOpacity)
+    else -> ScreenLegendEntry(legendSource(f), color, dash = f.lineStyle != 0)
+}
 
 /** Short number for labels: 1.4142, −3, 2.5e+06. */
 fun shortNumber(v: Double): String {
@@ -571,12 +656,15 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             extra = lineOptions(vm, f),
         )
     }
+    var renaming by remember { mutableStateOf(false) }
+    if (renaming) RenameDialog(f, onDone = { name -> vm.rename(f, name); renaming = false }, onDismiss = { renaming = false })
     Column(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
             .background(if (active) colors.surfaceContainerHigh else colors.surfaceContainer)
-            .clickable(onClickLabel = "Edit this function") { vm.edit(f) }
+            // Tap to edit; hold to rename it in the legend.
+            .combinedClickable(onClickLabel = "Edit this function", onLongClickLabel = "Rename", onLongClick = { renaming = true }) { vm.edit(f) }
             .padding(start = 8.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -626,7 +714,9 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             // No "y =", "z =" or "f(z) =": the line is read from what's typed, as in Desmos.
             // Long lines scroll sideways; a swipe that starts on the row's edges (the dot on the
             // left, the × and handle on the right) deletes the line instead.
-            Box(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.weight(1f)) {
+            val viewport = maxWidth
+            Box(Modifier.horizontalScroll(rememberScrollState())) {
                 // A long list (an imported file) shows its start and how many points, until it's edited.
                 val items = f.editor.root.items
                 val shortened = if (!active && items.size > 300) remember(f.version) {
@@ -635,7 +725,13 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
                     MathRow((cut.map { com.example.cas.editor.MathCodec.decode(com.example.cas.editor.MathCodec.encode(MathRow(mutableListOf(it)))).items.single() } +
                         listOf(Sym(","), Sym("…"), Sym("]"))).toMutableList()) to points
                 } else null
-                Column {
+                // At least as wide as the row, so a tap after the end of the maths puts the cursor at
+                // the end of the line (taps on the maths itself are handled by it first).
+                Column(
+                    Modifier.widthIn(min = viewport).pointerInput(f) {
+                        detectTapGestures { if (f.editor.root.items.size <= 300 || vm.active === f) vm.tapAt(f, f.editor.root, f.editor.root.items.size) else vm.edit(f) }
+                    },
+                ) {
                     shortened?.second?.let { n ->
                         Text("$n points", style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
                     }
@@ -652,8 +748,15 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
                     )
                 }
             }
+            }
             // Fit sits at the end of the row once the graph has a list of points.
             if (handle != null && vm.canFit(f)) FitButton(vm, f)
+            // A list of points opens as a table (its columns, x, y and error bars), right here.
+            if (vm.plotVars == listOf("x") && (f.plot is Plot2DKind.PointList || f.table != null)) {
+                IconButton(onClick = { vm.tableFor = f }) {
+                    Icon(Icons.Default.TableChart, contentDescription = "Edit as a table", tint = colors.primary)
+                }
+            }
             IconButton(onClick = { vm.requestRemove(f) }) {
                 Icon(Icons.Default.Close, contentDescription = "Remove", tint = colors.onSurfaceVariant)
             }
@@ -671,6 +774,49 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             Text(it, color = colors.error, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp), modifier = Modifier.padding(start = 48.dp, bottom = 2.dp))
         }
     }
+}
+
+/**
+ * Renaming a line for the legend: text, with maths between dollar signs, shown as it will look.
+ * Empty (or Default) goes back to the line's own name: its maths, or "Data" for a list.
+ */
+@Composable
+private fun RenameDialog(f: PlotFunction, onDone: (String?) -> Unit, onDismiss: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    var text by remember { mutableStateOf(legendSource(f)) }
+    val preview = remember(text) { com.example.cas.graph.Legend.row(text) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Name in the legend") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    singleLine = true,
+                    label = { Text("Name") },
+                    supportingText = { Text("Maths between \$ signs, in LaTeX: \$\\sin x\$") },
+                    textStyle = TextStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 15.sp),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                // How it will look.
+                Box(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.surfaceContainerHighest)
+                        .horizontalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 12.dp),
+                ) {
+                    if (text.isBlank()) Text("(no name: left out of the legend)", color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                    else MathView(preview, 20.sp, colors.onSurface)
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onDone(text.trim()) }) { Text("Save") } },
+        dismissButton = {
+            Row {
+                TextButton(onClick = { onDone(null) }) { Text("Default") }
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+            }
+        },
+    )
 }
 
 /** Desmos-like options for a 2D line: labels on points, joining a list's points, a region's fill opacity. */
@@ -945,15 +1091,8 @@ private fun ReorderableRows(vm: GraphViewModel, hidden: (PlotFunction) -> Boolea
                     .zIndex(if (lifted) 1f else 0f)
                     .offset { IntOffset(0, if (lifted) offset.roundToInt() else 0) }
                     .graphicsLayer { if (lifted) { shadowElevation = 12f; scaleX = 1.02f; scaleY = 1.02f } }
-                    .onGloballyPositioned { heights[f] = it.size.height }
-                    .pointerInput(f) {
-                        detectDragGesturesAfterLongPress(
-                            onDragStart = { tap(); dragging = f; offset = 0f },
-                            onDragEnd = { dragging = null; offset = 0f },
-                            onDragCancel = { dragging = null; offset = 0f },
-                            onDrag = { change, amount -> change.consume(); dragBy(f, amount.y) },
-                        )
-                    },
+                    // (Holding a line renames it; lines move by their handle.)
+                    .onGloballyPositioned { heights[f] = it.size.height },
             ) {
                 SwipeToRemove(onRemove = { vm.requestRemove(f) }, asks = { AppSettings.confirmDeleteEntry }) { row(f, handle) }
             }
@@ -1149,73 +1288,165 @@ private fun TextRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
 @Composable
 private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    val kind = f.plot as? Plot2DKind.PointList
-    val rows = remember(f) {
-        androidx.compose.runtime.mutableStateListOf<Pair<String, String>>().apply {
-            if (kind != null) kind.xs.indices.forEach { add(com.example.cas.graph.Csv.numberText(kind.xs[it]).replace("−", "-") to com.example.cas.graph.Csv.numberText(kind.ys[it]).replace("−", "-")) }
-            while (size < 3) add("" to "")
-        }
+    val start = remember(f) { vm.tableOf(f) }
+    // Columns of cells, all kept the same length; roles are column positions.
+    val names = remember(f) { androidx.compose.runtime.mutableStateListOf(*start.names.let { n -> List(start.columns.size) { n.getOrElse(it) { "" } } }.toTypedArray()) }
+    val cells = remember(f) {
+        androidx.compose.runtime.mutableStateListOf(*start.columns.map { c ->
+            androidx.compose.runtime.mutableStateListOf(*List(maxOf(start.rowCount, 1)) { r -> c.getOrElse(r) { "" } }.toTypedArray())
+        }.toTypedArray())
     }
-    fun num(t: String) = t.trim().replace("−", "-").replace(",", ".").toDoubleOrNull()?.takeIf { it.isFinite() }
-    val filled = rows.filter { it.first.isNotBlank() || it.second.isNotBlank() }
-    val bad = filled.count { num(it.first) == null || num(it.second) == null }
-    val valid = filled.isNotEmpty() && bad == 0
+    var roleX by remember(f) { mutableStateOf(start.x) }
+    var roleY by remember(f) { mutableStateOf(start.y) }
+    var roleSx by remember(f) { mutableStateOf(start.sigmaX) }
+    var roleSy by remember(f) { mutableStateOf(start.sigmaY) }
+    val rows = cells.maxOfOrNull { it.size } ?: 0
+    fun table() = com.example.cas.graph.DataTable(names.toList(), cells.map { it.toList() }, roleX, roleY, roleSx, roleSy)
+    val current = table()
+    val points = current.points().size
+    val bad = current.badCells()
+    fun roleOf(c: Int) = when (c) { roleX -> "x"; roleY -> "y"; roleSx -> "σx"; roleSy -> "σy"; else -> null }
+    /** One role per column and one column per role. */
+    fun assign(c: Int, role: String?) {
+        if (roleX == c) roleX = null; if (roleY == c) roleY = null; if (roleSx == c) roleSx = null; if (roleSy == c) roleSy = null
+        when (role) { "x" -> roleX = c; "y" -> roleY = c; "σx" -> roleSx = c; "σy" -> roleSy = c }
+    }
+    fun addRow() = cells.forEach { it.add("") }
+    fun addColumn() { names.add(""); cells.add(androidx.compose.runtime.mutableStateListOf(*Array(maxOf(rows, 1)) { "" })) }
+    fun removeRow(r: Int) { if (rows > 1) cells.forEach { if (r < it.size) it.removeAt(r) } }
+    fun removeColumn(c: Int) {
+        if (cells.size <= 1) return
+        assign(c, null)
+        names.removeAt(c); cells.removeAt(c)
+        fun shift(k: Int?) = k?.let { if (it > c) it - 1 else it }
+        roleX = shift(roleX); roleY = shift(roleY); roleSx = shift(roleSx); roleSy = shift(roleSy)
+    }
     val list = androidx.compose.foundation.lazy.rememberLazyListState()
+    val across = rememberScrollState()
     val scope = rememberCoroutineScope()
-    AlertDialog(
+    val cellWidth = 104.dp
+    androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
-        title = { Text("Table · ${filled.size} points") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("#", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.width(40.dp))
-                    Text("x", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 20.sp), modifier = Modifier.weight(1f).padding(start = 8.dp))
-                    Text("y", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 20.sp), modifier = Modifier.weight(1f).padding(start = 8.dp))
-                    Spacer(Modifier.width(36.dp))
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = colors.surface) {
+            Column(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
+                // Top bar: close, title with the count, Done.
+                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close without saving") }
+                    Column(Modifier.weight(1f)) {
+                        Text("Data table", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            if (roleY == null) "Pick a y column" else "$points point${if (points == 1) "" else "s"} · ${cells.size} column${if (cells.size == 1) "" else "s"}" +
+                                if (bad > 0) " · $bad not numbers" else "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (bad > 0 || roleY == null) colors.error else colors.onSurfaceVariant,
+                        )
+                    }
+                    androidx.compose.material3.Button(enabled = roleY != null && points > 0, onClick = { vm.setTable(f, table()); onDismiss() }, modifier = Modifier.padding(end = 8.dp)) { Text("Done") }
                 }
-                androidx.compose.foundation.lazy.LazyColumn(state = list, modifier = Modifier.heightIn(max = 380.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    items(rows.size) { i ->
-                        val (x, y) = rows[i]
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text("${i + 1}", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.width(34.dp))
-                            TableCell(x, x.isNotBlank() && num(x) == null, Modifier.weight(1f)) { rows[i] = it to rows[i].second }
-                            TableCell(y, y.isNotBlank() && num(y) == null, Modifier.weight(1f)) { rows[i] = rows[i].first to it }
-                            IconButton(onClick = { rows.removeAt(i) }, modifier = Modifier.size(32.dp)) {
-                                Icon(Icons.Default.Close, contentDescription = "Remove row ${i + 1}", tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                Text(
+                    "Tap a column's role to choose x, y, σ(x) or σ(y). Columns without a role are kept but not plotted.",
+                    style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+                )
+                // Column headers: role, name, remove. They scroll sideways with the cells.
+                Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.Bottom) {
+                    Spacer(Modifier.width(44.dp))
+                    Row(Modifier.weight(1f).horizontalScroll(across), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        cells.indices.forEach { c ->
+                            Column(Modifier.width(cellWidth), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                RoleChip(roleOf(c), onPick = { assign(c, it) }, onRemove = if (cells.size > 1) ({ removeColumn(c) }) else null)
+                                androidx.compose.foundation.text.BasicTextField(
+                                    value = names[c], onValueChange = { names[c] = it }, singleLine = true,
+                                    textStyle = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp, color = colors.onSurfaceVariant),
+                                    cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.primary),
+                                    decorationBox = { inner -> Box { if (names[c].isEmpty()) Text("Column ${c + 1}", style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp, color = colors.outline)); inner() } },
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Spacer(Modifier.width(40.dp))
+                }
+                androidx.compose.material3.HorizontalDivider(Modifier.padding(top = 6.dp))
+                androidx.compose.foundation.lazy.LazyColumn(state = list, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(vertical = 6.dp)) {
+                    items(rows, key = { it }) { r ->
+                        Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("${r + 1}", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.width(44.dp).padding(start = 12.dp))
+                            Row(Modifier.weight(1f).horizontalScroll(across), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                cells.forEachIndexed { c, col ->
+                                    val t = col.getOrElse(r) { "" }
+                                    val used = roleOf(c) != null
+                                    TableCell(t, used && t.isNotBlank() && com.example.cas.graph.DataTable.number(t) == null, Modifier.width(cellWidth), faded = !used) { col[r] = it }
+                                }
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            IconButton(onClick = { removeRow(r) }, modifier = Modifier.size(40.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = "Remove row ${r + 1}", tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
                             }
                         }
                     }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { rows.add("" to ""); scope.launch { list.animateScrollToItem(rows.lastIndex) } }) {
-                        Icon(Icons.Default.Add, contentDescription = null)
-                        Spacer(Modifier.width(6.dp))
-                        Text("Row")
+                // Add a row (scrolls to it) or a column.
+                Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.material3.FilledTonalButton(onClick = { addRow(); scope.launch { list.animateScrollToItem(maxOf(0, (cells.maxOfOrNull { it.size } ?: 1) - 1)) } }) {
+                        Icon(Icons.Default.Add, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Row")
                     }
-                    Spacer(Modifier.weight(1f))
-                    if (bad > 0) Text("$bad not numbers", style = MaterialTheme.typography.bodySmall, color = colors.error)
+                    androidx.compose.material3.OutlinedButton(onClick = { addColumn(); scope.launch { across.animateScrollTo(across.maxValue + 10_000) } }) {
+                        Icon(Icons.Default.Add, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Column")
+                    }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(enabled = valid, onClick = {
-                vm.setPoints(f, filled.map { num(it.first)!! to num(it.second)!! })
-                onDismiss()
-            }) { Text("Done") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
+        }
+    }
+}
+
+/** A column's role in the table: x, y, σ(x), σ(y) or none, chosen from a menu (which can also remove the column). */
+@Composable
+private fun RoleChip(role: String?, onPick: (String?) -> Unit, onRemove: (() -> Unit)?) {
+    val colors = MaterialTheme.colorScheme
+    var open by remember { mutableStateOf(false) }
+    val (bg, fg) = when (role) {
+        "x" -> colors.primary to colors.onPrimary
+        "y" -> colors.tertiary to colors.onTertiary
+        "σx", "σy" -> colors.secondaryContainer to colors.onSecondaryContainer
+        else -> colors.surfaceContainerHigh to colors.onSurfaceVariant
+    }
+    fun label(r: String?) = when (r) { "σx" -> "σ(x)"; "σy" -> "σ(y)"; null -> "Not used"; else -> r }
+    Box {
+        Row(
+            Modifier.fillMaxWidth().height(32.dp).clip(CircleShape).background(bg).clickable(onClickLabel = "Choose this column's role") { open = true }.padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                label(role), color = fg, modifier = Modifier.weight(1f),
+                style = if (role == null) MaterialTheme.typography.labelMedium else TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 17.sp),
+            )
+            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = fg, modifier = Modifier.size(18.dp))
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            listOf("x", "y", "σx", "σy", null).forEach { r ->
+                DropdownMenuItem(text = { Text(if (r == null) "Not used" else label(r) + when (r) { "x" -> "  (across)"; "y" -> "  (up)"; else -> "  (error bars)" }) }, onClick = { open = false; onPick(r) })
+            }
+            if (onRemove != null) {
+                androidx.compose.material3.HorizontalDivider()
+                DropdownMenuItem(text = { Text("Remove column", color = colors.error) }, onClick = { open = false; onRemove() })
+            }
+        }
+    }
 }
 
 /** One cell of the table: a compact number field, red-edged when it isn't a number. */
 @Composable
-private fun TableCell(text: String, error: Boolean, modifier: Modifier, onChange: (String) -> Unit) {
+private fun TableCell(text: String, error: Boolean, modifier: Modifier, faded: Boolean = false, onChange: (String) -> Unit) {
     val colors = MaterialTheme.colorScheme
     androidx.compose.foundation.text.BasicTextField(
         value = text,
         onValueChange = onChange,
         singleLine = true,
-        textStyle = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = colors.onSurface),
+        textStyle = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = if (faded) colors.onSurfaceVariant else colors.onSurface),
         cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.primary),
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
         modifier = modifier

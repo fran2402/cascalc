@@ -106,6 +106,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Calculate
+import androidx.compose.material.icons.outlined.Pin
+import androidx.compose.material.icons.automirrored.outlined.ShowChart
+import androidx.compose.material.icons.outlined.TouchApp
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Backspace
@@ -1215,7 +1221,7 @@ private fun ConstantsSheet(units: UnitSystem, onPick: (String) -> Unit, onDismis
 
 
 @Composable
-private fun SettingsSection(title: String) =
+internal fun SettingsSection(title: String) =
     Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
 
 @Composable
@@ -1292,78 +1298,79 @@ private fun SettingsChoice(title: String, options: List<String>, selected: Int, 
 @Composable
 fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAcknowledgements: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    // A full-screen page, not a popup.
-    FullScreenPage("Settings", onBack = onBack) {
-            run {
-                SettingsSection("Appearance")
-                SettingsChoice("Theme", listOf("System", "Light", "Dark"), AppSettings.theme, AppSettings::changeTheme)
-                val wallpaperColors = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
-                if (wallpaperColors) {
-                    SettingsToggle("Colors from your wallpaper", "Material You dynamic color", AppSettings.dynamicColor, AppSettings::changeDynamicColor)
-                }
-                // Without Material You, the colors grow from one you choose.
-                if (!wallpaperColors || !AppSettings.dynamicColor) ThemeColorChoice()
-                SettingsChoice("Maths size", listOf("Small", "Medium", "Large"), AppSettings.mathSize, AppSettings::changeMathSize)
-                SettingsChoice("Keypad size", listOf("Compact", "Medium", "Tall"), AppSettings.keypadSize, AppSettings::changeKeypadSize)
-                // Tablets (and unfolded foldables) put the keyboard beside the maths.
-                SettingsChoice("Keyboard side on tablets", listOf("Left", "Right"), AppSettings.keypadSide, AppSettings::changeKeypadSide)
-                SettingsToggle("Expressive motion", "Springy animations; off for calmer ones", AppSettings.expressiveMotion, AppSettings::changeExpressiveMotion)
-
-                SettingsSection("Calculator")
-                SettingsToggle("Live answer", "The result under what you're typing", AppSettings.livePreview, AppSettings::changeLivePreview)
-                SettingsToggle("Continue from the answer", "An operator after = starts with Ans", AppSettings.continueFromAnswer, AppSettings::changeContinueFromAnswer)
-                SettingsToggle("Explanations on long-press", "Formula, theory and how to use each key", AppSettings.keyHelp, AppSettings::changeKeyHelp)
-
-                SettingsSection("History")
-                SettingsChoice("History keeps", listOf("50", "100", "500", "All"), when (AppSettings.historyLimit) { 50 -> 0; 100 -> 1; 500 -> 2; else -> 3 }) {
-                    AppSettings.changeHistoryLimit(listOf(50, 100, 500, 0)[it])
-                }
-                SettingsToggle("Ask before clearing history", null, AppSettings.confirmClearHistory, AppSettings::changeConfirmClearHistory)
-                SettingsToggle("Ask before deleting", "A calculation, or a line in a graph", AppSettings.confirmDeleteEntry, AppSettings::changeConfirmDeleteEntry)
-
-                SettingsSection("Numbers")
-                if (vm != null) Column {
-                    Text("${vm.digits} significant digits", color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
-                    ExpressiveSlider(
-                        value = vm.digits.toFloat(),
-                        onValueChange = { vm.changeDigits(it.roundToInt()) },
-                        valueRange = 4f..15f,
-                        steps = 10,
-                        modifier = Modifier.semantics { contentDescription = "Significant digits" },
-                    )
-                }
-                if (vm != null) SettingsToggle("Show decimals first", "The exact form stays one tap away", vm.decimalFirst, vm::changeDecimalFirst)
-                SettingsToggle("Group digits", "1 000 000 rather than 1000000", AppSettings.groupDigits, AppSettings::changeGroupDigits)
-                SettingsChoice("Number format", listOf("Auto", "Scientific", "Engineering"), AppSettings.numberFormat, AppSettings::changeNumberFormat)
-                SettingsChoice("Complex decimals", listOf("a + bi", "Polar"), if (AppSettings.polarComplex) 1 else 0) { AppSettings.changePolarComplex(it == 1) }
-
-                SettingsSection("Graphs")
-                SettingsToggle("Grid lines", "The axes always show", AppSettings.showGrid, AppSettings::changeShowGrid)
-                SettingsToggle("Mark points on curves", "Zeros, extrema and crossings of the tapped curve", AppSettings.specialPoints, AppSettings::changeSpecialPoints)
-                SettingsChoice("Starting view", listOf("±5", "±10", "±20"), when (AppSettings.viewHalfWidth) { 5 -> 0; 20 -> 2; else -> 1 }) {
-                    AppSettings.changeViewHalfWidth(listOf(5, 10, 20)[it])
-                }
-                SettingsChoice("Complex plot quality", listOf("Standard", "High"), AppSettings.complexQuality, AppSettings::changeComplexQuality)
-                SettingsChoice("3D surface detail", listOf("Low", "Medium", "High"), AppSettings.surfaceDetail, AppSettings::changeSurfaceDetail)
-
-                SettingsSection("Touch and screen")
-                SettingsToggle("Haptic feedback", "A tap on each key and button", AppSettings.haptics, AppSettings::changeHaptics)
-                SettingsToggle("Key sounds", "A click on each key (uses the system's touch sounds)", AppSettings.keySounds, AppSettings::changeKeySounds)
-                SettingsToggle("Keep the screen on", "While the app is open", AppSettings.keepScreenOn, AppSettings::changeKeepScreenOn)
-
-                SettingsSection("About")
-                Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = "Open the acknowledgements") { onAcknowledgements() }.padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Acknowledgements", color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
-                        Text("Fonts, libraries, data and methods, with links", color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                    }
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.onSurfaceVariant)
-                }
+    val tablet = isTabletLayout()
+    // One scrolling page on a phone; on a tablet, the sections down the left and one at a time on the right.
+    SectionedPage("Settings", onBack = onBack, sections = listOf(
+        PageSection("Appearance", Icons.Outlined.Palette) {
+            SettingsChoice("Theme", listOf("System", "Light", "Dark"), AppSettings.theme, AppSettings::changeTheme)
+            val wallpaperColors = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+            if (wallpaperColors) {
+                SettingsToggle("Colors from your wallpaper", "Material You dynamic color", AppSettings.dynamicColor, AppSettings::changeDynamicColor)
             }
-    }
+            // Without Material You, the colors grow from one you choose.
+            if (!wallpaperColors || !AppSettings.dynamicColor) ThemeColorChoice()
+            SettingsChoice("Maths size", listOf("Small", "Medium", "Large"), AppSettings.mathSize, AppSettings::changeMathSize)
+            SettingsChoice("Keypad size", listOf("Compact", "Medium", "Tall"), AppSettings.keypadSize, AppSettings::changeKeypadSize)
+            // Only on tablets (and unfolded foldables), where the keyboard sits beside the maths.
+            if (tablet) SettingsChoice("Keyboard side", listOf("Left", "Right"), AppSettings.keypadSide, AppSettings::changeKeypadSide)
+            SettingsToggle("Expressive motion", "Springy animations; off for calmer ones", AppSettings.expressiveMotion, AppSettings::changeExpressiveMotion)
+        },
+        PageSection("Calculator", Icons.Outlined.Calculate) {
+            SettingsToggle("Live answer", "The result under what you're typing", AppSettings.livePreview, AppSettings::changeLivePreview)
+            SettingsToggle("Continue from the answer", "An operator after = starts with Ans", AppSettings.continueFromAnswer, AppSettings::changeContinueFromAnswer)
+            SettingsToggle("Explanations on long-press", "Formula, theory and how to use each key", AppSettings.keyHelp, AppSettings::changeKeyHelp)
+        },
+        PageSection("History", Icons.Outlined.History) {
+            SettingsChoice("History keeps", listOf("50", "100", "500", "All"), when (AppSettings.historyLimit) { 50 -> 0; 100 -> 1; 500 -> 2; else -> 3 }) {
+                AppSettings.changeHistoryLimit(listOf(50, 100, 500, 0)[it])
+            }
+            SettingsToggle("Ask before clearing history", null, AppSettings.confirmClearHistory, AppSettings::changeConfirmClearHistory)
+            SettingsToggle("Ask before deleting", "A calculation, or a line in a graph", AppSettings.confirmDeleteEntry, AppSettings::changeConfirmDeleteEntry)
+        },
+        PageSection("Numbers", Icons.Outlined.Pin) {
+            if (vm != null) Column {
+                Text("${vm.digits} significant digits", color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
+                ExpressiveSlider(
+                    value = vm.digits.toFloat(),
+                    onValueChange = { vm.changeDigits(it.roundToInt()) },
+                    valueRange = 4f..15f,
+                    steps = 10,
+                    modifier = Modifier.semantics { contentDescription = "Significant digits" },
+                )
+            }
+            if (vm != null) SettingsToggle("Show decimals first", "The exact form stays one tap away", vm.decimalFirst, vm::changeDecimalFirst)
+            SettingsToggle("Group digits", "1 000 000 rather than 1000000", AppSettings.groupDigits, AppSettings::changeGroupDigits)
+            SettingsChoice("Number format", listOf("Auto", "Scientific", "Engineering"), AppSettings.numberFormat, AppSettings::changeNumberFormat)
+            SettingsChoice("Complex decimals", listOf("a + bi", "Polar"), if (AppSettings.polarComplex) 1 else 0) { AppSettings.changePolarComplex(it == 1) }
+        },
+        PageSection("Graphs", Icons.AutoMirrored.Outlined.ShowChart) {
+            SettingsToggle("Grid lines", "The axes always show", AppSettings.showGrid, AppSettings::changeShowGrid)
+            SettingsToggle("Legend", "Each line's name in the corner, and in exports. Hold a line to rename it", AppSettings.showLegend, AppSettings::changeShowLegend)
+            SettingsToggle("Mark points on curves", "Zeros, extrema and crossings of the tapped curve", AppSettings.specialPoints, AppSettings::changeSpecialPoints)
+            SettingsChoice("Starting view", listOf("±5", "±10", "±20"), when (AppSettings.viewHalfWidth) { 5 -> 0; 20 -> 2; else -> 1 }) {
+                AppSettings.changeViewHalfWidth(listOf(5, 10, 20)[it])
+            }
+            SettingsChoice("Complex plot quality", listOf("Standard", "High"), AppSettings.complexQuality, AppSettings::changeComplexQuality)
+            SettingsChoice("3D surface detail", listOf("Low", "Medium", "High"), AppSettings.surfaceDetail, AppSettings::changeSurfaceDetail)
+        },
+        PageSection("Touch and screen", Icons.Outlined.TouchApp) {
+            SettingsToggle("Haptic feedback", "A tap on each key and button", AppSettings.haptics, AppSettings::changeHaptics)
+            SettingsToggle("Key sounds", "A click on each key (uses the system's touch sounds)", AppSettings.keySounds, AppSettings::changeKeySounds)
+            SettingsToggle("Keep the screen on", "While the app is open", AppSettings.keepScreenOn, AppSettings::changeKeepScreenOn)
+        },
+        PageSection("About", Icons.Outlined.Info) {
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = "Open the acknowledgements") { onAcknowledgements() }.padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Acknowledgements", color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
+                    Text("Fonts, libraries, data and methods, with links", color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                }
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.onSurfaceVariant)
+            }
+        },
+    ))
 }
 
 /** Shares a bitmap through the system share sheet, via a file in the cache. */

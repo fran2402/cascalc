@@ -103,7 +103,17 @@ fun ComplexScreen(vm: ComplexViewModel, modifier: Modifier = Modifier) {
             ComplexCanvas(vm, Modifier.fillMaxSize())
             // (Top left holds the contour result, bottom right the toolbar.)
             GraphBottomBar(vm, Modifier.align(Alignment.BottomCenter), onExport = { if (vm.view != null) exporting = true }, tools = { PlotTools(vm) })
-            vm.contourResult?.let { ContourCard(it, onClose = vm::clearContour, modifier = Modifier.align(Alignment.TopStart).padding(12.dp)) }
+            // Top left: the contour result, and the legend under it.
+            Column(Modifier.align(Alignment.TopStart).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                vm.contourResult?.let { ContourCard(it, onClose = vm::clearContour) }
+                val version = vm.version
+                GraphLegend(remember(version, vm.plotted) {
+                    complexLegendLines(vm).map { fn ->
+                        if (fn === vm.plotted) ScreenLegendEntry(legendSource(fn), Color.White, line = false, strip = colormapStops(fn.colormap, 7, fn.colormapReversed))
+                        else ScreenLegendEntry(legendSource(fn), complexLineColor(fn))
+                    }
+                })
+            }
         }
     }
 }
@@ -229,7 +239,8 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
                 }
             }
             // Curves, outlined so they show on any colour.
-            curves.forEach { (lineColor, segs) ->
+            // The first line in the list last, so it's on top.
+            curves.asReversed().forEach { (lineColor, segs) ->
                 val path = Path()
                 segs.forEach { sg ->
                     path.moveTo(((sg[0] - v.xMin) / v.width * size.width).toFloat(), ((v.yMax - sg[1]) / v.height * size.height).toFloat())
@@ -239,7 +250,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
                 drawPath(path, lineColor, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
             }
             // Typed contour integrals: the circle, an arrow showing it runs anticlockwise, and the value.
-            vm.functions.filter { it.visible && it.contour != null }.forEach { fn ->
+            vm.functions.filter { it.visible && it.contour != null }.asReversed().forEach { fn ->
                 val c = fn.contour!!
                 // Its own plain color, white unless one was picked.
                 val lineColor = complexLineColor(fn)
@@ -399,12 +410,12 @@ internal fun complexScene(vm: ComplexViewModel, view: Viewport, size: Double, da
         scene.add(Scene.Stroke(paths, halo, 3.0))
         scene.add(Scene.Stroke(paths, color, 1.3))
     }
-    vm.functions.filter { it.visible && it.complexCurve != null }.forEach { fn ->
+    vm.functions.filter { it.visible && it.complexCurve != null }.asReversed().forEach { fn ->
         val g = fn.complexCurve!!
         val segs = runCatching { com.example.cas.graph.Curves.implicit({ x, y -> vm.call(fn, g, x, y) }, v, 200, 200) }.getOrNull() ?: return@forEach
         outlined(segs.map { sg -> doubleArrayOf(sx(sg[0]), sy(sg[1]), sx(sg[2]), sy(sg[3])) }, complexLineColor(fn).toArgb())
     }
-    vm.functions.filter { it.visible && it.contour != null }.forEach { fn ->
+    vm.functions.filter { it.visible && it.contour != null }.asReversed().forEach { fn ->
         val cc = fn.contour!!
         val cx = sx(cc.centerRe); val cy = sy(cc.centerIm)
         val rx = cc.radius / v.width * frame.width; val ry = cc.radius / v.height * frame.height
@@ -425,8 +436,20 @@ internal fun complexScene(vm: ComplexViewModel, view: Viewport, size: Double, da
     scene.add(Scene.ClipEnd)
     // Re and Im upright, z and i in math italic, as LaTeX sets them.
     Pgf.axes(scene, v, frame, style, xName = "Re z", yName = "Im z", ySuffix = "i", nameFont = Scene.Font.Roman, italic = setOf('z', 'i'))
+    if (AppSettings.showLegend) {
+        val entries = complexLegendLines(vm).map { fn ->
+            val spans = com.example.cas.graph.Legend.spans(com.example.cas.graph.Legend.row(legendSource(fn)))
+            if (fn === f) Pgf.LegendEntry(spans, style.ink, line = false, strip = (0..7).map { k -> 0xFF000000.toInt() or fn.colormap.rgb(if (fn.colormapReversed) 1 - k / 7.0 else k / 7.0) })
+            else Pgf.LegendEntry(spans, complexLineColor(fn).toArgb(), width = 1.3)
+        }
+        Pgf.legend(scene, frame, style, entries, panel = (style.background and 0xFFFFFF) or 0xD9000000.toInt())
+    }
     return scene
 }
+
+/** The complex plane's lines in the legend: the coloured function, then curves and ∮ loops. */
+internal fun complexLegendLines(vm: ComplexViewModel): List<PlotFunction> =
+    vm.functions.filter { fn -> fn.visible && !fn.isText && (fn === vm.plotted || fn.complexCurve != null || fn.contour != null) && legendSource(fn).isNotBlank() }
 
 @Composable
 internal fun ToolToggle(icon: ImageVector, label: String, on: Boolean, onClick: () -> Unit) {
@@ -446,7 +469,7 @@ internal fun ToolToggle(icon: ImageVector, label: String, on: Boolean, onClick: 
 }
 
 @Composable
-private fun ContourCard(integral: CD, onClose: () -> Unit, modifier: Modifier) {
+private fun ContourCard(integral: CD, onClose: () -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     val residues = DomainColoring.residueSum(integral)
     Row(

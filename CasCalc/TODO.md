@@ -2,9 +2,15 @@
 
 From the list of 28 September, in the order I'd tackle them.
 
-Nothing left from the list. New ideas go here.
+- Tablets: a crash was reported with the complex, trig and log keys. I couldn't find the cause
+  from the code (no device here); the app now shows the stack trace after a crash, with Copy.
+  Send it to fix this.
 
 ## Done
+- Round of 30 September: legend and line names, data tables with column roles and error
+  bars, SciencePlots export colours, theme line colours, first line on top everywhere, cursor
+  scrolling and tap-at-end, product keys take the operand before, limits with fractional
+  powers, tablet settings and acknowledgements, crash report.
 - Round of 29 September (sixth): tablet layout with the keyboard on a chosen side (calculator
   and all three graph modes), scrolling data tables, taps beside constructions, sideways
   scrolling lines with edge swipes, first line on top, italic z and i in complex exports,

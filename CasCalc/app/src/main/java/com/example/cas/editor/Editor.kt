@@ -6,6 +6,7 @@ package com.example.cas.editor
  * expression can be evaluated or drawn at any moment.
  */
 class Editor(initial: MathRow = MathRow()) {
+
     var root: MathRow = initial
         private set
     var row: MathRow = initial
@@ -120,6 +121,21 @@ class Editor(initial: MathRow = MathRow()) {
     // ---- Insertion ------------------------------------------------------
 
     fun insert(node: Node, enterSlot: Int? = null) {
+        // u·v, u×v, ∘ and ⊗ right after a matrix (or a letter, or a bracketed group): that is the
+        // first operand, and the cursor goes on to the second box, rather than giving □·□.
+        if (node is Func && node.name in PRODUCTS && enterSlot == 0) {
+            val take = operandBefore()
+            if (take > 0) {
+                record()
+                val start = index - take
+                repeat(take) { node.args[0].add(row.removeAt(start)) }
+                row.add(start, node)
+                row = node.args[1]
+                index = 0
+                changed()
+                return
+            }
+        }
         record()
         row.add(index, node)
         index++
@@ -128,6 +144,31 @@ class Editor(initial: MathRow = MathRow()) {
             index = row.items.size
         }
         changed()
+    }
+
+    /**
+     * How many items just before the cursor make one operand for a product key: a matrix (with
+     * any ⁻¹, ᵀ after it), a bracketed group, or a single letter. 0 if there's none.
+     */
+    private fun operandBefore(): Int {
+        var k = index
+        while (k > 0 && row.items[k - 1] is Pow) k--
+        val prev = row.items.getOrNull(k - 1) ?: return 0
+        val start = when {
+            prev is Matrix -> k - 1
+            prev is Sym && prev.text == ")" -> {
+                var depth = 0
+                var j = k - 1
+                while (j >= 0) {
+                    when ((row.items[j] as? Sym)?.text) { ")" -> depth++; "(" -> { depth--; if (depth == 0) break } }
+                    j--
+                }
+                if (j < 0) return 0 else j
+            }
+            prev is Sym && prev.text.length == 1 && prev.text[0].isLetter() && k == index -> k - 1
+            else -> return 0
+        }
+        return index - start
     }
 
     /** Pairs that combine as they're typed: <= and =< give ≤, >= and => give ≥. */
@@ -345,6 +386,9 @@ class Editor(initial: MathRow = MathRow()) {
     }
 
     companion object {
+        /** Products whose key takes what's before the cursor as the first operand. */
+        private val PRODUCTS = setOf("dot", "cross", "hadamard", "kron")
+
         private val OPERATORS = setOf("+", "−", "×", "÷", "mod", ",", "(", "=", ":=", "→", "<", ">", "≤", "≥")
 
         fun endsOperand(n: Node): Boolean = when (n) {
