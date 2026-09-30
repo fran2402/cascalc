@@ -55,6 +55,9 @@ fun AppScreen() {
         prefs.edit().putString("mode", m.name).apply()
     }
 
+    // A graph file the app was opened with: imported, opened, and its mode shown.
+    OpenGraphFileEffect(mapOf(Mode.Graph2D to graph2d, Mode.Graph3D to graph3d, Mode.Complex to complex), onSwitch = switchTo)
+
     Column(Modifier.fillMaxSize().background(colors.surface).systemBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {

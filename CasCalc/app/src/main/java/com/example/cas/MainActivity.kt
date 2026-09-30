@@ -14,6 +14,7 @@ class MainActivity : ComponentActivity() {
         com.example.cas.ui.CrashLog.install(this)
         com.example.cas.ui.AppSettings.init(this)
         com.example.cas.ui.SceneExport.installMetrics(this)
+        openedFile(intent)
         setContent {
             CasTheme {
                 // Keep the screen on while the app is open, if chosen in settings.
@@ -25,5 +26,15 @@ class MainActivity : ComponentActivity() {
                 com.example.cas.ui.CrashReportDialog()
             }
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        openedFile(intent)
+    }
+
+    /** A graph file opened from elsewhere (a file manager, an attachment): the app imports it. */
+    private fun openedFile(intent: android.content.Intent?) {
+        if (intent?.action == android.content.Intent.ACTION_VIEW) intent.data?.let { com.example.cas.ui.OpenedGraphFile.uri = it }
     }
 }

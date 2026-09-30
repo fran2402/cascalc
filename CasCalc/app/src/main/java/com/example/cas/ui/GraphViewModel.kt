@@ -339,6 +339,22 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     }
 
     /** Saves the graph as it is now under [name]; saving over an existing name replaces it. */
+    /** The graph on screen as a saved graph's data, for a graph file. */
+    fun graphData(): Map<String, String> = currentData()
+
+    /** A graph from a file, added to the saved graphs (its name made unique) and returned. */
+    fun importProject(name: String, data: Map<String, String>): Project {
+        var clean = name.trim().ifEmpty { "Imported graph" }
+        val base = clean
+        var n = 2
+        while (projects.any { it.name == clean }) clean = "$base ($n)".also { n++ }
+        val now = System.currentTimeMillis()
+        val p = Project(now, clean, now, data)
+        projects.add(0, p)
+        storeProjects()
+        return p
+    }
+
     fun saveProject(name: String) {
         val clean = name.trim().ifEmpty { "Graph ${projects.size + 1}" }
         val existing = projects.firstOrNull { it.name == clean }

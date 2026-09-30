@@ -97,7 +97,12 @@ fun ComplexScreen(vm: ComplexViewModel, modifier: Modifier = Modifier) {
     val build = { r: ExportRequest -> complexScene(vm, r.view, EXPORT_SIZE, r.dark, quick = r.preview) }
     val export = rememberGraphExporter("complex-plot", build)
     val shownView = vm.view
-    if (exporting && shownView != null) ExportDialog(shownView, build, onExport = { r, share -> exporting = false; export(r, share) }, onDismiss = { exporting = false })
+    val writeFile = rememberGraphFileWriter()
+    if (exporting && shownView != null) ExportDialog(
+        shownView, build, onExport = { r, share -> exporting = false; export(r, share) }, onDismiss = { exporting = false },
+        graphFile = com.example.cas.graph.GraphFile.Kind.Complex,
+        onGraphFile = { share -> exporting = false; writeFile(com.example.cas.graph.GraphFile.Contents(com.example.cas.graph.GraphFile.Kind.Complex, "complex-plot", vm.graphData()), share) },
+    )
     GraphScaffold(vm, outputLabel = "f(z)", modifier = modifier) {
         Box(Modifier.fillMaxSize().onSizeChanged { plotSize = it }) {
             ComplexCanvas(vm, Modifier.fillMaxSize())

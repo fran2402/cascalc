@@ -1059,8 +1059,9 @@ private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable andro
                 Text("Filled", modifier = Modifier.weight(1f), color = colors.onSurface)
                 androidx.compose.material3.Switch(checked = filled, onCheckedChange = { vm.setOptions(f, shape = current.filled(it).ordinal) })
             }
-            Text("Size: ${"%.0f".format(f.pointSize)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-            ExpressiveSlider(value = f.pointSize, onValueChange = { vm.setOptions(f, size = it) }, valueRange = 2f..16f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Point size" })
+            Text("Size: ${String.format(java.util.Locale.US, "%.1f", f.pointSize)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+            // In tenths of a dp.
+            ExpressiveSlider(value = f.pointSize, onValueChange = { vm.setOptions(f, size = kotlin.math.round(it * 10f) / 10f) }, valueRange = 2f..16f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Point size" })
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Show coordinates", modifier = Modifier.weight(1f), color = colors.onSurface)
                 androidx.compose.material3.Switch(checked = f.showLabel, onCheckedChange = { vm.setOptions(f, label = it) })

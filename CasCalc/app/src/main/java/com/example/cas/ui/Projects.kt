@@ -33,6 +33,9 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.FileOpen
+import androidx.compose.material.icons.filled.SaveAlt
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.TableChart
@@ -115,6 +118,19 @@ private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwi
     var order by remember { mutableStateOf(Order.Newest) }
     var orderMenu by remember { mutableStateOf(false) }
     val tablet = isTabletLayout()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val writeFile = rememberGraphFileWriter()
+    // A graph file from elsewhere joins the saved graphs of its mode, at the top.
+    val importFile = rememberGraphFileReader { c ->
+        val target = graphs[c.kind.mode]
+        if (target == null) {
+            android.widget.Toast.makeText(context, "Can't open ${c.kind.label.lowercase()}s here", android.widget.Toast.LENGTH_LONG).show()
+        } else {
+            val p = target.importProject(c.name, c.data)
+            filter = null; query = ""; searching = false; order = Order.Newest
+            android.widget.Toast.makeText(context, "Imported “${p.name}” (${c.kind.mode.label})", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
     val modes = graphs.keys.toList()
     val all = graphs.flatMap { (m, g) -> g.projects.map { Saved(m, g, it) } }
     val shown = all
@@ -150,6 +166,7 @@ private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwi
                         } else {
                             Text("Saved graphs", style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.weight(1f).padding(start = 4.dp))
                             IconButton(onClick = { searching = true }) { Icon(Icons.Default.Search, contentDescription = "Search", tint = colors.onSurfaceVariant) }
+                            IconButton(onClick = importFile) { Icon(Icons.Default.FileOpen, contentDescription = "Import a graph file (.g2d, .g3d, .gcp)", tint = colors.onSurfaceVariant) }
                         }
                         Box {
                             TextButton(onClick = { orderMenu = true }) { Text(order.label) }
@@ -200,6 +217,7 @@ private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwi
                                         onOpen = { s.vm.openProject(s.project); if (s.mode != current) onSwitch(s.mode); onClose() },
                                         onRename = { naming = s },
                                         onDuplicate = { s.vm.duplicateProject(s.project) },
+                                        onExportFile = { share -> s.mode.graphFileKind?.let { k -> writeFile(com.example.cas.graph.GraphFile.Contents(k, s.project.name, s.project.data), share) } },
                                         onDelete = { deleting = s },
                                     )
                                 }
@@ -276,7 +294,7 @@ private fun EmptyProjects(searching: Boolean, modifier: Modifier) {
  * lines in their colours (drawn as maths when short; data sets as a chip) and "+ n more".
  */
 @Composable
-private fun ProjectCard(s: Saved, current: Boolean, onOpen: () -> Unit, onRename: () -> Unit, onDuplicate: () -> Unit, onDelete: () -> Unit) {
+private fun ProjectCard(s: Saved, current: Boolean, onOpen: () -> Unit, onRename: () -> Unit, onDuplicate: () -> Unit, onExportFile: (Boolean) -> Unit, onDelete: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val p = s.project
     val noteCode = remember { MathCodec.encode(MathRow(mutableListOf(Sym("…")))) }
@@ -312,6 +330,9 @@ private fun ProjectCard(s: Saved, current: Boolean, onOpen: () -> Unit, onRename
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(text = { Text("Rename") }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { menu = false; onRename() })
                     DropdownMenuItem(text = { Text("Duplicate") }, leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, onClick = { menu = false; onDuplicate() })
+                    val ext = s.mode.graphFileKind?.extension.orEmpty()
+                    DropdownMenuItem(text = { Text("Share as .$ext file") }, leadingIcon = { Icon(Icons.Default.Share, null) }, onClick = { menu = false; onExportFile(true) })
+                    DropdownMenuItem(text = { Text("Save as .$ext file") }, leadingIcon = { Icon(Icons.Default.SaveAlt, null) }, onClick = { menu = false; onExportFile(false) })
                     DropdownMenuItem(text = { Text("Delete", color = colors.error) }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = colors.error) }, onClick = { menu = false; onDelete() })
                 }
             }

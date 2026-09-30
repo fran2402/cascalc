@@ -58,6 +58,8 @@ private enum class Alphabet(val label: String, val letters: List<String>, /** It
     Greek("Greek", "αβγδεζηθικλμνξοπρστυφχψω".map { it.toString() } + "ϵϑϰϖϱςϕ".map { it.toString() } + "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ".map { it.toString() }, "Γγ"),
     // The Hebrew alphabet, as its Unicode letters (from New Computer Modern).
     Hebrew("Hebrew", "אבגדהוזחטיכלמנסעפצקרשת".map { it.toString() }, "אב"),
+    // Cyrillic, capitals then small letters (Ё and ё in their places), upright as in TeX.
+    Cyrillic("Cyrillic", ("АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ" + "абвгдеёжзийклмнопрстуфхцчшщъыьэюя").map { it.toString() }, "Бб"),
     Calligraphic("Calligraphic", ('A'..'Z').map { MathAlphabets.calligraphic(it) }, MathAlphabets.calligraphic('A') + MathAlphabets.calligraphic('B')),
     Fraktur("Fraktur", ('A'..'Z').map { MathAlphabets.fraktur(it) } + ('a'..'z').map { MathAlphabets.fraktur(it) }, MathAlphabets.fraktur('A') + MathAlphabets.fraktur('a')),
     Blackboard("Blackboard", ('A'..'Z').map { MathAlphabets.doubleStruck(it) }, MathAlphabets.doubleStruck('A') + MathAlphabets.doubleStruck('B')),

@@ -310,7 +310,12 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
         var graphSettings by remember { mutableStateOf(false) }
         val build = { r: ExportRequest -> graph2DScene(vm, r.view, EXPORT_SIZE, r.dark) }
         val export = rememberGraphExporter("graph", build)
-        if (exporting && view != null) ExportDialog(view, build, onExport = { r, share -> exporting = false; export(r, share) }, onDismiss = { exporting = false })
+        val writeFile = rememberGraphFileWriter()
+        if (exporting && view != null) ExportDialog(
+            view, build, onExport = { r, share -> exporting = false; export(r, share) }, onDismiss = { exporting = false },
+            graphFile = com.example.cas.graph.GraphFile.Kind.Graph2D,
+            onGraphFile = { share -> exporting = false; writeFile(com.example.cas.graph.GraphFile.Contents(com.example.cas.graph.GraphFile.Kind.Graph2D, "graph", vm.graphData()), share) },
+        )
         // Import a CSV file of data points as point lists.
         val context = androidx.compose.ui.platform.LocalContext.current
         val scope = rememberCoroutineScope()

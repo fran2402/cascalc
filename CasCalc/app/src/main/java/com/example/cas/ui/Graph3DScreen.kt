@@ -87,9 +87,15 @@ fun Graph3DScreen(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
     var exporting by remember { mutableStateOf(false) }
     val build = { r: ExportRequest -> surface3DScene(vm, r, EXPORT_SIZE, r.dark) }
     val export = rememberGraphExporter("graph-3d", build, model = { r -> stlModel(vm, r) })
+    val writeFile = rememberGraphFileWriter()
     if (exporting) {
         val b = surfaceBounds(vm)
-        ExportDialog(Viewport(vm.xMin, vm.xMax, vm.yMin, vm.yMax), build, onExport = { r, share -> exporting = false; export(r, share) }, onDismiss = { exporting = false }, z = b.z0 to b.z1, formats = com.example.cas.graph.ExportFormat.entries)
+        ExportDialog(
+            Viewport(vm.xMin, vm.xMax, vm.yMin, vm.yMax), build, onExport = { r, share -> exporting = false; export(r, share) }, onDismiss = { exporting = false },
+            z = b.z0 to b.z1, formats = com.example.cas.graph.ExportFormat.entries,
+            graphFile = com.example.cas.graph.GraphFile.Kind.Graph3D,
+            onGraphFile = { share -> exporting = false; writeFile(com.example.cas.graph.GraphFile.Contents(com.example.cas.graph.GraphFile.Kind.Graph3D, "graph-3d", vm.graphData()), share) },
+        )
     }
     GraphScaffold(vm, outputLabel = "z", modifier = modifier) {
         Box(Modifier.fillMaxSize().onSizeChanged { plotSize = it }) {

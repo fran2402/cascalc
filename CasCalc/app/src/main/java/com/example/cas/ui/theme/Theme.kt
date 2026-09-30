@@ -188,6 +188,7 @@ object CasFonts {
     val NcmMath = FontFamily(Font(R.font.ncm_math))
     val NcmHebrew = FontFamily(Font(R.font.ncm_hebrew))
     val NcmItalic = FontFamily(Font(R.font.ncm_italic))
+    val NcmCyrillic = FontFamily(Font(R.font.ncm_cyrillic))
     /** Maths on keys: Google Sans Flex, rounded like the rest of the interface. */
     val Math = googleSansFlex(weight = 400)
     val MathItalic = googleSansFlex(weight = 400, slant = -10f)
@@ -206,6 +207,7 @@ class GlyphFallback(context: Context) {
     private val cache = HashMap<Int, Boolean>()
     private val robotoCache = HashMap<Int, Boolean>()
     private val families = HashMap<Int, FontFamily>()
+    private val slanted = HashMap<Int, FontFamily>()
 
     fun has(codePoint: Int): Boolean = FontCoverage.covers(FontCoverage.GOOGLE_SANS_FLEX, codePoint)
 
@@ -219,10 +221,10 @@ class GlyphFallback(context: Context) {
             val cp = text.codePointAt(i)
             val chunk = text.substring(i, i + Character.charCount(cp))
             val alpha = com.example.cas.editor.MathAlphabets.decode(cp)
-            val special = if (cp in 0x5D0..0x5EA || cp in 0x2135..0x2138 || alpha?.first == com.example.cas.editor.MathAlphabets.Style.DoubleStruck) newComputerModern(cp, false) else null
+            val special = if (cp in 0x400..0x45F || cp in 0x5D0..0x5EA || cp in 0x2135..0x2138 || alpha?.first == com.example.cas.editor.MathAlphabets.Style.DoubleStruck) newComputerModern(cp, false) else null
             when {
-                // ℏ on keys and in the sans display: the Maltese ħ, in the key font's own weight.
-                cp == 0x210F -> append("ħ")
+                // ℏ on keys and in the sans display: the Maltese ħ, in the key font's own weight, italic.
+                cp == 0x210F -> withStyle(SpanStyle(fontFamily = slanted.getOrPut(weight) { googleSansFlex(weight, slant = -10f) })) { append("ħ") }
                 special != null -> withStyle(SpanStyle(fontFamily = special.first)) { append(special.second) }
                 // 𝒜, 𝔄, 𝔞…: TeX's Caligraphic or Fraktur shape on the plain letter.
                 alpha != null && alpha.first != com.example.cas.editor.MathAlphabets.Style.DoubleStruck -> withStyle(SpanStyle(fontFamily = if (alpha.first == com.example.cas.editor.MathAlphabets.Style.Calligraphic) CasFonts.CmCal else CasFonts.CmFrak, fontStyle = androidx.compose.ui.text.font.FontStyle.Normal)) { append(alpha.second) }
@@ -293,11 +295,14 @@ private val LATIN_LOOKALIKES = mapOf(
 
 /**
  * Characters drawn from New Computer Modern, or as the Latin letter they look like: the font
- * and the text to draw, or null. ℏ is drawn as ħ, an italic h with a bar (as \hbar).
+ * and the text to draw, or null. ℏ is drawn as ħ, an italic h with a bar (as \hbar); Cyrillic
+ * letters come from its upright text font.
  */
 internal fun newComputerModern(cp: Int, italic: Boolean): Pair<androidx.compose.ui.text.font.FontFamily, String>? = when {
     cp == 0x210F || cp == 0x127 -> CasFonts.NcmItalic to "ħ"
     cp in 0x5D0..0x5EA -> CasFonts.NcmHebrew to String(Character.toChars(cp))
+    // Cyrillic (Б, Ш, ж…), upright as in TeX.
+    cp in 0x400..0x45F -> CasFonts.NcmCyrillic to String(Character.toChars(cp))
     cp in 0x2135..0x2138 -> CasFonts.NcmMath to String(Character.toChars(cp))
     com.example.cas.editor.MathAlphabets.decode(cp)?.first == com.example.cas.editor.MathAlphabets.Style.DoubleStruck -> CasFonts.NcmMath to String(Character.toChars(cp))
     // ϰ: the maths font's italic kappa variant (U+1D718).

@@ -1,5 +1,5 @@
-New Computer Modern (subsets bundled as app/src/main/res/font/ncm_math.otf, ncm_hebrew.otf
-and ncm_italic.otf), by Antonis Tsolomitis, https://ctan.org/pkg/newcomputermodern
+New Computer Modern (subsets bundled as app/src/main/res/font/ncm_math.otf, ncm_hebrew.otf,
+ncm_italic.otf and ncm_cyrillic.otf), by Antonis Tsolomitis, https://ctan.org/pkg/newcomputermodern
 The bundled files are subsets (only the characters the app uses) under new file names.
 
 % This is version 1.0, dated 22 June 2009, of the GUST Font License.

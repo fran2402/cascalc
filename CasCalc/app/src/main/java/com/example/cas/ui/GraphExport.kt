@@ -297,6 +297,9 @@ fun ExportDialog(
     z: Pair<Double, Double>? = null,
     /** The formats offered: pictures, and STL for the 3D graph. */
     formats: List<ExportFormat> = ExportFormat.entries - ExportFormat.STL,
+    /** The graph as a CasCalc graph file (.g2d, .g3d, .gcp), shared (true) or saved. */
+    graphFile: com.example.cas.graph.GraphFile.Kind? = null,
+    onGraphFile: (Boolean) -> Unit = {},
 ) {
     val colors = MaterialTheme.colorScheme
     val context = LocalContext.current
@@ -381,6 +384,19 @@ fun ExportDialog(
                     icon = {},
                     label = { Text(name, maxLines = 1) },
                 )
+            }
+        }
+        // The graph itself, to open again in CasCalc.
+        if (graphFile != null) {
+            androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical = 4.dp))
+            Text("Graph file (.${graphFile.extension})", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
+            Text(
+                "The graph itself, with its lines, colours and sliders, to open again in CasCalc (Saved graphs › Import).",
+                style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                androidx.compose.material3.FilledTonalButton(onClick = { onGraphFile(true) }) { Text("Share file") }
+                androidx.compose.material3.FilledTonalButton(onClick = { onGraphFile(false) }) { Text("Save file") }
             }
         }
     }
