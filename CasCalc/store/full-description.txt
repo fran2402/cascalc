@@ -1,0 +1,63 @@
+CAS Scientific Calculator is a computer algebra system in a clean Material You calculator. Type maths the way you write it and get exact answers: 2√2, π/6 and n(n+1)/2 rather than long decimals, with the decimal one tap away.
+
+Letters stay symbolic, so 2x + 3x gives 5x. Fractions, roots, powers, integrals, sums and matrices are built on screen as they appear on paper.
+
+ALGEBRA
+• Simplify, expand and factor
+• Solve linear, quadratic and polynomial equations, and equations such as 2^(x+1) = 8 or sin x = ½
+• Systems of equations, linear and nonlinear
+• Inequalities with exact endpoints: x² < 4 gives −2 < x < 2
+• Store values in variables with a := 5
+
+CALCULUS
+• Derivatives, including higher derivatives and derivatives at a point
+• Antiderivatives and definite integrals: exact when possible, numerical otherwise
+• Limits, including one-sided limits and limits at infinity
+• Taylor polynomials and closed forms for sums
+• Differential equations: first-order linear and separable, second-order with constant coefficients, and initial conditions
+
+LINEAR ALGEBRA
+• Determinant, inverse, transpose, powers, row reduction, rank and trace
+• Eigenvalues (exact, including complex ones) and eigenvectors
+• Dot and cross products, with exact or symbolic entries
+
+COMPLEX NUMBERS
+• Complex arithmetic in rectangular or polar form
+• Contour integrals around circles and residues at poles
+
+STATISTICS AND CONSTANTS
+• Mean, median, standard deviation and variance, exact when the data are
+• Factorials, combinations and permutations
+• Normal, binomial and Poisson distributions
+• Physical constants (CODATA 2022) in SI, Planck, atomic and natural units
+
+2D GRAPHING
+• Functions, equations and inequalities in x and y
+• Points, lists and data tables: import CSV, add error bars, fit a function to the data
+• Sliders for parameters, with play and pause
+• Tap a curve to read values; shade the area under it
+• Folders, notes, named lines and a legend
+
+3D GRAPHING
+• Surfaces z = f(x, y) and any equation in x, y and z, such as spheres and tori
+• Cartesian, cylindrical and spherical coordinates, with your own letters
+• Inequalities drawn as solids
+• Export surfaces as STL for 3D printing
+
+COMPLEX PLOTTING
+• Domain colouring of f(z), with a choice of colour maps
+• Draw a loop to get its contour integral and the residues inside
+
+EXPORT AND SHARING
+• Export graphs as PDF, SVG, PNG or JPG in a clean LaTeX-style look, with a live preview
+• Share any answer as an image or as LaTeX
+• Save graphs in the app, or as .g2d, .g3d and .gcp files to share and open on another device
+
+MADE FOR EVERY SCREEN
+• Material You colours that follow your wallpaper, in light and dark themes
+• Adjustable maths and keypad sizes
+• A two-pane layout on tablets and foldables
+• Long-press any key for its name, formula and an explanation
+• Build your own symbols: Greek and Hebrew letters, accents, blackboard bold and more
+
+Works fully offline. No ads, no account and no permissions needed.
