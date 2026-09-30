@@ -1,6 +1,5 @@
 package com.example.cas
 
-import com.example.cas.cas.CustomSymbol
 import com.example.cas.graph.GraphFile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -36,8 +35,4 @@ class GraphFileTest {
         assertTrue(newer!!.message!!.contains("newer"))
     }
 
-    @Test fun cyrillicLetters() {
-        val s = CustomSymbol("Ш", sub = "0")
-        assertEquals(s, CustomSymbol.fromLatex(s.latex))
-    }
 }

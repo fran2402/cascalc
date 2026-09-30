@@ -43,6 +43,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
@@ -175,10 +176,12 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
         }
     }
 
+    // The plane before (or without) a plot: white in light mode, black in dark mode.
+    val lightPlane = MaterialTheme.colorScheme.surface.luminance() >= 0.5f
     Box(
         modifier
             .clipToBounds()
-            .background(Color.Black)
+            .background(if (lightPlane) Color.White else Color.Black)
             .onSizeChanged { size = it; if (vm.view == null) vm.resetView(it) }
             .pointerInput(vm.contourMode) {
                 if (vm.contourMode) {
@@ -210,12 +213,15 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
             val size = this.size
             val v = view ?: return@Canvas
             image?.let { drawImage(it, dstSize = IntSize(size.width.toInt(), size.height.toInt()), filterQuality = FilterQuality.Low) }
-            // Axes and tick labels, white with a dark halo so they read on any colour.
+            // Axes and tick labels, white with a dark halo so they read on any colour; on the bare
+            // white plane (nothing plotted), dark with a light halo.
+            val darkInk = lightPlane && image == null
+            val ink = if (darkInk) Color.Black else Color.White
             val origin = Offset(((0 - v.xMin) / v.width * size.width).toFloat(), ((v.yMax - 0) / v.height * size.height).toFloat())
-            val axis = Color.White.copy(alpha = 0.7f)
+            val axis = ink.copy(alpha = 0.7f)
             if (origin.y in 0f..size.height) drawLine(axis, Offset(0f, origin.y), Offset(size.width, origin.y), 1.5.dp.toPx())
             if (origin.x in 0f..size.width) drawLine(axis, Offset(origin.x, 0f), Offset(origin.x, size.height), 1.5.dp.toPx())
-            val style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 11.sp, color = Color.White, shadow = androidx.compose.ui.graphics.Shadow(Color.Black, blurRadius = 4f))
+            val style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 11.sp, color = ink, shadow = androidx.compose.ui.graphics.Shadow(if (darkInk) Color.White else Color.Black, blurRadius = 4f))
             val stepX = Plot2D.niceStep(v.width, 5)
             Plot2D.ticks(v.xMin, v.xMax, 5).filter { kotlin.math.abs(it) > stepX / 2 }.forEach { x ->
                 val t = measurer.measure(Plot2D.label(x, stepX), style)
@@ -234,7 +240,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
                 val far = corners.maxOf { (x, y) -> kotlin.math.hypot(x, y) }
                 val step = Plot2D.niceStep(minOf(v.width, v.height) / 2, 4)
                 val px = size.width / v.width.toFloat()
-                val line = Color.White.copy(alpha = 0.55f)
+                val line = ink.copy(alpha = 0.55f)
                 var r = step
                 while (r <= far) { drawCircle(line, (r * px).toFloat(), origin, style = Stroke(1.2f)); r += step }
                 val reach = (far * px).toFloat() + size.width

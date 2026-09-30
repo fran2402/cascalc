@@ -195,13 +195,17 @@ Constants and symbols are long lists and scroll up and down in place; the others
 Groups: Basic, Trigonometry, Calculus, Vector calculus, Linear algebra, Statistics, Complex
 numbers, Physical constants, Symbols.
 
+## Latest changes (30 September, seventh round)
+- **Complex plots**: the empty plane is white in light mode (black in dark mode), with dark
+  axes and labels until something is plotted.
+- **Cyrillic** removed from the symbol builder again (and its font from the app).
+
 ## Latest changes (30 September, sixth round)
 - **Graph files**: .g2d (2D graphs), .g3d (3D graphs) and .gcp (complex plots) hold a whole
   graph (lines, colours, styles, notes, sliders, ranges). Save or share one from the export
   dialog or a saved graph's menu; import them on the Saved graphs page (the import button), or
   open one from a file manager to import it and switch to its mode. The format is plain text
   (graph/GraphFile.kt).
-- **Cyrillic** in the symbol builder (А–я, Ё ё), from New Computer Modern, upright as in TeX.
 - **ħ on the key** is slanted (Google Sans Flex's own slant axis).
 - **Point size** in tenths of a dp, shown to one decimal.
 

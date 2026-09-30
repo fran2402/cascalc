@@ -54,7 +54,7 @@ val CREDITS: List<CreditGroup> = listOf(
             "Android's own typeface, used as the fallback.", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Roboto"),
         Credit("MathJax TeX fonts", "The MathJax Consortium, after Donald Knuth's Computer Modern", "All the maths: Main, Math Italic, Caligraphic, Fraktur and Size2 (the large ∫ and ∮)",
             "The fonts LaTeX documents are set in, so answers look as they would in print.", "SIL Open Font License 1.1", "https://github.com/mathjax/MathJax/tree/legacy-v2/fonts"),
-        Credit("New Computer Modern", "Antonis Tsolomitis, after Donald Knuth's Computer Modern", "Blackboard bold (ℝ, ℂ…), Hebrew and Cyrillic letters, upright Greek, ħ and the Greek letters Computer Modern lacks",
+        Credit("New Computer Modern", "Antonis Tsolomitis, after Donald Knuth's Computer Modern", "Blackboard bold (ℝ, ℂ…), Hebrew letters, upright Greek, ħ and the Greek letters Computer Modern lacks",
             "Computer Modern extended with Unicode maths and more scripts, so these match the rest of the maths.", "GUST Font License", "https://ctan.org/pkg/newcomputermodern"),
         Credit("Material Symbols", "Google", "Icons",
             "Google's icon set, through Compose's extended icons.", "Apache License 2.0", "https://fonts.google.com/icons"),

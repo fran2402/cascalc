@@ -7,8 +7,9 @@ From the list of 28 September, in the order I'd tackle them.
   Send it to fix this.
 
 ## Done
-- Round of 30 September (sixth): .g2d/.g3d/.gcp graph files (export, import, open from a file
-  manager), Cyrillic symbols, slanted ħ key, point size to one decimal.
+- Round of 30 September (sixth and seventh): .g2d/.g3d/.gcp graph files (export, import, open
+  from a file manager), slanted ħ key, point size to one decimal, white empty complex plane in
+  light mode.
 - Round of 30 September (fifth): saved graphs crash and redesign, Maltese ħ on the key,
   upright script buttons and Greek, Hebrew letters only, accent gap on Hebrew.
 - Round of 30 September (fourth): symbol builder button group, typed upright scripts and italic
