@@ -1,0 +1,61 @@
+# Builds the app's debug APK on GitHub's machines and attaches it to the run.
+# Download it from the run's page, under "Artifacts" (Actions tab → the run → debug-apk).
+name: Debug APK
+
+on:
+  push:
+    branches: [main, claude/app-development-todo-4rnrge]
+  pull_request:
+  # Run it by hand from the Actions tab too.
+  workflow_dispatch:
+
+# A newer push to the same branch replaces a build still running.
+concurrency:
+  group: debug-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: CasCalc
+    steps:
+      - uses: actions/checkout@v4
+
+      # The project targets Java 17.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # The project has no gradlew scripts, so Gradle itself is installed (the version in
+      # gradle/wrapper/gradle-wrapper.properties), with its downloads cached between runs.
+      # The runner already has the Android SDK; missing SDK parts are fetched by the build.
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.11.1
+
+      - name: Build the debug APK
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload the APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk
+          path: CasCalc/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      # After the upload, so a failing test still leaves the APK to download.
+      - name: Unit tests
+        run: gradle testDebugUnitTest --stacktrace
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: CasCalc/app/build/reports/tests/
+          retention-days: 14

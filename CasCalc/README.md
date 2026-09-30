@@ -195,6 +195,14 @@ Constants and symbols are long lists and scroll up and down in place; the others
 Groups: Basic, Trigonometry, Calculus, Vector calculus, Linear algebra, Statistics, Complex
 numbers, Physical constants, Symbols.
 
+## Building on GitHub
+Every push to `main` (and to the development branch) builds the debug APK with GitHub Actions
+(`.github/workflows/android-debug.yml`), then runs the unit tests. To get the APK: the
+repository's **Actions** tab → the latest **Debug APK** run → **Artifacts** → `debug-apk` (a zip
+with the .apk inside). Install it on a phone with "install unknown apps" allowed for your
+browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
+signed with a throwaway debug key, so they install alongside nothing from the Play Store.
+
 ## Latest changes (1 October)
 - **Folders**: every line has its own depth, so a folder holds only the lines inside it: +
   never drops a new line into a folder, and moving a (closed) folder carries its lines as a block
