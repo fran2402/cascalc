@@ -1380,6 +1380,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 AppSettings.changeViewHalfWidth(listOf(5, 10, 20)[it])
             }
             SettingsChoice("Complex plot quality", listOf("Standard", "High"), AppSettings.complexQuality, AppSettings::changeComplexQuality)
+            SettingsChoice("2D field quality", listOf("Low", "Medium", "High"), AppSettings.fieldQuality, AppSettings::changeFieldQuality)
             SettingsChoice("3D surface detail", listOf("Low", "Medium", "High"), AppSettings.surfaceDetail, AppSettings::changeSurfaceDetail)
         },
         PageSection("Touch and screen", Icons.Outlined.TouchApp) {

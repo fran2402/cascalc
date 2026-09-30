@@ -84,6 +84,9 @@ object AppSettings {
     /** Complex plots: 0 standard (half resolution), 1 high (full). */
     var complexQuality by mutableStateOf(0)
         private set
+    /** 2D fields f(x, y): 0 low (12 px cells), 1 medium (6 px), 2 high (3 px). */
+    var fieldQuality by mutableStateOf(0)
+        private set
     /** 3D surfaces: 0 low, 1 medium, 2 high detail. */
     var surfaceDetail by mutableStateOf(1)
         private set
@@ -126,6 +129,7 @@ object AppSettings {
         viewHalfWidth = p.getInt("viewHalfWidth", 10)
         complexQuality = p.getInt("complexQuality", 0)
         surfaceDetail = p.getInt("surfaceDetail", 1)
+        fieldQuality = p.getInt("fieldQuality", 0)
         com.example.cas.engine.Formatter.groupDigits = groupDigits
         com.example.cas.engine.Formatter.numberFormat = numberFormat
         com.example.cas.engine.Formatter.polarComplex = polarComplex
@@ -165,6 +169,7 @@ object AppSettings {
     fun changeSpecialPoints(v: Boolean) { specialPoints = v; save("specialPoints", v) }
     fun changeViewHalfWidth(v: Int) { viewHalfWidth = v; save("viewHalfWidth", v) }
     fun changeComplexQuality(v: Int) { complexQuality = v; save("complexQuality", v) }
+    fun changeFieldQuality(v: Int) { fieldQuality = v; save("fieldQuality", v) }
     fun changeSurfaceDetail(v: Int) { surfaceDetail = v; save("surfaceDetail", v) }
 
     /** The explicit and implicit grid sizes for 3D surfaces at the chosen detail. */

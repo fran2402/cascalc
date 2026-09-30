@@ -1,5 +1,6 @@
 package com.example.cas.ui
 
+import androidx.compose.material3.SegmentedButton
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -138,7 +139,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
     val version = vm.version
     // Sampling and point-finding only redo when the view or a function changes.
     val highlighted = vm.highlighted
-    val plotted = remember(view, version, size, vm.parameters.toMap(), highlighted, vm.polarGrid, AppSettings.specialPoints) {
+    val plotted = remember(view, version, size, vm.parameters.toMap(), highlighted, vm.polarGrid, AppSettings.specialPoints, AppSettings.fieldQuality) {
         // Whatever a line does while being sampled, drawing carries on (the line just isn't drawn).
         if (view == null || size.width == 0) emptyList() else runCatching { plot(vm, view, size, highlighted) }.getOrElse { emptyList() }
     }
@@ -573,8 +574,10 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
                 out += Plotted(f, emptyList(), emptyList(), segments = Curves.implicit(g, view, nx, ny))
             }
             is Plot2DKind.Field -> {
-                // Coloured cells about 3 px square; the scale follows the values in view.
-                val fx = (size.width / 3).coerceIn(40, 420); val fy = (size.height / 3).coerceIn(40, 560)
+                // Coloured cells 12, 6 or 3 px square (the field quality setting; low by default, as
+                // every cell is worked out again on each pan); the scale follows the values in view.
+                val cell = when (AppSettings.fieldQuality) { 2 -> 3; 1 -> 6; else -> 12 }
+                val fx = (size.width / cell).coerceIn(24, 420); val fy = (size.height / cell).coerceIn(24, 560)
                 val h = vm.caller2(g, k.f); val ok = vm.allowedCaller(g)
                 val values = com.example.cas.graph.Field.sample({ x: Double, y: Double -> if (ok(x, y)) h(x, y) else Double.NaN }, view, fx, fy)
                 val range = com.example.cas.graph.Field.range(values)
@@ -1069,6 +1072,18 @@ private fun GraphSettingsDialog(vm: Graph2DViewModel, view: Viewport, onDismiss:
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Degrees", modifier = Modifier.weight(1f))
                     androidx.compose.material3.Switch(checked = vm.angle == com.example.cas.engine.AngleUnit.Degrees, onCheckedChange = { vm.toggleAngle() })
+                }
+                Text("Field quality", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                androidx.compose.material3.SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    listOf("Low", "Medium", "High").forEachIndexed { k, name ->
+                        SegmentedButton(
+                            selected = AppSettings.fieldQuality == k,
+                            onClick = { AppSettings.changeFieldQuality(k) },
+                            shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(k, 3),
+                            icon = {},
+                            label = { Text(name) },
+                        )
+                    }
                 }
             }
         },
