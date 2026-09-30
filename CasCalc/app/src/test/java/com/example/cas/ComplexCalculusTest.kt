@@ -52,4 +52,15 @@ class ComplexCalculusTest {
         close(w, plot(row, CD(1.0, 1.0)), 1e-9)
         assertEquals(0.0, plot(row, CD(0.0)).abs(), 1e-15)
     }
+
+    @Test fun antiderivativeFromOneAlongRays() {
+        // ∫₁ᶻ Γ(t) dt, the plane's drawing of ∫ Γ(z) dz, against a fine straight-path sum.
+        val row = r(Integral(s("1"), s("z"), r(Func("gamma", listOf(s("z")))), s("z")))
+        fun direct(z: CD): CD {
+            val n = 4000; val d = (z - CD(1.0)) / CD(n.toDouble()); var sum = CD(0.0)
+            for (k in 0 until n) sum = sum + ComplexMath.gamma(CD(1.0) + d * CD(k + 0.5)) * d
+            return sum
+        }
+        for (z in listOf(CD(2.0, 0.5), CD(3.7, -2.2), CD(-0.5, 3.0), CD(-3.3, -3.1), CD(1.2, 0.1))) close(direct(z), plot(row, z), 1e-7)
+    }
 }

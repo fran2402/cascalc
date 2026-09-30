@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Visibility
 
 import androidx.compose.material.icons.filled.Functions
 
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.CreateNewFolder
@@ -1600,9 +1601,6 @@ private fun FolderRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
     if (editing) FolderDialog(vm, f, onDismiss = { editing = false })
 }
 
-/** The colours a folder can take: the theme's line colours, then a few more. */
-private val FOLDER_EXTRA_COLORS = listOf(0xFF165C99, 0xFF0BB04B, 0xFFF9950F, 0xFFED310C, 0xFF7C5E8B, 0xFF484848).map { it.toInt() }
-
 /** A folder's name and colour, and moving it into or out of the folder above. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -1610,7 +1608,13 @@ private fun FolderDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () -> U
     val colors = MaterialTheme.colorScheme
     var name by remember { mutableStateOf(f.note.orEmpty()) }
     var color by remember { mutableStateOf(f.customColor) }
-    val choices: List<Int?> = listOf<Int?>(null) + plotColors(colors).drop(1).map { it.toArgb() } + FOLDER_EXTRA_COLORS
+    var picking by remember { mutableStateOf(false) }
+    // The same picker as a line's colour (without the line style); "default" is the theme colour.
+    if (picking) ColorPickerDialog(
+        initial = color?.let { Color(it) } ?: colors.primary,
+        onPick = { color = it?.toArgb(); picking = false },
+        onDismiss = { picking = false },
+    )
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Folder") },
@@ -1618,18 +1622,15 @@ private fun FolderDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () -> U
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 OutlinedTextField(name, { name = it }, singleLine = true, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
                 Text("Colour", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
-                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    choices.forEach { c ->
-                        val shown = c?.let { Color(it) } ?: colors.primary
-                        val chosen = color == c
-                        Box(
-                            Modifier.size(40.dp).clip(CircleShape).background(shown)
-                                .then(if (chosen) Modifier.border(3.dp, colors.onSurface, CircleShape) else Modifier)
-                                .clickable(onClickLabel = if (c == null) "Theme colour" else "Colour") { color = c }
-                                .semantics { contentDescription = (if (c == null) "Theme colour" else "#%06X".format(c and 0xFFFFFF)) + if (chosen) ", chosen" else "" },
-                            contentAlignment = Alignment.Center,
-                        ) { if (chosen) Icon(Icons.Default.Check, contentDescription = null, tint = if (shown.luminance() > 0.5f) Color.Black else Color.White, modifier = Modifier.size(20.dp)) }
-                    }
+                val shown = color?.let { Color(it) } ?: colors.primary
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = "Choose the folder's colour") { picking = true }.padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(40.dp).clip(CircleShape).background(shown).border(1.dp, colors.outlineVariant, CircleShape))
+                    Spacer(Modifier.width(12.dp))
+                    Text(if (color == null) "Theme colour" else "#%06X".format(color!! and 0xFFFFFF), style = MaterialTheme.typography.bodyLarge, color = colors.onSurface, modifier = Modifier.weight(1f))
+                    Icon(Icons.Default.Edit, contentDescription = null, tint = colors.onSurfaceVariant)
                 }
                 if (vm.canNest(f) || vm.folderOf(f) != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (vm.canNest(f)) androidx.compose.material3.OutlinedButton(onClick = { vm.nest(f, 1); onDismiss() }) {

@@ -53,6 +53,8 @@ sealed class PlotSpec {
             return when {
                 e is Rel -> Region(e, params(XY, e))
                 e is Eq && e.lhs == Y && e.rhs.freeOf(Y) -> Explicit(e.rhs, params(XY, e.rhs))
+                // z = f(x, y): the field, as in the 3D graph.
+                e is Eq && e.lhs == Sym("z") && e.rhs.freeOf(Sym("z")) && !e.rhs.freeOf(Y) -> Field(e.rhs, params(XY, e.rhs))
                 e is Eq && e.lhs == R && e.rhs.freeOf(R) && e.rhs.freeOf(X) && e.rhs.freeOf(Y) -> Polar(e.rhs, params(setOf("r", "θ"), e.rhs))
                 e is Eq -> {
                     val f = sub(e.lhs, e.rhs)

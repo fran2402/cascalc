@@ -603,9 +603,10 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         try {
             val ev = evaluatorFor(f)
             var items: List<com.example.cas.editor.Node> = f.editor.root.items
-            // f(x) = …: drawn when its variable is x (as Desmos does); f(t) = … only defines f.
+            // f(x) = … is drawn when its variable is x (as Desmos does), and f(x, y) = … as a field;
+            // f(t) = … only defines f.
             com.example.cas.engine.UserFunction.definition(items)?.takeIf { it.first !in userFunctions(except = f) }?.let { (name, vs, body) ->
-                if (vs != listOf("x")) {
+                if (vs != listOf("x") && vs.sorted() != listOf("x", "y")) {
                     ev.evaluate(MathCodec.copy(f.editor.root))
                     f.definesFunction = name
                     f.plot = null; f.compiled = null; f.parameters = emptyList(); f.definition = null; f.error = null
@@ -803,6 +804,41 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         return row
     }
 
+    /** On the complex plane, ∂/∂x, ∫ … dx and lim x→ from the keys come in with z instead. */
+    private fun inZ(n: com.example.cas.editor.Node) {
+        val v = when (n) {
+            is com.example.cas.editor.Derivative -> n.variable
+            is com.example.cas.editor.Integral -> n.variable
+            is com.example.cas.editor.Func -> n.args.getOrNull(1)?.takeIf { n.name == "lim" }
+            else -> null
+        } ?: return
+        val k = v.items.indexOfFirst { (it as? com.example.cas.editor.Sym)?.text == "x" }
+        if (k == 0) { v.removeAt(k); v.add(k, com.example.cas.editor.Sym("z")) }
+    }
+
+    /**
+     * [row] with ∂/∂x and ∫ … dx taken in z when the body has no x or y in it: for an analytic
+     * f, ∂f/∂x is f′(z), so ∂/∂x Γ(z) (the key's default letter) means Γ′(z), not 0.
+     */
+    private fun calculusInZ(row: MathRow): MathRow {
+        fun mentions(r: MathRow, letters: Set<String>): Boolean = r.items.any { n ->
+            (n as? com.example.cas.editor.Sym)?.text in letters || n.slots.any { mentions(it, letters) }
+        }
+        fun visit(r: MathRow) {
+            r.items.forEach { n ->
+                n.slots.forEach(::visit)
+                val (v, body) = when (n) {
+                    is com.example.cas.editor.Derivative -> n.variable to n.body
+                    is com.example.cas.editor.Integral -> n.variable to n.body
+                    else -> return@forEach
+                }
+                if (v.plainText() == "x" && !mentions(body, setOf("x", "y"))) { v.removeAt(0); v.add(com.example.cas.editor.Sym("z")) }
+            }
+        }
+        visit(row)
+        return row
+    }
+
     private fun recompileComplex(f: PlotFunction) {
         f.complexCompiled = null; f.compiled = null; f.complexCurve = null; f.contour = null
         try {
@@ -823,10 +859,10 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             // An integral with no closed form (∫ Γ(z) dz) is drawn as ∫₁^z, an antiderivative, worked
             // out numerically along the straight path from 1 (0 is a pole of Γ and 1/z).
             var e = try {
-                ev.evaluate(MathCodec.copy(f.editor.root))
+                ev.evaluate(calculusInZ(MathCodec.copy(f.editor.root)))
             } catch (x: MathError) {
                 if (x.message?.startsWith("No antiderivative") != true) throw x
-                ev.evaluate(withLimitsFromOne(MathCodec.copy(f.editor.root)))
+                ev.evaluate(withLimitsFromOne(calculusInZ(MathCodec.copy(f.editor.root))))
             }
             if (asDefinition(f, e)) return
             val z = com.example.cas.cas.Sym("z")
@@ -1396,7 +1432,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         when (action) {
             is KeyAction.Type -> ed.type(action.text)
             is KeyAction.Insert -> {
-                ed.insert(action.make(), action.slot)
+                ed.insert(action.make().also { if (isComplex) inZ(it) }, action.slot)
                 if (action.path.isNotEmpty()) ed.enter(action.path)
             }
             KeyAction.Fraction -> ed.insertFraction()

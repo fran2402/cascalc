@@ -16,6 +16,7 @@ import com.example.cas.cas.Pow
 import com.example.cas.cas.Rel
 import com.example.cas.cas.Seq
 import com.example.cas.cas.Sym
+import com.example.cas.cas.freeOf
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan
@@ -162,6 +163,12 @@ object ComplexCompiler {
         val body = compile(e.args[0], vars, bound + (t to ComplexFunction { _, _ -> node.get() }))
         val lo = compile(e.args[2], vars, bound)
         val hi = compile(e.args[3], vars, bound)
+        // ∫ₐᶻ f(t) dt with a and f not depending on z (the antiderivative drawn for ∫ Γ(z) dz):
+        // running sums along rays from a, so each point adds one short piece.
+        val z0 = vars.firstOrNull()
+        if (z0 != null && z0 !in bound && e.args[3] == Sym(z0) && e.args[2].freeOf(Sym(z0)) && (t == z0 || e.args[0].freeOf(Sym(z0)))) {
+            return RayIntegral(lo) { at, p -> node.set(at); body(CD(0.0), p) }
+        }
         return ComplexFunction { z, p ->
             val a = lo(z, p); val b = hi(z, p)
             val span = b - a
@@ -179,6 +186,50 @@ object ComplexCompiler {
             sum * half
         }
     }
+
+    /**
+     * F(z) = ∫ₐᶻ f(t) dt along the straight path, sped up for drawing: the running integral is kept
+     * along [RAYS] rays from a, every [STEP] units, so F(z) is the ray's value at the step just
+     * before z plus one piece from there to z (the ray nearest z's direction, so the path is
+     * straight but for a turn much smaller than a pixel far out). Kept per thread; rebuilt when a
+     * or the sliders change.
+     */
+    private class RayIntegral(val lo: ComplexFunction, val f: (CD, DoubleArray) -> CD) : ComplexFunction {
+        private inner class Cache(val a: CD, val p: DoubleArray) { val rays = HashMap<Int, ArrayList<CD>>() }
+        private val cache = ThreadLocal<Cache?>()
+
+        private fun piece(from: CD, to: CD, p: DoubleArray, xs: DoubleArray, ws: DoubleArray): CD {
+            val half = (to - from) * CD(0.5); val mid = (from + to) * CD(0.5)
+            var sum = CD(0.0)
+            for (j in xs.indices) sum = sum + f(mid + half * CD(xs[j]), p) * CD(ws[j])
+            return sum * half
+        }
+
+        override fun invoke(z: CD, p: DoubleArray): CD {
+            val a = lo(z, p)
+            val d = z - a
+            val r = d.abs()
+            if (!r.isFinite()) return CD(Double.NaN)
+            if (r < STEP) return piece(a, z, p, GAUSS_X5, GAUSS_W5)
+            var c = cache.get()
+            if (c == null || c.a != a || !c.p.contentEquals(p)) { c = Cache(a, p.copyOf()); cache.set(c) }
+            val k = Math.floorMod(Math.round(kotlin.math.atan2(d.im, d.re) / (2 * PI) * RAYS).toInt(), RAYS)
+            val dir = CD(kotlin.math.cos(2 * PI * k / RAYS), kotlin.math.sin(2 * PI * k / RAYS))
+            val n = floor(r / STEP).toInt()
+            val sums = c.rays.getOrPut(k) { arrayListOf(CD(0.0)) }
+            while (sums.size <= n) {
+                val m = sums.size - 1
+                sums += sums[m] + piece(a + dir * CD(m * STEP), a + dir * CD((m + 1) * STEP), p, GAUSS_X, GAUSS_W)
+            }
+            return sums[n] + piece(a + dir * CD(n * STEP), z, p, GAUSS_X5, GAUSS_W5)
+        }
+    }
+    private const val RAYS = 4096
+    private const val STEP = 0.5
+
+    // 5-point Gauss–Legendre, for the last short piece to z (under half a unit long).
+    private val GAUSS_X5 = doubleArrayOf(-0.9061798459386640, -0.5384693101056831, 0.0, 0.5384693101056831, 0.9061798459386640)
+    private val GAUSS_W5 = doubleArrayOf(0.2369268850561891, 0.4786286704993665, 0.5688888888888889, 0.4786286704993665, 0.2369268850561891)
 
     // 10-point Gauss–Legendre nodes and weights on [−1, 1].
     private val GAUSS_X = doubleArrayOf(-0.9739065285171717, -0.8650633666889845, -0.6794095682990244, -0.4333953941292472, -0.1488743389816312, 0.1488743389816312, 0.4333953941292472, 0.6794095682990244, 0.8650633666889845, 0.9739065285171717)
