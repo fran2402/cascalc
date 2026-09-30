@@ -1,0 +1,96 @@
+<!-- Icon options for CasCalc: six directions, each shown as Android draws it. -->
+<html><head><meta charset="utf-8"><style>
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:CMS2;src:url(../app/src/main/res/font/cm_size2.otf)}
+body{margin:0;background:#e9e5dc;font-family:GSF;padding:40px;color:#23221c}
+h1{font:500 34px GSF;margin:0 0 6px} .sub{font:16px GSF;color:#5c5a50;margin-bottom:30px}
+.opt{display:flex;align-items:center;gap:34px;background:#f7f4ec;border-radius:32px;padding:26px 30px;margin-bottom:22px}
+.meta{width:300px} .meta b{font:600 26px GSF;display:block;margin-bottom:6px} .meta span{font:15px GSF;color:#5c5a50;line-height:1.4}
+.col{display:flex;flex-direction:column;align-items:center;gap:8px;font:12px GSF;color:#6b695e}
+.circle{clip-path:circle(50%)} .squircle{clip-path:url(#sq)} .rsq{border-radius:22%;overflow:hidden}
+.home{width:250px;height:150px;border-radius:22px;background:linear-gradient(135deg,#6f7fa8,#c79b8b 60%,#e7c38e);display:flex;align-items:center;justify-content:space-around;padding:0 10px}
+.home.dark{background:linear-gradient(135deg,#1f2433,#3b2f3a)}
+.mini{width:52px;height:52px;border-radius:50%;overflow:hidden}
+.fake{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.55)}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><clipPath id="sq" clipPathUnits="objectBoundingBox"><path d="M.5 0C.9 0 1 .1 1 .5S.9 1 .5 1 0 .9 0 .5.1 0 .5 0z"/></clipPath></svg>
+<h1>CasCalc icon: minimal variations on H (saddle surface)</h1>
+<div class="sub">Each row: full colour in a circle mask and a squircle mask, the themed icon (Android 13+ monochrome) in light and dark, and at real size on a home screen. Glyphs are Computer Modern, like the app's maths.</div>
+<div id="list"></div>
+<script>
+// Each option: fg(theme) = the foreground layer (108×108, content inside the 66 dp safe zone, 21–87),
+// bg = the background layer, mono = the one-colour version (drawn in currentColor).
+const W='http://www.w3.org/2000/svg';
+const T=(x,y,s,f,t,fill,extra='')=>`<text x="${x}" y="${y}" font-family="${f}" font-size="${s}" fill="${fill}" text-anchor="middle" ${extra}>${t}</text>`;
+// The saddle z = x² − y² over a square, seen from azimuth 0.6 rad and elevation asin 0.55 (chosen
+// from a contact sheet of views: the one where the saddle reads at a glance).
+const AZ=.6,ZK=.8,EL=.55,CA=Math.cos(AZ),SA=Math.sin(AZ),CE=Math.sqrt(1-EL*EL),S=24;
+const P0=(x,y)=>{const z=(x*x-y*y)*ZK;const sx=x*CA-y*SA,dp=x*SA+y*CA;return [sx,dp*EL-z*CE]};
+// Centred on its own bounds and scaled to 58 units across (inside the 66 dp safe zone).
+const BB=(()=>{let a=[1e9,1e9,-1e9,-1e9];for(let i=0;i<=40;i++)for(let j=0;j<=40;j++){const q=P0(-1+i/20,-1+j/20);a=[Math.min(a[0],q[0]),Math.min(a[1],q[1]),Math.max(a[2],q[0]),Math.max(a[3],q[1])]}return a})();
+const SC=58/Math.max(BB[2]-BB[0],BB[3]-BB[1]);
+const P=(x,y,k=1)=>{const q=P0(x,y);return [54+(q[0]-(BB[0]+BB[2])/2)*SC*k,54+(q[1]-(BB[1]+BB[3])/2)*SC*k]};
+const depth=(x,y)=>x*SA+y*CA;
+const f2=p=>p.map(v=>v.toFixed(1)).join(' ');
+const edge=(n=24,k=1)=>{let d='';const add=(x,y,f)=>{d+=(f?'M':'L')+f2(P(x,y,k))};
+ for(let i=0;i<=n;i++)add(-1+2*i/n,-1,i==0);for(let i=1;i<=n;i++)add(1,-1+2*i/n);for(let i=1;i<=n;i++)add(1-2*i/n,1);for(let i=1;i<n;i++)add(-1,1-2*i/n);return d+'Z'};
+const uLine=(y,k=1,n=30)=>{let d='';for(let i=0;i<=n;i++)d+=(i?'L':'M')+f2(P(-1+2*i/n,y,k));return d};
+const vLine=(x,k=1,n=30)=>{let d='';for(let i=0;i<=n;i++)d+=(i?'L':'M')+f2(P(x,-1+2*i/n,k));return d};
+const grid=(m,stroke,w,k=1)=>{let g='';for(let i=1;i<m;i++){const c=-1+2*i/m;g+=`<path d="${uLine(c,k)}" fill="none" stroke="${stroke}" stroke-width="${w}" stroke-linecap="round"/><path d="${vLine(c,k)}" fill="none" stroke="${stroke}" stroke-width="${w}" stroke-linecap="round"/>`}return g};
+// Cells coloured by the side they show (top light, underside darker), drawn back to front.
+const faces=(top,under,k=1,n=18)=>{const q=[];for(let i=0;i<n;i++)for(let j=0;j<n;j++){const x0=-1+2*i/n,x1=-1+2*(i+1)/n,y0=-1+2*j/n,y1=-1+2*(j+1)/n;
+ const a=P(x0,y0,k),b=P(x1,y0,k),c=P(x1,y1,k),d=P(x0,y1,k);const cr=(b[0]-a[0])*(d[1]-a[1])-(b[1]-a[1])*(d[0]-a[0]);
+ q.push({d:depth((x0+x1)/2,(y0+y1)/2),p:[a,b,c,d],up:cr>0})}q.sort((x,y)=>x.d-y.d);
+ return q.map(o=>`<path d="M${o.p.map(f2).join('L')}Z" fill="${o.up?top:under}" stroke="${o.up?top:under}" stroke-width=".5"/>`).join('')};
+const O=[
+{name:'H1 · Two-tone', note:'The saddle as flat shapes only: top light, the underside that curls into view darker. No lines at all; the purest version.',
+ bg:'#0E2A3A',
+ fg:faces('#8BE9C9','#2B8C9E'),
+ mono:faces('currentColor','none')+`<path d="${edge()}" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>`},
+{name:'H2 · Two-tone + grid', note:'H cleaned up: flat two-tone shading with a sparse 4 × 4 grid. The grid is what makes the saddle read instantly.',
+ bg:'#0E2A3A',
+ fg:faces('#8BE9C9','#2B8C9E')+grid(4,'#0E2A3A',1.6),
+ mono:`<path d="${edge()}" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/>`+grid(4,'currentColor',1.8)},
+{name:'H3 · Wireframe', note:'Only lines: the outline and a 4 × 4 grid in one colour on dark. Technical and light; identical in colour and as a themed icon.',
+ bg:'#0E2A3A',
+ fg:`<path d="${edge()}" fill="none" stroke="#9FE3D0" stroke-width="2.6" stroke-linejoin="round"/>`+grid(4,'#9FE3D0',1.8),
+ mono:`<path d="${edge()}" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/>`+grid(4,'currentColor',1.8)},
+{name:'H4 · Saddle point', note:'H2 plus one element with meaning: a glowing dot at the saddle point, the critical point where both slopes are zero.',
+ bg:'#0E2A3A',
+ fg:faces('#8BE9C9','#2B8C9E')+grid(4,'#0E2A3A',1.4)+`<defs><radialGradient id="glow"><stop offset="0" stop-color="#FFD27A" stop-opacity=".95"/><stop offset="1" stop-color="#FFD27A" stop-opacity="0"/></radialGradient></defs><circle cx="${P(0,0)[0]}" cy="${P(0,0)[1]}" r="9" fill="url(#glow)"/><circle cx="${P(0,0)[0]}" cy="${P(0,0)[1]}" r="3.6" fill="#FFF3D6"/>`,
+ mono:`<path d="${edge()}" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/>`+grid(2,'currentColor',1.8)+`<circle cx="${P(0,0)[0]}" cy="${P(0,0)[1]}" r="4.5" fill="currentColor"/>`},
+{name:'H5 · Two curves', note:'A dim surface with just the two curves through the middle, in colour: along one axis it bends up (mint), along the other down (gold).',
+ bg:'#0E2A3A',
+ fg:faces('#2F6F7E','#1E4D5C')+`<path d="${edge()}" fill="none" stroke="#8BE9C9" stroke-width="1.6" stroke-linejoin="round" opacity=".6"/><path d="${uLine(0)}" fill="none" stroke="#8BE9C9" stroke-width="3.4" stroke-linecap="round"/><path d="${vLine(0)}" fill="none" stroke="#FFD27A" stroke-width="3.4" stroke-linecap="round"/>`,
+ mono:`<path d="${edge()}" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><path d="${uLine(0)}" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/><path d="${vLine(0)}" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"/>`},
+{name:'H6 · Contour floor', note:'A smaller saddle above its own level curves (x² − y² = c) on the floor: two elements, both the same function.',
+ bg:'#0E2A3A',
+ fg:(()=>{let g='';const F=(x,y)=>{const sx=x*CA-y*SA,dp=x*SA+y*CA;return [54+sx*SC*.62,76+dp*EL*SC*.62]};
+  [[.5,'#8BE9C9'],[.15,'#8BE9C9'],[-.15,'#4FB3D9'],[-.5,'#4FB3D9']].forEach(([c,col])=>[1,-1].forEach(sg=>{let d='',first=true;for(let i=0;i<=30;i++){const t=-1+2*i/30;let x,y;if(c>0){y=t;x=sg*Math.sqrt(c+t*t)}else{x=t;y=sg*Math.sqrt(-c+t*t)}if(Math.abs(x)>1||Math.abs(y)>1){first=true;continue}d+=(first?'M':'L')+f2(F(x,y));first=false}g+=`<path d="${d}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linecap="round" opacity=".7"/>`}));
+  return g+`<g transform="translate(15.1 3) scale(.72)">${faces('#8BE9C9','#2B8C9E')}${grid(4,'#0E2A3A',1.8)}</g>`})(),
+ mono:`<g transform="translate(15.1 3) scale(.72)"><path d="${edge()}" fill="currentColor"/></g><path d="M38 80C46 77 62 77 70 80M42 86C50 84 58 84 66 86" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>`},
+{name:'H7 · Light tile', note:'H2 on a pale Material You tile, the surface in deep teal: friendlier, closer to Google’s own icons.',
+ bg:'#DDF3EC',
+ fg:faces('#1F8A70','#0F5C6E')+grid(4,'#DDF3EC',1.4),
+ mono:`<path d="${edge()}" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/>`+grid(4,'currentColor',1.8)},
+{name:'H8 · Surface + ∫', note:'H2 slightly smaller with a Computer Modern ∫ beside it: 3D graphing and the CAS together, still only two shapes.',
+ bg:'#0E2A3A',
+ fg:`<g transform="translate(8.8 14) scale(.84)">${faces('#8BE9C9','#2B8C9E')}${grid(4,'#0E2A3A',1.8)}</g>${T(76,38,15,'CMS2','∫','#FFD27A')}`,
+ mono:`<g transform="translate(8.8 14) scale(.84)"><path d="${edge()}" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>${grid(4,'currentColor',2.2)}</g>${T(76,38,15,'CMS2','∫','currentColor')}`},
+];
+
+
+const svg=(bg,fg,size,cls='')=>`<svg class="${cls}" xmlns="${W}" viewBox="0 0 108 108" width="${size}" height="${size}"><rect width="108" height="108" fill="${bg}"/>${fg}</svg>`;
+// Themed icons: Material You tints (light: dark ink on pale; dark: pale ink on dark).
+const mono=(o,size,dark)=>`<svg xmlns="${W}" viewBox="0 0 108 108" width="${size}" height="${size}" style="color:${dark?'#D4E3FF':'#1D3A66'};--mbg:${dark?'#2A3446':'#D6E3FF'}"><rect width="108" height="108" fill="${dark?'#2A3446':'#D6E3FF'}"/>${o.mono}</svg>`;
+document.getElementById('list').innerHTML=O.map(o=>`<div class="opt"><div class="meta"><b>${o.name}</b><span>${o.note}</span></div>
+ <div class="col">${svg(o.bg,o.fg,190,'circle')}Circle</div>
+ <div class="col">${svg(o.bg,o.fg,190,'squircle')}Squircle</div>
+ <div class="col"><div class="circle" style="width:120px;height:120px">${mono(o,120,false)}</div>Themed, light</div>
+ <div class="col"><div class="circle" style="width:120px;height:120px">${mono(o,120,true)}</div>Themed, dark</div>
+ <div class="col"><div class="home"><span class="fake"></span><span class="mini">${svg(o.bg,o.fg,52)}</span><span class="fake"></span></div>Home screen, 52 dp</div>
+</div>`).join('');
+Promise.all(['GSF','CMR','CMI','CMS2'].map(f=>document.fonts.load('400 20px '+f,f=='CMS2'?'∫':'a'))).then(()=>document.title='ready');
+</script></body></html>
