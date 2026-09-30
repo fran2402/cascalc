@@ -2,6 +2,7 @@ package com.example.cas.ui
 
 import android.app.Application
 import android.content.Context
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -51,7 +52,7 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
     /** In 3D: [implicit3D] is an inequality's g, the solid being where g < 0 (a region, not a surface). */
     var region3D: Boolean = false
         internal set
-    /** Line style in the 2D graph: 0 solid, 1 dashed, 2 dotted; and thickness in dp. */
+    /** Line style in the 2D graph ([com.example.cas.graph.LineStyle] by position), and thickness in dp. */
     var lineStyle by mutableStateOf(0)
     var thickness by mutableStateOf(3f)
     /** Conditions after commas (y = x², 0 < x < 2): each compared chain's parts in (x, y, t, θ, r) + sliders. */
@@ -131,6 +132,8 @@ sealed class Plot2DKind {
     class Parametric(val x: RealFunction, val y: RealFunction) : Plot2DKind() { override val label = "(x, y) =" }
     class Implicit(val f: RealFunction) : Plot2DKind() { override val label: String? = null }
     class Region(val parts: List<RealFunction>, val ops: List<String>) : Plot2DKind() { override val label: String? = null }
+    /** A scalar field f(x, y), drawn with its line's colormap. */
+    class Field(val f: RealFunction) : Plot2DKind() { override val label: String? = null }
     /** A point (a, b) with numbers (or sliders) for coordinates. */
     class Point(val x: RealFunction, val y: RealFunction) : Plot2DKind() { override val label: String? = null }
     /** A list of points [(x₁, y₁), (x₂, y₂), …], drawn as dots and used by Fit. */
@@ -258,6 +261,11 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 f.folderLevel = t.optInt("level", 0)
             }
         }
+        // Every item's depth in the folders; older saves had levels on folders only.
+        val depths = get("depths")?.split(",")?.map { it.toIntOrNull() ?: 0 }
+            ?: com.example.cas.graph.FolderTree.fromLegacy(functions.map { if (it.isFolder) it.folderLevel else null })
+        functions.forEachIndexed { i, f -> f.folderLevel = depths.getOrElse(i) { 0 } }
+        normalizeFolders()
         get("colors")?.split(",")?.forEachIndexed { i, c ->
             functions.getOrNull(i)?.customColor = c.toLongOrNull()?.toInt()
         }
@@ -266,7 +274,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             val parts = st.split(":")
             val (style, width) = parts.getOrNull(0)?.toIntOrNull() to parts.getOrNull(1)?.toFloatOrNull()
             functions.getOrNull(i)?.let { f ->
-                style?.let { f.lineStyle = it.coerceIn(0, 2) }; width?.let { f.thickness = it.coerceIn(1f, 10f) }
+                style?.let { f.lineStyle = it.coerceIn(0, com.example.cas.graph.LineStyle.entries.lastIndex) }; width?.let { f.thickness = it.coerceIn(1f, 10f) }
                 // A trailing _r is the reversed map, as in matplotlib.
                 val (map, reversed) = com.example.cas.graph.Colormap.parse(parts.getOrNull(2))
                 f.colormap = map
@@ -302,6 +310,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         "colors" to functions.joinToString(",") { f -> f.customColor?.let { (it.toLong() and 0xFFFFFFFFL).toString() } ?: "" },
         "styles" to functions.joinToString(",") { f -> styleText(f) },
         "slots" to functions.joinToString(",") { it.colorIndex.toString() },
+        "depths" to functions.joinToString(",") { it.folderLevel.toString() },
         "notes" to notesJson(),
         "extras" to extrasJson(),
         "ranges" to ranges.entries.joinToString("\n") { "${it.key}\t${it.value.first}\t${it.value.second}" },
@@ -485,6 +494,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     fun remove(f: PlotFunction) {
         if (active === f) active = null
         functions.remove(f)
+        // A deleted folder's lines stay, one level up.
+        normalizeFolders()
         version++
         save()
     }
@@ -664,6 +675,11 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 is com.example.cas.graph.PlotSpec.Parametric -> Plot2DKind.Parametric(Compiler.compile(spec.x, listOf("t") + params), Compiler.compile(spec.y, listOf("t") + params))
                 is com.example.cas.graph.PlotSpec.Implicit -> Plot2DKind.Implicit(Compiler.compile(spec.f, listOf("x", "y") + params))
                 is com.example.cas.graph.PlotSpec.Region -> Plot2DKind.Region(spec.rel.parts.map { Compiler.compile(it, listOf("x", "y") + params) }, spec.rel.ops)
+                is com.example.cas.graph.PlotSpec.Field -> {
+                    // A new field starts on viridis (the hue wheel is for phases, not values).
+                    if (f.colormap == com.example.cas.graph.Colormap.CLASSIC) f.colormap = com.example.cas.graph.Colormap.VIRIDIS
+                    Plot2DKind.Field(Compiler.compile(spec.f, listOf("x", "y") + params))
+                }
             }
             f.restrictions = conditions.map { rel -> rel.parts.map { Compiler.compile(it, listOf("x", "y", "t", "θ", "r") + params) } to rel.ops }
             // Explicit curves keep using the zero/extremum finders.
@@ -740,9 +756,11 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         }
 
     /** Switches the 3D coordinates to [m] (or back to Cartesian if it's on already), redrawing every line. */
-    fun toggleCoordinates(m: com.example.cas.graph.Coordinates3D.Mode) {
-        coordinates3D = if (coordinates3D == m) com.example.cas.graph.Coordinates3D.Mode.Cartesian else m
-        prefs.edit().putString("${key}_coordinates", coordinates3D.name).apply()
+    /** Picks the coordinate system: exactly one is always chosen. */
+    fun setCoordinates(m: com.example.cas.graph.Coordinates3D.Mode) {
+        if (coordinates3D == m) return
+        coordinates3D = m
+        prefs.edit().putString("${key}_coordinates", m.name).apply()
         recompileAll()
     }
 
@@ -770,6 +788,21 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
      * both sides (|z − 1| = 2, x² + y² = 4) is drawn as a curve; ∮ around a circle draws the
      * circle with the integral's value. x, y, r, θ mean ℜz, ℑz, |z|, arg z.
      */
+    /** [row] with every integral that has no limits given them: from 1 to its own variable. */
+    private fun withLimitsFromOne(row: MathRow): MathRow {
+        fun visit(r: MathRow) {
+            r.items.forEach { n ->
+                if (n is com.example.cas.editor.Integral && n.lower.isEmpty && n.upper.isEmpty) {
+                    n.lower.add(com.example.cas.editor.Sym("1"))
+                    MathCodec.copy(n.variable).items.toList().forEach { item -> n.upper.add(item) }
+                }
+                n.slots.forEach(::visit)
+            }
+        }
+        visit(row)
+        return row
+    }
+
     private fun recompileComplex(f: PlotFunction) {
         f.complexCompiled = null; f.compiled = null; f.complexCurve = null; f.contour = null
         try {
@@ -787,7 +820,14 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 f.parameters = emptyList(); f.definition = null; f.error = null
                 return
             }
-            var e = ev.evaluate(MathCodec.copy(f.editor.root))
+            // An integral with no closed form (∫ Γ(z) dz) is drawn as ∫₁^z, an antiderivative, worked
+            // out numerically along the straight path from 1 (0 is a pole of Γ and 1/z).
+            var e = try {
+                ev.evaluate(MathCodec.copy(f.editor.root))
+            } catch (x: MathError) {
+                if (x.message?.startsWith("No antiderivative") != true) throw x
+                ev.evaluate(withLimitsFromOne(MathCodec.copy(f.editor.root)))
+            }
             if (asDefinition(f, e)) return
             val z = com.example.cas.cas.Sym("z")
             fun polar(x: com.example.cas.cas.Expr) = x
@@ -1138,17 +1178,22 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
 
     fun setNote(f: PlotFunction, text: String) { f.note = text; save() }
 
-    /** Each item's folder level, or null for lines, as [com.example.cas.graph.FolderTree] reads them. */
-    private fun folderLevels(): List<Int?> = functions.map { if (it.isFolder) it.folderLevel else null }
+    /** The list as [com.example.cas.graph.FolderTree] reads it: each item's depth, and which are folders. */
+    private fun treeItems(): List<com.example.cas.graph.FolderTree.Item> =
+        functions.map { com.example.cas.graph.FolderTree.Item(it.folderLevel, it.isFolder, it.collapsed) }
+
+    private fun normalizeFolders() {
+        com.example.cas.graph.FolderTree.normalize(treeItems()).forEachIndexed { i, d -> functions[i].folderLevel = d }
+    }
 
     /** Everything in a folder, nested folders and their lines included. */
     fun folderMembers(folder: PlotFunction): List<PlotFunction> =
-        if (!folder.isFolder) emptyList() else com.example.cas.graph.FolderTree.members(folderLevels(), functions.indexOf(folder)).map { functions[it] }
+        com.example.cas.graph.FolderTree.members(treeItems(), functions.indexOf(folder)).map { functions[it] }
 
     /** The folders an item is in, outermost first. */
     fun enclosing(f: PlotFunction): List<PlotFunction> {
         val i = functions.indexOf(f)
-        return if (i < 0) emptyList() else com.example.cas.graph.FolderTree.enclosing(folderLevels(), i).map { functions[it] }
+        return if (i < 0) emptyList() else com.example.cas.graph.FolderTree.enclosing(treeItems(), i).map { functions[it] }
     }
 
     /** The folder an item is directly in, if any. */
@@ -1157,15 +1202,53 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     /** Whether a closed folder hides this item. */
     fun hiddenByFolder(f: PlotFunction) = enclosing(f).any { it.collapsed }
 
-    /** Whether [folder] can go one level deeper (inside the folder above it). */
-    fun canNest(folder: PlotFunction) = folder.isFolder && com.example.cas.graph.FolderTree.canNest(folderLevels(), functions.indexOf(folder))
+    /** Whether [f] can go into the folder right above it. */
+    fun canNest(f: PlotFunction) = com.example.cas.graph.FolderTree.canNest(treeItems(), functions.indexOf(f))
 
-    /** Puts a folder inside the folder above it (+1), or takes it out of its folder (−1); its own folders move with it. */
-    fun nestFolder(folder: PlotFunction, by: Int) {
-        if (!folder.isFolder || (by > 0 && !canNest(folder)) || folder.folderLevel + by < 0) return
-        val inside = folderMembers(folder).filter { it.isFolder }
-        folder.folderLevel += by
-        inside.forEach { it.folderLevel = (it.folderLevel + by).coerceAtLeast(0) }
+    private fun apply(change: com.example.cas.graph.FolderTree.Change?): Boolean {
+        change ?: return false
+        val old = functions.toList()
+        change.order.forEachIndexed { k, i -> functions[k] = old[i] }
+        change.depths.forEachIndexed { k, d -> functions[k].folderLevel = d }
+        version++
+        save()
+        return true
+    }
+
+    /** Puts an item (a folder with everything in it) into the folder above it (+1), or takes it out of its folder (−1). */
+    fun nest(f: PlotFunction, by: Int) {
+        val i = functions.indexOf(f)
+        if (i < 0) return
+        val items = treeItems()
+        apply(if (by > 0) com.example.cas.graph.FolderTree.nest(items, i) else com.example.cas.graph.FolderTree.unnest(items, i))
+    }
+
+    /**
+     * Moves an item one visible step up (−1) or down (+1), dragging: a folder carries everything
+     * in it, a closed folder is passed as one block, and lines go into or out of open folders.
+     */
+    fun step(f: PlotFunction, dir: Int): Boolean {
+        val i = functions.indexOf(f)
+        return i >= 0 && apply(com.example.cas.graph.FolderTree.step(treeItems(), i, dir))
+    }
+
+    /** The rows [f] passes in one step [dir], for the drag to know how far that is. */
+    fun stepSpan(f: PlotFunction, dir: Int): List<PlotFunction> {
+        val i = functions.indexOf(f)
+        val change = if (i < 0) null else com.example.cas.graph.FolderTree.step(treeItems(), i, dir) ?: return emptyList()
+        change ?: return emptyList()
+        val unit = setOf(f) + folderMembers(f)
+        // What ends up on the other side of f: the old items that now sit before (down) or after (up) it.
+        val newIndex = change.order.indexOf(i)
+        val passed = if (dir > 0) change.order.take(newIndex).map { functions[it] }.filter { functions.indexOf(it) > i }
+            else change.order.drop(newIndex).map { functions[it] }.filter { functions.indexOf(it) < i }
+        return passed.filter { it !in unit && !hiddenByFolder(it) }
+    }
+
+    /** A folder's colour ([PlotFunction.customColor]) and name, set together from its dialog. */
+    fun setFolder(folder: PlotFunction, name: String, color: Int?) {
+        folder.note = name
+        folder.customColor = color
         version++
         save()
     }
@@ -1200,7 +1283,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         tableFor = f
     }
 
-    /** Line style (0 solid, 1 dashed, 2 dotted) and thickness in dp. */
+    /** Line style ([com.example.cas.graph.LineStyle] by position) and thickness in dp. */
     fun setStyle(f: PlotFunction, style: Int, thickness: Float) {
         f.lineStyle = style; f.thickness = thickness
         version++
@@ -1320,7 +1403,15 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             is KeyAction.Power -> ed.insertPower(action.exponent?.let { row(it) })
             KeyAction.Paren -> ed.smartParen()
             KeyAction.ListBrackets -> { ed.type("["); ed.type("]"); ed.moveLeft() }
-            KeyAction.Backspace -> ed.backspace()
+            KeyAction.Backspace -> {
+                // In an empty line, backspace removes the line and continues at the end of the one above.
+                val f = active!!
+                if (f.editor.isEmpty && functions.size > 1 && !f.isText && f.table == null) {
+                    val above = functions.subList(0, functions.indexOf(f)).lastOrNull { !it.isText && !isDataLine(it) && !hiddenByFolder(it) }
+                    remove(f)
+                    above?.let { edit(it); it.editor.setCursor(it.editor.root, it.editor.root.items.size) }
+                } else ed.backspace()
+            }
             KeyAction.Clear -> ed.clear()
             // Enter (bottom right) finishes the line, as Back does.
             KeyAction.Enter -> edit(null)
@@ -1366,19 +1457,47 @@ class Graph2DViewModel(app: Application) : GraphViewModel(app, "g2", listOf("x")
         view = com.example.cas.graph.Viewport(v.xMin, v.xMax, cy - h / 2, cy + h / 2)
     }
 
-    /** The first point picked with "Area": the function and x = a. The next tap on the graph gives b. */
-    var areaStart by mutableStateOf<Pair<PlotFunction, Double>?>(null)
-    /** ∫ₐᵇ f dx and the total area between the curve and the axis, once both points are picked. */
-    var area by mutableStateOf<AreaResult?>(null)
+    /** Where an area starts: the curve (and, from a crossing, the second curve) and x = a. The next tap gives b. */
+    data class AreaStart(val f: PlotFunction, val g: PlotFunction?, val a: Double)
+
+    /** The first point picked with "Area" (or "Area between curves"). */
+    var areaStart by mutableStateOf<AreaStart?>(null)
+
+    /** The area being shown: its curve(s) and edges. Its value is [area], worked out from these. */
+    var areaSpec by mutableStateOf<AreaStart?>(null)
+    var areaEnd by mutableStateOf(0.0)
 
     fun finishArea(b: Double) {
-        val (f, a) = areaStart ?: return
+        val start = areaStart ?: return
         areaStart = null
-        val fn = (f.plot as? Plot2DKind.Explicit)?.f ?: return
-        area = runCatching {
-            val (signed, total) = com.example.cas.graph.Plot2D.area({ x -> call(f, fn, x) }, a, b)
-            AreaResult(f, a, b, signed, total)
-        }.getOrElse { AreaResult(f, a, b, Double.NaN, Double.NaN) }
+        areaSpec = start
+        areaEnd = b
+    }
+
+    fun clearArea() { areaSpec = null; areaStart = null }
+
+    /** Moves one edge of the area (dragging it along the graph); the value follows. */
+    fun moveAreaEdge(end: Boolean, x: Double) {
+        val spec = areaSpec ?: return
+        if (end) areaEnd = x else areaSpec = spec.copy(a = x)
+    }
+
+    /**
+     * ∫ₐᵇ f dx (or ∫ₐᵇ (f − g) dx between two curves) and the total area, recomputed whenever
+     * the curves change: a slider moving, a line edited, an edge dragged.
+     */
+    val area: AreaResult? by derivedStateOf {
+        val spec = areaSpec ?: return@derivedStateOf null
+        val b = areaEnd
+        spec.f.version; spec.g?.version; parameters.toMap()
+        val fn = (spec.f.plot as? Plot2DKind.Explicit)?.f ?: return@derivedStateOf null
+        val gn = spec.g?.let { (it.plot as? Plot2DKind.Explicit)?.f }
+        if (spec.g != null && gn == null) return@derivedStateOf null
+        runCatching {
+            val h = { x: Double -> call(spec.f, fn, x) - if (gn != null) call(spec.g!!, gn, x) else 0.0 }
+            val (signed, total) = com.example.cas.graph.Plot2D.area(h, spec.a, b)
+            AreaResult(spec.f, spec.g, spec.a, b, signed, total)
+        }.getOrElse { AreaResult(spec.f, spec.g, spec.a, b, Double.NaN, Double.NaN) }
     }
 
     /** The curve last tapped; its zeros, extrema and crossings are marked. */
@@ -1439,5 +1558,8 @@ class ComplexViewModel(app: Application) : GraphViewModel(app, "gc", listOf("z")
     fun clearContour() { contour = emptyList(); contourResult = null }
 }
 
-/** The area picked on the 2D graph: [signed] = ∫ₐᵇ f dx, [total] = ∫ₐᵇ |f| dx (NaN if it couldn't be computed). */
-class AreaResult(val f: PlotFunction, val a: Double, val b: Double, val signed: Double, val total: Double)
+/**
+ * The area picked on the 2D graph: [signed] = ∫ₐᵇ f dx, [total] = ∫ₐᵇ |f| dx, or with [g] the same for
+ * f − g, the area between the curves (NaN if it couldn't be computed).
+ */
+class AreaResult(val f: PlotFunction, val g: PlotFunction?, val a: Double, val b: Double, val signed: Double, val total: Double)

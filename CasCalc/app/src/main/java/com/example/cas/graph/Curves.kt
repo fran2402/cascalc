@@ -20,6 +20,7 @@ import kotlin.math.sin
  *  - (f(t), g(t))                                    → [Parametric]
  *  - any other equation in x and y (x² + y² = 1)     → [Implicit]
  *  - an inequality in x and/or y (y < x², x² + y² ≤ 4) → [Region]
+ *  - an expression in x and y with no = (x² − y²)    → [Field], drawn with a colormap
  * Other letters become sliders ([parameters]).
  */
 sealed class PlotSpec {
@@ -30,6 +31,8 @@ sealed class PlotSpec {
     class Parametric(val x: Expr, val y: Expr, override val parameters: List<String>) : PlotSpec()
     class Implicit(val f: Expr, override val parameters: List<String>) : PlotSpec()
     class Region(val rel: Rel, override val parameters: List<String>) : PlotSpec()
+    /** An expression in x and y with no = (x² − y²): a scalar field, drawn in colour. */
+    class Field(val f: Expr, override val parameters: List<String>) : PlotSpec()
 
     companion object {
         val X = Sym("x"); val Y = Sym("y"); val R = Sym("r"); val THETA = Sym("θ"); val T = Sym("t")
@@ -57,7 +60,8 @@ sealed class PlotSpec {
                     if ((!f.freeOf(R) || !f.freeOf(THETA)) && (!f.freeOf(X) || !f.freeOf(Y)) && !f.freeOf(THETA)) throw MathError("Write polar curves as r = f(θ)")
                     Implicit(f, params(XY, f))
                 }
-                !e.freeOf(Y) -> throw MathError("Add = … to make it an equation in x and y")
+                // f(x, y) on its own: the field's value everywhere, as colour.
+                !e.freeOf(Y) -> Field(e, params(XY, e))
                 !e.freeOf(THETA) && e.freeOf(X) -> Polar(e, params(setOf("r", "θ"), e))
                 // Anything else is a function of x; other letters (t, a, k…) get sliders.
                 else -> Explicit(e, params(XY, e))

@@ -46,6 +46,8 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -100,9 +102,14 @@ private class Plotted(
     val fill: List<Pair<Double, Double>>? = null,
     /** Error bars of a data table's points: (x, y, σx, σy), with NaN for a missing σ. */
     val errors: List<DoubleArray> = emptyList(),
+    /** A scalar field: its cells' colours (ARGB, row 0 at the top), their grid, the value range and the image to draw. */
+    val field: IntArray? = null,
+    val fieldSize: IntSize = IntSize.Zero,
+    val fieldRange: Pair<Double, Double>? = null,
+    val fieldImage: androidx.compose.ui.graphics.ImageBitmap? = null,
 )
 
-private data class Special(val x: Double, val y: Double, val label: String, val colorIndex: Int)
+private data class Special(val x: Double, val y: Double, val label: String, val colorIndex: Int, /** At a crossing, the other curve's colour slot. */ val other: Int? = null)
 
 @Composable
 fun Graph2DScreen(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, modifier: Modifier = Modifier) {
@@ -148,6 +155,54 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                     val w = size.width.toDouble(); val h = size.height.toDouble()
                     vm.view = v.panBy(pan.x / w, pan.y / h).zoomAxes(zoomX, zoomY, centroid.x / w, centroid.y / h)
                     trace = null
+                }
+            }
+            .pointerInput(plotted) {
+                // Drag along a curve to read it continuously: a drag that starts on a curve follows
+                // that curve (the bubble moving with the finger); anywhere else the graph pans.
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = true)
+                    if (vm.areaStart != null) return@awaitEachGesture
+                    val reach = 28.dp.toPx()
+                    val first = findTrace(vm, plotted, down.position, size, reach)?.takeIf { it.label.isEmpty() || it.label == "point" }
+                        ?: return@awaitEachGesture
+                    val slop = viewConfiguration.touchSlop
+                    var tracing = false
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        // A second finger means a pinch: leave it to the zoom.
+                        if (event.changes.count { it.pressed } > 1) break
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) break
+                        if (!tracing && (change.position - down.position).getDistance() > slop) tracing = true
+                        if (tracing) {
+                            change.consume()
+                            traceAlong(vm, plotted, first.colorIndex, change.position, size)?.let { trace = it }
+                        }
+                    }
+                }
+            }
+            .pointerInput(Unit) {
+                // Drag an edge of the shaded area along the graph; its value follows the finger.
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val ar = vm.area ?: return@awaitEachGesture
+                    val v0 = vm.view ?: return@awaitEachGesture
+                    val reach = 28.dp.toPx()
+                    fun screen(x: Double) = Offset(((x - v0.xMin) / v0.width * size.width).toFloat(), ((v0.yMax - areaHeight(vm, ar, x)) / v0.height * size.height).toFloat())
+                    val da = (screen(ar.a) - down.position).getDistance(); val db = (screen(ar.b) - down.position).getDistance()
+                    if (minOf(da, db) > reach) return@awaitEachGesture
+                    val end = db < da
+                    down.consume()
+                    trace = null
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) break
+                        change.consume()
+                        val v = vm.view ?: break
+                        vm.moveAreaEdge(end, v.xMin + change.position.x / size.width * v.width)
+                    }
                 }
             }
             .pointerInput(plotted) {
@@ -214,21 +269,23 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
             // The grid can be turned off in settings (the axes stay).
             else drawGrid(v, if (AppSettings.showGrid) colors.outlineVariant else Color.Transparent, colors.onSurfaceVariant, measurer)
             vm.area?.let { ar ->
-                val fn = (ar.f.plot as? Plot2DKind.Explicit)?.f
-                if (fn != null && !ar.signed.isNaN()) {
-                    val lo = minOf(ar.a, ar.b); val hi = maxOf(ar.a, ar.b)
+                if (!ar.signed.isNaN()) areaOutline(vm, ar, v)?.let { poly ->
                     val path = Path()
-                    val steps = 200
-                    path.moveTo(toScreen(v, lo, 0.0).x, toScreen(v, lo, 0.0).y)
-                    for (k in 0..steps) {
-                        val x = lo + (hi - lo) * k / steps
-                        val y = vm.call(ar.f, fn, x).let { if (it.isFinite()) it.coerceIn(v.yMin - v.height, v.yMax + v.height) else 0.0 }
-                        val o = toScreen(v, x, y); path.lineTo(o.x, o.y)
-                    }
-                    path.lineTo(toScreen(v, hi, 0.0).x, toScreen(v, hi, 0.0).y)
+                    poly.forEachIndexed { k, (x, y) -> val o = toScreen(v, x, y); if (k == 0) path.moveTo(o.x, o.y) else path.lineTo(o.x, o.y) }
                     path.close()
                     drawPath(path, palette[ar.f.colorIndex].copy(alpha = 0.28f))
+                    // The edges, as handles to drag.
+                    listOf(ar.a, ar.b).forEach { x ->
+                        val top = toScreen(v, x, areaHeight(vm, ar, x))
+                        drawLine(palette[ar.f.colorIndex], Offset(top.x, 0f), Offset(top.x, size.height), 1.2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 5.dp.toPx())))
+                        drawCircle(colors.surface, radius = 8.dp.toPx(), center = top)
+                        drawCircle(palette[ar.f.colorIndex], radius = 8.dp.toPx(), center = top, style = Stroke(2.5.dp.toPx()))
+                    }
                 }
+            }
+            // Fields first, under every line (the first in the list on top).
+            plotted.asReversed().forEach { p ->
+                p.fieldImage?.let { img -> drawImage(img, dstSize = IntSize(size.width.toInt(), size.height.toInt()), filterQuality = FilterQuality.Low) }
             }
             // Line by line, the first in the list last, so it sits on top of all the others: its
             // curve, region and points together, over everything from the lines below it.
@@ -245,7 +302,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                     drawCircle(palette[s.colorIndex], radius = 5.dp.toPx(), center = o, style = Stroke(2.dp.toPx()))
                 }
             } }
-            vm.areaStart?.let { (f, a) ->
+            vm.areaStart?.let { (f, _, a) ->
                 val fn = (f.plot as? Plot2DKind.Explicit)?.f
                 if (fn != null) {
                     val o = toScreen(v, a, vm.call(f, fn, a))
@@ -270,39 +327,24 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 drawCircle(colors.inverseSurface, radius = 3.dp.toPx(), center = o)
             }
         }
-        // The legend, top left: each drawn line's name, in list order.
-        GraphLegend(
+        // The legend, top left (each drawn line's name, in list order), and under it the area card.
+        Column(Modifier.align(Alignment.TopStart).padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            GraphLegend(
             remember(version, palette) {
                 vm.functions.filter { it.visible && !it.isText && (it.plot != null || it.family.isNotEmpty()) && legendSource(it).isNotBlank() }
                     .map { screenLegendEntry2D(it, palette[it.colorIndex]) }
             },
-            Modifier.align(Alignment.TopStart).padding(10.dp),
-        )
+            )
+            vm.area?.let { ar -> AreaCard(ar, onClose = { vm.clearArea() }) }
+        }
         if (vm.areaStart != null) {
             Text(
-                "Tap where the area should end",
+                if (vm.areaStart?.g != null) "Tap where the area between the curves should end" else "Tap where the area should end",
                 color = colors.inverseOnSurface,
                 style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp),
                 modifier = Modifier.align(Alignment.TopCenter).padding(12.dp).clip(CircleShape).background(colors.inverseSurface)
                     .clickable(onClickLabel = "Cancel") { vm.areaStart = null }.padding(horizontal = 16.dp, vertical = 8.dp),
             )
-        }
-        vm.area?.let { ar ->
-            Row(
-                Modifier.align(Alignment.TopStart).padding(12.dp).clip(RoundedCornerShape(20.dp)).background(colors.surfaceContainerHigh)
-                    .padding(start = 16.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column {
-                    if (ar.signed.isNaN()) {
-                        Text("Couldn't integrate between these points", color = colors.error, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp))
-                    } else {
-                        Text("∫ from ${shortNumber(ar.a)} to ${shortNumber(ar.b)}  ≈ ${shortNumber(ar.signed)}", color = colors.onSurface, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp))
-                        Text("area between curve and axis ≈ ${shortNumber(ar.total)}", color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp))
-                    }
-                }
-                IconButton(onClick = { vm.area = null }) { Icon(Icons.Default.Close, contentDescription = "Clear the area", tint = colors.onSurfaceVariant) }
-            }
         }
         val tap = rememberKeyTap()
         // Export as PDF, PNG, JPG or SVG, in the shape of the graph on screen.
@@ -365,11 +407,14 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
             val px = ((t.x - view.xMin) / view.width * size.width).toFloat()
             val py = ((view.yMax - t.y) / view.height * size.height).toFloat()
             val areaFunction = vm.functions.firstOrNull { it.colorIndex == t.colorIndex && it.plot is Plot2DKind.Explicit }
+            // At a crossing of two functions of x: the area between them, from here.
+            val otherFunction = t.other?.let { o -> vm.functions.firstOrNull { it.colorIndex == o && it.plot is Plot2DKind.Explicit } }
             Layout(content = {
                 TraceBubble(
                     t, polar = vm.polarGrid, degrees = vm.angle == com.example.cas.engine.AngleUnit.Degrees,
                     onUse = { value -> trace = null; onUseValue(value) },
-                    onArea = areaFunction?.let { f -> { vm.area = null; vm.areaStart = f to t.x; trace = null } },
+                    onArea = areaFunction?.let { f -> { vm.clearArea(); vm.areaStart = Graph2DViewModel.AreaStart(f, null, t.x); trace = null } },
+                    onAreaBetween = if (areaFunction != null && otherFunction != null) ({ vm.clearArea(); vm.areaStart = Graph2DViewModel.AreaStart(areaFunction, otherFunction, t.x); trace = null }) else null,
                 )
             }, modifier = Modifier.fillMaxSize()) { ms, c ->
                 val p = ms[0].measure(Constraints())
@@ -385,7 +430,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
 }
 
 @Composable
-private fun TraceBubble(s: Special, polar: Boolean, degrees: Boolean, onUse: (Double) -> Unit, onArea: (() -> Unit)? = null) {
+private fun TraceBubble(s: Special, polar: Boolean, degrees: Boolean, onUse: (Double) -> Unit, onArea: (() -> Unit)? = null, onAreaBetween: (() -> Unit)? = null) {
     val colors = MaterialTheme.colorScheme
     val tap = rememberKeyTap()
     // With the polar grid on, points read as (r, θ).
@@ -416,6 +461,20 @@ private fun TraceBubble(s: Special, polar: Boolean, degrees: Boolean, onUse: (Do
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(TabIcons.Area, contentDescription = null, tint = colors.inverseSurface, modifier = Modifier.size(20.dp))
+            }
+        }
+        // Area between the two curves that cross here.
+        if (onAreaBetween != null) {
+            Box(
+                Modifier
+                    .padding(start = 6.dp)
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(colors.inversePrimary)
+                    .clickable(onClickLabel = "Area between the curves from here") { tap(); onAreaBetween() },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(TabIcons.AreaBetween, contentDescription = null, tint = colors.inverseSurface, modifier = Modifier.size(20.dp))
             }
         }
         uses.forEach { (name, value) ->
@@ -513,6 +572,16 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
                 val g = { x: Double, y: Double -> if (ok(x, y)) g0(x, y) else Double.NaN }
                 out += Plotted(f, emptyList(), emptyList(), segments = Curves.implicit(g, view, nx, ny))
             }
+            is Plot2DKind.Field -> {
+                // Coloured cells about 3 px square; the scale follows the values in view.
+                val fx = (size.width / 3).coerceIn(40, 420); val fy = (size.height / 3).coerceIn(40, 560)
+                val h = vm.caller2(g, k.f); val ok = vm.allowedCaller(g)
+                val values = com.example.cas.graph.Field.sample({ x: Double, y: Double -> if (ok(x, y)) h(x, y) else Double.NaN }, view, fx, fy)
+                val range = com.example.cas.graph.Field.range(values)
+                val px = com.example.cas.graph.Field.colors(values, range.first, range.second, f.colormap, f.colormapReversed)
+                val image = runCatching { android.graphics.Bitmap.createBitmap(px, fx, fy, android.graphics.Bitmap.Config.ARGB_8888).asImageBitmap() }.getOrNull()
+                out += Plotted(f, emptyList(), emptyList(), field = px, fieldSize = IntSize(fx, fy), fieldRange = range, fieldImage = image)
+            }
             is Plot2DKind.Region -> {
                 val values = DoubleArray(k.parts.size)
                 val parts = k.parts.map { vm.caller2(g, it) }
@@ -543,7 +612,7 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
         val fb = (explicit[b].plot as Plot2DKind.Explicit).f
         val d = { x: Double -> vm.call(explicit[a], fa, x) - vm.call(explicit[b], fb, x) }
         Plot2D.zeros(d, view.xMin, view.xMax, 400).forEach { x ->
-            crossings += Special(x, vm.call(explicit[a], fa, x), "intersection", explicit[a].colorIndex)
+            crossings += Special(x, vm.call(explicit[a], fa, x), "intersection", explicit[a].colorIndex, explicit[b].colorIndex)
         }
     }
     if (crossings.isNotEmpty() && out.isNotEmpty()) out += Plotted(out.first().f, emptyList(), crossings)
@@ -563,7 +632,11 @@ private fun periodTurns(fs: List<(Double) -> Double>): Int {
 private fun DrawScope.toScreen(v: Viewport, x: Double, y: Double) =
     Offset(((x - v.xMin) / v.width * size.width).toFloat(), ((v.yMax - y) / v.height * size.height).toFloat())
 
-private fun DrawScope.drawGrid(v: Viewport, gridColor: Color, axisColor: Color, measurer: TextMeasurer) {
+/**
+ * The grid, axes and numbers, in the theme's colours (shared by the 2D graph and the complex
+ * plane: [ySuffix] "i" labels the imaginary axis, and [halo] keeps numbers readable over colour).
+ */
+internal fun DrawScope.drawGrid(v: Viewport, gridColor: Color, axisColor: Color, measurer: TextMeasurer, ySuffix: String = "", halo: Color? = null) {
     val targetX = (size.width / 90.dp.toPx()).toInt().coerceAtLeast(3)
     val targetY = (size.height / 90.dp.toPx()).toInt().coerceAtLeast(3)
     val stepX = Plot2D.niceStep(v.width, targetX)
@@ -590,7 +663,7 @@ private fun DrawScope.drawGrid(v: Viewport, gridColor: Color, axisColor: Color, 
     if (origin.x in 0f..size.width) drawLine(axisColor, Offset(origin.x, 0f), Offset(origin.x, size.height), axisW)
     // Numbers along the axes can be turned off in the graph's settings.
     if (!AppSettings.axisNumbers) return
-    val style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 11.sp, color = axisColor)
+    val style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 11.sp, color = axisColor, shadow = halo?.let { androidx.compose.ui.graphics.Shadow(it, blurRadius = 5f) })
     val labelY = pinInside(origin.y, 2.dp.toPx(), size.height - 16.dp.toPx())
     xs.filter { abs(it) > stepX / 2 }.forEach { x ->
         val t = measurer.measure(Plot2D.label(x, stepX), style)
@@ -599,7 +672,7 @@ private fun DrawScope.drawGrid(v: Viewport, gridColor: Color, axisColor: Color, 
     }
     val labelX = pinInside(origin.x, 2.dp.toPx(), size.width - 40.dp.toPx())
     ys.filter { abs(it) > stepY / 2 }.forEach { y ->
-        val t = measurer.measure(Plot2D.label(y, stepY), style)
+        val t = measurer.measure(Plot2D.label(y, stepY) + ySuffix, style)
         val sy = toScreen(v, 0.0, y).y
         drawText(t, topLeft = Offset(labelX + 4.dp.toPx(), sy - t.size.height / 2f))
     }
@@ -703,13 +776,9 @@ private fun DrawScope.drawArrowHead(from: Offset, to: Offset, color: Color, widt
 }
 
 private fun DrawScope.drawCurve(v: Viewport, p: Plotted, color: Color) {
-    // The function's own thickness and style (long-press its dot): solid, dashed or dotted.
+    // The function's own thickness and style (long-press its dot): solid, dashed, dotted…
     val w = p.f.thickness.dp.toPx()
-    val style = when (p.f.lineStyle) {
-        1 -> PathEffect.dashPathEffect(floatArrayOf(4 * w, 3 * w))
-        2 -> PathEffect.dashPathEffect(floatArrayOf(0.01f, 2.5f * w))
-        else -> null
-    }
+    val style = com.example.cas.graph.LineStyle.of(p.f.lineStyle).pattern(w.toDouble())?.let { d -> PathEffect.dashPathEffect(FloatArray(d.size) { d[it].toFloat() }) }
     val stroke = Stroke(w, cap = StrokeCap.Round, join = StrokeJoin.Round, pathEffect = style)
     // Shaded region: runs of inside cells along each row.
     p.mask?.let { mask ->
@@ -795,30 +864,23 @@ internal fun graph2DScene(vm: Graph2DViewModel, view: Viewport, size: Double, da
         val rays = (0 until 12).map { a -> val ang = a * PI / 6; doubleArrayOf(ox, oy, ox + reach * kotlin.math.cos(ang), oy - reach * kotlin.math.sin(ang)) }
         scene.add(Scene.Stroke(circles + rays, style.grid, 0.5))
     }
-    // The area picked with Area, shaded.
+    // The area picked with Area (or between two curves), shaded.
     vm.area?.let { ar ->
-        val fn = (ar.f.plot as? Plot2DKind.Explicit)?.f
-        if (fn != null && !ar.signed.isNaN()) {
-            val lo = minOf(ar.a, ar.b); val hi = maxOf(ar.a, ar.b)
-            val pts = ArrayList<Double>()
-            pts += sx(lo); pts += sy(0.0)
-            for (k in 0..200) {
-                val x = lo + (hi - lo) * k / 200
-                val y = vm.call(ar.f, fn, x).let { if (it.isFinite()) it.coerceIn(v.yMin - v.height, v.yMax + v.height) else 0.0 }
-                pts += sx(x); pts += sy(y)
-            }
-            pts += sx(hi); pts += sy(0.0)
-            scene.add(Scene.Fill(listOf(pts.toDoubleArray()), withAlpha(colorOf(ar.f), 0.25f)))
+        if (!ar.signed.isNaN()) areaOutline(vm, ar, v)?.let { poly ->
+            val pts = DoubleArray(poly.size * 2) { k -> if (k % 2 == 0) sx(poly[k / 2].first) else sy(poly[k / 2].second) }
+            scene.add(Scene.Fill(listOf(pts), withAlpha(colorOf(ar.f), 0.25f)))
         }
     }
     // Sampled finely: three samples per unit of width.
     val plotted = runCatching { plot(vm, v, IntSize((frame.width * 3).toInt().coerceAtLeast(1), (frame.height * 3).toInt().coerceAtLeast(1)), null) }.getOrElse { emptyList() }
+    // Fields first, under every line.
+    for (p in plotted.asReversed()) p.field?.let { px -> scene.add(Scene.Image(frame.left, frame.top, frame.width, frame.height, px, p.fieldSize.width, p.fieldSize.height)) }
     // The first line in the list last, on top, as on screen.
     for (p in plotted.asReversed()) {
         val color = colorOf(p.f)
         // pgfplots' "thick" for the usual 3 dp line, scaled with the line's own thickness.
         val lw = p.f.thickness * 0.5
-        val dash = when (p.f.lineStyle) { 1 -> doubleArrayOf(4 * lw, 3 * lw); 2 -> doubleArrayOf(0.01, 2.5 * lw); else -> null }
+        val dash = com.example.cas.graph.LineStyle.of(p.f.lineStyle).pattern(lw)
         p.mask?.let { mask ->
             val mx = p.maskSize.width; val my = p.maskSize.height
             val cw = frame.width / mx; val ch = frame.height / my
@@ -892,13 +954,15 @@ internal fun legendEntry2D(f: PlotFunction, color: Int): Pgf.LegendEntry {
     val name = com.example.cas.graph.Legend.row(legendSource(f))
     val spans = com.example.cas.graph.Legend.spans(name)
     val lw = f.thickness * 0.5
-    val dash = when (f.lineStyle) { 1 -> doubleArrayOf(4 * lw, 3 * lw); 2 -> doubleArrayOf(0.01, 2.5 * lw); else -> null }
+    val dash = com.example.cas.graph.LineStyle.of(f.lineStyle).pattern(lw)
     fun alpha(c: Int, a: Float) = ((255 * a).toInt().coerceIn(0, 255) shl 24) or (c and 0xFFFFFF)
     return when (f.plot) {
         is Plot2DKind.PointList, is Plot2DKind.Point -> Pgf.LegendEntry(math = name, spans = spans, color =  color, line = f.connectPoints || f.closedShape, width = lw,
             marker = com.example.cas.graph.Marker.of(f.pointShape), markerSize = f.pointSize * 0.43,
         )
         is Plot2DKind.Region -> Pgf.LegendEntry(math = name, spans = spans, color =  color, line = true, width = 1.0, fill = alpha(color, f.fillOpacity))
+        // A field: its colormap as a strip.
+        is Plot2DKind.Field -> Pgf.LegendEntry(math = name, spans = spans, color = color, line = false, strip = (0..7).map { k -> 0xFF000000.toInt() or f.colormap.rgb(if (f.colormapReversed) 1 - k / 7.0 else k / 7.0) })
         else -> Pgf.LegendEntry(math = name, spans = spans, color =  color, dash = dash, width = lw)
     }
 }
@@ -930,9 +994,33 @@ private fun findTrace(vm: Graph2DViewModel, plotted: List<Plotted>, tap: Offset,
             if (d < bestD) { bestD = d; best = Special(px, py, "", p.f.colorIndex) }
         }
     }
-    return best
+    if (best != null) return best
+    // Over a field: its value there.
+    val y = v.yMax - tap.y / size.height * v.height
+    return vm.functions.firstOrNull { it.visible && it.plot is Plot2DKind.Field }?.let { f ->
+        val value = vm.caller2(f, (f.plot as Plot2DKind.Field).f)(x, y)
+        if (value.isFinite()) Special(x, y, "value " + shortNumber(value), f.colorIndex) else null
+    }
 }
 
+
+/**
+ * The point of curve [colorIndex] under a finger at [at]: on a function of x, the curve's own
+ * value at the finger's x; on any other curve, its nearest sampled point.
+ */
+private fun traceAlong(vm: Graph2DViewModel, plotted: List<Plotted>, colorIndex: Int, at: Offset, size: IntSize): Special? {
+    val v = vm.view ?: return null
+    val x = v.xMin + at.x / size.width * v.width
+    vm.functions.firstOrNull { it.colorIndex == colorIndex && it.visible && it.plot is Plot2DKind.Explicit && it.compiled != null }?.let { f ->
+        val y = vm.evaluate(f, x)
+        return if (y.isFinite()) Special(x, y, "", colorIndex) else null
+    }
+    fun sx(px: Double) = ((px - v.xMin) / v.width * size.width).toFloat()
+    fun sy(py: Double) = ((v.yMax - py) / v.height * size.height).toFloat()
+    val p = plotted.firstOrNull { it.f.colorIndex == colorIndex } ?: return null
+    val pts = p.lines.flatten() + p.segments.flatMap { listOf(it[0] to it[1], it[2] to it[3]) } + p.points.map { it.x to it.y }
+    return pts.minByOrNull { (px, py) -> (Offset(sx(px), sy(py)) - at).getDistance() }?.let { (px, py) -> Special(px, py, "", colorIndex) }
+}
 
 /**
  * Keeps an axis label inside the canvas. While the keypad opens or closes the canvas can be
@@ -989,4 +1077,58 @@ private fun GraphSettingsDialog(vm: Graph2DViewModel, view: Viewport, onDismiss:
         },
         dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
+}
+
+/** The top of the shaded area at x: the curve's height (clamped near the view). */
+private fun areaHeight(vm: GraphViewModel, ar: AreaResult, x: Double): Double {
+    val fn = (ar.f.plot as? Plot2DKind.Explicit)?.f ?: return 0.0
+    return vm.call(ar.f, fn, x).takeIf { it.isFinite() } ?: 0.0
+}
+
+/**
+ * The shaded region as a polygon in graph coordinates: along f from a to b, then back along g
+ * (the other curve) or the x-axis. Heights are clamped a view's height beyond the view.
+ */
+private fun areaOutline(vm: GraphViewModel, ar: AreaResult, v: com.example.cas.graph.Viewport): List<Pair<Double, Double>>? {
+    val fn = (ar.f.plot as? Plot2DKind.Explicit)?.f ?: return null
+    val gn = ar.g?.let { (it.plot as? Plot2DKind.Explicit)?.f }
+    val lo = minOf(ar.a, ar.b); val hi = maxOf(ar.a, ar.b)
+    val steps = 200
+    fun clamp(y: Double) = if (y.isFinite()) y.coerceIn(v.yMin - v.height, v.yMax + v.height) else 0.0
+    val top = (0..steps).map { k -> val x = lo + (hi - lo) * k / steps; x to clamp(vm.call(ar.f, fn, x)) }
+    val bottom = (steps downTo 0).map { k -> val x = lo + (hi - lo) * k / steps; x to (if (gn != null) clamp(vm.call(ar.g!!, gn, x)) else 0.0) }
+    return top + bottom
+}
+
+/** ∫ₐᵇ f dx (or ∫ₐᵇ (f − g) dx) and the total area, under the legend; × clears it. */
+@Composable
+private fun AreaCard(ar: AreaResult, onClose: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        Modifier.clip(RoundedCornerShape(20.dp)).background(colors.surfaceContainerHigh)
+            .padding(start = 16.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column {
+            if (ar.signed.isNaN()) {
+                Text("Couldn't integrate between these points", color = colors.error, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp))
+            } else {
+                val lo = shortNumber(ar.a); val hi = shortNumber(ar.b)
+                MathView(areaRow(ar.g != null, lo, hi), 17.sp, colors.onSurface, computerModern = true)
+                Text(
+                    (if (ar.g != null) "area between the curves ≈ " else "area between curve and axis ≈ ") + shortNumber(ar.total) +
+                        "\n= " + shortNumber(ar.signed) + " signed",
+                    color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp),
+                )
+            }
+        }
+        IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = "Clear the area", tint = colors.onSurfaceVariant) }
+    }
+}
+
+/** ∫ₐᵇ f(x) dx, or ∫ₐᵇ (f(x) − g(x)) dx, as maths for the area card. */
+private fun areaRow(between: Boolean, lo: String, hi: String): com.example.cas.editor.MathRow {
+    fun text(t: String) = com.example.cas.editor.MathRow(t.map { com.example.cas.editor.Sym(it.toString()) }.toMutableList())
+    val body = if (between) text("f(x)−g(x)") else text("f(x)")
+    return com.example.cas.editor.MathRow(mutableListOf(com.example.cas.editor.Integral(text(lo), text(hi), body, text("x"))))
 }

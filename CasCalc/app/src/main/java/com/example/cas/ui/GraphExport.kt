@@ -78,7 +78,7 @@ object SceneExport {
     fun bytes(context: Context, scene: Scene, format: ExportFormat): ByteArray = when (format) {
         ExportFormat.SVG -> {
             fun bytes(id: Int) = runCatching { context.resources.openRawResource(id).use { it.readBytes() } }.getOrNull()
-            val fonts = listOfNotNull(bytes(R.font.cm_main)?.let { Scene.Font.Roman to it }, bytes(R.font.cm_italic)?.let { Scene.Font.Italic to it }).toMap()
+            val fonts = listOfNotNull(bytes(R.font.cm_main)?.let { Scene.Font.Roman to it }, bytes(R.font.cm_italic)?.let { Scene.Font.Italic to it }, bytes(R.font.cm_size2)?.let { Scene.Font.Size2 to it }).toMap()
             SvgWriter.write(scene, fonts).toByteArray(Charsets.UTF_8)
         }
         ExportFormat.PDF -> pdf(context, scene)
@@ -121,12 +121,12 @@ object SceneExport {
         }
     }
 
-    /** The three typefaces labels use: Google Sans Flex, and Computer Modern roman and italic. */
-    class Fonts(val sans: Typeface?, val roman: Typeface?, val italic: Typeface?)
+    /** The typefaces labels use: Google Sans Flex, Computer Modern roman and italic, and TeX's Size2 (∫, ∮). */
+    class Fonts(val sans: Typeface?, val roman: Typeface?, val italic: Typeface?, val size2: Typeface? = null)
 
     fun font(context: Context): Fonts {
         fun get(id: Int) = runCatching { ResourcesCompat.getFont(context, id) }.getOrNull()
-        return Fonts(get(R.font.google_sans_flex), get(R.font.cm_main), get(R.font.cm_italic))
+        return Fonts(get(R.font.google_sans_flex), get(R.font.cm_main), get(R.font.cm_italic), get(R.font.cm_size2))
     }
 
     /** Draws [scene] at [s] pixels (or points) per unit. */
@@ -169,7 +169,7 @@ object SceneExport {
                 val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                     color = item.color
                     textSize = (item.size * s).toFloat()
-                    typeface = when (item.font) { Scene.Font.Sans -> fonts.sans; Scene.Font.Roman -> fonts.roman; Scene.Font.Italic -> fonts.italic }
+                    typeface = when (item.font) { Scene.Font.Sans -> fonts.sans; Scene.Font.Roman -> fonts.roman; Scene.Font.Italic -> fonts.italic; Scene.Font.Size2 -> fonts.size2 }
                     textAlign = when (item.anchor) { Scene.Anchor.Start -> Paint.Align.LEFT; Scene.Anchor.Middle -> Paint.Align.CENTER; Scene.Anchor.End -> Paint.Align.RIGHT }
                 }
                 val fm = paint.fontMetrics

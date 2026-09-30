@@ -120,6 +120,10 @@ object Compiler {
             "sgn" -> one { kotlin.math.sign(it) }
             "erf" -> one { com.example.cas.cas.Statistics.erf(it) }
             "digamma" -> one { com.example.cas.cas.Statistics.digamma(it) }
+            // What derivatives of ψ and ζ come to (as on the complex plane, on the real line).
+            "trigamma" -> one { com.example.cas.cas.ComplexMath.trigamma(com.example.cas.cas.CD(it)).re }
+            "zetaprime" -> one { com.example.cas.cas.ComplexMath.zetaDerivative(com.example.cas.cas.CD(it), 1).re }
+            "zetaprime2" -> one { com.example.cas.cas.ComplexMath.zetaDerivative(com.example.cas.cas.CD(it), 2).re }
             "gamma" -> one { if (it == Math.rint(it) && it <= 0) Double.NaN else Numeric.gamma(it) }
             "zeta" -> one { val w = com.example.cas.cas.ComplexMath.zeta(com.example.cas.cas.CD(it)); if (kotlin.math.abs(w.im) < 1e-9) w.re else Double.NaN }
             "frac" -> one { it - floor(it) }

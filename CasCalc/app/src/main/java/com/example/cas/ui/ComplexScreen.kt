@@ -200,6 +200,8 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
                     }
                 }
             }
+            // Hold and drag to read f(z) continuously as the finger moves.
+            .holdToTrace(Unit) { o -> vm.view?.let { v -> probe = toPlane(v, o, size) } }
             .pointerInput(Unit) {
                 detectTapGestures(
                     onDoubleTap = { vm.resetView(size); probe = null },
@@ -213,34 +215,17 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
             val size = this.size
             val v = view ?: return@Canvas
             image?.let { drawImage(it, dstSize = IntSize(size.width.toInt(), size.height.toInt()), filterQuality = FilterQuality.Low) }
-            // Axes and tick labels, white with a dark halo so they read on any colour; on the bare
-            // white plane (nothing plotted), dark with a light halo.
-            val darkInk = lightPlane && image == null
-            val ink = if (darkInk) Color.Black else Color.White
+            // The grid, axes and numbers in the theme's colours, as on the 2D graph (the numbers with
+            // a halo in the surface colour so they read over the colouring).
             val origin = Offset(((0 - v.xMin) / v.width * size.width).toFloat(), ((v.yMax - 0) / v.height * size.height).toFloat())
-            val axis = ink.copy(alpha = 0.7f)
-            if (origin.y in 0f..size.height) drawLine(axis, Offset(0f, origin.y), Offset(size.width, origin.y), 1.5.dp.toPx())
-            if (origin.x in 0f..size.width) drawLine(axis, Offset(origin.x, 0f), Offset(origin.x, size.height), 1.5.dp.toPx())
-            val style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 11.sp, color = ink, shadow = androidx.compose.ui.graphics.Shadow(if (darkInk) Color.White else Color.Black, blurRadius = 4f))
-            val stepX = Plot2D.niceStep(v.width, 5)
-            Plot2D.ticks(v.xMin, v.xMax, 5).filter { kotlin.math.abs(it) > stepX / 2 }.forEach { x ->
-                val t = measurer.measure(Plot2D.label(x, stepX), style)
-                val sx = ((x - v.xMin) / v.width * size.width).toFloat()
-                drawText(t, topLeft = Offset(sx - t.size.width / 2f, pinInside(origin.y, 2f, size.height - 18.dp.toPx()) + 4.dp.toPx()))
-            }
-            val stepY = Plot2D.niceStep(v.height, 6)
-            Plot2D.ticks(v.yMin, v.yMax, 6).filter { kotlin.math.abs(it) > stepY / 2 }.forEach { y ->
-                val t = measurer.measure(Plot2D.label(y, stepY) + "i", style)
-                val sy = ((v.yMax - y) / v.height * size.height).toFloat()
-                drawText(t, topLeft = Offset(pinInside(origin.x, 2f, size.width - 44.dp.toPx()) + 4.dp.toPx(), sy - t.size.height / 2f))
-            }
+            drawGrid(v, if (AppSettings.showGrid) colors.outlineVariant else Color.Transparent, colors.onSurfaceVariant, measurer, ySuffix = "i", halo = colors.surface)
             // Polar grid: circles of constant |z| and rays every 30° of arg z.
             if (vm.polarGrid) {
                 val corners = listOf(v.xMin to v.yMin, v.xMin to v.yMax, v.xMax to v.yMin, v.xMax to v.yMax)
                 val far = corners.maxOf { (x, y) -> kotlin.math.hypot(x, y) }
                 val step = Plot2D.niceStep(minOf(v.width, v.height) / 2, 4)
                 val px = size.width / v.width.toFloat()
-                val line = ink.copy(alpha = 0.55f)
+                val line = colors.outlineVariant
                 var r = step
                 while (r <= far) { drawCircle(line, (r * px).toFloat(), origin, style = Stroke(1.2f)); r += step }
                 val reach = (far * px).toFloat() + size.width

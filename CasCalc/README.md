@@ -195,6 +195,33 @@ Constants and symbols are long lists and scroll up and down in place; the others
 Groups: Basic, Trigonometry, Calculus, Vector calculus, Linear algebra, Statistics, Complex
 numbers, Physical constants, Symbols.
 
+## Latest changes (1 October)
+- **Folders**: every line has its own depth, so a folder holds only the lines inside it: +
+  never drops a new line into a folder, and moving a (closed) folder carries its lines as a block
+  without taking in others (graph/FolderTree.kt). Folders have a colour and a name, set by
+  long-pressing them (with "Into folder above" / "Out of folder"); × deletes one (its lines stay).
+  Lines in a folder are marked with bars in the folder's colour. Older saves keep their folders.
+- **Add menu**: + is a Material 3 FAB menu (Line, Note, Folder, Table).
+- **Backspace** in an empty graph line removes the line and continues in the one above (empty
+  constructions inside a line already go as in the calculator).
+- **Area**: the card sits under the legend; its value is recomputed live as sliders or the
+  line change, and its edges can be dragged along the graph. At a crossing of two curves, a new
+  button gives the **area between the curves**.
+- **Export legend**: ∫ and ∮ are TeX's own large-operator glyphs (the Size2 font, embedded in
+  SVG) with limits placed as LaTeX places them.
+- **Line styles** like matplotlib's: solid, dashed, dotted, dash-dot, long dash, dash-dot-dot;
+  the legend (on screen and exported) draws each as it is (dotted is no longer dashed).
+- **Tracing**: drag along a curve in 2D to read it continuously; on the complex plane and in 3D,
+  touch and hold, then drag.
+- **Complex plane**: grid, axes and numbers in the theme's colours, as in 2D. Derivatives and
+  integrals plot: ψ (digamma), ψ′, erf, ζ′ and ζ″ on complex arguments; Bessel derivatives by
+  their recurrence; integrals with z in a limit by Gauss–Legendre along the straight path; an
+  integral with no closed form (∫ Γ(z) dz) is drawn as ∫₁^z.
+- **3D**: a Cartesian button beside cylindrical and spherical; exactly one is always chosen.
+- **Tablets**: drag the pill between the list and the graph to resize them (double-tap resets).
+- **2D fields**: an expression in x and y with no = (x² − y²) is drawn as a coloured field with
+  a colormap (viridis by default; long-press its dot for others), with its value on tap.
+
 ## Latest changes (30 September, ninth round)
 - The app is now called **CAS Scientific Calculator** (app info, feature graphic, messages); the
   name under the icon is just **Calculator**.

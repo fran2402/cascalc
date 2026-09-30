@@ -60,6 +60,79 @@ object ComplexMath {
     }
 
     /**
+     * The digamma function ψ(z) = Γ′(z)/Γ(z): the reflection formula for Re z < ½, the
+     * recurrence ψ(z) = ψ(z + 1) − 1/z up to |z| ≥ 10, then the asymptotic series.
+     */
+    fun digamma(z: CD): CD {
+        if (z.re < 0.5) {
+            // ψ(z) = ψ(1 − z) − π cot(πz)
+            val pz = CD(PI) * z
+            return digamma(ONE - z) - CD(PI) * cos(pz) / sin(pz)
+        }
+        var w = z
+        var acc = CD(0.0)
+        while (w.abs() < 10) { acc = acc - ONE / w; w = w + ONE }
+        val w2 = ONE / (w * w)
+        // ln w − 1/(2w) − 1/(12w²) + 1/(120w⁴) − 1/(252w⁶) + 1/(240w⁸) − 1/(132w¹⁰)
+        val series = w2 * (CD(-1.0 / 12) + w2 * (CD(1.0 / 120) + w2 * (CD(-1.0 / 252) + w2 * (CD(1.0 / 240) + w2 * CD(-1.0 / 132)))))
+        return acc + ln(w) - CD(0.5) / w + series
+    }
+
+    /** The trigamma function ψ′(z): reflection, recurrence ψ′(z) = ψ′(z + 1) + 1/z², then its asymptotic series. */
+    fun trigamma(z: CD): CD {
+        if (z.re < 0.5) {
+            // ψ′(1 − z) + ψ′(z) = π² / sin²(πz)
+            val sz = sin(CD(PI) * z)
+            return CD(PI * PI) / (sz * sz) - trigamma(ONE - z)
+        }
+        var w = z
+        var acc = CD(0.0)
+        while (w.abs() < 10) { acc = acc + ONE / (w * w); w = w + ONE }
+        val inv = ONE / w
+        val i2 = inv * inv
+        // 1/w + 1/(2w²) + 1/(6w³) − 1/(30w⁵) + 1/(42w⁷) − 1/(30w⁹)
+        return acc + inv + CD(0.5) * i2 + inv * i2 * (CD(1.0 / 6) + i2 * (CD(-1.0 / 30) + i2 * (CD(1.0 / 42) + i2 * CD(-1.0 / 30))))
+    }
+
+    /**
+     * The error function erf z: its Taylor series near 0, and 1 − erfc z from erfc's continued
+     * fraction further out (on the right half-plane; erf(−z) = −erf z covers the left).
+     */
+    fun erf(z: CD): CD {
+        if (z.re < 0) return -erf(-z)
+        if (z.abs() <= 3.0) {
+            // 2/√π Σ (−1)ⁿ z^(2n+1) / (n! (2n+1))
+            val z2 = z * z
+            var term = z
+            var sum = z
+            var n = 0
+            while (n < 200) {
+                n++
+                term = -term * z2 / CD(n.toDouble())
+                val add = term / CD(2.0 * n + 1)
+                sum = sum + add
+                if (add.abs() < 1e-17 * sum.abs()) break
+            }
+            return CD(2 / sqrt(PI)) * sum
+        }
+        // erfc z = e^(−z²)/√π · 1/(z + ½/(z + 1/(z + (3/2)/(z + …))))
+        var t = z
+        for (k in 60 downTo 1) t = z + CD(k / 2.0) / t
+        return ONE - exp(-(z * z)) / (CD(sqrt(PI)) * t)
+    }
+
+    /** ζ′(s) (or ζ″(s) with [order] 2) by central differences on [zeta]. */
+    fun zetaDerivative(s: CD, order: Int = 1): CD {
+        return if (order == 1) {
+            val h = 1e-5
+            (zeta(s + CD(h)) - zeta(s - CD(h))) / CD(2 * h)
+        } else {
+            val h = 1e-3
+            (zeta(s + CD(h)) - CD(2.0) * zeta(s) + zeta(s - CD(h))) / CD(h * h)
+        }
+    }
+
+    /**
      * Riemann ζ(s): Borwein's algorithm for the alternating (eta) series when
      * Re s ≥ ½, and the functional equation for Re s < ½. The pole at s = 1 is ∞.
      */

@@ -137,6 +137,8 @@ object Numeric {
             "sgn" -> CD(kotlin.math.sign(r()))
             "erf" -> CD(Statistics.erf(r()))
             "digamma" -> CD(Statistics.digamma(r()))
+            "trigamma" -> ComplexMath.trigamma(x)
+            "zetaprime2" -> ComplexMath.zetaDerivative(x, 2)
             "lambertw" -> CD(Statistics.lambertW(r()))
             "besselj" -> CD(Statistics.besselJ(a[0].real("besselj"), a[1].real("besselj")))
             "bessely" -> CD(Statistics.besselY(a[0].real("bessely"), a[1].real("bessely")))

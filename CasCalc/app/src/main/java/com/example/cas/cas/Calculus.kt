@@ -44,6 +44,11 @@ object Calculus {
                 return diff(div(fn("gamma", add(n, ONE)), fn("gamma", add(sub(n, k), ONE))), x)
             }
         }
+        // Bessel functions of fixed order a: J′ₐ(u) = (Jₐ₋₁(u) − Jₐ₊₁(u))/2, the same for Y.
+        if ((f.name == "besselj" || f.name == "bessely") && f.args.size == 2 && f.args[0].freeOf(x)) {
+            val (a, u) = f.args
+            return mul(div(sub(fn(f.name, sub(a, ONE), u), fn(f.name, add(a, ONE), u)), TWO), diff(u, x))
+        }
         val u = f.args.last()
         val du = diff(u, x)
         val outer: Expr = when (f.name) {
@@ -73,8 +78,11 @@ object Calculus {
             "floor", "ceil", "round", "arg" -> ZERO
             // d/du Γ(u) = Γ(u) ψ(u), ψ the digamma function.
             "gamma" -> mul(fn("gamma", u), fn("digamma", u))
-            // ζ′ has no closed form: worked out numerically.
+            // ζ′ has no closed form: worked out numerically (and ζ″ the same way).
             "zeta" -> fn("zetaprime", u)
+            "zetaprime" -> fn("zetaprime2", u)
+            // d/du ψ(u) = ψ′(u), the trigamma function.
+            "digamma" -> fn("trigamma", u)
             // d/dp Φ⁻¹(p) = 1/φ(Φ⁻¹(p)) = √(2π) e^{Φ⁻¹(p)²/2}
             "invnorm" -> mul(sqrt(mul(TWO, PI)), pow(E, div(pow(fn("invnorm", u), TWO), TWO)))
             // ψ′ and ζ″ aren't used further; say so plainly.

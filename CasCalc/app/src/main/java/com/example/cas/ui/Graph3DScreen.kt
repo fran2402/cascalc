@@ -110,12 +110,15 @@ fun Graph3DScreen(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
             var settings by remember { mutableStateOf(false) }
             if (settings) LimitsDialog(vm, onDismiss = { settings = false })
             GraphBottomBar(vm, Modifier.align(Alignment.BottomCenter), onExport = { if (plotSize.width > 0) exporting = true }, tools = {
-                // Cylindrical and spherical coordinates, as the polar grid is in 2D.
+                // The coordinate system: Cartesian, cylindrical or spherical, always exactly one.
+                ToolToggle(PlotIcons.Cartesian, "Cartesian coordinates (x, y, z)", vm.coordinates3D == Coordinates3D.Mode.Cartesian) {
+                    vm.setCoordinates(Coordinates3D.Mode.Cartesian)
+                }
                 ToolToggle(PlotIcons.Cylindrical, "Cylindrical coordinates (r, θ, z)", vm.coordinates3D == Coordinates3D.Mode.Cylindrical) {
-                    vm.toggleCoordinates(Coordinates3D.Mode.Cylindrical)
+                    vm.setCoordinates(Coordinates3D.Mode.Cylindrical)
                 }
                 ToolToggle(PlotIcons.Spherical, "Spherical coordinates (ρ, θ, φ)", vm.coordinates3D == Coordinates3D.Mode.Spherical) {
-                    vm.toggleCoordinates(Coordinates3D.Mode.Spherical)
+                    vm.setCoordinates(Coordinates3D.Mode.Spherical)
                 }
                 IconButton(onClick = { settings = true }) {
                     Icon(Icons.Default.Tune, contentDescription = "Graph settings", tint = MaterialTheme.colorScheme.onSurface)
@@ -207,7 +210,7 @@ private fun LimitsDialog(vm: Graph3DViewModel, onDismiss: () -> Unit) {
                     Coordinates3D.Mode.entries.forEachIndexed { k, m ->
                         SegmentedButton(
                             selected = vm.coordinates3D == m,
-                            onClick = { if (vm.coordinates3D != m) vm.toggleCoordinates(if (m == Coordinates3D.Mode.Cartesian) vm.coordinates3D else m) },
+                            onClick = { vm.setCoordinates(m) },
                             shape = SegmentedButtonDefaults.itemShape(k, 3),
                             icon = {},
                             label = { Text(letters.getValue(m).joinToString("\u200A"), maxLines = 1, style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 16.sp)) },
@@ -277,6 +280,13 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier) {
     val faces: List<Face> = remember(polygons, camera, size) {
         if (size.width == 0) emptyList() else Surface3D.faces(polygons, bounds, camera, size.width.toFloat(), size.height.toFloat())
     }
+    // The surface point under the finger: its (x, y, z), with z exact on a z = f(x, y) surface.
+    fun pickAt(o: Offset): DoubleArray? = Surface3D.pick(faces, o.x, o.y)?.let { hit ->
+        val c = hit.center.copyOf()
+        vm.functions.firstOrNull { it.colorIndex == hit.surface && it.implicit3D == null && it.compiled != null }
+            ?.let { f -> vm.evaluate(f, c[0], c[1]).takeIf { v -> v.isFinite() }?.let { c[2] = it } }
+        c
+    }
 
     Box(
         modifier
@@ -289,20 +299,13 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier) {
                     picked = null
                 }
             }
+            // Hold and drag over the surface to read (x, y, z) continuously.
+            .holdToTrace(faces) { o -> pickAt(o)?.let { picked = it } }
             .pointerInput(faces) {
                 detectTapGestures(
                     onDoubleTap = { vm.camera = Camera(); picked = null },
                     // Tap the surface to read its (x, y, z) there.
-                    onTap = { o ->
-                        val face = Surface3D.pick(faces, o.x, o.y)
-                        picked = face?.let { hit ->
-                            val c = hit.center.copyOf()
-                            // On a z = f(x, y) surface, take z exactly at the tapped (x, y).
-                            vm.functions.firstOrNull { it.colorIndex == hit.surface && it.implicit3D == null && it.compiled != null }
-                                ?.let { f -> vm.evaluate(f, c[0], c[1]).takeIf { v -> v.isFinite() }?.let { c[2] = it } }
-                            c
-                        }
-                    },
+                    onTap = { o -> picked = pickAt(o) },
                 )
             }
             .semantics { contentDescription = "3D graph. Drag to rotate, pinch to zoom, tap the surface to read a point, double-tap to reset." },

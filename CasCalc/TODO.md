@@ -7,6 +7,10 @@ From the list of 28 September, in the order I'd tackle them.
   Send it to fix this.
 
 ## Done
+- Round of 1 October: folder model with depths (colour, name, block moves), FAB add menu,
+  backspace on empty lines, live area and area between curves, TeX integrals in exports, six
+  line styles, drag/hold tracing, complex grid in theme colours and complex calculus, 3D
+  Cartesian button, tablet list resizing, 2D scalar fields.
 - Round of 30 September (sixth and seventh): .g2d/.g3d/.gcp graph files (export, import, open
   from a file manager), slanted ħ key, point size to one decimal, white empty complex plane in
   light mode.

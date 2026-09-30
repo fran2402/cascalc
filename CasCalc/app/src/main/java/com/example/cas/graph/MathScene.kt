@@ -193,8 +193,8 @@ object MathScene {
             is Scripted -> scripts(row(n.base, size), if (n.sup.isEmpty) null else row(n.sup, size * 0.7), if (n.sub.isEmpty) null else row(n.sub, size * 0.7), size)
             is Func -> func(n, size)
             is com.example.cas.editor.Integral -> hbox(listOf(
-                scripts(integralSign(size, loop = false), if (n.upper.isEmpty) null else row(n.upper, size * 0.6), if (n.lower.isEmpty) null else row(n.lower, size * 0.6), size),
-                gap(0.1667 * size), row(n.body, size), gap(0.1667 * size), text("d", false, size), row(n.variable, size),
+                integral(size, loop = false, lower = if (n.lower.isEmpty) null else row(n.lower, size * 0.7), upper = if (n.upper.isEmpty) null else row(n.upper, size * 0.7)),
+                gap(0.1667 * size), row(n.body, size), gap(0.1667 * size), text("d", false, size), row(n.variable.takeIf { !it.isEmpty } ?: MathRow(mutableListOf(Sym("x"))), size),
             ))
             is com.example.cas.editor.BigOp -> {
                 val lower = if (n.lower.isEmpty && n.variable.isEmpty) null
@@ -221,18 +221,26 @@ object MathScene {
             else -> com.example.cas.cas.CustomSymbol.decode(t)?.let { text(it.plain, true, size) } ?: text(t, false, size)
         }
 
-        /** ∫, larger than the text and centred on the maths axis; with [loop], a small circle through it (∮). */
-        fun integralSign(size: Double, loop: Boolean): Box {
-            val s = size * 1.45
-            val w = m.width("∫", false, s)
-            val axis = 0.25 * size
-            val shift = axis - (0.75 * s - 0.25 * s) / 2
-            return Box(w, 0.75 * s + shift, 0.25 * s - shift) { scene, x, y ->
-                scene.add(Scene.Label(x, y - shift, "∫", s, color, Scene.Anchor.Start, Scene.Font.Roman, baseline = true))
-                if (loop) {
-                    val cx = x + w * 0.5; val cy = y - axis; val r = 0.2 * size
-                    scene.add(Scene.Stroke(listOf(DoubleArray(2 * 33) { k -> val t = (k / 2) * 2 * Math.PI / 32; if (k % 2 == 0) cx + r * Math.cos(t) else cy + r * Math.sin(t) }), color, 0.05 * size))
-                }
+        /**
+         * ∫ (or ∮ with [loop]) from TeX's Size2 font, the glyph LaTeX uses, at text-style size: it
+         * is drawn centred on the maths axis, 1.4 ems tall. Limits go as TeX sets them beside an
+         * inline integral: the upper one by the top of the sign, the lower one tucked under its tail.
+         */
+        fun integral(size: Double, loop: Boolean, lower: Box?, upper: Box?): Box {
+            val s = 0.63 * size                 // Size2's ∫ is 2.22 em tall
+            val asc = 1.36 * s; val desc = 0.862 * s
+            val ink = 0.944 * s                 // the sign's slanted ink reaches past its advance
+            val top = upper?.let { asc - 0.32 * size } ?: 0.0     // upper limit's baseline above ours
+            val bottom = lower?.let { desc - 0.12 * size } ?: 0.0 // lower limit's baseline below ours
+            val upperX = ink + 0.04 * size
+            val lowerX = ink - 0.3 * s
+            val w = maxOf(ink + 0.08 * size, upper?.let { upperX + it.width + 0.06 * size } ?: 0.0, lower?.let { lowerX + it.width + 0.06 * size } ?: 0.0)
+            val a = maxOf(asc, upper?.let { top + it.ascent } ?: 0.0)
+            val d = maxOf(desc, lower?.let { bottom + it.descent } ?: 0.0)
+            return Box(w, a, d) { scene, x, y ->
+                scene.add(Scene.Label(x - 0.055 * s, y, if (loop) "∮" else "∫", s, color, Scene.Anchor.Start, Scene.Font.Size2, baseline = true))
+                upper?.draw(scene, x + upperX, y - top)
+                lower?.draw(scene, x + lowerX, y + bottom)
             }
         }
 
@@ -257,7 +265,7 @@ object MathScene {
             return when {
                 // ∮ over the loop (|z| = 1 underneath), the body, then dz.
                 f.name == "contour" && a.size == 2 -> hbox(listOf(
-                    scripts(integralSign(size, loop = true), null, row(a[1], size * 0.6), size),
+                    integral(size, loop = true, lower = row(a[1], size * 0.7), upper = null),
                     gap(0.1667 * size), row(a[0], size), gap(0.1667 * size), text("d", false, size), text("z", true, size),
                 ))
                 f.name == "abs" -> bars(row(a[0], size), size)

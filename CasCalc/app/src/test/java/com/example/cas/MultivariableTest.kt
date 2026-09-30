@@ -78,8 +78,9 @@ class MultivariableTest {
     @Test fun verticalLine() = assertTrue(spec(r("x=2")) is PlotSpec.Implicit)
     @Test fun region() = assertTrue(spec(r("y<x²")) is PlotSpec.Region)
     @Test fun parameterOnImplicit() = assertEquals(listOf("a"), spec(r("x²+y²=a")).parameters)
-    @Test fun bareXYIsAnError() = assertEquals("Add = … to make it an equation in x and y",
-        runCatching { spec(r("x²+y²")) }.exceptionOrNull()?.message)
+    // x² + y² on its own is a scalar field, drawn in colour.
+    @Test fun bareXYIsAField() = assertTrue(spec(r("x²+y²")) is PlotSpec.Field)
+    @Test fun fieldSliders() = assertEquals(listOf("a"), spec(r("ax²−y²")).parameters)
 
     // ---- Samplers
     private val view = Viewport(-2.0, 2.0, -2.0, 2.0)

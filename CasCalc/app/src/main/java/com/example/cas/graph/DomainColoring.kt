@@ -34,7 +34,10 @@ fun interface ComplexFunction {
  * principal branch, so ln and √ have their cuts along the negative real axis.
  */
 object ComplexCompiler {
-    fun compile(e: Expr, vars: List<String>): ComplexFunction = when (e) {
+    fun compile(e: Expr, vars: List<String>): ComplexFunction = compile(e, vars, emptyMap())
+
+    /** [bound]: letters with values of their own, an integral's variable while it's integrated. */
+    private fun compile(e: Expr, vars: List<String>, bound: Map<String, ComplexFunction>): ComplexFunction = when (e) {
         is Num -> CD(e.q.toDouble()).let { c -> ComplexFunction { _, _ -> c } }
         is Flt -> CD(e.d).let { c -> ComplexFunction { _, _ -> c } }
         is Sym -> when (e.name) {
@@ -42,6 +45,7 @@ object ComplexCompiler {
             "e" -> CD(Math.E).let { c -> ComplexFunction { _, _ -> c } }
             "i" -> CD(0.0, 1.0).let { c -> ComplexFunction { _, _ -> c } }
             "∞" -> CD(Double.POSITIVE_INFINITY).let { c -> ComplexFunction { _, _ -> c } }
+            in bound -> bound.getValue(e.name)
             else -> {
                 val k = vars.indexOf(e.name)
                 when {
@@ -52,24 +56,24 @@ object ComplexCompiler {
             }
         }
         is Add -> {
-            val fs = e.terms.map { compile(it, vars) }.toTypedArray()
+            val fs = e.terms.map { compile(it, vars, bound) }.toTypedArray()
             ComplexFunction { z, p -> var s = CD(0.0); for (f in fs) s = s + f(z, p); s }
         }
         is Mul -> {
-            val fs = e.factors.map { compile(it, vars) }.toTypedArray()
+            val fs = e.factors.map { compile(it, vars, bound) }.toTypedArray()
             ComplexFunction { z, p -> var s = CD(1.0); for (f in fs) s = s * f(z, p); s }
         }
-        is Pow -> power(e, vars)
-        is Fn -> function(e, vars)
+        is Pow -> power(e, vars, bound)
+        is Fn -> function(e, vars, bound)
         is Mat, is Eq, is Seq, is Rel -> throw MathError("That can't be plotted")
     }
 
-    private fun power(e: Pow, vars: List<String>): ComplexFunction {
+    private fun power(e: Pow, vars: List<String>, bound: Map<String, ComplexFunction>): ComplexFunction {
         if (e.base == E) {
-            val x = compile(e.exp, vars)
+            val x = compile(e.exp, vars, bound)
             return ComplexFunction { z, p -> ComplexMath.exp(x(z, p)) }
         }
-        val b = compile(e.base, vars)
+        val b = compile(e.base, vars, bound)
         val n = (e.exp as? Num)?.q?.takeIf { it.isInteger && it.num.bitLength() < 16 }?.num?.toInt()
         if (n != null) {
             // Integer powers by repeated squaring: exact at z = 0 and fast.
@@ -89,15 +93,16 @@ object ComplexCompiler {
         if (e.exp is Num && e.exp.q == com.example.cas.math.Rational.of(1, 2)) {
             return ComplexFunction { z, p -> ComplexMath.sqrt(b(z, p)) }
         }
-        val x = compile(e.exp, vars)
+        val x = compile(e.exp, vars, bound)
         return ComplexFunction { z, p ->
             val base = b(z, p)
             if (base.re == 0.0 && base.im == 0.0) CD(0.0) else ComplexMath.exp(x(z, p) * ComplexMath.ln(base))
         }
     }
 
-    private fun function(e: Fn, vars: List<String>): ComplexFunction {
-        val a = e.args.map { compile(it, vars) }
+    private fun function(e: Fn, vars: List<String>, bound: Map<String, ComplexFunction>): ComplexFunction {
+        if (e.name == "integral") return integral(e, vars, bound)
+        val a = e.args.map { compile(it, vars, bound) }
         val f = a[0]
         fun one(op: (CD) -> CD) = ComplexFunction { z, p -> op(f(z, p)) }
         return when (e.name) {
@@ -124,6 +129,14 @@ object ComplexCompiler {
             "fact" -> one { ComplexMath.gamma(it + CD(1.0)) }
             "gamma" -> one(ComplexMath::gamma)
             "zeta" -> one(ComplexMath::zeta)
+            // What derivatives of Γ, ζ and erf come to.
+            "digamma" -> one(ComplexMath::digamma)
+            "trigamma" -> one(ComplexMath::trigamma)
+            "zetaprime" -> one { ComplexMath.zetaDerivative(it, 1) }
+            "zetaprime2" -> one { ComplexMath.zetaDerivative(it, 2) }
+            "erf" -> one(ComplexMath::erf)
+            "binom" -> { val g = a[1]; ComplexFunction { z, p -> val n = f(z, p); val k = g(z, p); ComplexMath.gamma(n + CD(1.0)) / (ComplexMath.gamma(k + CD(1.0)) * ComplexMath.gamma(n - k + CD(1.0))) } }
+            "perm" -> { val g = a[1]; ComplexFunction { z, p -> val n = f(z, p); val k = g(z, p); ComplexMath.gamma(n + CD(1.0)) / ComplexMath.gamma(n - k + CD(1.0)) } }
             // J_a(z), Y_a(z): the order is real (a number or a slider), z anywhere on the plane.
             "besselj", "bessely" -> {
                 val order = a[0]; val arg = a[1]
@@ -137,6 +150,39 @@ object ComplexCompiler {
             else -> throw MathError("${e.name} can't be plotted on the complex plane")
         }
     }
+
+    /**
+     * ∫ₐᵇ f(t) dt with a or b depending on z: along the straight path from a to b, by 10-point
+     * Gauss–Legendre on pieces about half a unit long. (The integration letter is bound to each
+     * node in turn; the path is the straight one, so a pole on it gives a jump.)
+     */
+    private fun integral(e: Fn, vars: List<String>, bound: Map<String, ComplexFunction>): ComplexFunction {
+        val t = (e.args[1] as? Sym)?.name ?: throw MathError("That integral can't be plotted")
+        val node = ThreadLocal.withInitial { CD(0.0) }
+        val body = compile(e.args[0], vars, bound + (t to ComplexFunction { _, _ -> node.get() }))
+        val lo = compile(e.args[2], vars, bound)
+        val hi = compile(e.args[3], vars, bound)
+        return ComplexFunction { z, p ->
+            val a = lo(z, p); val b = hi(z, p)
+            val span = b - a
+            val pieces = (span.abs() * 2).toInt().coerceIn(1, 24)
+            val half = span * CD(0.5 / pieces)
+            var sum = CD(0.0)
+            for (k in 0 until pieces) {
+                val mid = a + span * CD((k + 0.5) / pieces)
+                for (j in GAUSS_X.indices) {
+                    node.set(mid + half * CD(GAUSS_X[j]))
+                    sum = sum + body(z, p) * CD(GAUSS_W[j])
+                }
+            }
+            // Every piece is the same length, so dt's scale (half a piece) multiplies the whole sum.
+            sum * half
+        }
+    }
+
+    // 10-point Gauss–Legendre nodes and weights on [−1, 1].
+    private val GAUSS_X = doubleArrayOf(-0.9739065285171717, -0.8650633666889845, -0.6794095682990244, -0.4333953941292472, -0.1488743389816312, 0.1488743389816312, 0.4333953941292472, 0.6794095682990244, 0.8650633666889845, 0.9739065285171717)
+    private val GAUSS_W = doubleArrayOf(0.0666713443086881, 0.1494513491505806, 0.2190863625159820, 0.2692667193099963, 0.2955242247147529, 0.2955242247147529, 0.2692667193099963, 0.2190863625159820, 0.1494513491505806, 0.0666713443086881)
 }
 
 /** Which extra features the domain colouring shows. */

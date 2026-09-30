@@ -34,6 +34,8 @@ object AppSettings {
         private set
     /** On tablets (the wide layout): the keypad on the left (0) or the right (1). */
     var keypadSide by mutableStateOf(1)
+    /** On tablets, the width of the graphs' list of lines, in dp (dragged at its edge). */
+    var graphListWidth by mutableStateOf(320)
         private set
     var showGrid by mutableStateOf(true)
     /** A legend with each line's name, on the graphs and in exported ones. */
@@ -105,6 +107,7 @@ object AppSettings {
         mathSize = p.getInt("mathSize", size)
         keypadSize = p.getInt("keypadSize", size)
         keypadSide = p.getInt("keypadSide", 1)
+        graphListWidth = p.getInt("graphListWidth", 320)
         showGrid = p.getBoolean("showGrid", true)
         showLegend = p.getBoolean("showLegend", true)
         axisNumbers = p.getBoolean("axisNumbers", true)
@@ -127,6 +130,8 @@ object AppSettings {
         com.example.cas.engine.Formatter.numberFormat = numberFormat
         com.example.cas.engine.Formatter.polarComplex = polarComplex
     }
+
+    fun changeGraphListWidth(dp: Int) { graphListWidth = dp; save("graphListWidth", dp) }
 
     private fun save(key: String, value: Any) {
         prefs?.edit()?.apply {

@@ -37,6 +37,9 @@ object TabIcons {
     /** The area under a curve: calculus. */
     val Area: ImageVector by lazy { icon("Area", stroke = listOf("M3 20h18", "M3 17C6.5 17 8.5 6 12 6s5 7.5 9 6"), shade = listOf("M7.5 20v-6.3C9 9.5 10.3 6 12 6s3.2 3.6 5 5.6V20z")) }
 
+    /** Two crossing curves with the region between them shaded: area between curves. */
+    val AreaBetween: ImageVector by lazy { icon("AreaBetween", stroke = listOf("M3 18C8 18 10 6 21 5", "M3 8c6 0 9 11 18 12"), shade = listOf("M12 12.3C14.6 8.5 17 6.2 21 5v15c-4-.4-6.6-3.3-9-7.7z")) }
+
     /** ∇, nabla: vector calculus. */
     val Nabla: ImageVector by lazy { icon("Nabla", stroke = listOf("M3.5 5h17L12 20.5z"), thin = listOf("M7.2 6.8l5.6 10.2")) }
 
@@ -67,6 +70,12 @@ object TabIcons {
 
 /** Toolbar icons for the complex plot, in the same style. */
 object PlotIcons {
+    /** Three axes from a corner, z up: Cartesian coordinates (x, y, z) in 3D. */
+    val Cartesian: ImageVector by lazy {
+        icon("Cartesian",
+            stroke = listOf("M9 15V3.5", "M9 15L20.5 15", "M9 15L3 20.5"),
+            thin = listOf("M7.2 5.3L9 3.5l1.8 1.8", "M18.7 13.2l1.8 1.8l-1.8 1.8"))
+    }
     /** A cylinder: cylindrical coordinates (r, θ, z) in 3D. */
     val Cylindrical: ImageVector by lazy {
         icon("Cylindrical",

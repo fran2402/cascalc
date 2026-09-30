@@ -25,7 +25,8 @@ class Scene(val width: Double, val height: Double, val background: Int) {
     enum class Anchor { Start, Middle, End }
 
     /** Sans is the app's Google Sans Flex; Roman and Italic are LaTeX's Computer Modern. */
-    enum class Font { Sans, Roman, Italic }
+    /** [Size2] is TeX's large-operator font (the display ∫ and ∮). */
+    enum class Font { Sans, Roman, Italic, Size2 }
 
     /** Text with its [anchor] at x and its middle at y, turned [angle] degrees (anticlockwise) about that point. */
     class Label(
