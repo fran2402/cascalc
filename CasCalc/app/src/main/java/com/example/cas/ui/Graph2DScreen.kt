@@ -344,7 +344,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                     .map { screenLegendEntry2D(it, palette[it.colorIndex]) }
             },
             )
-            vm.area?.let { ar -> AreaCard(ar, onClose = { vm.clearArea() }) }
+            vm.area?.let { ar -> AreaCard(ar, onClose = { vm.clearArea() }, onUse = { v -> onUseValue(v) }) }
         }
         if (vm.areaStart != null) {
             Text(
@@ -419,132 +419,31 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
             // At a crossing of two functions of x: the area between them, from here.
             val otherFunction = t.other?.let { o -> vm.functions.firstOrNull { it.colorIndex == o && it.plot is Plot2DKind.Explicit } }
             val line = vm.functions.firstOrNull { it.colorIndex == t.colorIndex && it.visible && !it.isText }
-            val cardColor = colors.surfaceContainerHigh
-            // Opens below the point when there's no room above it.
-            val below = py < with(LocalDensity.current) { 210.dp.toPx() }
-            Layout(content = {
-                PointCard(
-                    t, color = palette[t.colorIndex], name = line?.let { legendSource(it) }?.takeIf { it.isNotBlank() },
-                    polar = vm.polarGrid, degrees = vm.angle == com.example.cas.engine.AngleUnit.Degrees,
-                    onUse = { value -> trace = null; onUseValue(value) },
-                    onArea = areaFunction?.let { f -> { vm.clearArea(); vm.areaStart = Graph2DViewModel.AreaStart(f, null, t.x); trace = null } },
-                    onAreaBetween = if (areaFunction != null && otherFunction != null) ({ vm.clearArea(); vm.areaStart = Graph2DViewModel.AreaStart(areaFunction, otherFunction, t.x); trace = null }) else null,
-                )
-                // The tail pointing at the point.
-                androidx.compose.foundation.Canvas(Modifier.size(20.dp, 10.dp)) {
-                    val w = this.size.width; val h = this.size.height
-                    val tip = if (below) 0f else h
-                    val base = if (below) h + 1f else -1f
-                    drawPath(Path().apply { moveTo(0f, base); lineTo(w / 2, tip); lineTo(w, base); close() }, cardColor)
-                }
-            }, modifier = Modifier.fillMaxSize()) { ms, c ->
-                val p = ms[0].measure(Constraints())
-                val tail = ms[1].measure(Constraints())
-                layout(c.maxWidth, c.maxHeight) {
-                    val gap = 14.dp.roundToPx()
-                    val x = pinInside((px - p.width / 2f).toInt(), 8, c.maxWidth - p.width - 8)
-                    val y = if (!below) (py - p.height - gap).toInt() else (py + gap).toInt()
-                    p.place(x, y)
-                    val tx = pinInside((px - tail.width / 2f).toInt(), x + 20, x + p.width - 20 - tail.width)
-                    tail.place(tx, if (!below) y + p.height else y - tail.height)
-                }
+            val degrees = vm.angle == com.example.cas.engine.AngleUnit.Degrees
+            // With the polar grid on, points read as (r, θ).
+            val r = kotlin.math.hypot(t.x, t.y)
+            var theta = kotlin.math.atan2(t.y, t.x)
+            if (theta < 0) theta += 2 * PI
+            val shownTheta = if (degrees) theta * 180 / PI else theta
+            // Over a field, its value there as a third row.
+            val fieldValue = t.label.takeIf { it.startsWith("value ") }?.removePrefix("value ")?.replace("−", "-")?.toDoubleOrNull()
+            fun use(v: Double): () -> Unit = { trace = null; onUseValue(v) }
+            val rows = (if (vm.polarGrid) listOf(CardValue("r", shortNumber(r), onUse = use(r)), CardValue("θ", shortNumber(shownTheta) + if (degrees) "°" else "", onUse = use(shownTheta)))
+                else listOf(CardValue("x", shortNumber(t.x), onUse = use(t.x)), CardValue("y", shortNumber(t.y), onUse = use(t.y)))) +
+                listOfNotNull(fieldValue?.let { CardValue("f", shortNumber(it), onUse = use(it)) })
+            val kind = when {
+                fieldValue != null -> "Value"
+                t.label == "point" || t.label.isEmpty() -> null
+                t.label == "y-intercept" -> "y-intercept"
+                else -> t.label.replaceFirstChar { it.uppercase() }
             }
-        }
-    }
-}
-
-/**
- * The card for a point on a curve: the line's color and name with the kind of point (maximum,
- * zero…), each coordinate large with a button to use it in the calculator, and the area
- * actions when they apply.
- */
-@Composable
-private fun PointCard(
-    s: Special, color: Color, name: String?, polar: Boolean, degrees: Boolean,
-    onUse: (Double) -> Unit, onArea: (() -> Unit)? = null, onAreaBetween: (() -> Unit)? = null,
-) {
-    val colors = MaterialTheme.colorScheme
-    val tap = rememberKeyTap()
-    // With the polar grid on, points read as (r, θ).
-    val r = kotlin.math.hypot(s.x, s.y)
-    var theta = kotlin.math.atan2(s.y, s.x)
-    if (theta < 0) theta += 2 * PI
-    val shownTheta = if (degrees) theta * 180 / PI else theta
-    // Over a field, its value there as a third row.
-    val fieldValue = s.label.takeIf { it.startsWith("value ") }?.removePrefix("value ")?.replace("−", "-")?.toDoubleOrNull()
-    val rows = (if (polar) listOf("r" to r, "θ" to shownTheta) else listOf("x" to s.x, "y" to s.y)) +
-        listOfNotNull(fieldValue?.let { "f" to it })
-    val kind = when {
-        fieldValue != null -> "Value"
-        s.label == "point" || s.label.isEmpty() -> null
-        s.label == "y-intercept" -> "y-intercept"
-        else -> s.label.replaceFirstChar { it.uppercase() }
-    }
-    androidx.compose.material3.Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = colors.surfaceContainerHigh,
-        shadowElevation = 6.dp,
-        modifier = Modifier.widthIn(min = 216.dp, max = 320.dp),
-    ) {
-        Column(Modifier.width(IntrinsicSize.Max).padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(Modifier.size(12.dp).clip(CircleShape).background(color))
-                if (kind != null) Text(
-                    kind,
-                    color = colors.onTertiaryContainer,
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.clip(CircleShape).background(colors.tertiaryContainer).padding(horizontal = 10.dp, vertical = 3.dp),
-                )
-                Spacer(Modifier.weight(1f))
-                if (name != null) {
-                    val row = remember(name) { com.example.cas.graph.Legend.row(name) }
-                    Box(Modifier.widthIn(max = 150.dp).horizontalScroll(rememberScrollState())) { MathView(row, 15.sp, colors.onSurfaceVariant) }
-                }
-            }
-            Spacer(Modifier.height(4.dp))
-            rows.forEach { (letter, value) ->
-                Row(Modifier.height(42.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.width(22.dp), contentAlignment = Alignment.Center) { MathView(com.example.cas.editor.row(com.example.cas.editor.Sym(letter)), 20.sp, colors.onSurfaceVariant) }
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        shortNumber(value) + if (letter == "θ" && degrees) "°" else "",
-                        color = colors.onSurface,
-                        style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 21.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, fontFeatureSettings = "tnum"),
-                        modifier = Modifier.weight(1f).padding(end = 12.dp),
-                        maxLines = 1,
-                    )
-                    Row(
-                        Modifier.height(34.dp).clip(CircleShape).background(colors.primaryContainer)
-                            .clickable(onClickLabel = "Use $letter in the calculator") { tap(); onUse(value) }
-                            .padding(start = 10.dp, end = 13.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.KeyboardReturn, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Use", color = colors.onPrimaryContainer, style = MaterialTheme.typography.labelLarge)
-                    }
-                }
-            }
-            if (onArea != null || onAreaBetween != null) {
-                androidx.compose.material3.HorizontalDivider(Modifier.padding(top = 8.dp, bottom = 10.dp), color = colors.outlineVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    @Composable
-                    fun action(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, spoken: String, onClick: () -> Unit) = Row(
-                        Modifier.height(38.dp).clip(RoundedCornerShape(12.dp)).background(colors.secondaryContainer)
-                            .clickable(onClickLabel = spoken) { tap(); onClick() }
-                            .padding(start = 10.dp, end = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(icon, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(label, color = colors.onSecondaryContainer, style = MaterialTheme.typography.labelLarge, maxLines = 1)
-                    }
-                    // Area: this point is where it starts; the next tap on the graph is where it ends.
-                    if (onArea != null) action(TabIcons.Area, if (onAreaBetween != null) "Area" else "Area from here", "Area from here", onArea)
-                    // Area between the two curves that cross here.
-                    if (onAreaBetween != null) action(TabIcons.AreaBetween, "Between curves", "Area between the curves from here", onAreaBetween)
-                }
-            }
+            val actions = listOfNotNull(
+                // Area: this point is where it starts; the next tap on the graph is where it ends.
+                areaFunction?.let { f -> CardAction(TabIcons.Area, if (otherFunction != null) "Area" else "Area from here", "Area from here") { vm.clearArea(); vm.areaStart = Graph2DViewModel.AreaStart(f, null, t.x); trace = null } },
+                // Area between the two curves that cross here.
+                if (areaFunction != null && otherFunction != null) CardAction(TabIcons.AreaBetween, "Between curves", "Area between the curves from here") { vm.clearArea(); vm.areaStart = Graph2DViewModel.AreaStart(areaFunction, otherFunction, t.x); trace = null } else null,
+            )
+            PointCardAt(px, py, palette[t.colorIndex], kind, line?.let { legendSource(it) }?.takeIf { it.isNotBlank() }, rows, actions)
         }
     }
 }
@@ -1173,28 +1072,24 @@ private fun areaOutline(vm: GraphViewModel, ar: AreaResult, v: com.example.cas.g
 
 /** ∫ₐᵇ f dx (or ∫ₐᵇ (f − g) dx) and the total area, under the legend; × clears it. */
 @Composable
-private fun AreaCard(ar: AreaResult, onClose: () -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    Row(
-        Modifier.clip(RoundedCornerShape(20.dp)).background(colors.surfaceContainerHigh)
-            .padding(start = 16.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column {
-            if (ar.signed.isNaN()) {
-                Text("Couldn't integrate between these points", color = colors.error, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp))
-            } else {
-                val lo = shortNumber(ar.a); val hi = shortNumber(ar.b)
-                MathView(areaRow(ar.g != null, lo, hi), 17.sp, colors.onSurface, computerModern = true)
-                Text(
-                    (if (ar.g != null) "area between the curves ≈ " else "area between curve and axis ≈ ") + shortNumber(ar.total) +
-                        "\n= " + shortNumber(ar.signed) + " signed",
-                    color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp),
-                )
-            }
-        }
-        IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = "Clear the area", tint = colors.onSurfaceVariant) }
+private fun AreaCard(ar: AreaResult, onClose: () -> Unit, onUse: (Double) -> Unit) {
+    val between = ar.g != null
+    val icon = if (between) TabIcons.AreaBetween else TabIcons.Area
+    val title = if (between) "Area between the curves" else "Area under the curve"
+    if (ar.signed.isNaN()) {
+        ResultCard(icon, title, null, "—", note = "Couldn't integrate between these points", onClose = onClose)
+        return
     }
+    val lo = shortNumber(ar.a); val hi = shortNumber(ar.b)
+    // The area itself large; the signed integral (what's above the axis less what's below) under it.
+    ResultCard(
+        icon, title, areaRow(between, lo, hi), "≈ " + shortNumber(ar.total),
+        stats = listOf("Signed integral" to shortNumber(ar.signed), "From" to "$lo to $hi"),
+        note = "Drag the dashed edges to change the limits.",
+        copyText = ar.total.toString(),
+        onUse = { onClose(); onUse(ar.total) },
+        onClose = onClose,
+    )
 }
 
 /** ∫ₐᵇ f(x) dx, or ∫ₐᵇ (f(x) − g(x)) dx, as math for the area card. */

@@ -1,0 +1,126 @@
+<!doctype html><html><head><meta charset="utf-8"><title>round14</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1700px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--c1:#1B1C14;--c2:#1F2018;--c3:#292A22;--c4:#34352C;--outv:#47473B;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sec:#3D3F28;--onsec:#E0E1C4;--tc:#244D44;--otc:#BDECDE;--err:#FFB4AB;--tert:#A2D0C3;--grid:#47473B;--axis:#C8C7B5;--shadow:rgba(0,0,0,.55)}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--c1:#F6F4E8;--c2:#F1EEE2;--c3:#EBE9DC;--c4:#E5E3D6;--outv:#C8C7B5;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sec:#E2E4C4;--onsec:#1B1D0A;--tc:#BDECDE;--otc:#00201A;--err:#BA1A1A;--tert:#3B665C;--grid:#C8C7B5;--axis:#47473B;--shadow:rgba(40,40,20,.28)}
+.phone{position:relative;width:412px;height:880px;border-radius:44px;overflow:hidden;background:var(--bg);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35);display:flex;flex-direction:column}
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font:500 14px GSF}
+.bar{height:56px;display:flex;align-items:center;padding:0 8px 0 18px;gap:6px;font:500 20px GSF}
+.bar .sp{flex:1}.ib{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--onv)}
+.graph{position:relative;flex:1;overflow:hidden}
+.graph>svg{position:absolute;inset:0}
+.m{font-family:CMI}.r{font-family:CMR}
+/* --- point card --- */
+.pt{position:absolute;min-width:216px;background:var(--c3);border-radius:24px;padding:12px 12px 12px 16px;box-shadow:0 6px 18px var(--shadow),0 1px 3px var(--shadow)}
+.pt:after{content:"";position:absolute;left:var(--tail,50%);bottom:-9px;width:18px;height:18px;background:var(--c3);transform:translateX(-50%) rotate(45deg);border-radius:0 0 5px 0}
+.pt.below:after{bottom:auto;top:-9px;border-radius:5px 0 0 0}
+.hd{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.dot{width:12px;height:12px;border-radius:50%}
+.kind{font:600 13px GSF;letter-spacing:.2px;padding:3px 10px;border-radius:99px;background:var(--tc);color:var(--otc)}
+.fname{margin-left:auto;color:var(--onv);font-size:17px;padding-right:4px}
+.vr{display:flex;align-items:center;height:40px;gap:10px}
+.vr .l{width:18px;font-size:21px;color:var(--onv);text-align:center}
+.vr .v{flex:1;font:500 21px GSF;font-variant-numeric:tabular-nums;letter-spacing:.2px}
+.use{height:32px;padding:0 12px 0 9px;border-radius:99px;background:var(--pc);color:var(--onpc);font:600 13px GSF;display:flex;align-items:center;gap:4px}
+.use svg{width:16px;height:16px}
+.acts{display:flex;gap:8px;margin-top:8px;padding-top:10px;border-top:1px solid var(--outv)}
+.tb{height:36px;padding:0 14px 0 10px;border-radius:12px;background:var(--sec);color:var(--onsec);font:600 13.5px GSF;display:flex;align-items:center;gap:6px}
+.tb svg{width:18px;height:18px}
+.old{position:absolute;display:flex;align-items:center;background:var(--on);color:var(--bg);border-radius:99px;padding:4px 4px 4px 14px;font:13px GSF;gap:6px;white-space:nowrap}
+.old span{background:var(--pri);color:var(--onpri);border-radius:99px;padding:6px 12px}
+/* --- constants sheet --- */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.32)}
+.sheet{position:absolute;left:0;right:0;bottom:0;top:120px;background:var(--c1);border-radius:28px 28px 0 0;display:flex;flex-direction:column}
+.handle{width:32px;height:4px;border-radius:2px;background:var(--onv);opacity:.5;margin:14px auto 6px}
+.sh{display:flex;align-items:center;padding:4px 20px 0 24px}
+.sh .t{font:500 22px GSF;flex:1}
+.unit{font:600 12.5px GSF;padding:6px 12px;border-radius:99px;background:var(--sec);color:var(--onsec)}
+.search{margin:12px 16px 8px;height:52px;border-radius:99px;background:var(--c4);display:flex;align-items:center;gap:12px;padding:0 18px;color:var(--onv);font:16px GSF}
+.chips{display:flex;gap:8px;padding:4px 16px 10px;overflow:hidden;white-space:nowrap}
+.fc{height:32px;padding:0 14px;border-radius:10px;border:1px solid var(--outv);display:flex;align-items:center;font:500 14px GSF;color:var(--onv);flex-shrink:0}
+.fc.on{background:var(--sec);border-color:transparent;color:var(--onsec)}
+.fc.on:before{content:"✓";margin-right:6px;font-size:13px}
+.list{flex:1;overflow:hidden;padding:0 12px}
+.sec{font:600 13.5px GSF;color:var(--pri);padding:12px 12px 6px;letter-spacing:.2px}
+.it{display:flex;align-items:center;gap:14px;padding:10px 10px;border-radius:20px}
+.it.first{background:var(--c2);border-radius:20px 20px 6px 6px;margin-bottom:2px}
+.it.mid{background:var(--c2);border-radius:6px;margin-bottom:2px}
+.it.last{background:var(--c2);border-radius:6px 6px 20px 20px;margin-bottom:2px}
+.sym{width:56px;height:56px;border-radius:16px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+.tx{flex:1;min-width:0}
+.nm{font:500 15.5px GSF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.val{font-size:17px;margin-top:3px;color:var(--on);white-space:nowrap}
+.val .u{font:13.5px GSF;color:var(--onv);margin-left:6px}
+.ex{font:600 11.5px GSF;padding:3px 8px;border-radius:99px;background:var(--tc);color:var(--otc);margin-left:8px;vertical-align:2px}
+.cp{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--onv)}
+.detail{background:var(--c3);border-radius:28px;margin:6px 4px 10px;padding:16px 18px}
+
+.rc{position:absolute;left:12px;top:12px;width:300px;background:var(--c3);border-radius:24px;padding:10px 6px 14px 14px;box-shadow:0 4px 14px var(--shadow)}
+.rh{display:flex;align-items:center;gap:12px}
+.ri{width:36px;height:36px;border-radius:12px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;justify-content:center}
+.ri svg{width:22px;height:22px}
+.rt{font:600 14.5px GSF;flex:1}
+.x{width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--onv);font-size:20px}
+.rm{color:var(--onv);font-size:19px;margin-top:6px}
+.rv{font:500 30px GSF;margin-top:4px;font-variant-numeric:tabular-nums}
+.st{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;padding-right:8px}
+.st div{background:var(--c4);border-radius:12px;padding:6px 10px}
+.st small{display:block;font:500 11px GSF;color:var(--onv)}
+.st b{font:500 15px GSF}
+.rn{font:12.5px GSF;color:var(--onv);margin-top:8px}
+.rb{display:flex;gap:8px;margin-top:10px}
+.rb span{height:36px;border-radius:99px;display:flex;align-items:center;gap:6px;padding:0 16px 0 12px;font:600 13.5px GSF}
+.rb .u{background:var(--pc);color:var(--onpc)}.rb .c{border:1px solid var(--outv);color:var(--onv)}
+.rb svg{width:18px;height:18px}
+.plane{position:absolute;inset:0}
+.lg{position:absolute;left:12px;background:color-mix(in srgb,var(--bg) 82%,transparent);border-radius:14px;padding:6px 10px;font-size:14px;display:flex;flex-direction:column;gap:3px}
+.lg div{display:flex;align-items:center;gap:8px}
+</style></head><body>
+<h2>Integral results</h2>
+<p class="note">One card for every integral picked on a graph: an icon and title, the integral as it's written, the value large, smaller figures in tiles, and <b>Use</b> (into the calculator) or <b>Copy</b>. Top left of the plot, under the legend; × closes it.</p>
+<div class="row" id="res"></div>
+<h2>Complex plane: point card, points and curves</h2>
+<p class="note">Tap the plane: the same card as the 2D graph, with z and f(z), each with its polar form and a Use button (the complex number goes into the calculator). New lines: a number is a point (<span class="m">2 + i</span>), a list is points (<span class="r">[</span><span class="m">1 + i</span>, <span class="m">−1</span>, <span class="m">−i</span><span class="r">]</span>, joinable into a polygon), and an expression in <span class="m">t</span> is a curve <span class="m">z</span>(<span class="m">t</span>) (<span class="m">e<sup>it</sup></span>, with a range after a comma: <span class="m">0 ≤ t ≤ π</span>). The AC key becomes [ ] as in 2D, and <span class="m">f</span>(<span class="m">z</span>) = … is plotted.</p>
+<div class="row" id="cx"></div>
+<script>
+const I={use:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 7v4H5.83l3.58-3.59L8 6l-6 6 6 6 1.41-1.41L5.83 13H21V7z"/></svg>',
+copy:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>',
+area:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18"/><path d="M5 20V9c3 0 5 6 8 6s4-7 6-9v14z" fill="currentColor" fill-opacity=".3"/></svg>',
+between:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17C8 17 10 5 21 5M3 8c6 0 10 9 18 9"/></svg>',
+loop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12a7 7 0 1 0-7 7"/><path d="M9.2 16.2L12 19l-2.8 2.8"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg>'};
+function status(){return '<div class="status"><span>9:41</span><span>▾ ▴ ▮</span></div>'}
+function phone(theme,inner,cap){return `<div><div class="phone ${theme}">${status()}${inner}</div><div class="cap">${cap}</div></div>`}
+function grid(W,H,xmin,xmax,fn){const sc=W/(xmax-xmin),ymax=H/2/sc;const X=x=>(x-xmin)*sc,Y=y=>(ymax-y)*sc;let s=`<svg width="${W}" height="${H}" style="position:absolute;inset:0">`;
+ for(let x=Math.ceil(xmin);x<=xmax;x++)s+=`<line x1="${X(x)}" x2="${X(x)}" y1="0" y2="${H}" stroke="var(--grid)" stroke-opacity=".9"/>`;
+ for(let y=Math.ceil(-ymax);y<=ymax;y++)s+=`<line y1="${Y(y)}" y2="${Y(y)}" x1="0" x2="${W}" stroke="var(--grid)" stroke-opacity=".9"/>`;
+ s+=`<line x1="0" x2="${W}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--axis)" stroke-width="2"/><line y1="0" y2="${H}" x1="${X(0)}" x2="${X(0)}" stroke="var(--axis)" stroke-width="2"/>`;
+ return s+(fn?fn(X,Y,sc):'')+'</svg>'}
+function card(o){return `<div class="rc"><div class="rh"><span class="ri">${I[o.icon]}</span><span class="rt">${o.title}</span><span class="x">✕</span></div><div class="rm">${o.math}</div><div class="rv">${o.value}</div><div class="st">${o.stats.map(([a,b])=>`<div><small>${a}</small><b>${b}</b></div>`).join('')}</div><div class="rn">${o.note}</div><div class="rb"><span class="u">${I.use}Use</span><span class="c">${I.copy}Copy</span></div></div>`}
+const W=412,H=792;
+function g2(theme,cap,c,between){const col=theme=='light'?'#5B6133':'#C5CB86',col2=theme=='light'?'#8E4E48':'#FFB4AB';
+ const svg=grid(W,H,-2,8,(X,Y)=>{let s='';const a=between?0.72:0.5,b=between?2.4:2.8;let d=`M${X(a)} ${Y(between?0.3*a-0.6+0:0)}`;
+  let poly='';for(let x=a;x<=b;x+=0.02)poly+=`L${X(x)} ${Y(Math.sin(x))}`;for(let x=b;x>=a;x-=0.02)poly+=`L${X(x)} ${Y(between?0.3*x-0.6:0)}`;
+  s+=`<path d="M${X(a)} ${Y(between?0.3*a-0.6:0)}${poly}Z" fill="${col}" fill-opacity=".28"/>`;
+  let p='';for(let i=0;i<=W;i+=2){const x=-2+i/(W/10);p+=(i?'L':'M')+i+' '+Y(Math.sin(x))}s+=`<path d="${p}" stroke="${col}" stroke-width="3" fill="none"/>`;
+  if(between){p='';for(let i=0;i<=W;i+=2){const x=-2+i/(W/10);p+=(i?'L':'M')+i+' '+Y(0.3*x-0.6)}s+=`<path d="${p}" stroke="${col2}" stroke-width="3" fill="none"/>`}
+  [a,b].forEach(x=>{s+=`<line x1="${X(x)}" x2="${X(x)}" y1="0" y2="${H}" stroke="${col}" stroke-dasharray="6 5"/><circle cx="${X(x)}" cy="${Y(Math.sin(x))}" r="8" fill="var(--bg)" stroke="${col}" stroke-width="2.5"/>`});return s});
+ document.getElementById('res').insertAdjacentHTML('beforeend',phone(theme,`<div class="bar">Graph<span class="sp"></span><span class="ib">⌂</span><span class="ib">⚙</span></div><div class="graph">${svg}${card(c)}</div>`,cap))}
+g2('light','Area under the curve: the area large, the signed integral and limits in tiles.',{icon:'area',title:'Area under the curve',math:'<span class="r" style="font-size:24px">∫</span><sub class="r">0.5</sub><sup class="r">2.8</sup> <span class="m">f</span>(<span class="m">x</span>) <span class="m">dx</span>',value:'≈ 1.8195',stats:[['Signed integral','1.8195'],['From','0.5 to 2.8']],note:'Drag the dashed edges to change the limits.'});
+g2('dark','Between two curves, from an intersection (dark mode).',{icon:'between',title:'Area between the curves',math:'<span class="r" style="font-size:24px">∫</span><sub class="r">0.72</sub><sup class="r">2.4</sup> (<span class="m">f</span>(<span class="m">x</span>) − <span class="m">g</span>(<span class="m">x</span>)) <span class="m">dx</span>',value:'≈ 1.2034',stats:[['Signed integral','1.2034'],['From','0.72 to 2.4']],note:'Drag the dashed edges to change the limits.'},true);
+// complex: loop result, domain coloring background faked
+function dc(){let s='';for(let j=0;j<H;j+=6)for(let i=0;i<W;i+=6){const x=(i-W/2)/60,y=(H/2-j)/60;const re=x*x-y*y-1,im=2*x*y;const h=(Math.atan2(im,re)/Math.PI*180+360)%360,m=Math.hypot(re,im);const l=45+10*((Math.log2(m+1e-9)%1+1)%1);s+=`<rect x="${i}" y="${j}" width="6" height="6" fill="hsl(${h},70%,${l}%)"/>`}return `<svg width="${W}" height="${H}" style="position:absolute;inset:0">${s}</svg>`}
+const dcs=dc();
+function cxPhone(theme,cap,extra){document.getElementById('cx').insertAdjacentHTML('beforeend',phone(theme,`<div class="bar">Complex<span class="sp"></span><span class="ib">⌂</span><span class="ib">⚙</span></div><div class="graph">${extra}</div>`,cap))}
+document.getElementById('res').insertAdjacentHTML('beforeend','');
+cxPhone('dark','Loop integral on the complex plane: the value, and the residues inside.',dcs+grid(W,H,-W/120,W/120,(X,Y)=>`<ellipse cx="${X(1)}" cy="${Y(0)}" rx="45" ry="50" fill="none" stroke="#000" stroke-opacity=".5" stroke-width="5"/><ellipse cx="${X(1)}" cy="${Y(0)}" rx="45" ry="50" fill="none" stroke="#fff" stroke-width="2.5"/>`)+card({icon:'loop',title:'Loop integral',math:'<span class="r" style="font-size:24px">∮</span> <span class="m">f</span>(<span class="m">z</span>) <span class="m">dz</span>',value:'≈ 3.1416i',stats:[['Residues inside','0.5']],note:'For a loop drawn counterclockwise.'}));
+cxPhone('light','Tapping the plane: z and f(z) with their polar forms, each usable.',dcs+grid(W,H,-W/120,W/120)+`<div class="pt" style="left:90px;top:210px"><div class="hd"><span class="fname" style="margin-left:auto"><span class="m">z</span><sup class="r" style="font-size:12px">2</sup> <span class="r">− 1</span></span></div><div class="vr" style="height:52px"><span class="l m">z</span><span class="v">1.2 + 0.8i<br><small style="font-size:12px;color:var(--onv)">1.4422∠0.588</small></span><span class="use">Use</span></div><div class="vr" style="height:52px"><span class="l"><span class="m">f</span>(<span class="m">z</span>)</span><span class="v">−0.2 + 1.92i<br><small style="font-size:12px;color:var(--onv)">1.9304∠1.675</small></span><span class="use">Use</span></div></div><svg style="position:absolute;inset:0" width="${W}" height="${H}"><circle cx="${W/2+72}" cy="${H/2-48}" r="7" fill="#000"/><circle cx="${W/2+72}" cy="${H/2-48}" r="5" fill="#fff"/></svg>`);
+cxPhone('light','Points, a polygon and a curve: [1+i, −1, −i] joined and closed; e^{it}, 0 ≤ t ≤ π; 2 + i.',grid(W,H,-3.4,3.4,(X,Y)=>{let s='';const P=[[1,1],[-1,0],[0,-1]];s+=`<path d="M${P.map(([x,y])=>X(x)+' '+Y(y)).join('L')}Z" fill="#5B6133" fill-opacity=".22" stroke="#5B6133" stroke-width="2.5"/>`;P.forEach(([x,y])=>s+=`<circle cx="${X(x)}" cy="${Y(y)}" r="6" fill="#5B6133"/>`);let d='';for(let k=0;k<=60;k++){const t=Math.PI*k/60;d+=(k?'L':'M')+X(Math.cos(t))+' '+Y(Math.sin(t))}s+=`<path d="${d}" fill="none" stroke="#8E4E48" stroke-width="3"/>`;s+=`<rect x="${X(2)-6}" y="${Y(1)-6}" width="12" height="12" fill="#3B665C"/><text x="${X(2)+10}" y="${Y(1)-8}" font-family="GSF" font-size="12" fill="var(--on)">2 + i</text>`;return s})+`<div class="lg" style="top:12px"><div><svg width="24" height="14"><circle cx="12" cy="7" r="4" fill="#5B6133"/></svg><span><span class="r">[</span><span class="m">1+i</span>, <span class="m">−1</span>, <span class="m">−i</span><span class="r">]</span></span></div><div><svg width="24" height="14"><line x1="0" x2="24" y1="7" y2="7" stroke="#8E4E48" stroke-width="2.5"/></svg><span class="m">e<sup>it</sup></span>, <span class="m">0 ≤ t ≤ π</span></div><div><svg width="24" height="14"><rect x="8" y="3" width="8" height="8" fill="#3B665C"/></svg><span class="m">2 + i</span></div></div>`);
+document.fonts.ready.then(()=>document.title='ready');
+</script></body></html>

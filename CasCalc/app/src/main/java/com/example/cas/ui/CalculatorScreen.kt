@@ -1212,6 +1212,22 @@ private fun MatrixPickerDialog(onPick: (Int, Int) -> Unit, onDismiss: () -> Unit
     )
 }
 
+/** [content] at its own size, or scaled down (centered) until it fits the space it's given. */
+@Composable
+internal fun FitInside(content: @Composable () -> Unit) {
+    androidx.compose.ui.layout.Layout(content) { ms, c ->
+        val p = ms.first().measure(androidx.compose.ui.unit.Constraints())
+        val scale = minOf(1f, c.maxWidth.toFloat() / p.width.coerceAtLeast(1), c.maxHeight.toFloat() / p.height.coerceAtLeast(1))
+        val w = c.maxWidth; val h = c.maxHeight
+        layout(w, h) {
+            p.placeWithLayer((w - p.width) / 2, (h - p.height) / 2) {
+                scaleX = scale; scaleY = scale
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin.Center
+            }
+        }
+    }
+}
+
 /**
  * Every physical constant: a search, a chip per section of the list, then the constants in
  * rounded groups, each with its symbol on a tile, its name, its value in the chosen units and
@@ -1298,8 +1314,9 @@ private fun ConstantsSheet(units: UnitSystem, onPick: (String) -> Unit, onDismis
                             .padding(start = 10.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Box(Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(colors.primaryContainer), contentAlignment = Alignment.Center) {
-                            MathView(row(Const(k.id)), 22.sp, colors.onPrimaryContainer)
+                        Box(Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(colors.primaryContainer).padding(6.dp), contentAlignment = Alignment.Center) {
+                            // Long symbols (M(¹²C), sin²θ_W) shrink to fit the tile.
+                            FitInside { MathView(row(Const(k.id)), 22.sp, colors.onPrimaryContainer) }
                         }
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
@@ -1464,7 +1481,9 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsChoice("Starting view", listOf("±5", "±10", "±20"), when (AppSettings.viewHalfWidth) { 5 -> 0; 20 -> 2; else -> 1 }) {
                 AppSettings.changeViewHalfWidth(listOf(5, 10, 20)[it])
             }
-            SettingsChoice("Complex plot quality", listOf("Standard", "High"), AppSettings.complexQuality, AppSettings::changeComplexQuality)
+            SettingsChoice("Complex plot quality", listOf("Low", "Standard", "High"), when (AppSettings.complexQuality) { 2 -> 0; 1 -> 2; else -> 1 }) {
+                AppSettings.changeComplexQuality(listOf(2, 0, 1)[it])
+            }
             SettingsChoice("2D field quality", listOf("Low", "Medium", "High"), AppSettings.fieldQuality, AppSettings::changeFieldQuality)
             SettingsChoice("3D surface detail", listOf("Low", "Medium", "High"), AppSettings.surfaceDetail, AppSettings::changeSurfaceDetail)
         },

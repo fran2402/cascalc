@@ -121,6 +121,7 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
 
     /** Puts a number from the graph (a tapped point) into the expression. */
     fun insertNumber(v: Double) = reuse(Formatter.row(Flt(v)))
+    fun insertComplex(v: com.example.cas.cas.CD) = reuse(Formatter.row(com.example.cas.cas.Numeric.fromCD(v)))
 
     override var unitSystem by mutableStateOf(runCatching { com.example.cas.engine.UnitSystem.valueOf(prefs.getString("units", "SI")!!) }.getOrDefault(com.example.cas.engine.UnitSystem.SI))
         private set

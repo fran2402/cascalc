@@ -1,5 +1,7 @@
 package com.example.cas.ui
 
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.foundation.layout.fillMaxHeight
 
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -168,7 +170,7 @@ import kotlin.math.roundToInt
 fun functionColor(f: PlotFunction): Color = f.customColor?.let { Color(it) } ?: plotColor(f.colorIndex)
 
 /** On the complex plane, ∮ loops and curves are lines in a plain color (white unless picked); the rest are colored by a colormap. */
-fun isComplexLine(f: PlotFunction) = f.contour != null || f.complexCurve != null
+fun isComplexLine(f: PlotFunction) = f.contour != null || f.complexCurve != null || f.complexPoints != null || f.complexPath != null
 
 /** The color of a ∮ loop or curve on the complex plane. */
 fun complexLineColor(f: PlotFunction): Color = f.customColor?.let { Color(it) } ?: Color.White
@@ -1041,9 +1043,11 @@ private fun RenameDialog(f: PlotFunction, onDone: (String?) -> Unit, onDismiss: 
 /** Desmos-like options for a 2D line: labels on points, joining a list's points, a region's fill opacity. */
 @OptIn(ExperimentalLayoutApi::class)
 private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? {
-    if (vm.plotVars != listOf("x")) return null
+    if (vm.plotVars != listOf("x") && !vm.isComplex) return null
     val kind = f.plot
-    val points = kind is Plot2DKind.Point || kind is Plot2DKind.PointList
+    val points = kind is Plot2DKind.Point || kind is Plot2DKind.PointList || f.complexPoints != null
+    // Several points (a list): they can be joined, or closed into a polygon.
+    val many = kind is Plot2DKind.PointList || (f.complexPoints?.size ?: 0) > 1
     val region = kind is Plot2DKind.Region
     if (!points && !region) return null
     return {
@@ -1081,7 +1085,7 @@ private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable andro
                 androidx.compose.material3.Switch(checked = f.showLabel, onCheckedChange = { vm.setOptions(f, label = it) })
             }
         }
-        if (kind is Plot2DKind.PointList) {
+        if (many) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Join the points", modifier = Modifier.weight(1f), color = colors.onSurface)
                 androidx.compose.material3.Switch(checked = f.connectPoints, onCheckedChange = { vm.setOptions(f, connect = it) })
@@ -1095,7 +1099,7 @@ private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable andro
                 Text("Fill opacity: ${(f.fillOpacity * 100).roundToInt()}%", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
                 ExpressiveSlider(value = f.fillOpacity, onValueChange = { vm.setOptions(f, opacity = it) }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Fill opacity" })
             }
-            androidx.compose.material3.OutlinedButton(onClick = { vm.tableFor = f }, modifier = Modifier.fillMaxWidth()) {
+            if (kind is Plot2DKind.PointList) androidx.compose.material3.OutlinedButton(onClick = { vm.tableFor = f }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.TableChart, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("Edit as a table")
@@ -1942,6 +1946,203 @@ fun Modifier.holdToTrace(key: Any?, onTrace: (Offset) -> Unit): Modifier = point
             if (!change.pressed) { change.consume(); break }
             change.consume()
             onTrace(change.position)
+        }
+    }
+}
+
+
+/** A row of a point card: its letter (math), the value, a smaller line under it, and what Use does (none: no button). */
+class CardValue(val letter: String, val text: String, val detail: String? = null, val onUse: (() -> Unit)? = null)
+
+/** A tonal button along the bottom of a point card. */
+class CardAction(val icon: androidx.compose.ui.graphics.vector.ImageVector, val label: String, val spoken: String, val onClick: () -> Unit)
+
+/**
+ * The card for a point on a graph, floating over it at ([px], [py]) with a tail pointing there
+ * (above the point, or below it when there's no room): the line's color and name with the kind
+ * of point (maximum, zero…), each value large with a button to use it in the calculator, and
+ * any actions (the area from here) as tonal buttons. Fills its parent, which should be the plot.
+ */
+@Composable
+fun PointCardAt(px: Float, py: Float, color: Color?, kind: String?, name: String?, rows: List<CardValue>, actions: List<CardAction> = emptyList()) {
+    val colors = MaterialTheme.colorScheme
+    val cardColor = colors.surfaceContainerHigh
+    val below = py < with(androidx.compose.ui.platform.LocalDensity.current) { (90 + 46 * rows.size + if (actions.isEmpty()) 0 else 56).dp.toPx() }
+    androidx.compose.ui.layout.Layout(content = {
+        PointCard(color, kind, name, rows, actions)
+        // The tail pointing at the point.
+        androidx.compose.foundation.Canvas(Modifier.size(20.dp, 10.dp)) {
+            val w = this.size.width; val h = this.size.height
+            val tip = if (below) 0f else h
+            val base = if (below) h + 1f else -1f
+            drawPath(androidx.compose.ui.graphics.Path().apply { moveTo(0f, base); lineTo(w / 2, tip); lineTo(w, base); close() }, cardColor)
+        }
+    }, modifier = Modifier.fillMaxSize()) { ms, c ->
+        val p = ms[0].measure(androidx.compose.ui.unit.Constraints(maxWidth = c.maxWidth))
+        val tail = ms[1].measure(androidx.compose.ui.unit.Constraints())
+        layout(c.maxWidth, c.maxHeight) {
+            val gap = 14.dp.roundToPx()
+            val x = pinInside((px - p.width / 2f).toInt(), 8, c.maxWidth - p.width - 8)
+            val y = if (!below) (py - p.height - gap).toInt() else (py + gap).toInt()
+            p.place(x, y)
+            val tx = pinInside((px - tail.width / 2f).toInt(), x + 20, x + p.width - 20 - tail.width)
+            tail.place(tx, if (!below) y + p.height else y - tail.height)
+        }
+    }
+}
+
+@Composable
+private fun PointCard(color: Color?, kind: String?, name: String?, rows: List<CardValue>, actions: List<CardAction>) {
+    val colors = MaterialTheme.colorScheme
+    val tap = rememberKeyTap()
+    androidx.compose.material3.Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = colors.surfaceContainerHigh,
+        shadowElevation = 6.dp,
+        modifier = Modifier.widthIn(min = 216.dp, max = 340.dp),
+    ) {
+        Column(Modifier.width(androidx.compose.foundation.layout.IntrinsicSize.Max).padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
+            if (color != null || kind != null || name != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (color != null) Box(Modifier.size(12.dp).clip(CircleShape).background(color))
+                    if (kind != null) Text(
+                        kind,
+                        color = colors.onTertiaryContainer,
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.clip(CircleShape).background(colors.tertiaryContainer).padding(horizontal = 10.dp, vertical = 3.dp),
+                    )
+                    Spacer(Modifier.weight(1f))
+                    if (name != null) {
+                        val row = remember(name) { com.example.cas.graph.Legend.row(name) }
+                        Box(Modifier.widthIn(max = 160.dp).horizontalScroll(rememberScrollState())) { MathView(row, 15.sp, colors.onSurfaceVariant) }
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+            }
+            rows.forEach { v ->
+                Row(Modifier.heightIn(min = 42.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val letter = remember(v.letter) { com.example.cas.graph.Legend.row("$" + v.letter + "$") }
+                    Box(Modifier.widthIn(min = 22.dp), contentAlignment = Alignment.Center) { MathView(letter, 20.sp, colors.onSurfaceVariant) }
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(
+                            v.text,
+                            color = colors.onSurface,
+                            style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 21.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, fontFeatureSettings = "tnum"),
+                            maxLines = 1,
+                        )
+                        if (v.detail != null) Text(v.detail, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                    }
+                    if (v.onUse != null) Row(
+                        Modifier.height(34.dp).clip(CircleShape).background(colors.primaryContainer)
+                            .clickable(onClickLabel = "Use ${v.letter} in the calculator") { tap(); v.onUse.invoke() }
+                            .padding(start = 10.dp, end = 13.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardReturn, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Use", color = colors.onPrimaryContainer, style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+            if (actions.isNotEmpty()) {
+                androidx.compose.material3.HorizontalDivider(Modifier.padding(top = 8.dp, bottom = 10.dp), color = colors.outlineVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    actions.forEach { a ->
+                        Row(
+                            Modifier.height(38.dp).clip(RoundedCornerShape(12.dp)).background(colors.secondaryContainer)
+                                .clickable(onClickLabel = a.spoken) { tap(); a.onClick() }
+                                .padding(start = 10.dp, end = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(a.icon, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(a.label, color = colors.onSecondaryContainer, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+/**
+ * The result of an integral picked on a graph (an area, the area between two curves, ∮ around
+ * a loop): its icon and title, the integral as math, the value large, smaller figures under it,
+ * and buttons to use or copy the value. Top left of the plot, under the legend.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun ResultCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    math: com.example.cas.editor.MathRow?,
+    value: String,
+    stats: List<Pair<String, String>> = emptyList(),
+    note: String? = null,
+    copyText: String? = null,
+    onUse: (() -> Unit)? = null,
+    onClose: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val tap = rememberKeyTap()
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    androidx.compose.material3.Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = colors.surfaceContainerHigh,
+        shadowElevation = 4.dp,
+        modifier = Modifier.widthIn(min = 240.dp, max = 320.dp),
+    ) {
+        Column(Modifier.padding(start = 14.dp, end = 6.dp, top = 10.dp, bottom = 14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(colors.primaryContainer), contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(22.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+                Text(title, style = MaterialTheme.typography.titleSmall, color = colors.onSurface, modifier = Modifier.weight(1f))
+                IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = "Close", tint = colors.onSurfaceVariant) }
+            }
+            Column(Modifier.padding(end = 8.dp)) {
+                if (math != null) Box(Modifier.padding(top = 6.dp).horizontalScroll(rememberScrollState())) { MathView(math, 17.sp, colors.onSurfaceVariant, computerModern = true) }
+                Text(
+                    value,
+                    color = colors.onSurface,
+                    style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 30.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, fontFeatureSettings = "tnum"),
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                if (stats.isNotEmpty()) androidx.compose.foundation.layout.FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    stats.forEach { (label, v) ->
+                        Column(Modifier.clip(RoundedCornerShape(12.dp)).background(colors.surfaceContainerHighest).padding(horizontal = 10.dp, vertical = 6.dp)) {
+                            Text(label, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+                            Text(v, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, fontFeatureSettings = "tnum"), color = colors.onSurface)
+                        }
+                    }
+                }
+                if (note != null) Text(note, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp))
+                if (onUse != null || copyText != null) Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (onUse != null) Row(
+                        Modifier.height(36.dp).clip(CircleShape).background(colors.primaryContainer)
+                            .clickable(onClickLabel = "Use the value in the calculator") { tap(); onUse() }
+                            .padding(start = 12.dp, end = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardReturn, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Use", color = colors.onPrimaryContainer, style = MaterialTheme.typography.labelLarge)
+                    }
+                    if (copyText != null) Row(
+                        Modifier.height(36.dp).clip(CircleShape).border(1.dp, colors.outlineVariant, CircleShape)
+                            .clickable(onClickLabel = "Copy the value") { tap(); clipboard.setText(androidx.compose.ui.text.AnnotatedString(copyText)) }
+                            .padding(start = 12.dp, end = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Copy", color = colors.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
         }
     }
 }

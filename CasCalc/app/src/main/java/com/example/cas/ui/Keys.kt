@@ -222,10 +222,7 @@ val LetterKeys: List<List<KeySpec>> = run {
     ('a'..'z').forEach { c -> keys += letter(c.toString(), "letter $c") }
     ('A'..'Z').forEach { c -> keys += letter(c.toString(), "capital $c") }
     GREEK.forEach { (g, name) -> keys += letter(g, name) }
-    // \mathcal capitals and \mathfrak capitals and small letters.
-    ('A'..'Z').forEach { c -> keys += letter(com.example.cas.editor.MathAlphabets.calligraphic(c), "calligraphic $c") }
-    ('A'..'Z').forEach { c -> keys += letter(com.example.cas.editor.MathAlphabets.fraktur(c), "fraktur capital $c") }
-    ('a'..'z').forEach { c -> keys += letter(com.example.cas.editor.MathAlphabets.fraktur(c), "fraktur $c") }
+    // Calligraphic and Fraktur letters are in the symbol builder, not here.
     keys.chunked(6)
 }
 

@@ -81,7 +81,7 @@ object AppSettings {
     /** Half the width of the 2D graph's starting view: 5, 10 or 20. */
     var viewHalfWidth by mutableStateOf(10)
         private set
-    /** Complex plots: 0 standard (half resolution), 1 high (full). */
+    /** Complex plots: 0 standard (half resolution), 1 high (full), 2 low (a quarter). */
     var complexQuality by mutableStateOf(0)
         private set
     /** 2D fields f(x, y): 0 low (12 px cells), 1 medium (6 px), 2 high (3 px). */

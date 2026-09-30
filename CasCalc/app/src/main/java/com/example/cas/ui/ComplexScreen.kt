@@ -90,7 +90,7 @@ import kotlin.coroutines.coroutineContext
  * other than z get sliders (f(z) = z − t); draw a loop to integrate around it.
  */
 @Composable
-fun ComplexScreen(vm: ComplexViewModel, modifier: Modifier = Modifier) {
+fun ComplexScreen(vm: ComplexViewModel, onUseValue: (CD) -> Unit = {}, modifier: Modifier = Modifier) {
     BackHandler(enabled = vm.active != null) { vm.edit(null) }
     // The plot's size, for exporting it in the same shape.
     var plotSize by remember { mutableStateOf(IntSize.Zero) }
@@ -106,12 +106,12 @@ fun ComplexScreen(vm: ComplexViewModel, modifier: Modifier = Modifier) {
     )
     GraphScaffold(vm, outputLabel = "f(z)", modifier = modifier) {
         Box(Modifier.fillMaxSize().onSizeChanged { plotSize = it }) {
-            ComplexCanvas(vm, Modifier.fillMaxSize())
+            ComplexCanvas(vm, Modifier.fillMaxSize(), onUseValue)
             // (Top left holds the contour result, bottom right the toolbar.)
             GraphBottomBar(vm, Modifier.align(Alignment.BottomCenter), onExport = { if (vm.view != null) exporting = true }, tools = { PlotTools(vm) })
             // Top left: the contour result, and the legend under it.
             Column(Modifier.align(Alignment.TopStart).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                vm.contourResult?.let { ContourCard(it, onClose = vm::clearContour) }
+                vm.contourResult?.let { ContourCard(it, onClose = vm::clearContour, onUse = { v -> vm.clearContour(); onUseValue(v) }) }
                 val version = vm.version
                 GraphLegend(remember(version, vm.plotted) {
                     complexLegendLines(vm).map { fn ->
@@ -129,7 +129,7 @@ fun ComplexViewModel.resetView(size: IntSize) {
 }
 
 @Composable
-private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
+private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: (CD) -> Unit) {
     val colors = MaterialTheme.colorScheme
     val measurer = rememberTextMeasurer()
     var size by remember { mutableStateOf(IntSize.Zero) }
@@ -158,7 +158,8 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
         val p = vm.parameterValues(f!!)
         try {
             // Standard quality stops at half resolution; high renders every pixel.
-            val passes = if (AppSettings.complexQuality == 1) listOf(8 to 0L, 2 to 140L, 1 to 60L) else listOf(8 to 0L, 2 to 140L)
+            // Low stops at a quarter.
+            val passes = when (AppSettings.complexQuality) { 1 -> listOf(8 to 0L, 2 to 140L, 1 to 60L); 2 -> listOf(8 to 0L, 4 to 140L); else -> listOf(8 to 0L, 2 to 140L) }
             for ((divisor, wait) in passes) {
                 delay(wait)
                 // The sharp pass takes a moment: the expressive loading indicator shows meanwhile.
@@ -228,6 +229,49 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
                 drawPath(path, Color.Black.copy(alpha = 0.55f), style = Stroke(4.5.dp.toPx(), cap = StrokeCap.Round))
                 drawPath(path, lineColor, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
             }
+            // Points ([1 + i, 2]) and curves z(t) (e^{it}), outlined like the curves above.
+            fun screen(w: com.example.cas.cas.CD) = Offset(((w.re - v.xMin) / v.width * size.width).toFloat(), ((v.yMax - w.im) / v.height * size.height).toFloat())
+            vm.functions.filter { it.visible && (it.complexPoints != null || it.complexPath != null) }.asReversed().forEach { fn ->
+                val lineColor = complexLineColor(fn)
+                val p = vm.parameterValues(fn)
+                fn.complexPath?.let { c ->
+                    val (t0, t1) = vm.pathRange(fn)
+                    val n = 800
+                    val path = Path()
+                    var pen = false
+                    var last: Offset? = null
+                    for (k in 0..n) {
+                        val w = runCatching { c(com.example.cas.cas.CD(t0 + (t1 - t0) * k / n), p) }.getOrNull()
+                        val o = w?.takeIf { it.re.isFinite() && it.im.isFinite() }?.let(::screen)
+                        // Breaks where it's undefined or jumps across the screen.
+                        if (o == null || (last != null && (o - last!!).getDistance() > size.maxDimension)) { pen = false; last = o; continue }
+                        if (pen) path.lineTo(o.x, o.y) else path.moveTo(o.x, o.y)
+                        pen = true; last = o
+                    }
+                    drawPath(path, Color.Black.copy(alpha = 0.55f), style = Stroke(4.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    drawPath(path, lineColor, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                }
+                fn.complexPoints?.let { cs ->
+                    val ws = cs.mapNotNull { c -> runCatching { c(com.example.cas.cas.CD(0.0), p) }.getOrNull()?.takeIf { it.re.isFinite() && it.im.isFinite() } }
+                    val os = ws.map(::screen)
+                    // Joined in order, or closed into a filled polygon.
+                    if (os.size > 1 && (fn.connectPoints || fn.closedShape)) {
+                        val path = Path().apply { os.forEachIndexed { k, o -> if (k == 0) moveTo(o.x, o.y) else lineTo(o.x, o.y) }; if (fn.closedShape) close() }
+                        if (fn.closedShape) drawPath(path, lineColor.copy(alpha = fn.fillOpacity))
+                        drawPath(path, Color.Black.copy(alpha = 0.55f), style = Stroke(4.5.dp.toPx(), join = StrokeJoin.Round))
+                        drawPath(path, lineColor, style = Stroke(2.dp.toPx(), join = StrokeJoin.Round))
+                    }
+                    val marker = com.example.cas.graph.Marker.of(fn.pointShape)
+                    os.forEachIndexed { k, o ->
+                        drawMarker(marker, o, fn.pointSize.dp.toPx() + 1.5.dp.toPx(), Color.Black.copy(alpha = 0.55f))
+                        drawMarker(marker, o, fn.pointSize.dp.toPx(), lineColor)
+                        if (fn.showLabel) {
+                            val t = measurer.measure(complexText(ws[k]), TextStyle(fontFamily = CasFonts.Ui, fontSize = 12.sp, color = colors.onSurface, shadow = androidx.compose.ui.graphics.Shadow(colors.surface, blurRadius = 5f)))
+                            drawText(t, topLeft = Offset(o.x + 8.dp.toPx(), o.y - t.size.height - 4.dp.toPx()))
+                        }
+                    }
+                }
+            }
             // Typed contour integrals: the circle, an arrow showing it runs counterclockwise, and the value.
             vm.functions.filter { it.visible && it.contour != null }.asReversed().forEach { fn ->
                 val c = fn.contour!!
@@ -275,17 +319,16 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
         if (refining) Busy(Modifier.align(Alignment.TopCenter).padding(top = 12.dp))
         val z = probe
         if (z != null && view != null && f?.complexCompiled != null) {
-            val w = runCatching { f.complexCompiled!!(z, vm.parameterValues(f)) }.getOrNull()
+            val w = runCatching { f.complexCompiled!!(z, vm.parameterValues(f)) }.getOrNull()?.takeIf { it.re.isFinite() && it.im.isFinite() }
             val o = toScreen(view, z, size.width.toFloat(), size.height.toFloat())
-            Text(
-                "z = " + complexText(z) + "  =  " + polarText(z) + "\nf(z) = " + (w?.let { complexText(it) + "  =  " + polarText(it) } ?: "undefined"),
-                color = colors.inverseOnSurface,
-                style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp),
-                modifier = Modifier
-                    .offset { IntOffset(pinInside((o.x - 80.dp.toPx()).toInt(), 8, size.width - 200.dp.roundToPx()), (o.y - 64.dp.toPx()).toInt().coerceAtLeast(8)) }
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(colors.inverseSurface)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            fun use(v: CD): () -> Unit = { probe = null; onUseValue(v) }
+            // The same card as the 2D graph's: z, and f(z), each with its polar form.
+            PointCardAt(
+                o.x, o.y, null, null, legendSource(f).takeIf { it.isNotBlank() },
+                listOf(
+                    CardValue("z", complexText(z), polarText(z), onUse = use(z)),
+                    if (w != null) CardValue("f(z)", complexText(w), polarText(w), onUse = use(w)) else CardValue("f(z)", "undefined"),
+                ),
             )
         }
     }
@@ -449,21 +492,18 @@ internal fun ToolToggle(icon: ImageVector, label: String, on: Boolean, onClick: 
 }
 
 @Composable
-private fun ContourCard(integral: CD, onClose: () -> Unit, modifier: Modifier = Modifier) {
-    val colors = MaterialTheme.colorScheme
+private fun ContourCard(integral: CD, onClose: () -> Unit, onUse: (CD) -> Unit) {
     val residues = DomainColoring.residueSum(integral)
-    Row(
-        modifier.clip(RoundedCornerShape(20.dp)).background(colors.surfaceContainerHigh).padding(start = 16.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        // All in rounded Google Sans Flex, numbers to at most 4 decimals.
-        Column {
-            Text("Integral around the loop ≈ " + roundedComplex(integral), color = colors.onSurface, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 16.sp))
-            Text("Residues inside add up to ≈ " + roundedComplex(residues), color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp))
-            Text("for a loop drawn counterclockwise", color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 12.sp))
-        }
-        IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = "Clear the loop", tint = colors.onSurfaceVariant) }
-    }
+    val math = remember { com.example.cas.graph.Legend.row("$\\oint f(z)\\,dz$") }
+    // The integral large; the sum of the residues inside (the integral over 2πi) under it.
+    ResultCard(
+        PlotIcons.Loop, "Loop integral", math, "≈ " + roundedComplex(integral),
+        stats = listOf("Residues inside" to roundedComplex(residues)),
+        note = "For a loop drawn counterclockwise.",
+        copyText = roundedComplex(integral).replace("−", "-"),
+        onUse = { onUse(integral) },
+        onClose = onClose,
+    )
 }
 
 
@@ -505,11 +545,12 @@ private fun ComplexSettingsDialog(vm: ComplexViewModel, view: Viewport, onDismis
                 if (!valid) Text("Each “from” must be a number below its “to”.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 Text("Plot quality", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    listOf("Standard", "High").forEachIndexed { k, name ->
+                    // Shown low to high; stored as 2 (low), 0 (standard), 1 (high).
+                    listOf("Low" to 2, "Standard" to 0, "High" to 1).forEachIndexed { k, (name, value) ->
                         SegmentedButton(
-                            selected = AppSettings.complexQuality == k,
-                            onClick = { AppSettings.changeComplexQuality(k) },
-                            shape = SegmentedButtonDefaults.itemShape(k, 2),
+                            selected = AppSettings.complexQuality == value,
+                            onClick = { AppSettings.changeComplexQuality(value) },
+                            shape = SegmentedButtonDefaults.itemShape(k, 3),
                             icon = {},
                             label = { Text(name) },
                         )

@@ -81,7 +81,7 @@ import com.example.cas.graph.Scene
 import kotlin.math.PI
 
 @Composable
-fun Graph3DScreen(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
+fun Graph3DScreen(vm: Graph3DViewModel, onUseValue: (Double) -> Unit = {}, modifier: Modifier = Modifier) {
     BackHandler(enabled = vm.active != null) { vm.edit(null) }
     var plotSize by remember { mutableStateOf(IntSize.Zero) }
     var exporting by remember { mutableStateOf(false) }
@@ -99,7 +99,7 @@ fun Graph3DScreen(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
     }
     GraphScaffold(vm, outputLabel = "z", modifier = modifier) {
         Box(Modifier.fillMaxSize().onSizeChanged { plotSize = it }) {
-            SurfaceCanvas(vm, Modifier.fillMaxSize())
+            SurfaceCanvas(vm, Modifier.fillMaxSize(), onUseValue)
             // The range control top left, and the legend under it.
             Column(Modifier.align(Alignment.TopStart).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 RangeControl(vm)
@@ -259,7 +259,7 @@ private fun LimitRow(letter: String, lo: String, hi: String, onLo: (String) -> U
 }
 
 @Composable
-private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier) {
+private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier, onUseValue: (Double) -> Unit) {
     val colors = MaterialTheme.colorScheme
     val measurer = rememberTextMeasurer()
     var size by remember { mutableStateOf(IntSize.Zero) }
@@ -281,8 +281,10 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier) {
         if (size.width == 0) emptyList() else Surface3D.faces(polygons, bounds, camera, size.width.toFloat(), size.height.toFloat())
     }
     // The surface point under the finger: its (x, y, z), with z exact on a z = f(x, y) surface.
+    // (x, y, z, and the surface's color slot.)
     fun pickAt(o: Offset): DoubleArray? = Surface3D.pick(faces, o.x, o.y)?.let { hit ->
-        val c = hit.center.copyOf()
+        val c = hit.center.copyOf(4)
+        c[3] = hit.surface.toDouble()
         vm.functions.firstOrNull { it.colorIndex == hit.surface && it.implicit3D == null && it.compiled != null }
             ?.let { f -> vm.evaluate(f, c[0], c[1]).takeIf { v -> v.isFinite() }?.let { c[2] = it } }
         c
@@ -385,22 +387,15 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier) {
                 drawCircle(colors.inverseOnSurface, 3.dp.toPx(), Offset(sx, sy))
             }
         }
-        // The picked point's coordinates.
+        // The picked point's coordinates, on the same card as the 2D graph's.
         picked?.let { p ->
             val (sx, sy) = Surface3D.project(p[0], p[1], p[2], bounds, camera, size.width.toFloat(), size.height.toFloat())
-            Text(
-                buildAnnotatedString {
-                    append("(")
-                    append(shortNumber(p[0])); append(", "); append(shortNumber(p[1])); append(", "); append(shortNumber(p[2]))
-                    append(")")
-                },
-                color = colors.inverseOnSurface,
-                style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp),
-                modifier = Modifier
-                    .offset { IntOffset(pinInside((sx - 70.dp.toPx()).toInt(), 8, size.width - 160.dp.roundToPx()), (sy - 52.dp.toPx()).toInt().coerceAtLeast(8)) }
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(colors.inverseSurface)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            val fn = vm.functions.firstOrNull { it.colorIndex == p[3].toInt() && it.visible && !it.isText }
+            val color = fn?.let { f -> f.customColor?.let { Color(it) } ?: plotColor(f.colorIndex) }
+            fun use(v: Double): () -> Unit = { picked = null; onUseValue(v) }
+            PointCardAt(
+                sx, sy, color, null, fn?.let { legendSource(it) }?.takeIf { it.isNotBlank() },
+                listOf(CardValue("x", shortNumber(p[0]), onUse = use(p[0])), CardValue("y", shortNumber(p[1]), onUse = use(p[1])), CardValue("z", shortNumber(p[2]), onUse = use(p[2]))),
             )
         }
     }

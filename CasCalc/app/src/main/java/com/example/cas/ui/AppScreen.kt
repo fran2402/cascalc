@@ -92,8 +92,8 @@ fun AppScreen() {
                     calculator.insertNumber(v)
                     switchTo(Mode.Calculator)
                 })
-                Mode.Graph3D -> Graph3DScreen(graph3d)
-                Mode.Complex -> ComplexScreen(complex)
+                Mode.Graph3D -> Graph3DScreen(graph3d, onUseValue = { v -> calculator.insertNumber(v); switchTo(Mode.Calculator) })
+                Mode.Complex -> ComplexScreen(complex, onUseValue = { v -> calculator.insertComplex(v); switchTo(Mode.Calculator) })
             }
         }
     }

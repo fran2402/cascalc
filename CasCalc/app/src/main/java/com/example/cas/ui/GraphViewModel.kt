@@ -72,6 +72,15 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
     /** On the complex plane: an equation like |z − 1| = 2, drawn as a curve; a real function of (x, y) + sliders. */
     var complexCurve: RealFunction? = null
         internal set
+    /** On the complex plane: points (a number, or a list [a, b, …]), each a function of the sliders (called at z = 0). */
+    var complexPoints: List<com.example.cas.graph.ComplexFunction>? = null
+        internal set
+    /** On the complex plane: a curve z(t) (an expression in t without z), called with z = t. */
+    var complexPath: com.example.cas.graph.ComplexFunction? = null
+        internal set
+    /** The range of t written after a comma (0 ≤ t ≤ 1); null picks one. */
+    var complexPathRange: Pair<Double, Double>? = null
+        internal set
     /** On the complex plane: a ∮ line, drawn as its circle with the integral's value. */
     var contour: ContourCircle? = null
         internal set
@@ -804,6 +813,28 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         return row
     }
 
+    /** a ≤ t ≤ b (or b ≥ t ≥ a) as (a, b). */
+    private fun tRange(r: com.example.cas.cas.Rel): Pair<Double, Double> {
+        val t = com.example.cas.cas.Sym("t")
+        if (r.parts.size != 3 || r.parts[1] != t) throw MathError("Write the range of t as a ≤ t ≤ b")
+        val a = com.example.cas.cas.Numeric.real(r.parts[0]); val b = com.example.cas.cas.Numeric.real(r.parts[2])
+        if (!a.isFinite() || !b.isFinite() || a == b) throw MathError("Write the range of t as a ≤ t ≤ b")
+        return minOf(a, b) to maxOf(a, b)
+    }
+
+    /** Where a curve z(t) is drawn: its written range, else once round (0 to 2π) if it closes up, else −10 to 10. */
+    fun pathRange(f: PlotFunction): Pair<Double, Double> {
+        f.complexPathRange?.let { return it }
+        val c = f.complexPath ?: return 0.0 to 1.0
+        val p = parameterValues(f)
+        val periodic = listOf(0.3, 1.1, 2.9).all { t ->
+            val a = runCatching { c(com.example.cas.cas.CD(t), p) }.getOrNull() ?: return@all false
+            val b = runCatching { c(com.example.cas.cas.CD(t + 2 * Math.PI), p) }.getOrNull() ?: return@all false
+            a.re.isFinite() && (a - b).abs() < 1e-7 * (1 + a.abs())
+        }
+        return if (periodic) 0.0 to 2 * Math.PI else -10.0 to 10.0
+    }
+
     /** On the complex plane, ∂/∂x, ∫ … dx and lim x→ from the keys come in with z instead. */
     private fun inZ(n: com.example.cas.editor.Node) {
         val v = when (n) {
@@ -841,6 +872,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
 
     private fun recompileComplex(f: PlotFunction) {
         f.complexCompiled = null; f.compiled = null; f.complexCurve = null; f.contour = null
+        f.complexPoints = null; f.complexPath = null; f.complexPathRange = null; f.definesFunction = null
         try {
             val ev = evaluatorFor(f)
             val single = f.editor.root.items.singleOrNull() as? com.example.cas.editor.Func
@@ -856,13 +888,43 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 f.parameters = emptyList(); f.definition = null; f.error = null
                 return
             }
+            var items: List<com.example.cas.editor.Node> = f.editor.root.items
+            // f(z) = … is drawn, as f(x) = … is on the 2D graph; f(t) = … and the like only define f.
+            com.example.cas.engine.UserFunction.definition(items)?.takeIf { it.first !in userFunctions(except = f) }?.let { (name, vs, body) ->
+                if (vs != listOf("z")) {
+                    ev.evaluate(MathCodec.copy(f.editor.root))
+                    f.definesFunction = name
+                    f.parameters = emptyList(); f.definition = null; f.error = null
+                    return
+                }
+                items = body
+            }
+            fun rowOf(nodes: List<com.example.cas.editor.Node>) = MathCodec.copy(MathRow(nodes.toMutableList()))
+            val zSym = com.example.cas.cas.Sym("z")
+            // [a, b, …]: points (joined with "Join the points").
+            if ((items.firstOrNull() as? com.example.cas.editor.Sym)?.text == "[" && (items.lastOrNull() as? com.example.cas.editor.Sym)?.text == "]") {
+                val es = splitTopLevel(items.subList(1, items.size - 1)).filter { it.isNotEmpty() }.map { ev.evaluate(rowOf(it)) }
+                if (es.isEmpty()) throw MathError("Put points in the list, like [1 + i, 2, −i]")
+                if (es.any { !it.freeOf(zSym) }) throw MathError("Points are numbers, like [1 + i, 2 − 3i]")
+                val params = es.flatMap { it.freeVars() }.distinct().sorted()
+                params.forEach { if (it !in parameters) parameters[it] = 1.0 }
+                f.complexPoints = es.map { com.example.cas.graph.ComplexCompiler.compile(it, listOf("z") + params) }
+                f.parameters = params; f.definition = null; f.error = null
+                return
+            }
+            // Conditions after a comma: the range of t for a curve (e^{it}, 0 ≤ t ≤ π).
+            val segments = splitTopLevel(items)
+            val conditions = segments.drop(1).filter { it.isNotEmpty() }.map { seg ->
+                ev.evaluate(rowOf(seg)) as? com.example.cas.cas.Rel ?: throw MathError("After a comma, write the range of t, like 0 ≤ t ≤ 1")
+            }
+            val curveRow = { rowOf(segments[0]) }
             // An integral with no closed form (∫ Γ(z) dz) is drawn as ∫₁^z, an antiderivative, worked
             // out numerically along the straight path from 1 (0 is a pole of Γ and 1/z).
             var e = try {
-                ev.evaluate(calculusInZ(MathCodec.copy(f.editor.root)))
+                ev.evaluate(calculusInZ(curveRow()))
             } catch (x: MathError) {
                 if (x.message?.startsWith("No antiderivative") != true) throw x
-                ev.evaluate(withLimitsFromOne(calculusInZ(MathCodec.copy(f.editor.root))))
+                ev.evaluate(withLimitsFromOne(calculusInZ(curveRow())))
             }
             if (asDefinition(f, e)) return
             val z = com.example.cas.cas.Sym("z")
@@ -887,6 +949,24 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 f.parameters = params; f.definition = null; f.error = null
                 return
             }
+            // No z (nor x, y, r, θ) in it: a point (2 + i), or with t in it a curve z(t) (e^{it}).
+            val planeLetters = setOf("z", "x", "y", "r", "θ")
+            if (e.freeVars().none { it in planeLetters } && e !is com.example.cas.cas.Mat) {
+                val path = "t" in e.freeVars()
+                if (!path && conditions.isNotEmpty()) throw MathError("A range after a comma is for curves in t, like e^{it}, 0 ≤ t ≤ π")
+                val params = (e.freeVars() - "t").sorted()
+                params.forEach { if (it !in parameters) parameters[it] = 1.0 }
+                if (path) {
+                    // The variable is t; the compiled function takes it as its complex argument.
+                    f.complexPath = com.example.cas.graph.ComplexCompiler.compile(e.subst(com.example.cas.cas.Sym("t"), zSym), listOf("z") + params)
+                    f.complexPathRange = conditions.firstOrNull()?.let { tRange(it) }
+                } else {
+                    f.complexPoints = listOf(com.example.cas.graph.ComplexCompiler.compile(e, listOf("z") + params))
+                }
+                f.parameters = params; f.definition = null; f.error = null
+                return
+            }
+            if (conditions.isNotEmpty()) throw MathError("A range after a comma is for curves in t, like e^{it}, 0 ≤ t ≤ π")
             e = polar(e)
             val params = (e.freeVars() - plotLetters).sorted()
             params.forEach { if (it !in parameters) parameters[it] = 1.0 }
@@ -1078,7 +1158,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     }
 
     override val padEquals: Boolean get() = true
-    override val listKey: Boolean get() = !isComplex && plotVars == listOf("x")
+    override val listKey: Boolean get() = isComplex || plotVars == listOf("x")
 
     /** Letters that sit above the keypad while editing, for typing curves quickly. */
     override val quickVariables: List<String>
