@@ -372,6 +372,16 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         storeProjects()
     }
 
+    /** A copy under a new name ("Pendulum copy"), saved now, placed first. */
+    fun duplicateProject(p: Project) {
+        var name = p.name + " copy"
+        var n = 2
+        while (projects.any { it.name == name }) name = p.name + " copy " + n++
+        val now = System.currentTimeMillis()
+        projects.add(0, p.copy(id = now, name = name, savedAt = now))
+        storeProjects()
+    }
+
     fun deleteProject(p: Project) {
         projects.remove(p)
         storeProjects()

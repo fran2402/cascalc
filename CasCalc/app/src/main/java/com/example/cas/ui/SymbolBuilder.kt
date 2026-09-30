@@ -56,8 +56,8 @@ private enum class Alphabet(val label: String, val letters: List<String>, /** It
     Latin("Latin", ('a'..'z').map { it.toString() } + ('A'..'Z').map { it.toString() }, "Aa"),
     // Every Greek letter, including those shaped like Latin ones (ο, Α, Β…), and the variants.
     Greek("Greek", "αβγδεζηθικλμνξοπρστυφχψω".map { it.toString() } + "ϵϑϰϖϱςϕ".map { it.toString() } + "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ".map { it.toString() }, "Γγ"),
-    // The mathematicians' ℵ ℶ ℷ ℸ, then the Hebrew alphabet.
-    Hebrew("Hebrew", listOf("ℵ", "ℶ", "ℷ", "ℸ") + "אבגדהוזחטיכלמנסעפצקרשת".map { it.toString() }, "ℵב"),
+    // The Hebrew alphabet, as its Unicode letters (from New Computer Modern).
+    Hebrew("Hebrew", "אבגדהוזחטיכלמנסעפצקרשת".map { it.toString() }, "אב"),
     Calligraphic("Calligraphic", ('A'..'Z').map { MathAlphabets.calligraphic(it) }, MathAlphabets.calligraphic('A') + MathAlphabets.calligraphic('B')),
     Fraktur("Fraktur", ('A'..'Z').map { MathAlphabets.fraktur(it) } + ('a'..'z').map { MathAlphabets.fraktur(it) }, MathAlphabets.fraktur('A') + MathAlphabets.fraktur('a')),
     Blackboard("Blackboard", ('A'..'Z').map { MathAlphabets.doubleStruck(it) }, MathAlphabets.doubleStruck('A') + MathAlphabets.doubleStruck('B')),
@@ -138,7 +138,7 @@ fun SymbolBuilderPage(onDone: (String?) -> Unit) {
             singleLine = true,
             label = { Text("LaTeX") },
             isError = latexError,
-            supportingText = { Text(if (latexError) "Not one symbol yet: e.g. \\hat{x}_{1}, {}^{14}_{6}C, \\mathbb{R}, \\aleph_0" else "Type or paste the symbol in LaTeX, or build it below") },
+            supportingText = { Text(if (latexError) "Not one symbol yet: e.g. \\hat{x}_{1}, {}^{14}_{6}C, \\mathbb{R}, \\text{max}" else "Type or paste the symbol in LaTeX, or build it below") },
             textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 15.sp),
             modifier = Modifier.fillMaxWidth(),
         )
@@ -222,7 +222,9 @@ fun SymbolBuilderPage(onDone: (String?) -> Unit) {
                     tap()
                     if (s(slot).length < 8) { scripts[slot] = s(slot) + c; changed() }
                 }) {
-                    MathView(MathRow(mutableListOf(Sym(c))), 20.sp, colors.onSurface, computerModern = true)
+                    // Upright when the box isn't italic, as the letter will be.
+                    val shown = if (slot.flag in upright && c[0].isLetter()) com.example.cas.engine.LatexParser.UPRIGHT + c else c
+                    MathView(MathRow(mutableListOf(Sym(shown))), 20.sp, colors.onSurface, computerModern = true)
                 }
             }
             Chip(selected = false, description = "Delete the last character", onClick = { tap(); scripts[slot] = s(slot).dropLast(1); changed() }) {
@@ -316,7 +318,7 @@ private fun ScriptSlot(title: String, content: String, active: Boolean, upright:
         Box(Modifier.height(28.dp), contentAlignment = Alignment.CenterStart) {
             if (content.isEmpty()) Text("empty", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant.copy(alpha = 0.6f))
             else MathView(
-                if (upright) MathRow(mutableListOf(Sym(if (content.length == 1) com.example.cas.engine.LatexParser.UPRIGHT + content else content)))
+                if (upright) MathRow(mutableListOf(Sym(com.example.cas.engine.LatexParser.UPRIGHT + content)))
                 else MathRow(content.map { Sym(it.toString()) }.toMutableList()),
                 20.sp, colors.onSurface, computerModern = true,
             )

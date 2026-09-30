@@ -7,6 +7,8 @@ From the list of 28 September, in the order I'd tackle them.
   Send it to fix this.
 
 ## Done
+- Round of 30 September (fifth): saved graphs crash and redesign, Maltese ħ on the key,
+  upright script buttons and Greek, Hebrew letters only, accent gap on Hebrew.
 - Round of 30 September (fourth): symbol builder button group, typed upright scripts and italic
   toggle, New Computer Modern for blackboard/Hebrew/ħ, 3D letters chooser, slider gap, folder
   colours, filled/hollow points, upright σ(x) brackets, tablet export, timestamped exports,

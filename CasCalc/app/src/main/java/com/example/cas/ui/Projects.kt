@@ -1,35 +1,54 @@
 package com.example.cas.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.FilterChip
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,10 +57,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.cas.editor.MathCodec
+import com.example.cas.editor.MathRow
+import com.example.cas.editor.Sym
+import com.example.cas.graph.ProjectSummary
 import java.text.DateFormat
+import java.util.Calendar
 import java.util.Date
 
 /**
@@ -57,131 +87,264 @@ fun ProjectsButton(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwitch: (
     if (open) ProjectsPage(current, graphs, onSwitch, onClose = { open = false })
 }
 
+/** A saved graph with the mode it belongs to. */
+private class Saved(val mode: Mode, val vm: GraphViewModel, val project: GraphViewModel.Project)
+
+/** How the list is ordered. */
+private enum class Order(val label: String) { Newest("Newest first"), Oldest("Oldest first"), Name("Name, A–Z") }
+
 /**
- * Saved graphs, like projects in Desmos: save the graph as it is now under a name, open one
- * (replacing the graph in its mode), rename or delete. Each keeps its lines, colors, line
- * styles and sliders. All modes are listed, newest first, each card marked with its mode's icon
- * in the corner; chips narrow the list to one mode. Cards are a grid on a tablet.
+ * Saved graphs, like projects in Desmos. All graph modes are listed together, grouped by when
+ * they were saved (Today, Yesterday, This week, Earlier); a connected button group narrows the
+ * list to one mode, with the counts in brackets; search by name and change the order at the
+ * top. Each card shows the mode's icon in its corner, the first lines with their colours (data
+ * sets as a chip, never drawn point by point) and a menu to rename, duplicate or delete. The
+ * button at the bottom saves the graph on screen. Cards fill the width on a phone and form a grid
+ * on a tablet.
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwitch: (Mode) -> Unit, onClose: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val vm = graphs.getValue(current)
-    var naming by remember { mutableStateOf<Pair<GraphViewModel, GraphViewModel.Project>?>(null) }
+    var naming by remember { mutableStateOf<Saved?>(null) }
     var saving by remember { mutableStateOf(false) }
-    var deleting by remember { mutableStateOf<Pair<GraphViewModel, GraphViewModel.Project>?>(null) }
+    var deleting by remember { mutableStateOf<Saved?>(null) }
     var filter by remember { mutableStateOf<Mode?>(null) }
-    val dateFormat = remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
+    var query by remember { mutableStateOf("") }
+    var searching by remember { mutableStateOf(false) }
+    var order by remember { mutableStateOf(Order.Newest) }
+    var orderMenu by remember { mutableStateOf(false) }
     val tablet = isTabletLayout()
-    val all = graphs.flatMap { (m, g) -> g.projects.map { Triple(m, g, it) } }.sortedByDescending { it.third.savedAt }
-    val shown = all.filter { filter == null || it.first == filter }
+    val modes = graphs.keys.toList()
+    val all = graphs.flatMap { (m, g) -> g.projects.map { Saved(m, g, it) } }
+    val shown = all
+        .filter { filter == null || it.mode == filter }
+        .filter { query.isBlank() || it.project.name.contains(query.trim(), ignoreCase = true) }
+        .let { list ->
+            when (order) {
+                Order.Newest -> list.sortedByDescending { it.project.savedAt }
+                Order.Oldest -> list.sortedBy { it.project.savedAt }
+                Order.Name -> list.sortedBy { it.project.name.lowercase() }
+            }
+        }
+    // By date when ordered by date; one group when by name.
+    val groups = if (order == Order.Name) listOf("" to shown) else shown.groupBy { whenSaved(it.project.savedAt) }.toList()
 
-    FullScreenPage("Saved graphs", onBack = onClose) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = { saving = true }, enabled = vm.functions.any { !it.editor.isEmpty }) {
-                Icon(current.icon, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Save the current graph")
-            }
-        }
-        // Which modes to show.
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = filter == null, onClick = { filter = null }, label = { Text("All  ${all.size}") })
-            graphs.keys.forEach { m ->
-                val n = all.count { it.first == m }
-                FilterChip(
-                    selected = filter == m, onClick = { filter = if (filter == m) null else m },
-                    label = { Text("${m.label}  $n") },
-                    leadingIcon = { Icon(m.icon, contentDescription = null, modifier = Modifier.size(18.dp)) },
-                )
-            }
-        }
-        if (shown.isEmpty()) {
-            Text(
-                "Nothing saved yet. Save a graph to keep its lines, colors and sliders, and open it again later.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.onSurfaceVariant,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        }
-        val perRow = if (tablet) 3 else 1
-        shown.chunked(perRow).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                row.forEach { (m, g, p) ->
-                    ProjectCard(
-                        p, m, dateFormat, tablet,
-                        onOpen = { g.openProject(p); if (m != current) onSwitch(m); onClose() },
-                        onRename = { naming = g to p },
-                        onDelete = { deleting = g to p },
-                        modifier = Modifier.weight(1f),
-                    )
+    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        BackHandler(onBack = onClose)
+        Surface(Modifier.fillMaxSize(), color = colors.surface) {
+            Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+                Column(Modifier.fillMaxSize()) {
+                    // The top bar: back, the title (or the search field), search and order.
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.onSurface) }
+                        if (searching) {
+                            TextField(
+                                value = query, onValueChange = { query = it }, singleLine = true,
+                                placeholder = { Text("Search by name") },
+                                shape = CircleShape,
+                                colors = TextFieldDefaults.colors(focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
+                                modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
+                            )
+                            IconButton(onClick = { searching = false; query = "" }) { Icon(Icons.Default.Close, contentDescription = "Close the search", tint = colors.onSurfaceVariant) }
+                        } else {
+                            Text("Saved graphs", style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.weight(1f).padding(start = 4.dp))
+                            IconButton(onClick = { searching = true }) { Icon(Icons.Default.Search, contentDescription = "Search", tint = colors.onSurfaceVariant) }
+                        }
+                        Box {
+                            TextButton(onClick = { orderMenu = true }) { Text(order.label) }
+                            DropdownMenu(expanded = orderMenu, onDismissRequest = { orderMenu = false }) {
+                                Order.entries.forEach { o -> DropdownMenuItem(text = { Text(o.label) }, onClick = { order = o; orderMenu = false }) }
+                            }
+                        }
+                    }
+                    // Which modes: all, or one; counts in brackets.
+                    Box(Modifier.padding(horizontal = 16.dp).widthIn(max = 720.dp)) {
+                        ConnectedButtonGroup(
+                            modes.size + 1,
+                            selected = if (filter == null) 0 else modes.indexOf(filter) + 1,
+                            onSelect = { k -> filter = if (k == 0) null else modes[k - 1] },
+                            description = { k -> if (k == 0) "All saved graphs, ${all.size}" else "${modes[k - 1].label}, ${all.count { it.mode == modes[k - 1] }}" },
+                        ) { k, on ->
+                            val fg = if (on) colors.onPrimary else colors.onSurface
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                if (k == 0) Text("All (${all.size})", color = fg, style = MaterialTheme.typography.labelLarge)
+                                else {
+                                    val m = modes[k - 1]
+                                    Icon(m.icon, contentDescription = null, tint = fg, modifier = Modifier.size(18.dp))
+                                    Text(
+                                        (if (tablet) m.label + " " else "") + "(${all.count { it.mode == m }})",
+                                        color = fg, style = MaterialTheme.typography.labelLarge, maxLines = 1,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (shown.isEmpty()) {
+                        EmptyProjects(searching = query.isNotBlank(), modifier = Modifier.weight(1f).fillMaxWidth())
+                    } else {
+                        LazyVerticalGrid(
+                            columns = if (tablet) GridCells.Adaptive(300.dp) else GridCells.Fixed(1),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                        ) {
+                            groups.forEach { (label, list) ->
+                                if (label.isNotEmpty()) item(span = { GridItemSpan(maxLineSpan) }, contentType = "header") {
+                                    Text(label, style = MaterialTheme.typography.titleSmall, color = colors.primary, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
+                                }
+                                items(list, key = { it.mode.name + it.project.id }, contentType = { "card" }) { s ->
+                                    ProjectCard(
+                                        s, current = s.mode == current,
+                                        onOpen = { s.vm.openProject(s.project); if (s.mode != current) onSwitch(s.mode); onClose() },
+                                        onRename = { naming = s },
+                                        onDuplicate = { s.vm.duplicateProject(s.project) },
+                                        onDelete = { deleting = s },
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
-                repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
+                // Saving the graph on screen.
+                ExtendedFloatingActionButton(
+                    onClick = { saving = true },
+                    icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                    text = { Text("Save this ${if (current == Mode.Complex) "plot" else "graph"}") },
+                    expanded = true,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
+                    containerColor = if (vm.functions.any { !it.editor.isEmpty }) colors.primaryContainer else colors.surfaceContainerHighest,
+                    contentColor = if (vm.functions.any { !it.editor.isEmpty }) colors.onPrimaryContainer else colors.onSurfaceVariant,
+                )
             }
         }
     }
 
-    if (saving) NameDialog("Save graph", "Graph ${vm.projects.size + 1}", onDone = { vm.saveProject(it); saving = false }, onDismiss = { saving = false })
-    naming?.let { (g, p) -> NameDialog("Rename", p.name, onDone = { g.renameProject(p, it); naming = null }, onDismiss = { naming = null }) }
-    deleting?.let { (g, p) ->
+    if (saving) {
+        if (vm.functions.all { it.editor.isEmpty }) {
+            AlertDialog(
+                onDismissRequest = { saving = false },
+                title = { Text("Nothing to save") },
+                text = { Text("The ${current.label.lowercase()} on screen has no lines yet.") },
+                confirmButton = { TextButton(onClick = { saving = false }) { Text("OK") } },
+            )
+        } else NameDialog("Save graph", "Graph ${vm.projects.size + 1}", onDone = { vm.saveProject(it); saving = false }, onDismiss = { saving = false })
+    }
+    naming?.let { s -> NameDialog("Rename", s.project.name, onDone = { s.vm.renameProject(s.project, it); naming = null }, onDismiss = { naming = null }) }
+    deleting?.let { s ->
         AlertDialog(
             onDismissRequest = { deleting = null },
-            title = { Text("Delete ${p.name}?") },
+            title = { Text("Delete ${s.project.name}?") },
             text = { Text("The saved graph will be removed. The graph on screen isn't affected.") },
-            confirmButton = { TextButton(onClick = { g.deleteProject(p); deleting = null }) { Text("Delete", color = colors.error) } },
+            confirmButton = { TextButton(onClick = { s.vm.deleteProject(s.project); deleting = null }) { Text("Delete", color = colors.error) } },
             dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } },
         )
     }
 }
 
-/** A saved graph: its name, its first lines drawn as maths, when it was saved, and its mode's icon top right. */
+/** "Today", "Yesterday", "This week" or "Earlier". */
+private fun whenSaved(time: Long): String {
+    val day = Calendar.getInstance().apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0) }.timeInMillis
+    val dayMs = 24L * 60 * 60 * 1000
+    return when {
+        time >= day -> "Today"
+        time >= day - dayMs -> "Yesterday"
+        time >= day - 6 * dayMs -> "This week"
+        else -> "Earlier"
+    }
+}
+
 @Composable
-private fun ProjectCard(
-    p: GraphViewModel.Project,
-    mode: Mode,
-    dateFormat: DateFormat,
-    tablet: Boolean,
-    onOpen: () -> Unit,
-    onRename: () -> Unit,
-    onDelete: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+private fun EmptyProjects(searching: Boolean, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
-    val lines = p.data["functions"].orEmpty().lines().filter { it.isNotBlank() }
-    Box(
-        modifier
-            .clip(RoundedCornerShape(24.dp))
-            .background(colors.surfaceContainerHigh)
-            .clickable(onClickLabel = "Open ${p.name}") { onOpen() },
+    Column(modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)) {
+        Box(Modifier.size(96.dp).clip(RoundedCornerShape(32.dp)).background(colors.secondaryContainer), contentAlignment = Alignment.Center) {
+            Icon(if (searching) Icons.Default.Search else Icons.Default.FolderOpen, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(44.dp))
+        }
+        Text(if (searching) "No saved graphs with that name" else "No saved graphs yet", style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
+        if (!searching) Text(
+            "Save a graph to keep its lines, colours and sliders, and open it again later.",
+            style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+    }
+}
+
+/**
+ * A saved graph: its mode's icon top right, its name and when it was saved, then up to three
+ * lines in their colours (drawn as maths when short; data sets as a chip) and "+ n more".
+ */
+@Composable
+private fun ProjectCard(s: Saved, current: Boolean, onOpen: () -> Unit, onRename: () -> Unit, onDuplicate: () -> Unit, onDelete: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val p = s.project
+    val noteCode = remember { MathCodec.encode(MathRow(mutableListOf(Sym("…")))) }
+    val summary = remember(p) { ProjectSummary.of(p.data, noteCode) }
+    val palette = plotColors(colors)
+    val dateFormat = remember { DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT) }
+    var menu by remember { mutableStateOf(false) }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(28.dp))
+            .background(colors.surfaceContainer)
+            .then(if (current) Modifier.border(1.dp, colors.outlineVariant, RoundedCornerShape(28.dp)) else Modifier)
+            .clickable(onClickLabel = "Open ${p.name}") { onOpen() }
+            .padding(start = 18.dp, top = 14.dp, end = 8.dp, bottom = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Column(Modifier.fillMaxWidth().padding(start = 16.dp, top = 14.dp, end = 8.dp, bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(p.name, style = MaterialTheme.typography.titleMedium, color = colors.onSurface, modifier = Modifier.padding(end = 44.dp))
-            // The first lines, drawn as maths, so the graph is recognisable.
-            Column(Modifier.clip(RoundedCornerShape(12.dp)).fillMaxWidth().background(colors.surfaceContainerLowest).padding(horizontal = 10.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                lines.take(if (tablet) 3 else 2).forEach { code ->
-                    runCatching { MathCodec.decode(code) }.getOrNull()?.let { row -> MathView(row, 17.sp, colors.onSurfaceVariant) }
-                }
-                if (lines.isEmpty()) Text("No lines", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(p.name, style = MaterialTheme.typography.titleMedium, color = colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
-                    "${lines.size} line${if (lines.size == 1) "" else "s"} · ${dateFormat.format(Date(p.savedAt))}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
+                    "${summary.lines.size} line${if (summary.lines.size == 1) "" else "s"} · ${dateFormat.format(Date(p.savedAt))}",
+                    style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1,
                 )
-                IconButton(onClick = onRename) { Icon(Icons.Default.Edit, contentDescription = "Rename ${p.name}", tint = colors.onSurfaceVariant) }
-                IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, contentDescription = "Delete ${p.name}", tint = colors.onSurfaceVariant) }
+            }
+            // The mode it belongs to.
+            Box(
+                Modifier.size(40.dp).clip(RoundedCornerShape(14.dp)).background(colors.secondaryContainer).semantics { contentDescription = s.mode.label },
+                contentAlignment = Alignment.Center,
+            ) { Icon(s.mode.icon, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(22.dp)) }
+            Box {
+                IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Options for ${p.name}", tint = colors.onSurfaceVariant) }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text("Rename") }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { menu = false; onRename() })
+                    DropdownMenuItem(text = { Text("Duplicate") }, leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, onClick = { menu = false; onDuplicate() })
+                    DropdownMenuItem(text = { Text("Delete", color = colors.error) }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = colors.error) }, onClick = { menu = false; onDelete() })
+                }
             }
         }
-        // The mode it belongs to.
-        Box(
-            Modifier.align(Alignment.TopEnd).padding(10.dp).size(34.dp).clip(CircleShape).background(colors.secondaryContainer)
-                .semantics { contentDescription = mode.label },
-            contentAlignment = Alignment.Center,
+        // The lines, as on the graph's list: a colour dot, then the maths.
+        Column(
+            Modifier.padding(end = 10.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(colors.surfaceContainerLowest).padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Icon(mode.icon, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(20.dp))
+            if (summary.lines.isEmpty()) Text("No lines", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            summary.lines.take(3).forEach { line ->
+                val dot = line.color?.let { Color(it) } ?: palette[line.slot.mod(palette.size)]
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(Modifier.size(10.dp).clip(CircleShape).background(dot))
+                    val row = line.code?.let { code -> remember(code) { runCatching { MathCodec.decode(code) }.getOrNull() } }
+                    if (row == null) {
+                        // A data set (or a very long line): named, not drawn.
+                        Row(
+                            Modifier.clip(CircleShape).background(colors.tertiaryContainer).padding(horizontal = 10.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            if (line.isData) Icon(Icons.Default.TableChart, contentDescription = null, tint = colors.onTertiaryContainer, modifier = Modifier.size(14.dp))
+                            Text(if (line.isData) "Data set" else "Long formula", style = MaterialTheme.typography.labelMedium, color = colors.onTertiaryContainer)
+                        }
+                    } else {
+                        // One line, cut off at the card's edge.
+                        Box(Modifier.weight(1f).clipToBounds()) {
+                            Box(Modifier.wrapContentWidth(Alignment.Start, unbounded = true)) { MathView(row, 17.sp, colors.onSurface) }
+                        }
+                    }
+                }
+            }
+            if (summary.lines.size > 3) Text("+ ${summary.lines.size - 3} more", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 20.dp))
         }
     }
 }

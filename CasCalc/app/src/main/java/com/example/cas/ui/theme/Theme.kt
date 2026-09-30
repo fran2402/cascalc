@@ -219,8 +219,10 @@ class GlyphFallback(context: Context) {
             val cp = text.codePointAt(i)
             val chunk = text.substring(i, i + Character.charCount(cp))
             val alpha = com.example.cas.editor.MathAlphabets.decode(cp)
-            val special = if (cp == 0x210F || cp in 0x5D0..0x5EA || cp in 0x2135..0x2138 || alpha?.first == com.example.cas.editor.MathAlphabets.Style.DoubleStruck) newComputerModern(cp, false) else null
+            val special = if (cp in 0x5D0..0x5EA || cp in 0x2135..0x2138 || alpha?.first == com.example.cas.editor.MathAlphabets.Style.DoubleStruck) newComputerModern(cp, false) else null
             when {
+                // ℏ on keys and in the sans display: the Maltese ħ, in the key font's own weight.
+                cp == 0x210F -> append("ħ")
                 special != null -> withStyle(SpanStyle(fontFamily = special.first)) { append(special.second) }
                 // 𝒜, 𝔄, 𝔞…: TeX's Caligraphic or Fraktur shape on the plain letter.
                 alpha != null && alpha.first != com.example.cas.editor.MathAlphabets.Style.DoubleStruck -> withStyle(SpanStyle(fontFamily = if (alpha.first == com.example.cas.editor.MathAlphabets.Style.Calligraphic) CasFonts.CmCal else CasFonts.CmFrak, fontStyle = androidx.compose.ui.text.font.FontStyle.Normal)) { append(alpha.second) }
@@ -256,7 +258,7 @@ class MathGlyphs(context: Context) {
     private fun has(paint: Paint, which: Int, cp: Int): Boolean =
         FontCoverage.covers(if (which == 0) FontCoverage.CM_ROMAN else FontCoverage.CM_ITALIC, cp)
 
-    fun style(text: String, italicRun: Boolean): AnnotatedString = buildAnnotatedString {
+    fun style(text: String, italicRun: Boolean, upright: Boolean = false): AnnotatedString = buildAnnotatedString {
         var i = 0
         while (i < text.length) {
             val cp = text.codePointAt(i)
@@ -266,6 +268,8 @@ class MathGlyphs(context: Context) {
             val alpha = com.example.cas.editor.MathAlphabets.decode(cp)
             val special = newComputerModern(cp, italicRun)
             when {
+                // Upright text (\text, \mathrm): lowercase Greek from New Computer Modern's upright set.
+                upright && isLowerGreek(cp) -> withStyle(SpanStyle(fontFamily = CasFonts.NcmMath, fontStyle = androidx.compose.ui.text.font.FontStyle.Normal)) { append(chunk) }
                 special != null -> withStyle(SpanStyle(fontFamily = special.first, fontStyle = androidx.compose.ui.text.font.FontStyle.Normal)) { append(special.second) }
                 // 𝒜, 𝔄, 𝔞…: TeX's Caligraphic or Fraktur shape on the plain letter.
                 alpha != null -> withStyle(SpanStyle(fontFamily = if (alpha.first == com.example.cas.editor.MathAlphabets.Style.Calligraphic) CasFonts.CmCal else CasFonts.CmFrak, fontStyle = androidx.compose.ui.text.font.FontStyle.Normal)) { append(alpha.second) }
@@ -277,6 +281,9 @@ class MathGlyphs(context: Context) {
         }
     }
 }
+
+/** Lowercase Greek and its variants (ϑ ϕ ϖ ϱ ϵ), which Computer Modern has only in italic. */
+internal fun isLowerGreek(cp: Int) = cp in 0x3B1..0x3C9 || cp == 0x3D1 || cp == 0x3D5 || cp == 0x3D6 || cp == 0x3F1 || cp == 0x3F5
 
 /** Capital Greek letters shaped like Latin ones: TeX sets them as the upright Latin letter. */
 private val LATIN_LOOKALIKES = mapOf(

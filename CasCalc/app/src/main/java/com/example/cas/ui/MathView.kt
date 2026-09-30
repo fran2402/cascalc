@@ -180,10 +180,11 @@ private fun tapTo(row: MathRow, index: Int): Modifier {
 }
 
 @Composable
-private fun MathText(text: String, level: Int, modifier: Modifier = Modifier, italic: Boolean = false, color: Color? = null, bold: Boolean = false) {
+private fun MathText(text: String, level: Int, modifier: Modifier = Modifier, italic: Boolean = false, color: Color? = null, bold: Boolean = false, upright: Boolean = false) {
     val env = LocalMath.current
     BasicText(
-        text = if (env.computerModern) env.mathGlyphs.style(text, italic) else env.glyphs.style(text),
+        // [upright]: text written upright on purpose (\text, \mathrm), Greek included.
+        text = if (env.computerModern || upright) env.mathGlyphs.style(text, italic, upright) else env.glyphs.style(text),
         modifier = modifier,
         style = TextStyle(
             fontSize = env.size(level),
@@ -504,9 +505,9 @@ private fun SymView(s: Sym, row: MathRow, index: Int, level: Int) {
             if (custom != null) {
                 // A built symbol: its letter with the accent above, then the scripts.
                 CustomSymbolView(custom, level, tap.layoutId("sym"))
-            } else if (t.length == 2 && t.startsWith(com.example.cas.engine.LatexParser.UPRIGHT)) {
-                // An upright letter from LaTeX (\mathrm{m}): roman, without the marker.
-                MathText(t.substring(1), level, tap.layoutId("sym"))
+            } else if (t.length >= 2 && t.startsWith(com.example.cas.engine.LatexParser.UPRIGHT)) {
+                // Upright letters from LaTeX (\mathrm{m}, \text{max}): roman, without the marker.
+                MathText(t.substring(1), level, tap.layoutId("sym"), upright = true)
             } else if (env.computerModern && t.isNotEmpty() && t.all { it == '′' }) {
                 // A typed prime: raised and small, as TeX draws y′ (its prime glyph is made for that).
                 Scripts(level, tap.layoutId("sym"), base = { Box(Modifier) }, sup = { MathText(t, level + 1) })
@@ -1200,9 +1201,9 @@ internal fun CustomSymbolView(sym: com.example.cas.cas.CustomSymbol, level: Int,
     val italic = !sym.isUpright('u') && base.length == 1 && (c in 'a'..'z' || c in 'A'..'Z' || c in 'α'..'ω' || c in "ϵϑϕϱςϖϰ")
     // A script as maths (letters italic), or, written as text, upright as typed.
     fun scriptRow(s: String, slot: Char): MathRow =
-        if (sym.isUpright(slot)) MathRow(mutableListOf(Sym(if (s.length == 1) com.example.cas.engine.LatexParser.UPRIGHT + s else s)))
+        if (sym.isUpright(slot)) MathRow(mutableListOf(Sym(com.example.cas.engine.LatexParser.UPRIGHT + s)))
         else MathRow(s.map { Sym(it.toString()) }.toMutableList())
-    val accented: @Composable () -> Unit = { AccentedLetter(base, sym.accent, italic, level, sym.bold) }
+    val accented: @Composable () -> Unit = { AccentedLetter(base, sym.accent, italic, level, sym.bold, upright = sym.isUpright('u')) }
     val main: @Composable () -> Unit = {
         if (sym.sub.isEmpty() && sym.sup.isEmpty()) accented()
         else Scripts(
@@ -1238,14 +1239,14 @@ private fun Phantom(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun AccentedLetter(base: String, accent: com.example.cas.cas.Accent?, italic: Boolean, level: Int, bold: Boolean = false) {
+private fun AccentedLetter(base: String, accent: com.example.cas.cas.Accent?, italic: Boolean, level: Int, bold: Boolean = false, upright: Boolean = false) {
     val env = LocalMath.current
-    if (accent == null) { MathText(base, level, italic = italic, bold = bold); return }
+    if (accent == null) { MathText(base, level, italic = italic, bold = bold, upright = upright); return }
     // TeX's vector arrow is small. An arrow's ink is centred in its box (unlike the other accents),
     // so it's placed at full size and scaled down about its own centre.
     val isVector = accent == com.example.cas.cas.Accent.Vector
     Layout(content = {
-        MathText(base, level, italic = italic, bold = bold)
+        MathText(base, level, italic = italic, bold = bold, upright = upright)
         MathText(accent.glyph, level, if (isVector) Modifier.graphicsLayer { scaleX = 0.7f; scaleY = 0.7f } else Modifier)
     }) { ms, _ ->
         val b = ms[0].measure(Loose)

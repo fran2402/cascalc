@@ -195,6 +195,18 @@ Constants and symbols are long lists and scroll up and down in place; the others
 Groups: Basic, Trigonometry, Calculus, Vector calculus, Linear algebra, Statistics, Complex
 numbers, Physical constants, Symbols.
 
+## Latest changes (30 September, fifth round)
+- **Saved graphs, redone**: no longer draws data sets point by point (that crashed the app);
+  they show as a "Data set" chip, and only short lines are drawn. The page has search, an
+  order menu (newest, oldest, name), a connected button group for the modes with counts in
+  brackets, date groups (Today, Yesterday, This week, Earlier), cards with each line's colour,
+  the mode's icon and a menu (rename, duplicate, delete), and a Save button at the bottom. It
+  fills the screen and is a grid on tablets.
+- **ħ key**: the Maltese ħ in the key font; maths keeps the italic ħ.
+- **Symbol builder**: with Italic off, the script buttons turn upright too; lowercase Greek
+  written upright uses New Computer Modern's upright Greek; the Hebrew group is the Unicode
+  letters only (ℵ ℶ ℷ ℸ removed); accents sit on Hebrew letters without the extra gap.
+
 ## Latest changes (30 September, fourth round)
 - **Symbol builder**: the alphabet chooser is an M3 connected button group (Aa, Γγ, ℵב, 𝒜ℬ,
   𝔄𝔞, 𝔸𝔹); the script boxes are named left/right superscript and left/right subscript;
