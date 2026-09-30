@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">CAS Scientific Calculator</string>
+    <!-- The name under the icon on the home screen and in the app drawer. -->
+    <string name="launcher_name">Calculator</string>
 </resources>

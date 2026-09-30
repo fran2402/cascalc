@@ -196,7 +196,8 @@ Groups: Basic, Trigonometry, Calculus, Vector calculus, Linear algebra, Statisti
 numbers, Physical constants, Symbols.
 
 ## Latest changes (30 September, ninth round)
-- The app is now called **CAS Scientific Calculator** (launcher label, feature graphic, messages).
+- The app is now called **CAS Scientific Calculator** (app info, feature graphic, messages); the
+  name under the icon is just **Calculator**.
   Graph files keep their format, so ones saved earlier still open.
 - The saddle in the launcher icon is smaller, with thinner lines to match.
 
