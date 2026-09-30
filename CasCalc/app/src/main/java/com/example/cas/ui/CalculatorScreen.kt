@@ -106,6 +106,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.Pin
@@ -405,18 +408,44 @@ private fun InputPanel(vm: CalculatorViewModel) {
         if (vm.editor.row === vm.editor.root && vm.editor.index == vm.editor.root.items.size) scroll.animateScrollTo(scroll.maxValue)
     }
     Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), horizontalAlignment = Alignment.End) {
-        Box(Modifier.fillMaxWidth().horizontalScroll(scroll), contentAlignment = Alignment.CenterEnd) {
-            MathView(
-                row = vm.editor.root,
-                fontSize = MathSizes.input,
-                color = colors.onSurface,
-                accent = colors.primary,
-                cursorRow = vm.editor.row,
-                cursorIndex = vm.editor.index,
-                version = vm.version,
-                onTap = vm::tapAt,
-                modifier = Modifier.padding(vertical = 8.dp).semantics { contentDescription = "Expression" },
-            )
+        // Where the maths sits in its box, so a tap beside it (the space to its left, or just past
+        // its end) puts the cursor at the start or the end of the line.
+        var mathLeft by remember { mutableStateOf(0f) }
+        var mathRight by remember { mutableStateOf(0f) }
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(scroll)
+                .pointerInput(Unit) {
+                    detectTapGestures { o ->
+                        val root = vm.editor.root
+                        vm.tapAt(root, if (o.x < mathLeft || (o.x <= mathRight && o.x < (mathLeft + mathRight) / 2)) 0 else root.items.size)
+                    }
+                },
+            contentAlignment = Alignment.CenterEnd,
+        ) {
+            val endRoom = with(LocalDensity.current) { 16.dp.toPx() }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                // In the box's own coordinates, as taps are.
+                modifier = Modifier.onPlaced { c -> val x = c.positionInParent().x; mathLeft = x; mathRight = x + c.size.width - endRoom },
+            ) {
+                MathView(
+                    row = vm.editor.root,
+                    fontSize = MathSizes.input,
+                    color = colors.onSurface,
+                    accent = colors.primary,
+                    cursorRow = vm.editor.row,
+                    cursorIndex = vm.editor.index,
+                    version = vm.version,
+                    onTap = vm::tapAt,
+                    modifier = Modifier
+                        .padding(vertical = 8.dp)
+                        .semantics { contentDescription = "Expression" },
+                )
+                // Room past the end: a tap here reaches the end of the line.
+                Spacer(Modifier.width(16.dp))
+            }
         }
         Box(Modifier.heightIn(min = 36.dp).horizontalScroll(rememberScrollState()), contentAlignment = Alignment.CenterEnd) {
             val error = vm.error

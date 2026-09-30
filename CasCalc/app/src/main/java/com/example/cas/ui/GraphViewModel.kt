@@ -422,7 +422,11 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         save()
     }
 
+    /** A list of points in the 2D graph: edited in its table, never typed into. */
+    fun isDataLine(f: PlotFunction) = plotVars == listOf("x") && (f.plot is Plot2DKind.PointList || f.table != null)
+
     fun edit(f: PlotFunction?) {
+        if (f != null && isDataLine(f)) return
         active = f
         if (f != null) keypadHidden = false
     }
@@ -1251,12 +1255,14 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     override fun insertMatrix(rows: Int, cols: Int) { active?.editor?.insert(Matrix(rows, cols, growable = true), 0) }
 
     fun tapAt(f: PlotFunction, r: MathRow, index: Int) {
+        if (isDataLine(f)) return
         active = f
         f.editor.setCursor(r, index)
     }
 
     companion object {
-        const val PLOT_COLOR_COUNT = 6
+        /** Primary, secondary, tertiary, error and surface: the theme colors lines take in turn. */
+        const val PLOT_COLOR_COUNT = 5
     }
 
     // Kotlin runs initialisers top to bottom, so saved functions are compiled here, last:

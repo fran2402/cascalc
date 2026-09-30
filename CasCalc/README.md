@@ -195,6 +195,27 @@ Constants and symbols are long lists and scroll up and down in place; the others
 Groups: Basic, Trigonometry, Calculus, Vector calculus, Linear algebra, Statistics, Complex
 numbers, Physical constants, Symbols.
 
+## Latest changes (30 September, second round)
+- **Export legend set in LaTeX**: fractions stacked, exponents raised, roots and |x| drawn,
+  brackets as tall as their contents, letters in math italic, all in Computer Modern with the
+  fonts' real widths (graph/MathScene.kt).
+- **Export colours**: #165c99, #0bb04b, #f9950f, #ed310c, #7c5e8b, #484848 in turn (the grey
+  lightened on dark exports); 3D surfaces are shaded dark to light in these, one per line.
+- **Line colours on screen**: the theme's primary, secondary, tertiary, error and surface
+  (inverse surface, so it shows) in turn, unless a colour is picked.
+- **Data sets aren't edited inline**: tapping a list of points does nothing; its table button edits it.
+- **Cursor**: tapping past the end of the line (or before it, in the calculator) puts the cursor
+  at the end (or start) in all four modes; in graphs the end of the line stays in view.
+- **2 sin x**: a thin space before function names, as LaTeX sets it.
+- **u·v, u×v, ∘, ⊗** before a matrix, letter or bracket take it as the second operand.
+- **Colour picker**: theme and standard colours first, then a saturation–brightness square with
+  hue, exact values, the line and point options; two columns on tablets.
+- **Colormap picker**: the chosen map large with a Reversed switch, your maps as cards (Edit to
+  reorder or remove), then every map by kind or name with a star to add it; two panes on tablets.
+- **Point shapes**: 15 (plus, star, pentagon, hexagon, down-triangle, asterisk, hollow square,
+  diamond and triangle added).
+- Mock-ups: preview-render/round8.png.
+
 ## Latest changes (30 September)
 - **Legend**: each line has a name, shown top left on all three graphs (under the range control
   in 3D) and in exports, SciencePlots-style. Hold a line to rename it; names are text with

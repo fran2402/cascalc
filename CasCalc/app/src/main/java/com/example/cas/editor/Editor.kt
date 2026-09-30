@@ -135,6 +135,18 @@ class Editor(initial: MathRow = MathRow()) {
                 changed()
                 return
             }
+            // Nothing before, but a matrix (or letter, or brackets) just after the cursor: that's the
+            // second operand, and the cursor goes into the first box.
+            val after = operandAfter()
+            if (after > 0) {
+                record()
+                repeat(after) { node.args[1].add(row.removeAt(index)) }
+                row.add(index, node)
+                row = node.args[0]
+                index = 0
+                changed()
+                return
+            }
         }
         record()
         row.add(index, node)
@@ -169,6 +181,27 @@ class Editor(initial: MathRow = MathRow()) {
             else -> return 0
         }
         return index - start
+    }
+
+    /** Like [operandBefore], for what's just after the cursor: a matrix with its ⁻¹, ᵀ, a bracketed group or a letter. */
+    private fun operandAfter(): Int {
+        val next = row.items.getOrNull(index) ?: return 0
+        var end = when {
+            next is Matrix -> index + 1
+            next is Sym && next.text == "(" -> {
+                var depth = 0
+                var j = index
+                while (j < row.items.size) {
+                    when ((row.items[j] as? Sym)?.text) { "(" -> depth++; ")" -> { depth--; if (depth == 0) break } }
+                    j++
+                }
+                if (j >= row.items.size) return 0 else j + 1
+            }
+            next is Sym && next.text.length == 1 && next.text[0].isLetter() -> index + 1
+            else -> return 0
+        }
+        while (end < row.items.size && row.items[end] is Pow) end++
+        return end - index
     }
 
     /** Pairs that combine as they're typed: <= and =< give ≤, >= and => give ≥. */

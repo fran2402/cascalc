@@ -35,6 +35,8 @@ class Scene(val width: Double, val height: Double, val background: Int) {
         val italic: Set<Char> = emptySet(),
         /** Maths set as runs (italic letters, raised exponents, lowered indices), instead of [text]. */
         val spans: List<Span>? = null,
+        /** y is the text's baseline rather than its middle (maths laid out by [MathScene]). */
+        val baseline: Boolean = false,
     ) : Item() {
         /** The label as runs: [spans], or [text] split by font. */
         fun allSpans(): List<Span> = spans ?: runs().map { (t, ital) -> Span(t, ital) }
@@ -150,7 +152,7 @@ object SvgWriter {
                     // The embedded font, else Computer Modern as LaTeX has it, under its usual installed names.
                     else -> own + "Latin Modern Roman, CMU Serif, Computer Modern, cmr10, Times New Roman, serif"
                 }
-                append("<text x=\"${n(item.x)}\" y=\"${n(item.y)}\" font-family=\"$family\" font-size=\"${n(item.size)}\" text-anchor=\"$anchor\" dominant-baseline=\"central\" ${paint("fill", item.color)}")
+                append("<text x=\"${n(item.x)}\" y=\"${n(item.y)}\" font-family=\"$family\" font-size=\"${n(item.size)}\" text-anchor=\"$anchor\"${if (item.baseline) "" else " dominant-baseline=\"central\""} ${paint("fill", item.color)}")
                 // (The embedded italic is italic already; slanting it again would double it.)
                 if (item.font == Scene.Font.Italic && item.font !in embedded) append(" font-style=\"italic\"")
                 if (item.angle != 0.0) append(" transform=\"rotate(${n(-item.angle)} ${n(item.x)} ${n(item.y)})\"")

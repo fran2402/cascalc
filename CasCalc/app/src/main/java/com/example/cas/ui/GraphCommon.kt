@@ -67,13 +67,19 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.widthIn
@@ -163,11 +169,12 @@ fun colormapStops(map: com.example.cas.graph.Colormap, n: Int = 32, reversed: Bo
     (0..n).map { k -> val t = k.toDouble() / n; Color(0xFF000000.toInt() or map.rgb(if (reversed) 1 - t else t)) }
 
 /**
- * The colors for arg f on the complex plane, in a popup. Your colormaps are listed first: tap
- * one to use it, drag its handle to move it, swipe it away to remove it (it goes back under
- * More), and the arrows on the right run it backwards. "More colormaps" opens every other
- * matplotlib map, each with + to add it to yours.
+ * The colors for arg f on the complex plane. At the top, the chosen map large, with Reversed
+ * to run it backwards. Then your colormaps as cards: tap one to use it; Edit turns them into a
+ * list to drag into order or swipe away. Then every other map, by kind (or searched by name),
+ * each with a star to add it to yours. On a tablet it's wide: yours on the left, all on the right.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ColormapPickerDialog(
     current: com.example.cas.graph.Colormap,
@@ -176,51 +183,157 @@ fun ColormapPickerDialog(
     onDismiss: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
-    var more by remember { mutableStateOf(false) }
+    val tablet = isTabletLayout()
+    var editing by remember { mutableStateOf(false) }
+    var kind by remember { mutableStateOf<String?>(null) }
+    var search by remember { mutableStateOf("") }
     val favourites = FavouriteColormaps.list.map { com.example.cas.graph.Colormap.byName(it) }.distinct()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Colormap") },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                ReorderableColumn(
-                    items = favourites,
-                    key = { it.name },
-                    onMove = { from, to -> FavouriteColormaps.move(from, to) },
-                ) { map, handle ->
-                    SwipeToRemove(onRemove = { FavouriteColormaps.remove(map.name) }) {
-                        ColormapRow(map, current, reversed, onPick, handle = handle)
-                    }
-                }
-                Text(
-                    "Drag ⠿ to reorder · swipe to remove",
-                    style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp, top = 2.dp),
-                )
-                TextButton(onClick = { more = !more }) {
-                    Icon(if (more) Icons.Default.ExpandLess else Icons.Default.ExpandMore, contentDescription = null)
-                    Spacer(Modifier.width(6.dp))
-                    Text(if (more) "Fewer colormaps" else "More colormaps")
-                }
-                if (more) {
-                    com.example.cas.graph.Colormap.CATEGORIES.forEach { category ->
-                        val maps = com.example.cas.graph.Colormap.ALL.filter { it.category == category && it !in favourites }
-                        if (maps.isEmpty()) return@forEach
-                        Text(category, style = MaterialTheme.typography.labelLarge, color = colors.primary, modifier = Modifier.padding(start = 4.dp, top = 6.dp))
-                        maps.forEach { map ->
-                            ColormapRow(map, current, reversed, onPick, add = { FavouriteColormaps.add(map.name) })
-                        }
-                    }
+    val perRow = if (tablet) 3 else 2
+
+    @Composable
+    fun heading(t: String, trailing: (@Composable () -> Unit)? = null) = Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(t, style = MaterialTheme.typography.titleSmall, color = colors.primary, modifier = Modifier.weight(1f))
+        trailing?.invoke()
+    }
+
+    // The chosen map, large, and which way round it runs.
+    val chosen: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+        Box(Modifier.fillMaxWidth().height(if (tablet) 64.dp else 52.dp).clip(RoundedCornerShape(18.dp)).background(Brush.horizontalGradient(colormapStops(current, reversed = reversed)))) {
+            Text(
+                current.label + if (reversed) " (reversed)" else "",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+                modifier = Modifier.align(Alignment.CenterStart).padding(start = 14.dp).clip(RoundedCornerShape(10.dp)).background(Color.Black.copy(alpha = 0.35f)).padding(horizontal = 10.dp, vertical = 4.dp),
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Reversed", style = MaterialTheme.typography.bodyLarge)
+                Text("Run the colors the other way round", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            }
+            androidx.compose.material3.Switch(checked = reversed, onCheckedChange = { onPick(current, it) })
+        }
+    }
+
+    // Your maps: cards to pick from, or a list to reorder and remove.
+    val yours: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+        heading("Your colormaps") {
+            TextButton(onClick = { editing = !editing }) { Text(if (editing) "Done editing" else "Edit") }
+        }
+        if (editing) {
+            Text("Drag ⠿ to reorder · swipe a map away to remove it", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            ReorderableColumn(items = favourites, key = { it.name }, onMove = { from, to -> FavouriteColormaps.move(from, to) }) { map, handle ->
+                SwipeToRemove(onRemove = { FavouriteColormaps.remove(map.name) }) {
+                    ColormapRow(map, current, reversed, onPick, handle = handle)
                 }
             }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
-    )
+        } else {
+            favourites.chunked(perRow).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { map -> ColormapCard(map, map == current, reversed && map == current, Modifier.weight(1f), onClick = { onPick(map, false) }) }
+                    repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        }
+    }
+
+    // Every map: by kind, or by name.
+    val browse: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+        heading("All colormaps")
+        OutlinedTextField(
+            value = search, onValueChange = { search = it }, singleLine = true,
+            placeholder = { Text("Search by name") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            (listOf<String?>(null) + com.example.cas.graph.Colormap.CATEGORIES).forEach { c ->
+                androidx.compose.material3.FilterChip(selected = kind == c, onClick = { kind = c }, label = { Text(c ?: "All") })
+            }
+        }
+        val shown = com.example.cas.graph.Colormap.ALL.filter { m ->
+            (kind == null || m.category == kind) && (search.isBlank() || m.label.contains(search.trim(), ignoreCase = true) || m.name.contains(search.trim(), ignoreCase = true))
+        }
+        if (shown.isEmpty()) Text("No colormap by that name", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+        shown.chunked(perRow).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { map ->
+                    val mine = map in favourites
+                    ColormapCard(
+                        map, map == current, reversed && map == current, Modifier.weight(1f), onClick = { onPick(map, false) },
+                        star = mine, onStar = { if (mine) FavouriteColormaps.remove(map.name) else FavouriteColormaps.add(map.name) },
+                    )
+                }
+                repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        androidx.compose.material3.Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = colors.surfaceContainerHigh,
+            modifier = (if (tablet) Modifier.width(1000.dp) else Modifier.fillMaxWidth(0.94f)).heightIn(max = if (tablet) 760.dp else 780.dp),
+        ) {
+            Column(Modifier.padding(top = 20.dp, bottom = 12.dp)) {
+                Text("Colormap", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = 24.dp))
+                Spacer(Modifier.height(12.dp))
+                if (tablet) {
+                    Row(Modifier.weight(1f, fill = false).padding(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+                        Column(Modifier.weight(0.9f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) { chosen(); yours() }
+                        Column(Modifier.weight(1.1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) { browse() }
+                    }
+                } else {
+                    Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        chosen(); yours(); browse()
+                    }
+                }
+                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text("Done") }
+                }
+            }
+        }
+    }
+}
+
+/** A colormap as a card: its colors across the top and its name, outlined when it's the one in use. */
+@Composable
+private fun ColormapCard(
+    map: com.example.cas.graph.Colormap,
+    chosen: Boolean,
+    reversed: Boolean,
+    modifier: Modifier,
+    onClick: () -> Unit,
+    star: Boolean? = null,
+    onStar: () -> Unit = {},
+) {
+    val colors = MaterialTheme.colorScheme
+    Column(
+        modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (chosen) colors.secondaryContainer else colors.surfaceContainerHighest)
+            .then(if (chosen) Modifier.border(2.dp, colors.primary, RoundedCornerShape(16.dp)) else Modifier)
+            .clickable(onClickLabel = "Use ${map.label}") { onClick() }
+            .padding(8.dp)
+            .semantics { contentDescription = map.label + if (chosen) ", in use" else "" },
+    ) {
+        Box(Modifier.fillMaxWidth().height(26.dp).clip(RoundedCornerShape(8.dp)).background(Brush.horizontalGradient(colormapStops(map, reversed = reversed))))
+        Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(map.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, color = if (chosen) colors.onSecondaryContainer else colors.onSurface, modifier = Modifier.weight(1f).padding(start = 2.dp))
+            if (star != null) {
+                Icon(
+                    if (star) Icons.Default.Star else Icons.Default.StarBorder,
+                    contentDescription = if (star) "Remove ${map.label} from yours" else "Add ${map.label} to yours",
+                    tint = if (star) colors.primary else colors.onSurfaceVariant,
+                    modifier = Modifier.size(28.dp).clip(CircleShape).clickable { onStar() }.padding(3.dp),
+                )
+            }
+        }
+    }
 }
 
 /**
- * A colormap as the picker shows it: a drag handle (for your own maps), the name and its
- * colors, the invert button, and + for adding one from More. Tap to use it.
+ * A colormap in the Edit list: a drag handle, the name and its colors. Tap to use it.
  */
 @Composable
 private fun ColormapRow(
@@ -229,37 +342,21 @@ private fun ColormapRow(
     reversed: Boolean,
     onPick: (com.example.cas.graph.Colormap, Boolean) -> Unit,
     handle: Modifier? = null,
-    add: (() -> Unit)? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     val chosen = map == current
-    val shownReversed = chosen && reversed
     Row(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(if (chosen) colors.secondaryContainer else colors.surfaceContainerHigh)
+            .background(if (chosen) colors.secondaryContainer else colors.surfaceContainerHighest)
             .clickable(onClickLabel = "Use ${map.label}") { onPick(map, false) }
-            .padding(start = if (handle != null) 0.dp else 12.dp, top = 2.dp, bottom = 2.dp)
-            .semantics { contentDescription = map.label + if (chosen) ", chosen" + (if (reversed) ", reversed" else "") else "" },
+            .padding(end = 12.dp, top = 2.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (handle != null) {
-            Icon(Icons.Default.DragIndicator, contentDescription = "Drag to reorder", tint = colors.onSurfaceVariant, modifier = handle.size(40.dp).padding(10.dp))
-        }
-        Text(map.label, color = if (chosen) colors.onSecondaryContainer else colors.onSurface, style = MaterialTheme.typography.bodyLarge, maxLines = 1, modifier = Modifier.width(84.dp))
-        Box(Modifier.weight(1f).height(18.dp).clip(RoundedCornerShape(9.dp)).background(Brush.horizontalGradient(colormapStops(map, reversed = shownReversed))))
-        // Invert: this map, run the other way.
-        IconButton(onClick = { onPick(map, !shownReversed) }) {
-            Icon(
-                Icons.Default.SwapHoriz,
-                contentDescription = if (shownReversed) "Use ${map.label} the right way round" else "Use ${map.label} reversed",
-                tint = if (shownReversed) colors.primary else colors.onSurfaceVariant,
-            )
-        }
-        if (add != null) IconButton(onClick = add) {
-            Icon(Icons.Default.Add, contentDescription = "Add ${map.label} to your colormaps", tint = colors.primary)
-        }
+        if (handle != null) Icon(Icons.Default.DragIndicator, contentDescription = "Drag to reorder", tint = colors.onSurfaceVariant, modifier = handle.size(40.dp).padding(10.dp))
+        Text(map.label, color = if (chosen) colors.onSecondaryContainer else colors.onSurface, style = MaterialTheme.typography.bodyLarge, maxLines = 1, modifier = Modifier.width(96.dp))
+        Box(Modifier.weight(1f).height(18.dp).clip(RoundedCornerShape(9.dp)).background(Brush.horizontalGradient(colormapStops(map, reversed = chosen && reversed))))
     }
 }
 
@@ -315,17 +412,21 @@ fun <T> ReorderableColumn(items: List<T>, key: (T) -> Any, onMove: (Int, Int) ->
     }
 }
 
-/** The standard set offered under the color picker. */
+/** The standard colors, at the top of the color picker: two rows of eight, bright then deep. */
 val STANDARD_COLORS = listOf(
     Color(0xFFE53935), Color(0xFFFB8C00), Color(0xFFFDD835), Color(0xFF43A047),
     Color(0xFF00897B), Color(0xFF1E88E5), Color(0xFF8E24AA), Color(0xFFD81B60),
+    Color(0xFFB71C1C), Color(0xFFE65100), Color(0xFFF9A825), Color(0xFF1B5E20),
+    Color(0xFF004D40), Color(0xFF0D47A1), Color(0xFF4A148C), Color(0xFF212121),
 )
 
 /**
- * Any color, typed or picked: HSV (with slider tracks showing what each value does),
- * RGB 0–255, OKLab, or hex, with the standard eight underneath and a way back to the
- * default. Conversions are in [ColorMath].
+ * A line's color, in order of how often it's wanted: the theme's colors and the standard ones
+ * first, then any color from a saturation–brightness square and a hue slider, then exact
+ * values (HSV, RGB, OKLab or hex), then the line's style and its point or fill options. On a
+ * tablet it's a wide dialog in two columns (colors on the left, the rest on the right).
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ColorPickerDialog(
     initial: Color,
@@ -342,7 +443,10 @@ fun ColorPickerDialog(
     var width by remember { mutableStateOf(thickness) }
     val colors = MaterialTheme.colorScheme
     val haptics = LocalHapticFeedback.current
+    val tablet = isTabletLayout()
     var rgb by remember { mutableStateOf(ColorMath.fromArgb(initial.toArgb())) }
+    // Hue kept apart, so it survives dragging to grey or black (where it can't be read back).
+    var hue by remember { mutableStateOf(ColorMath.toHsv(rgb).first) }
     var mode by remember { mutableStateOf(0) } // 0 HSV, 1 RGB, 2 OKLab, 3 Hex
     fun fieldsFor(c: ColorMath.Rgb, m: Int): List<String> = when (m) {
         0 -> ColorMath.toHsv(c).toList().map { "%.0f".format(it) }
@@ -352,7 +456,10 @@ fun ColorPickerDialog(
     }
     var fields by remember { mutableStateOf(fieldsFor(rgb, mode)) }
     // Something other than typing changed the color: show its numbers.
-    fun set(c: ColorMath.Rgb) { rgb = c; fields = fieldsFor(c, mode) }
+    fun set(c: ColorMath.Rgb, keepHue: Boolean = false) {
+        rgb = c; fields = fieldsFor(c, mode)
+        if (!keepHue && ColorMath.toHsv(c).second > 0.5) hue = ColorMath.toHsv(c).first
+    }
     fun typed(k: Int, text: String) {
         fields = fields.toMutableList().also { it[k] = text }
         val n = fields.map { it.trim().replace("−", "-").replace(",", ".").toDoubleOrNull() }
@@ -364,102 +471,186 @@ fun ColorPickerDialog(
                 else -> ColorMath.parseHex(fields[0])
             }
         }.getOrNull()
-        if (parsed != null) rgb = parsed
+        if (parsed != null) { rgb = parsed; if (ColorMath.toHsv(parsed).second > 0.5) hue = ColorMath.toHsv(parsed).first }
     }
     val picked = Color(rgb.argb)
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Color") },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(12.dp)).background(picked))
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    listOf("HSV", "RGB", "OKLab", "Hex").forEachIndexed { k, name ->
-                        SegmentedButton(
-                            selected = mode == k,
-                            onClick = { mode = k; fields = fieldsFor(rgb, k) },
-                            shape = SegmentedButtonDefaults.itemShape(k, 4),
-                            icon = {},
-                            label = { Text(name, maxLines = 1) },
-                        )
+    val theme = plotColors(colors)
+
+    @Composable
+    fun heading(t: String) = Text(t, style = MaterialTheme.typography.labelLarge, color = colors.primary)
+
+    @Composable
+    fun swatch(c: Color, label: String) {
+        val on = c.toArgb() == picked.toArgb()
+        Box(
+            Modifier
+                .size(if (tablet) 40.dp else 34.dp)
+                .clip(CircleShape)
+                .background(c)
+                .then(if (on) Modifier.border(3.dp, colors.surface, CircleShape).border(5.dp, colors.onSurface, CircleShape) else Modifier.border(1.dp, colors.outlineVariant, CircleShape))
+                .clickable(onClickLabel = label) { haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove); set(ColorMath.fromArgb(c.toArgb())) },
+        )
+    }
+
+    // 1. Ready-made colors: the theme's, then the standard ones.
+    val swatches: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+        heading("Theme")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            theme.forEach { swatch(it, "Use this theme color") }
+        }
+        heading("Standard")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), maxItemsInEachRow = 8) {
+            STANDARD_COLORS.forEach { swatch(it, "Use this color") }
+        }
+    }
+
+    // 2. Any color: saturation across, brightness up, and the hue under it.
+    val space: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+        heading("Any color")
+        val (_, sat, v) = ColorMath.toHsv(rgb)
+        val pure = Color.hsv(hue.toFloat().mod(360f), 1f, 1f)
+        androidx.compose.foundation.Canvas(
+            Modifier
+                .fillMaxWidth()
+                .height(if (tablet) 220.dp else 170.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .pointerInput(Unit) {
+                    fun at(o: Offset) = set(ColorMath.fromHsv(hue, (o.x / size.width).coerceIn(0f, 1f) * 100.0, (1 - o.y / size.height).coerceIn(0f, 1f) * 100.0), keepHue = true)
+                    awaitEachGesture {
+                        val down = awaitFirstDown()
+                        at(down.position)
+                        drag(down.id) { ch -> ch.consume(); at(ch.position) }
                     }
                 }
-                // Sliders in every mode, each track showing what moving it does to this color.
-                when (mode) {
-                    1 -> {
-                        fun track(f: (Int) -> ColorMath.Rgb) = Brush.horizontalGradient(listOf(Color(f(0).argb), Color(f(255).argb)))
-                        ColorTrack("Red", rgb.r / 255f, track { rgb.copy(r = it) }) { set(rgb.copy(r = (it * 255).roundToInt())) }
-                        ColorTrack("Green", rgb.g / 255f, track { rgb.copy(g = it) }) { set(rgb.copy(g = (it * 255).roundToInt())) }
-                        ColorTrack("Blue", rgb.b / 255f, track { rgb.copy(b = it) }) { set(rgb.copy(b = (it * 255).roundToInt())) }
-                    }
-                    2 -> {
-                        val (l, a, b) = ColorMath.toOklab(rgb)
-                        // a and b run from −0.4 to 0.4.
-                        fun ab(t: Float) = (t - 0.5) * 0.8
-                        fun track(f: (Double) -> ColorMath.Rgb) = Brush.horizontalGradient((0..6).map { k -> Color(f(k / 6.0).argb) })
-                        ColorTrack("Lightness L", l.toFloat(), track { ColorMath.fromOklab(it, a, b) }) { set(ColorMath.fromOklab(it.toDouble(), a, b)) }
-                        ColorTrack("Green–red a", (a / 0.8 + 0.5).toFloat(), track { ColorMath.fromOklab(l, ab(it.toFloat()), b) }) { set(ColorMath.fromOklab(l, ab(it), b)) }
-                        ColorTrack("Blue–yellow b", (b / 0.8 + 0.5).toFloat(), track { ColorMath.fromOklab(l, a, ab(it.toFloat())) }) { set(ColorMath.fromOklab(l, a, ab(it))) }
-                    }
-                    else -> {
-                        val (h, sat, v) = ColorMath.toHsv(rgb)
-                        ColorTrack("Hue", (h / 360).toFloat(), Brush.horizontalGradient((0..6).map { Color.hsv(it * 60f % 360f, 1f, 1f) })) { set(ColorMath.fromHsv(it * 360.0, sat, v)) }
-                        ColorTrack("Saturation", (sat / 100).toFloat(), Brush.horizontalGradient(listOf(Color(ColorMath.fromHsv(h, 0.0, v).argb), Color(ColorMath.fromHsv(h, 100.0, v).argb)))) { set(ColorMath.fromHsv(h, it * 100.0, v)) }
-                        ColorTrack("Value", (v / 100).toFloat(), Brush.horizontalGradient(listOf(Color.Black, Color(ColorMath.fromHsv(h, sat, 100.0).argb)))) { set(ColorMath.fromHsv(h, sat, it * 100.0)) }
-                    }
-                }
-                val labels = when (mode) {
-                    0 -> listOf("H (°)", "S (%)", "V (%)")
-                    1 -> listOf("R", "G", "B")
-                    2 -> listOf("L", "a", "b")
-                    else -> listOf("#RRGGBB")
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    labels.forEachIndexed { k, label ->
-                        OutlinedTextField(
-                            fields.getOrElse(k) { "" }, { typed(k, it) },
-                            singleLine = true, label = { Text(label) }, modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
-                if (lineStyle != null) {
-                    // Line style and thickness, as Desmos offers.
-                    Text("Line", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
-                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                        listOf("Solid", "Dashed", "Dotted").forEachIndexed { k, name ->
-                            SegmentedButton(
-                                selected = style == k,
-                                onClick = { style = k },
-                                shape = SegmentedButtonDefaults.itemShape(k, 3),
-                                icon = {},
-                                label = { Text(name, maxLines = 1) },
-                            )
+                .semantics { contentDescription = "Saturation and brightness" },
+        ) {
+            drawRect(Brush.horizontalGradient(listOf(Color.White, pure)))
+            drawRect(Brush.verticalGradient(listOf(Color.Transparent, Color.Black)))
+            val c = Offset((sat / 100).toFloat() * size.width, (1 - (v / 100).toFloat()) * size.height)
+            drawCircle(Color.White, 10.dp.toPx(), c, style = Stroke(3.dp.toPx()))
+            drawCircle(Color.Black.copy(alpha = 0.4f), 11.5.dp.toPx(), c, style = Stroke(1.dp.toPx()))
+        }
+        ColorTrack("Hue", (hue / 360).toFloat(), Brush.horizontalGradient((0..6).map { Color.hsv(it * 60f % 360f, 1f, 1f) })) {
+            hue = it * 360.0
+            val (_, s0, v0) = ColorMath.toHsv(rgb)
+            set(ColorMath.fromHsv(hue, s0, v0), keepHue = true)
+        }
+    }
+
+    // 3. Exact values.
+    val exact: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+        heading("Exact values")
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            listOf("HSV", "RGB", "OKLab", "Hex").forEachIndexed { k, name ->
+                SegmentedButton(
+                    selected = mode == k,
+                    onClick = { mode = k; fields = fieldsFor(rgb, k) },
+                    shape = SegmentedButtonDefaults.itemShape(k, 4),
+                    icon = {},
+                    label = { Text(name, maxLines = 1) },
+                )
+            }
+        }
+        when (mode) {
+            1 -> {
+                fun track(f: (Int) -> ColorMath.Rgb) = Brush.horizontalGradient(listOf(Color(f(0).argb), Color(f(255).argb)))
+                ColorTrack("Red", rgb.r / 255f, track { rgb.copy(r = it) }) { set(rgb.copy(r = (it * 255).roundToInt())) }
+                ColorTrack("Green", rgb.g / 255f, track { rgb.copy(g = it) }) { set(rgb.copy(g = (it * 255).roundToInt())) }
+                ColorTrack("Blue", rgb.b / 255f, track { rgb.copy(b = it) }) { set(rgb.copy(b = (it * 255).roundToInt())) }
+            }
+            2 -> {
+                val (l, a, b) = ColorMath.toOklab(rgb)
+                // a and b run from −0.4 to 0.4.
+                fun ab(t: Float) = (t - 0.5) * 0.8
+                fun track(f: (Double) -> ColorMath.Rgb) = Brush.horizontalGradient((0..6).map { k -> Color(f(k / 6.0).argb) })
+                ColorTrack("Lightness L", l.toFloat(), track { ColorMath.fromOklab(it, a, b) }) { set(ColorMath.fromOklab(it.toDouble(), a, b)) }
+                ColorTrack("Green–red a", (a / 0.8 + 0.5).toFloat(), track { ColorMath.fromOklab(l, ab(it.toFloat()), b) }) { set(ColorMath.fromOklab(l, ab(it), b)) }
+                ColorTrack("Blue–yellow b", (b / 0.8 + 0.5).toFloat(), track { ColorMath.fromOklab(l, a, ab(it.toFloat())) }) { set(ColorMath.fromOklab(l, a, ab(it))) }
+            }
+            else -> Unit
+        }
+        val labels = when (mode) {
+            0 -> listOf("H (°)", "S (%)", "V (%)")
+            1 -> listOf("R", "G", "B")
+            2 -> listOf("L", "a", "b")
+            else -> listOf("#RRGGBB")
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            labels.forEachIndexed { k, label ->
+                OutlinedTextField(fields.getOrElse(k) { "" }, { typed(k, it) }, singleLine = true, label = { Text(label) }, modifier = Modifier.weight(1f))
+            }
+        }
+    }
+
+    // 4. The line itself, drawn in the color as it will look.
+    val line: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
+        if (lineStyle != null) {
+            heading("Line")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Solid", "Dashed", "Dotted").forEachIndexed { k, name ->
+                    val on = style == k
+                    Column(
+                        Modifier.weight(1f).clip(RoundedCornerShape(14.dp))
+                            .background(if (on) colors.secondaryContainer else colors.surfaceContainerHigh)
+                            .clickable(onClickLabel = name) { style = k }
+                            .padding(vertical = 10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(12.dp).padding(horizontal = 14.dp)) {
+                            val w = 3.dp.toPx()
+                            drawLine(picked, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), w, cap = StrokeCap.Round,
+                                pathEffect = when (k) { 1 -> PathEffect.dashPathEffect(floatArrayOf(4 * w, 3 * w)); 2 -> PathEffect.dashPathEffect(floatArrayOf(0.01f, 2.5f * w)); else -> null })
                         }
-                    }
-                    Text("Thickness: ${"%.1f".format(width)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-                    ExpressiveSlider(value = width, onValueChange = { width = it }, valueRange = 1f..8f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Line thickness" })
-                }
-                extra?.invoke(this)
-                Text("Standard", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    STANDARD_COLORS.forEach { c ->
-                        Box(
-                            Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(c)
-                                .clickable(onClickLabel = "Use this color") {
-                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    set(ColorMath.fromArgb(c.toArgb()))
-                                },
-                        )
+                        Text(name, style = MaterialTheme.typography.labelMedium, color = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant)
                     }
                 }
             }
-        },
-        confirmButton = { TextButton(onClick = { if (lineStyle != null) onStyle(style, width); onPick(picked) }) { Text("Done") } },
-        dismissButton = { TextButton(onClick = { if (lineStyle != null) onStyle(0, 3f); onPick(null) }) { Text("Default") } },
-    )
+            Text("Thickness: ${"%.1f".format(width)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+            ExpressiveSlider(value = width, onValueChange = { width = it }, valueRange = 1f..8f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Line thickness" })
+        }
+        extra?.invoke(this)
+    }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        androidx.compose.material3.Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = colors.surfaceContainerHigh,
+            modifier = (if (tablet) Modifier.width(920.dp) else Modifier.fillMaxWidth(0.94f)).heightIn(max = if (tablet) 720.dp else 760.dp),
+        ) {
+            Column(Modifier.padding(top = 20.dp, bottom = 12.dp)) {
+                // Title, and the color as it is now with its hex code.
+                Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Color", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                    Row(
+                        Modifier.clip(CircleShape).background(colors.surfaceContainerHighest).padding(start = 6.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.size(28.dp).clip(CircleShape).background(picked).border(1.dp, colors.outlineVariant, CircleShape))
+                        Spacer(Modifier.width(8.dp))
+                        Text(ColorMath.hex(rgb), style = TextStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 14.sp))
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                if (tablet) {
+                    Row(Modifier.weight(1f, fill = false).padding(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+                        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) { swatches(); space() }
+                        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) { exact(); line() }
+                    }
+                } else {
+                    Column(
+                        Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) { swatches(); space(); line(); exact() }
+                }
+                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = { if (lineStyle != null) onStyle(0, 3f); onPick(null) }) { Text("Default") }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(onClick = { if (lineStyle != null) onStyle(style, width); onPick(picked) }) { Text("Done") }
+                }
+            }
+        }
+    }
 }
 
 /** An expressive slider whose track is a gradient showing what moving it does. */
@@ -483,12 +674,11 @@ fun plotColor(index: Int): Color = plotColors(MaterialTheme.colorScheme)[index %
 
 /**
  * The graph colors in a color scheme, in the order lines take them when no color has been
- * picked: primary, tertiary, then the primary's hue round the wheel at the same tone.
+ * picked: the theme's primary, secondary, tertiary and error colors, then its surface's own
+ * ink (the inverse surface, so it shows on the plot), and round again.
  */
-fun plotColors(c: androidx.compose.material3.ColorScheme): List<Color> {
-    val dark = c.surface.luminance() < 0.5f
-    return TonalScheme.graphColors(c.primary.toArgb(), c.tertiary.toArgb(), dark, GraphViewModel.PLOT_COLOR_COUNT).map { Color(it) }
-}
+fun plotColors(c: androidx.compose.material3.ColorScheme): List<Color> =
+    listOf(c.primary, c.secondary, c.tertiary, c.error, c.inverseSurface)
 
 /** A line's name as written (text with $maths$): the one it was given, or its default. */
 fun legendSource(f: PlotFunction): String =
@@ -656,6 +846,9 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             extra = lineOptions(vm, f),
         )
     }
+    // A list of points (a data set) isn't edited here: its table (the button on the row) edits it.
+    // Tapping it does nothing, so no keyboard opens over thousands of numbers.
+    val isData = vm.isDataLine(f)
     var renaming by remember { mutableStateOf(false) }
     if (renaming) RenameDialog(f, onDone = { name -> vm.rename(f, name); renaming = false }, onDismiss = { renaming = false })
     Column(
@@ -664,7 +857,7 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             .clip(RoundedCornerShape(20.dp))
             .background(if (active) colors.surfaceContainerHigh else colors.surfaceContainer)
             // Tap to edit; hold to rename it in the legend.
-            .combinedClickable(onClickLabel = "Edit this function", onLongClickLabel = "Rename", onLongClick = { renaming = true }) { vm.edit(f) }
+            .combinedClickable(onClickLabel = if (isData) null else "Edit this function", onLongClickLabel = "Rename", onLongClick = { renaming = true }) { if (!isData) vm.edit(f) }
             .padding(start = 8.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -716,11 +909,16 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             // left, the × and handle on the right) deletes the line instead.
             androidx.compose.foundation.layout.BoxWithConstraints(Modifier.weight(1f)) {
             val viewport = maxWidth
-            Box(Modifier.horizontalScroll(rememberScrollState())) {
+            val across = rememberScrollState()
+            // With the cursor at the very end, the end of the line is scrolled into view.
+            LaunchedEffect(f.version, active) {
+                if (active && f.editor.row === f.editor.root && f.editor.index == f.editor.root.items.size) across.animateScrollTo(across.maxValue)
+            }
+            Box(Modifier.horizontalScroll(across)) {
                 // A long list (an imported file) shows its start and how many points, until it's edited.
                 val items = f.editor.root.items
-                val shortened = if (!active && items.size > 300) remember(f.version) {
-                    val cut = items.take(120).let { head -> head.subList(0, head.indexOfLast { (it as? Sym)?.text == ")" } + 1) }
+                val shortened = if ((isData || !active) && items.size > (if (isData) 60 else 300)) remember(f.version) {
+                    val cut = items.take(if (isData) 60 else 120).let { head -> head.subList(0, head.indexOfLast { (it as? Sym)?.text == ")" } + 1) }
                     val points = (f.plot as? Plot2DKind.PointList)?.xs?.size
                     MathRow((cut.map { com.example.cas.editor.MathCodec.decode(com.example.cas.editor.MathCodec.encode(MathRow(mutableListOf(it)))).items.single() } +
                         listOf(Sym(","), Sym("…"), Sym("]"))).toMutableList()) to points
@@ -728,13 +926,14 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
                 // At least as wide as the row, so a tap after the end of the maths puts the cursor at
                 // the end of the line (taps on the maths itself are handled by it first).
                 Column(
-                    Modifier.widthIn(min = viewport).pointerInput(f) {
-                        detectTapGestures { if (f.editor.root.items.size <= 300 || vm.active === f) vm.tapAt(f, f.editor.root, f.editor.root.items.size) else vm.edit(f) }
+                    Modifier.widthIn(min = viewport).pointerInput(f, isData) {
+                        detectTapGestures { if (isData) Unit else if (f.editor.root.items.size <= 300 || vm.active === f) vm.tapAt(f, f.editor.root, f.editor.root.items.size) else vm.edit(f) }
                     },
                 ) {
                     shortened?.second?.let { n ->
                         Text("$n points", style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
                     }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                     MathView(
                         row = shortened?.first ?: f.editor.root,
                         fontSize = 22.sp,
@@ -744,8 +943,11 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
                         cursorIndex = f.editor.index,
                         version = f.version,
                         // The shortened copy isn't the line itself: a tap opens the whole line.
-                        onTap = if (shortened != null) ({ _, _ -> vm.edit(f) }) else ({ r, i -> vm.tapAt(f, r, i) }),
+                        onTap = if (isData) null else if (shortened != null) ({ _, _ -> vm.edit(f) }) else ({ r, i -> vm.tapAt(f, r, i) }),
                     )
+                    // Room past the end, so the cursor there shows and a tap there reaches it.
+                    Spacer(Modifier.width(16.dp))
+                    }
                 }
             }
             }
@@ -820,6 +1022,7 @@ private fun RenameDialog(f: PlotFunction, onDone: (String?) -> Unit, onDismiss: 
 }
 
 /** Desmos-like options for a 2D line: labels on points, joining a list's points, a region's fill opacity. */
+@OptIn(ExperimentalLayoutApi::class)
 private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? {
     if (vm.plotVars != listOf("x")) return null
     val kind = f.plot
@@ -830,8 +1033,8 @@ private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable andro
         val colors = MaterialTheme.colorScheme
         if (points) {
             // The mark: its shape (each chip draws it) and its size.
-            Text("Point", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Point", style = MaterialTheme.typography.labelLarge, color = colors.primary)
+            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 com.example.cas.graph.Marker.entries.forEach { m ->
                     val chosen = f.pointShape == m.ordinal
                     Box(

@@ -49,7 +49,8 @@ object Legend {
     fun row(source: String): MathRow {
         val out = MathRow()
         for ((piece, math) in segments(source)) {
-            if (!math) { out.add(Sym(piece)); continue }
+            // Text is upright, even a single letter (which in maths would be italic).
+            if (!math) { out.add(Sym(if (piece.length == 1 && piece[0].isLetter()) LatexParser.UPRIGHT + piece else piece)); continue }
             val parsed = runCatching { LatexParser.parse(piece) }.getOrNull()
             if (parsed == null) { out.add(Sym(piece)); continue }
             parsed.items.toList().forEach { n -> parsed.items.remove(n); out.add(n) }

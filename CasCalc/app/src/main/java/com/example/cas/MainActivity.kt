@@ -13,6 +13,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         com.example.cas.ui.CrashLog.install(this)
         com.example.cas.ui.AppSettings.init(this)
+        com.example.cas.ui.SceneExport.installMetrics(this)
         setContent {
             CasTheme {
                 // Keep the screen on while the app is open, if chosen in settings.

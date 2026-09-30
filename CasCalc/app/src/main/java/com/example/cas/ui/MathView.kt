@@ -439,7 +439,19 @@ private fun NodeView(n: Node, row: MathRow, index: Int, level: Int) {
         }
         is Sqrt -> RadicalView(level, index = null, body = { RowView(n.arg, level) })
         is Root -> RadicalView(level, index = { RowView(n.index, level + 2) }, body = { RowView(n.arg, level) })
-        is Func -> FuncView(n, row, index, level)
+        is Func -> {
+            // A named function after a number, letter or closing bracket gets a thin space before
+            // it, as LaTeX sets 2 sin x (an operator name is spaced from what it follows).
+            val before = row.items.getOrNull(index - 1)
+            val spaced = n.name !in UNSPACED_FUNCTIONS && before != null && when (before) {
+                is Sym -> before.text.lastOrNull()?.let { it.isLetterOrDigit() || it in ")]!′" } == true
+                else -> true
+            }
+            if (spaced) {
+                val gap = with(LocalDensity.current) { (em(LocalMath.current, level) * 0.1667f).toDp() }
+                Box(Modifier.padding(start = gap)) { FuncView(n, row, index, level) }
+            } else FuncView(n, row, index, level)
+        }
         is BigOp -> BigOpView(n, level)
         is Integral -> IntegralView(n, level)
         is Derivative -> DerivativeView(n, level)
@@ -677,6 +689,9 @@ private fun RadicalView(level: Int, index: (@Composable () -> Unit)?, body: @Com
         }
     }
 }
+
+/** Functions drawn as brackets or between their operands, which need no space before them. */
+private val UNSPACED_FUNCTIONS = setOf("abs", "floor", "ceil", "frac", "round", "dot", "cross", "hadamard", "kron", "conj")
 
 @Composable
 private fun FuncView(f: Func, row: MathRow, index: Int, level: Int) {

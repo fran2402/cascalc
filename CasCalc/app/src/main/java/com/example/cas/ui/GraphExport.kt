@@ -101,6 +101,20 @@ object SceneExport {
         return out.toByteArray()
     }
 
+    /**
+     * Gives the export's maths layout ([com.example.cas.graph.MathScene]) the real widths of the
+     * Computer Modern fonts, so what's exported sits exactly as laid out.
+     */
+    fun installMetrics(context: Context) {
+        val f = font(context)
+        val roman = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = f.roman }
+        val italic = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = f.italic }
+        com.example.cas.graph.MathScene.metrics = com.example.cas.graph.MathScene.Metrics { text, ital, size ->
+            val p = if (ital) italic else roman
+            synchronized(p) { p.textSize = 100f; p.measureText(text) * size / 100.0 }
+        }
+    }
+
     /** The three typefaces labels use: Google Sans Flex, and Computer Modern roman and italic. */
     class Fonts(val sans: Typeface?, val roman: Typeface?, val italic: Typeface?)
 
@@ -156,7 +170,9 @@ object SceneExport {
                 val x = (item.x * s).toFloat(); val y = (item.y * s).toFloat()
                 if (item.angle != 0.0) { canvas.save(); canvas.rotate(-item.angle.toFloat(), x, y) }
                 val spans = item.allSpans()
-                if (spans.size == 1 && spans[0].shift == 0 && item.spans == null) {
+                if (item.baseline) {
+                    canvas.drawText(item.text, x, y, paint)
+                } else if (spans.size == 1 && spans[0].shift == 0 && item.spans == null) {
                     canvas.drawText(item.text, x, y - (fm.ascent + fm.descent) / 2, paint)
                 } else {
                     // Mixed fonts and sizes: each run measured in its own font and size (exponents and

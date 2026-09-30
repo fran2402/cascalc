@@ -57,6 +57,18 @@ class LimitsAndProductsTest {
         assertEquals("fn:kron{'(;'a;'+;'b;');|}", MathCodec.encode(ed2.root))
     }
 
+    @Test fun productKeyBeforeAMatrixTakesItAsTheSecond() {
+        val ed = Editor()
+        val m = Matrix(2, 1)
+        ed.insert(m)
+        ed.moveLeft(); ed.moveLeft(); ed.moveLeft()   // out to the start, before the matrix
+        while (ed.row !== ed.root || ed.index != 0) ed.moveLeft()
+        ed.insert(Func("cross", 2), 0)
+        val cross = ed.root.items.single() as Func
+        assertSame(m, cross.args[1].items.single())
+        assertSame(cross.args[0], ed.row)
+    }
+
     @Test fun productKeyAfterAnOperatorStaysEmpty() {
         val ed = Editor()
         "2+".forEach { ed.type(it.toString()) }

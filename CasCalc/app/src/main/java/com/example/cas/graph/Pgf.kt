@@ -16,17 +16,16 @@ object Pgf {
     /** Light is pgfplots' own look (white page, black frame); dark is its negative. */
     class Style(val background: Int, val ink: Int, val grid: Int, val cycle: List<Int>) {
         companion object {
-            // SciencePlots' "science" color cycle (github.com/garrettj403/SciencePlots): blue, green,
-            // orange, red, purple, dark grey, grey. Lines take them in turn, in list order.
+            // The export colors, SciencePlots-like: blue, green, orange, red, purple, grey. Lines take
+            // them in turn, in list order (the app's own colors are for the screen).
             val LIGHT = Style(0xFFFFFFFF.toInt(), 0xFF000000.toInt(), 0xFFD9D9D9.toInt(), SCIENCE)
-            // The same hues lightened for a dark page (the greys turned light).
-            val DARK = Style(0xFF141414.toInt(), 0xFFEDEDED.toInt(), 0xFF3A3A3A.toInt(),
-                listOf(0xFF4C9BE8, 0xFF3DDC75, 0xFFFFAA33, 0xFFFF5A3C, 0xFFB48CCB, 0xFFBDBDBD, 0xFFE0E0E0).map { it.toInt() })
+            // The same on a dark page, with the grey turned light so it shows.
+            val DARK = Style(0xFF141414.toInt(), 0xFFEDEDED.toInt(), 0xFF3A3A3A.toInt(), SCIENCE.dropLast(1) + 0xFFBDBDBD.toInt())
         }
     }
 
-    /** SciencePlots' science.mplstyle color cycle, as ARGB. */
-    val SCIENCE: List<Int> = listOf(0xFF0C5DA5, 0xFF00B945, 0xFFFF9500, 0xFFFF2C00, 0xFF845B97, 0xFF474747, 0xFF9E9E9E).map { it.toInt() }
+    /** The export color cycle, as ARGB. */
+    val SCIENCE: List<Int> = listOf(0xFF165C99, 0xFF0BB04B, 0xFFF9950F, 0xFFED310C, 0xFF7C5E8B, 0xFF484848).map { it.toInt() }
 
     /**
      * One line of the legend: its name as runs of text, and its sample: a short stroke (with the
@@ -42,6 +41,8 @@ object Pgf {
         val markerSize: Double = 2.6,
         val fill: Int? = null,
         val strip: List<Int>? = null,
+        /** The name as maths, set as LaTeX sets it (see [MathScene]); [spans] is the plain fallback. */
+        val math: com.example.cas.editor.MathRow? = null,
     )
 
     /**
@@ -51,18 +52,20 @@ object Pgf {
     fun legend(scene: Scene, f: Frame, style: Style, entries: List<LegendEntry>, top: Double = f.top, panel: Int? = null) {
         if (entries.isEmpty()) return
         val size = TICK_SIZE * 0.95
-        val row = size * 1.5
         val sample = 22.0
         val x0 = f.left + 9.0
-        var y = top + 9.0 + row / 2
+        // Each name laid out first: a stacked fraction makes its line taller.
+        val boxes = entries.map { e -> e.math?.let { MathScene.layout(it, size, style.ink) } }
+        val rows = boxes.map { b -> maxOf(size * 1.5, (b?.height ?: 0.0) + size * 0.5) }
+        var y = top + 9.0 + rows.first() / 2
         // Over a picture (the complex plane) a pale panel keeps the names readable; its width
         // is estimated from the text (about half an em a character).
         panel?.let { c ->
-            val w = sample + 12 + entries.maxOf { e -> e.spans.sumOf { it.text.length * size * 0.52 * it.scale } }
-            val x1 = x0 - 5; val y1 = top + 5; val x2 = x0 + w; val y2 = top + 13 + row * entries.size
+            val w = sample + 12 + entries.indices.maxOf { i -> boxes[i]?.width ?: entries[i].spans.sumOf { it.text.length * size * 0.52 * it.scale } }
+            val x1 = x0 - 5; val y1 = top + 5; val x2 = x0 + w; val y2 = top + 13 + rows.sum()
             scene.add(Scene.Fill(listOf(doubleArrayOf(x1, y1, x2, y1, x2, y2, x1, y2)), c))
         }
-        for (e in entries) {
+        for ((i, e) in entries.withIndex()) {
             e.strip?.let { colors ->
                 val w = sample / colors.size
                 colors.forEachIndexed { k, c -> scene.add(Scene.Fill(listOf(doubleArrayOf(x0 + k * w, y - 4, x0 + (k + 1) * w + 0.2, y - 4, x0 + (k + 1) * w + 0.2, y + 4, x0 + k * w, y + 4)), c)) }
@@ -70,9 +73,10 @@ object Pgf {
             e.fill?.let { c -> scene.add(Scene.Fill(listOf(doubleArrayOf(x0, y - 4.5, x0 + sample, y - 4.5, x0 + sample, y + 4.5, x0, y + 4.5)), c)) }
             if (e.line) scene.add(Scene.Stroke(listOf(doubleArrayOf(x0, y, x0 + sample, y)), e.color, e.width, e.dash))
             e.marker?.addTo(scene, x0 + sample / 2, y, e.markerSize, e.color)
-            val text = e.spans.joinToString("") { it.text }
-            scene.add(Scene.Label(x0 + sample + 6, y, text, size, style.ink, Scene.Anchor.Start, Scene.Font.Roman, spans = e.spans))
-            y += row
+            val box = boxes[i]
+            if (box != null) box.draw(scene, x0 + sample + 6, y + (box.ascent - box.descent) / 2)
+            else scene.add(Scene.Label(x0 + sample + 6, y, e.spans.joinToString("") { it.text }, size, style.ink, Scene.Anchor.Start, Scene.Font.Roman, spans = e.spans))
+            if (i + 1 < entries.size) y += (rows[i] + rows[i + 1]) / 2
         }
     }
 

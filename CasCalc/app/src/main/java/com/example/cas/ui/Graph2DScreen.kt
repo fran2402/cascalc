@@ -884,17 +884,17 @@ internal fun graph2DScene(vm: Graph2DViewModel, view: Viewport, size: Double, da
 
 /** A 2D line's legend entry in an export: a stroke in its style, a mark, or a shaded swatch. */
 internal fun legendEntry2D(f: PlotFunction, color: Int): Pgf.LegendEntry {
-    val spans = com.example.cas.graph.Legend.spans(com.example.cas.graph.Legend.row(legendSource(f)))
+    val name = com.example.cas.graph.Legend.row(legendSource(f))
+    val spans = com.example.cas.graph.Legend.spans(name)
     val lw = f.thickness * 0.5
     val dash = when (f.lineStyle) { 1 -> doubleArrayOf(4 * lw, 3 * lw); 2 -> doubleArrayOf(0.01, 2.5 * lw); else -> null }
     fun alpha(c: Int, a: Float) = ((255 * a).toInt().coerceIn(0, 255) shl 24) or (c and 0xFFFFFF)
     return when (f.plot) {
-        is Plot2DKind.PointList, is Plot2DKind.Point -> Pgf.LegendEntry(
-            spans, color, line = f.connectPoints || f.closedShape, width = lw,
+        is Plot2DKind.PointList, is Plot2DKind.Point -> Pgf.LegendEntry(math = name, spans = spans, color =  color, line = f.connectPoints || f.closedShape, width = lw,
             marker = com.example.cas.graph.Marker.of(f.pointShape), markerSize = f.pointSize * 0.43,
         )
-        is Plot2DKind.Region -> Pgf.LegendEntry(spans, color, line = true, width = 1.0, fill = alpha(color, f.fillOpacity))
-        else -> Pgf.LegendEntry(spans, color, dash = dash, width = lw)
+        is Plot2DKind.Region -> Pgf.LegendEntry(math = name, spans = spans, color =  color, line = true, width = 1.0, fill = alpha(color, f.fillOpacity))
+        else -> Pgf.LegendEntry(math = name, spans = spans, color =  color, dash = dash, width = lw)
     }
 }
 

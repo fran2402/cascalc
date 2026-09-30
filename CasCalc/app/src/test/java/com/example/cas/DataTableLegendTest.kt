@@ -79,7 +79,7 @@ class DataTableLegendTest {
         val scene = Scene(400.0, 400.0, -1)
         Pgf.legend(scene, Pgf.frame(400.0), Pgf.Style.LIGHT, listOf(Pgf.LegendEntry(Legend.spans(Legend.row("\$x^{2}\$")), Pgf.SCIENCE[0])))
         val svg = SvgWriter.write(scene)
-        assertTrue(svg.contains("#0C5DA5"))
+        assertTrue(svg.contains("#165C99"))
         assertTrue(svg.contains("font-size=\"8.65\"") || svg.contains(">2</tspan>"))
     }
 }

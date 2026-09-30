@@ -394,7 +394,7 @@ private fun surfacePolygons(vm: Graph3DViewModel, bounds: Bounds): List<Polygon>
 /**
  * The 3D graph for exporting, drawn like a pgfplots 3D axis (see [com.example.cas.graph.Pgf3D]),
  * seen from the current camera: the back walls with their grid, surfaces as pgfplots' faceted
- * "surf" plots colored by height with viridis (or shaded in a color you picked), points and
+ * "surf" plots shaded from dark to light by height in the export colors (one per line, in list order), points and
  * space curves, then the tick labels and axis names. Square, [size] units across.
  */
 internal fun surface3DScene(vm: Graph3DViewModel, r: ExportRequest, size: Double, dark: Boolean): Scene {
@@ -406,16 +406,16 @@ internal fun surface3DScene(vm: Graph3DViewModel, r: ExportRequest, size: Double
     val camera = vm.camera.copy(zoom = vm.camera.zoom * 0.78)
     val fw = size.toFloat()
     com.example.cas.graph.Pgf3D.back(scene, bounds, camera, size, style)
-    val viridis = com.example.cas.graph.Colormap.VIRIDIS
     val mesh = Color(style.ink).copy(alpha = 0.3f).toArgb()
+    // Exported, each surface, curve and point takes the export colors in turn (list order): a
+    // surface as a gradient of its color from dark (low) to light (high).
+    val drawn = vm.functions.filter { drawn3D(it) }
+    fun exportColor(f: PlotFunction?) = style.cycle[(drawn.indexOf(f).coerceAtLeast(0)) % style.cycle.size]
+    fun shade(c: Int, t: Float) = lerp(lerp(Color(c), Color.Black, 0.35f), lerp(Color(c), Color.White, 0.45f), t).toArgb()
     val faces = Surface3D.faces(surfacePolygons(vm, bounds), bounds, camera, fw, fw)
     for (face in faces) {
         val pts = DoubleArray(face.xs.size * 2) { k -> if (k % 2 == 0) face.xs[k / 2].toDouble() else face.ys[k / 2].toDouble() }
-        val picked = vm.functions.firstOrNull { it.colorIndex == face.surface }?.customColor
-        val fill = if (picked != null) {
-            val c = Color(picked)
-            lerp(lerp(c, Color.Black, 0.35f), lerp(c, Color.White, 0.45f), face.height).toArgb()
-        } else 0xFF000000.toInt() or viridis.rgb(face.height.toDouble())
+        val fill = shade(exportColor(drawn.firstOrNull { it.colorIndex == face.surface }), face.height)
         scene.add(Scene.Fill(listOf(pts), fill))
         scene.add(Scene.Stroke(listOf(pts + doubleArrayOf(pts[0], pts[1])), mesh, 0.3))
     }
@@ -425,7 +425,7 @@ internal fun surface3DScene(vm: Graph3DViewModel, r: ExportRequest, size: Double
     }
     vm.functions.filter { it.visible && it.space != null }.asReversed().forEach { fn ->
         val (fx, fy, fz) = fn.space!!
-        val color = fn.customColor ?: style.cycle[fn.colorIndex % style.cycle.size]
+        val color = exportColor(fn)
         if (fn.spaceIsCurve) {
             val periodic = listOf(0.3, 1.1, 2.9).all { t -> abs(vm.call(fn, fx, t) - vm.call(fn, fx, t + 2 * PI)) < 1e-9 && abs(vm.call(fn, fz, t) - vm.call(fn, fz, t + 2 * PI)) < 1e-9 }
             val (a, b) = if (periodic) 0.0 to 2 * PI else -10.0 to 10.0
@@ -451,19 +451,16 @@ internal fun surface3DScene(vm: Graph3DViewModel, r: ExportRequest, size: Double
     com.example.cas.graph.Pgf3D.front(scene, bounds, camera, size, style)
     if (AppSettings.showLegend) {
         val entries = vm.functions.filter { drawn3D(it) && legendSource(it).isNotBlank() }.map { f ->
-            val spans = com.example.cas.graph.Legend.spans(com.example.cas.graph.Legend.row(legendSource(f)))
-            val color = f.customColor ?: style.cycle[f.colorIndex % style.cycle.size]
+            val name = com.example.cas.graph.Legend.row(legendSource(f))
+    val spans = com.example.cas.graph.Legend.spans(name)
+            val color = exportColor(f)
             when {
-                f.space != null && f.spaceIsCurve -> com.example.cas.graph.Pgf.LegendEntry(spans, color, width = 1.5)
-                f.space != null -> com.example.cas.graph.Pgf.LegendEntry(spans, color, line = false, marker = com.example.cas.graph.Marker.Circle, markerSize = 2.8)
+                f.space != null && f.spaceIsCurve -> com.example.cas.graph.Pgf.LegendEntry(math = name, spans = spans, color =  color, width = 1.5)
+                f.space != null -> com.example.cas.graph.Pgf.LegendEntry(math = name, spans = spans, color =  color, line = false, marker = com.example.cas.graph.Marker.Circle, markerSize = 2.8)
                 else -> {
                     // A surface: its shades, low to high.
-                    val strip = (0..5).map { k ->
-                        val t = k / 5f
-                        f.customColor?.let { c -> lerp(lerp(Color(c), Color.Black, 0.35f), lerp(Color(c), Color.White, 0.45f), t).toArgb() }
-                            ?: (0xFF000000.toInt() or viridis.rgb(t.toDouble()))
-                    }
-                    com.example.cas.graph.Pgf.LegendEntry(spans, color, line = false, strip = strip)
+                    val strip = (0..5).map { k -> shade(color, k / 5f) }
+                    com.example.cas.graph.Pgf.LegendEntry(math = name, spans = spans, color =  color, line = false, strip = strip)
                 }
             }
         }

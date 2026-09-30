@@ -438,9 +438,10 @@ internal fun complexScene(vm: ComplexViewModel, view: Viewport, size: Double, da
     Pgf.axes(scene, v, frame, style, xName = "Re z", yName = "Im z", ySuffix = "i", nameFont = Scene.Font.Roman, italic = setOf('z', 'i'))
     if (AppSettings.showLegend) {
         val entries = complexLegendLines(vm).map { fn ->
-            val spans = com.example.cas.graph.Legend.spans(com.example.cas.graph.Legend.row(legendSource(fn)))
-            if (fn === f) Pgf.LegendEntry(spans, style.ink, line = false, strip = (0..7).map { k -> 0xFF000000.toInt() or fn.colormap.rgb(if (fn.colormapReversed) 1 - k / 7.0 else k / 7.0) })
-            else Pgf.LegendEntry(spans, complexLineColor(fn).toArgb(), width = 1.3)
+            val name = com.example.cas.graph.Legend.row(legendSource(fn))
+    val spans = com.example.cas.graph.Legend.spans(name)
+            if (fn === f) Pgf.LegendEntry(math = name, spans = spans, color =  style.ink, line = false, strip = (0..7).map { k -> 0xFF000000.toInt() or fn.colormap.rgb(if (fn.colormapReversed) 1 - k / 7.0 else k / 7.0) })
+            else Pgf.LegendEntry(math = name, spans = spans, color =  complexLineColor(fn).toArgb(), width = 1.3)
         }
         Pgf.legend(scene, frame, style, entries, panel = (style.background and 0xFFFFFF) or 0xD9000000.toInt())
     }
