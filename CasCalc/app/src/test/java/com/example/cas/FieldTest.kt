@@ -12,7 +12,7 @@ class FieldTest {
 
     @Test fun samplesCellCentresTopRowFirst() {
         val v = Field.sample({ x, y -> x + 10 * y }, view, 4, 4)
-        // Top-left cell centre is (−1.5, 1.5).
+        // Top-left cell center is (−1.5, 1.5).
         assertEquals(-1.5 + 15, v[0], 1e-12)
         // Bottom-right is (1.5, −1.5).
         assertEquals(1.5 - 15, v[15], 1e-12)

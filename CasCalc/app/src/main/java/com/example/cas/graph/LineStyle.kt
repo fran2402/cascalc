@@ -2,7 +2,7 @@ package com.example.cas.graph
 
 /**
  * How a curve is drawn, after matplotlib's line styles: solid ('-'), dashed ('--'), dotted
- * (':'), dash-dot ('-.'), and two of its parametrised ones, long dashes and dash-dot-dot.
+ * (':'), dash-dot ('-.'), and two of its parametrized ones, long dashes and dash-dot-dot.
  * Patterns are in multiples of the line's width, so they keep their look at any thickness
  * (a 0.01 dash with round caps is a dot). Saved by position, so new styles go at the end.
  */

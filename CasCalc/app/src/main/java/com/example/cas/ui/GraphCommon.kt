@@ -24,7 +24,6 @@ import androidx.compose.material.icons.filled.Visibility
 
 import androidx.compose.material.icons.filled.Functions
 
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.CreateNewFolder
@@ -197,7 +196,7 @@ fun ColormapPickerDialog(
     var editing by remember { mutableStateOf(false) }
     var kind by remember { mutableStateOf<String?>(null) }
     var search by remember { mutableStateOf("") }
-    val favourites = FavouriteColormaps.list.map { com.example.cas.graph.Colormap.byName(it) }.distinct()
+    val favorites = FavoriteColormaps.list.map { com.example.cas.graph.Colormap.byName(it) }.distinct()
     val perRow = if (tablet) 3 else 2
 
     @Composable
@@ -232,13 +231,13 @@ fun ColormapPickerDialog(
         }
         if (editing) {
             Text("Drag ⠿ to reorder · swipe a map away to remove it", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-            ReorderableColumn(items = favourites, key = { it.name }, onMove = { from, to -> FavouriteColormaps.move(from, to) }) { map, handle ->
-                SwipeToRemove(onRemove = { FavouriteColormaps.remove(map.name) }) {
+            ReorderableColumn(items = favorites, key = { it.name }, onMove = { from, to -> FavoriteColormaps.move(from, to) }) { map, handle ->
+                SwipeToRemove(onRemove = { FavoriteColormaps.remove(map.name) }) {
                     ColormapRow(map, current, reversed, onPick, handle = handle)
                 }
             }
         } else {
-            favourites.chunked(perRow).forEach { row ->
+            favorites.chunked(perRow).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     row.forEach { map -> ColormapCard(map, map == current, reversed && map == current, Modifier.weight(1f), onClick = { onPick(map, false) }) }
                     repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
@@ -268,10 +267,10 @@ fun ColormapPickerDialog(
         shown.chunked(perRow).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { map ->
-                    val mine = map in favourites
+                    val mine = map in favorites
                     ColormapCard(
                         map, map == current, reversed && map == current, Modifier.weight(1f), onClick = { onPick(map, false) },
-                        star = mine, onStar = { if (mine) FavouriteColormaps.remove(map.name) else FavouriteColormaps.add(map.name) },
+                        star = mine, onStar = { if (mine) FavoriteColormaps.remove(map.name) else FavoriteColormaps.add(map.name) },
                     )
                 }
                 repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
@@ -448,6 +447,10 @@ fun ColorPickerDialog(
     onStyle: (Int, Float) -> Unit = { _, _ -> },
     /** More options for the line (labels, connecting points, fill opacity), under the colors. */
     extra: (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? = null,
+    /** The dialog's title ("Folder" when it names a folder as well). */
+    title: String = "Color",
+    /** Above the colors: a folder's name and moving it, so one dialog does all of a folder. */
+    header: (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? = null,
 ) {
     var style by remember { mutableStateOf(lineStyle ?: 0) }
     var width by remember { mutableStateOf(thickness) }
@@ -455,7 +458,7 @@ fun ColorPickerDialog(
     val haptics = LocalHapticFeedback.current
     val tablet = isTabletLayout()
     var rgb by remember { mutableStateOf(ColorMath.fromArgb(initial.toArgb())) }
-    // Hue kept apart, so it survives dragging to grey or black (where it can't be read back).
+    // Hue kept apart, so it survives dragging to gray or black (where it can't be read back).
     var hue by remember { mutableStateOf(ColorMath.toHsv(rgb).first) }
     var mode by remember { mutableStateOf(0) } // 0 HSV, 1 RGB, 2 OKLab, 3 Hex
     fun fieldsFor(c: ColorMath.Rgb, m: Int): List<String> = when (m) {
@@ -631,7 +634,7 @@ fun ColorPickerDialog(
             Column(Modifier.padding(top = 20.dp, bottom = 12.dp)) {
                 // Title, and the color as it is now with its hex code.
                 Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Color", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                    Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
                     Row(
                         Modifier.clip(CircleShape).background(colors.surfaceContainerHighest).padding(start = 6.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -644,14 +647,14 @@ fun ColorPickerDialog(
                 Spacer(Modifier.height(12.dp))
                 if (tablet) {
                     Row(Modifier.weight(1f, fill = false).padding(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) { swatches(); space() }
+                        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) { header?.invoke(this); swatches(); space() }
                         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) { exact(); line() }
                     }
                 } else {
                     Column(
                         Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) { swatches(); space(); line(); exact() }
+                    ) { header?.invoke(this); swatches(); space(); line(); exact() }
                 }
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = { if (lineStyle != null) onStyle(0, 3f); onPick(null) }) { Text("Default") }
@@ -691,11 +694,11 @@ fun plotColor(index: Int): Color = plotColors(MaterialTheme.colorScheme)[index %
 fun plotColors(c: androidx.compose.material3.ColorScheme): List<Color> =
     listOf(c.primary, c.secondary, c.tertiary, c.error, c.inverseSurface)
 
-/** A line's name as written (text with $maths$): the one it was given, or its default. */
+/** A line's name as written (text with $math$): the one it was given, or its default. */
 fun legendSource(f: PlotFunction): String =
     f.name ?: com.example.cas.graph.Legend.defaultSource(f.editor.root, isData = f.plot is Plot2DKind.PointList || f.table != null)
 
-/** One line of the legend on screen: the name (text with $maths$) and how its sample is drawn. */
+/** One line of the legend on screen: the name (text with $math$) and how its sample is drawn. */
 class ScreenLegendEntry(
     val source: String,
     val color: Color,
@@ -776,7 +779,7 @@ fun shortNumber(v: Double): String {
 }
 
 /**
- * The list of functions under a graph, each typed in maths notation with a
+ * The list of functions under a graph, each typed in math notation with a
  * color dot (tap it to hide the curve), plus sliders for parameters.
  * While a function is being edited, only that one is shown so the keypad fits.
  */
@@ -937,8 +940,8 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
                     MathRow((cut.map { com.example.cas.editor.MathCodec.decode(com.example.cas.editor.MathCodec.encode(MathRow(mutableListOf(it)))).items.single() } +
                         listOf(Sym(","), Sym("…"), Sym("]"))).toMutableList()) to points
                 } else null
-                // At least as wide as the row, so a tap after the end of the maths puts the cursor at
-                // the end of the line (taps on the maths itself are handled by it first).
+                // At least as wide as the row, so a tap after the end of the math puts the cursor at
+                // the end of the line (taps on the math itself are handled by it first).
                 Column(
                     Modifier.widthIn(min = viewport).pointerInput(f, isData) {
                         detectTapGestures { if (isData) Unit else if (f.editor.root.items.size <= 300 || vm.active === f) vm.tapAt(f, f.editor.root, f.editor.root.items.size) else vm.edit(f) }
@@ -993,8 +996,8 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
 }
 
 /**
- * Renaming a line for the legend: text, with maths between dollar signs, shown as it will look.
- * Empty (or Default) goes back to the line's own name: its maths, or "Data" for a list.
+ * Renaming a line for the legend: text, with math between dollar signs, shown as it will look.
+ * Empty (or Default) goes back to the line's own name: its math, or "Data" for a list.
  */
 @Composable
 private fun RenameDialog(f: PlotFunction, onDone: (String?) -> Unit, onDismiss: () -> Unit) {
@@ -1011,7 +1014,7 @@ private fun RenameDialog(f: PlotFunction, onDone: (String?) -> Unit, onDismiss: 
                     onValueChange = { text = it },
                     singleLine = true,
                     label = { Text("Name") },
-                    supportingText = { Text("Maths between \$ signs, in LaTeX: \$\\sin x\$") },
+                    supportingText = { Text("Math between \$ signs, in LaTeX: \$\\sin x\$") },
                     textStyle = TextStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 15.sp),
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -1121,7 +1124,7 @@ private fun ParameterSlider(vm: GraphViewModel, name: String) {
                 tint = if (playing) colors.primary else colors.onSurfaceVariant,
             )
         }
-        // A built symbol (x̂₁) drawn as the maths draws it, not as its stored text.
+        // A built symbol (x̂₁) drawn as the math draws it, not as its stored text.
         SymbolName(name, 20.sp, colors.onSurface, Modifier.widthIn(min = 28.dp).padding(end = 4.dp))
         val step = (hi - lo) / 200
         ExpressiveSlider(
@@ -1187,7 +1190,7 @@ private fun SliderDialog(name: String, value: Double, min: Double, max: Double, 
 
 /**
  * A label like "f(z) =" or "(x, y) =": letters in italic Computer Modern, brackets, commas
- * and = upright, as in the maths.
+ * and = upright, as in the math.
  */
 /** A slider's letter: a built symbol drawn with its accent and scripts, otherwise an italic letter. */
 @Composable
@@ -1270,7 +1273,7 @@ fun sliderText(v: Double, decimals: Int): String =
 
 /**
  * The lines as a list you can reorder: hold a row, then drag it up or down. It lifts while it
- * moves, and passes a neighbour once it's gone halfway past it.
+ * moves, and passes a neighbor once it's gone halfway past it.
  */
 @Composable
 private fun ReorderableRows(vm: GraphViewModel, hidden: (PlotFunction) -> Boolean = { false }, folders: (PlotFunction) -> List<PlotFunction> = { emptyList() }, row: @Composable (PlotFunction, Modifier) -> Unit) {
@@ -1323,7 +1326,7 @@ private fun ReorderableRows(vm: GraphViewModel, hidden: (PlotFunction) -> Boolea
                     // (Holding a line renames it; lines move by their handle.)
                     .onGloballyPositioned { heights[f] = it.size.height },
             ) {
-                // Inside a folder: indented, with a bar in each enclosing folder's colour (primary
+                // Inside a folder: indented, with a bar in each enclosing folder's color (primary
                 // by default), outside the swipe box so its red strip doesn't show in the gap.
                 val around = folders(f)
                 val levels = around.size
@@ -1346,7 +1349,7 @@ private fun ReorderableRows(vm: GraphViewModel, hidden: (PlotFunction) -> Boolea
     }
 }
 
-/** A folder's colour: its own, or the theme's primary. */
+/** A folder's color: its own, or the theme's primary. */
 internal fun folderColor(folder: PlotFunction, scheme: androidx.compose.material3.ColorScheme): Color =
     folder.customColor?.let { Color(it) } ?: scheme.primary
 
@@ -1552,7 +1555,7 @@ private fun TextRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
 }
 
 /**
- * A folder: tap to open or close it, long-press for its name, colour and nesting. Its colour
+ * A folder: tap to open or close it, long-press for its name, color and nesting. Its color
  * tints the row and marks the lines inside it; × deletes the folder (its lines stay).
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
@@ -1569,7 +1572,7 @@ private fun FolderRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
             .background(androidx.compose.ui.graphics.lerp(colors.surfaceContainerHigh, tint, 0.16f))
             .combinedClickable(
                 onClickLabel = if (f.collapsed) "Open the folder" else "Close the folder",
-                onLongClickLabel = "Folder name and colour",
+                onLongClickLabel = "Folder name and color",
                 onClick = { vm.toggleCollapsed(f) },
                 onLongClick = { tap(); editing = true },
             )
@@ -1601,49 +1604,28 @@ private fun FolderRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
     if (editing) FolderDialog(vm, f, onDismiss = { editing = false })
 }
 
-/** A folder's name and colour, and moving it into or out of the folder above. */
-@OptIn(ExperimentalLayoutApi::class)
+/** A folder's name, color and place, all in one dialog: the line color picker with the name on top. */
 @Composable
 private fun FolderDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     var name by remember { mutableStateOf(f.note.orEmpty()) }
-    var color by remember { mutableStateOf(f.customColor) }
-    var picking by remember { mutableStateOf(false) }
-    // The same picker as a line's colour (without the line style); "default" is the theme colour.
-    if (picking) ColorPickerDialog(
-        initial = color?.let { Color(it) } ?: colors.primary,
-        onPick = { color = it?.toArgb(); picking = false },
-        onDismiss = { picking = false },
-    )
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Folder") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                OutlinedTextField(name, { name = it }, singleLine = true, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
-                Text("Colour", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
-                val shown = color?.let { Color(it) } ?: colors.primary
-                Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = "Choose the folder's colour") { picking = true }.padding(vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(Modifier.size(40.dp).clip(CircleShape).background(shown).border(1.dp, colors.outlineVariant, CircleShape))
-                    Spacer(Modifier.width(12.dp))
-                    Text(if (color == null) "Theme colour" else "#%06X".format(color!! and 0xFFFFFF), style = MaterialTheme.typography.bodyLarge, color = colors.onSurface, modifier = Modifier.weight(1f))
-                    Icon(Icons.Default.Edit, contentDescription = null, tint = colors.onSurfaceVariant)
+    ColorPickerDialog(
+        initial = folderColor(f, colors),
+        // Default is the theme's color.
+        onPick = { c -> vm.setFolder(f, name.trim(), c?.toArgb()); onDismiss() },
+        onDismiss = onDismiss,
+        title = "Folder",
+        header = {
+            OutlinedTextField(name, { name = it }, singleLine = true, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
+            if (vm.canNest(f) || vm.folderOf(f) != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (vm.canNest(f)) androidx.compose.material3.OutlinedButton(onClick = { vm.nest(f, 1); onDismiss() }) {
+                    Icon(Icons.AutoMirrored.Filled.FormatIndentIncrease, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Into folder above")
                 }
-                if (vm.canNest(f) || vm.folderOf(f) != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (vm.canNest(f)) androidx.compose.material3.OutlinedButton(onClick = { vm.nest(f, 1); onDismiss() }) {
-                        Icon(Icons.AutoMirrored.Filled.FormatIndentIncrease, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Into folder above")
-                    }
-                    if (vm.folderOf(f) != null) androidx.compose.material3.OutlinedButton(onClick = { vm.nest(f, -1); onDismiss() }) {
-                        Icon(Icons.AutoMirrored.Filled.FormatIndentDecrease, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Out of folder")
-                    }
+                if (vm.folderOf(f) != null) androidx.compose.material3.OutlinedButton(onClick = { vm.nest(f, -1); onDismiss() }) {
+                    Icon(Icons.AutoMirrored.Filled.FormatIndentDecrease, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Out of folder")
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { vm.setFolder(f, name.trim(), color); onDismiss() }) { Text("Done") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }
 
@@ -1787,7 +1769,7 @@ private fun RoleChip(role: String?, onPick: (String?) -> Unit, onRemove: (() -> 
             Modifier.fillMaxWidth().height(32.dp).clip(CircleShape).background(bg).clickable(onClickLabel = "Choose this column's role") { open = true }.padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Letters in italic, brackets upright, as in maths.
+            // Letters in italic, brackets upright, as in math.
             val text = if (role == null) androidx.compose.ui.text.AnnotatedString(label(role)) else androidx.compose.ui.text.buildAnnotatedString {
                 label(role).forEach { ch ->
                     val upright = ch == '(' || ch == ')'
@@ -1837,7 +1819,7 @@ private fun TableCell(text: String, error: Boolean, modifier: Modifier, faded: B
 
 /**
  * The wide layout: on landscape tablets and unfolded foldables the keyboard sits beside the
- * maths instead of under it (Settings chooses which side), and it's always shown.
+ * math instead of under it (Settings chooses which side), and it's always shown.
  */
 @Composable
 fun isTabletLayout(): Boolean {
@@ -1945,7 +1927,7 @@ fun GraphScaffold(vm: GraphViewModel, outputLabel: String, modifier: Modifier = 
 
 /**
  * Touch and hold, then drag: [onTrace] gets the finger's position from the moment the hold is
- * recognised until it lifts, so a value can be read continuously without tapping again. A drag
+ * recognized until it lifts, so a value can be read continuously without tapping again. A drag
  * that starts straight away is left to the graph (panning, turning).
  */
 fun Modifier.holdToTrace(key: Any?, onTrace: (Offset) -> Unit): Modifier = pointerInput(key) {

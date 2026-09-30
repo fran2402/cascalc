@@ -78,7 +78,7 @@ class MultivariableTest {
     @Test fun verticalLine() = assertTrue(spec(r("x=2")) is PlotSpec.Implicit)
     @Test fun region() = assertTrue(spec(r("y<x²")) is PlotSpec.Region)
     @Test fun parameterOnImplicit() = assertEquals(listOf("a"), spec(r("x²+y²=a")).parameters)
-    // x² + y² on its own is a scalar field, drawn in colour.
+    // x² + y² on its own is a scalar field, drawn in color.
     @Test fun bareXYIsAField() = assertTrue(spec(r("x²+y²")) is PlotSpec.Field)
     @Test fun zEqualsIsAField() = assertTrue(spec(r("z=x²−y²")) is PlotSpec.Field)
     // f(x, y) = …: the line's body is drawn as a field.

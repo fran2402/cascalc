@@ -132,7 +132,7 @@ val ColorScheme.equalsKey: Pair<Color, Color>
     @Composable get() = if (surface.luminance() < 0.5f) tertiary to onTertiary else tertiaryContainer to onTertiaryContainer
 
 @OptIn(ExperimentalTextApi::class)
-/** Google Sans Flex, always fully rounded (ROND 100) — the only look used outside the maths. */
+/** Google Sans Flex, always fully rounded (ROND 100) — the only look used outside the math. */
 fun googleSansFlex(weight: Int, width: Float = 100f, slant: Float = 0f): FontFamily =
     FontFamily(
         Font(
@@ -158,7 +158,7 @@ fun roboto(weight: Int): FontFamily = FontFamily(
 
 /**
  * Material's type scale with every style in Google Sans Flex, fully rounded,
- * so dialogs, menus and buttons match the rest of the app. (Only maths uses
+ * so dialogs, menus and buttons match the rest of the app. (Only math uses
  * Computer Modern.)
  */
 val RoundedTypography: Typography by lazy {
@@ -177,18 +177,18 @@ object CasFonts {
     /** TeX's \mathcal and \mathfrak shapes (drawn on plain letters; see MathAlphabets). */
     val CmCal = FontFamily(Font(R.font.cm_cal))
     val CmFrak = FontFamily(Font(R.font.cm_frak))
-    /** Maths display: Computer Modern, as in LaTeX (MathJax's TeX fonts). */
+    /** Math display: Computer Modern, as in LaTeX (MathJax's TeX fonts). */
     val CmRoman = FontFamily(Font(R.font.cm_main))
     val CmItalic = FontFamily(Font(R.font.cm_italic))
     /**
-     * New Computer Modern (subsets): ℵ ℶ ℷ ℸ, blackboard bold and italic ϰ from its maths font,
+     * New Computer Modern (subsets): ℵ ℶ ℷ ℸ, blackboard bold and italic ϰ from its math font,
      * the Hebrew alphabet from its roman, and ħ (for ℏ) from its italic, which the older
      * Computer Modern fonts above don't have.
      */
     val NcmMath = FontFamily(Font(R.font.ncm_math))
     val NcmHebrew = FontFamily(Font(R.font.ncm_hebrew))
     val NcmItalic = FontFamily(Font(R.font.ncm_italic))
-    /** Maths on keys: Google Sans Flex, rounded like the rest of the interface. */
+    /** Math on keys: Google Sans Flex, rounded like the rest of the interface. */
     val Math = googleSansFlex(weight = 400)
     val MathItalic = googleSansFlex(weight = 400, slant = -10f)
     val Key = googleSansFlex(weight = 400)
@@ -239,7 +239,7 @@ class GlyphFallback(context: Context) {
 val LocalGlyphFallback = staticCompositionLocalOf<GlyphFallback> { error("Wrap the UI in CasTheme") }
 
 /**
- * Character coverage for the Computer Modern maths fonts. Letters that are
+ * Character coverage for the Computer Modern math fonts. Letters that are
  * variables use the math italic; everything else the upright roman. A
  * character missing from the chosen one comes from the other (digits in an
  * italic run, Greek like π in a roman run, as TeX does), and anything in
@@ -301,7 +301,7 @@ internal fun newComputerModern(cp: Int, italic: Boolean): Pair<androidx.compose.
     cp in 0x5D0..0x5EA -> CasFonts.NcmHebrew to String(Character.toChars(cp))
     cp in 0x2135..0x2138 -> CasFonts.NcmMath to String(Character.toChars(cp))
     com.example.cas.editor.MathAlphabets.decode(cp)?.first == com.example.cas.editor.MathAlphabets.Style.DoubleStruck -> CasFonts.NcmMath to String(Character.toChars(cp))
-    // ϰ: the maths font's italic kappa variant (U+1D718).
+    // ϰ: the math font's italic kappa variant (U+1D718).
     cp == 0x3F0 -> CasFonts.NcmMath to String(Character.toChars(0x1D718))
     cp < 0x10000 && cp.toChar() in LATIN_LOOKALIKES -> CasFonts.CmRoman to LATIN_LOOKALIKES.getValue(cp.toChar()).toString()
     else -> null

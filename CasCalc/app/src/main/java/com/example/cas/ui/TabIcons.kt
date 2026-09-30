@@ -96,6 +96,6 @@ object PlotIcons {
     val Phase: ImageVector by lazy { icon("Phase", stroke = listOf("M12 12H21.5", "M12 12L16.75 3.77", "M12 12L7.25 3.77", "M12 12H2.5", "M12 12L7.25 20.23", "M12 12L16.75 20.23")) }
     /** A bent grid: where Re f and Im f are whole numbers. */
     val Grid: ImageVector by lazy { icon("Grid", stroke = listOf("M3 8c6-3 12 3 18 0", "M3 16c6-3 12 3 18 0", "M8 3c-3 6 3 12 0 18", "M16 3c-3 6 3 12 0 18")) }
-    /** A loop with an anticlockwise arrow around a point: ∮ f dz. */
+    /** A loop with an counterclockwise arrow around a point: ∮ f dz. */
     val Loop: ImageVector by lazy { icon("Loop", stroke = listOf("M19 12a7 7 0 1 0-7 7", "M9.2 16.2L12 19l-2.8 2.8"), fill = listOf("M10.4 12a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0z")) }
 }

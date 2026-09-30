@@ -108,7 +108,7 @@ object SceneExport {
     }
 
     /**
-     * Gives the export's maths layout ([com.example.cas.graph.MathScene]) the real widths of the
+     * Gives the export's math layout ([com.example.cas.graph.MathScene]) the real widths of the
      * Computer Modern fonts, so what's exported sits exactly as laid out.
      */
     fun installMetrics(context: Context) {
@@ -391,7 +391,7 @@ fun ExportDialog(
             androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical = 4.dp))
             Text("Graph file (.${graphFile.extension})", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
             Text(
-                "The graph itself, with its lines, colours and sliders, to open again in CAS Scientific Calculator (Saved graphs › Import).",
+                "The graph itself, with its lines, colors and sliders, to open again in CAS Scientific Calculator (Saved graphs › Import).",
                 style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

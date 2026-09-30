@@ -45,7 +45,7 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
 
     val editor = Editor()
 
-    /** Bumped on every edit so the maths redraws. */
+    /** Bumped on every edit so the math redraws. */
     var version by mutableIntStateOf(0)
         private set
 

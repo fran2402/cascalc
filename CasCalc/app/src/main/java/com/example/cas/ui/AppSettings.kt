@@ -99,13 +99,13 @@ object AppSettings {
         prefs = p
         SavedSymbols.init(context)
         PinnedKeys.init(context)
-        FavouriteColormaps.init(context)
+        FavoriteColormaps.init(context)
         theme = p.getInt("theme", 0)
         dynamicColor = p.getBoolean("dynamicColor", true)
         themeColor = p.getInt("themeColor", 0)
         haptics = p.getBoolean("haptics", true)
         groupDigits = p.getBoolean("groupDigits", true)
-        // Until changed: small maths and a compact keypad on phones, medium on tablets.
+        // Until changed: small math and a compact keypad on phones, medium on tablets.
         val size = if (context.resources.configuration.smallestScreenWidthDp >= 600) 1 else 0
         mathSize = p.getInt("mathSize", size)
         keypadSize = p.getInt("keypadSize", size)

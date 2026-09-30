@@ -2,15 +2,15 @@ package com.example.cas.graph
 
 /**
  * What a saved graph's card shows, read from its stored data without drawing it: each line's
- * code (only when short enough to draw), whether it's a data set, and its colour. Data sets and
- * other long lines are never decoded: thousands of points drawn as maths would stall the page.
+ * code (only when short enough to draw), whether it's a data set, and its color. Data sets and
+ * other long lines are never decoded: thousands of points drawn as math would stall the page.
  */
 object ProjectSummary {
-    /** Lines longer than this (in stored code) are summarised rather than drawn. */
+    /** Lines longer than this (in stored code) are summarized rather than drawn. */
     const val LONG = 240
 
     /**
-     * One line: [code] to draw, or null when it's too long; its colour slot or own colour.
+     * One line: [code] to draw, or null when it's too long; its color slot or own color.
      * [isData]: a long list of numbers (a data set) rather than a long formula.
      */
     data class Line(val code: String?, val slot: Int, val color: Int?, val isData: Boolean = false)

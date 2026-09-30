@@ -268,7 +268,7 @@ object Simplify {
 
     private tailrec fun gcd(a: Int, b: Int): Int = if (b == 0) a else gcd(b, a % b)
 
-    /** Prime factorisation by trial division; null if the number is too large to factor quickly. */
+    /** Prime factorization by trial division; null if the number is too large to factor quickly. */
     fun factorize(m: BigInteger): Map<BigInteger, Int>? {
         var n = m
         val out = LinkedHashMap<BigInteger, Int>()

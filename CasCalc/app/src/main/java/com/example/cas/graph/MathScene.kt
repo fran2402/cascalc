@@ -13,7 +13,7 @@ import com.example.cas.editor.Sym
 import com.example.cas.engine.LatexParser
 
 /**
- * Maths set as LaTeX sets it, for exported graphs (the legend): letters in math italic, numbers
+ * Math set as LaTeX sets it, for exported graphs (the legend): letters in math italic, numbers
  * and function names upright, exponents raised, fractions stacked on a bar, roots under a
  * radical sign and brackets as tall as what they hold, all in Computer Modern. A row becomes a
  * [Box], which draws itself into a [Scene] as labels (placed by their baselines) and strokes.
@@ -69,7 +69,7 @@ object MathScene {
             val normal = 0.97 * size
             val s = if (inner.height > normal * 1.1) size * inner.height / normal else size
             val w = m.width(t, false, s)
-            // Centred on the maths axis, like TeX's \left and \right.
+            // Centered on the math axis, like TeX's \left and \right.
             val axis = 0.25 * size
             val shift = axis - (0.75 * s - 0.25 * s) / 2
             return Box(w, 0.75 * s + shift, 0.25 * s - shift) { scene, x, y ->
@@ -223,7 +223,7 @@ object MathScene {
 
         /**
          * ∫ (or ∮ with [loop]) from TeX's Size2 font, the glyph LaTeX uses, at text-style size: it
-         * is drawn centred on the maths axis, 1.4 ems tall. Limits go as TeX sets them beside an
+         * is drawn centered on the math axis, 1.4 ems tall. Limits go as TeX sets them beside an
          * inline integral: the upper one by the top of the sign, the lower one tucked under its tail.
          */
         fun integral(size: Double, loop: Boolean, lower: Box?, upper: Box?): Box {

@@ -2,7 +2,7 @@
 
 A phone calculator that looks and feels like Google Calculator — Material You colors,
 Google Sans Flex, pill keys that square up when pressed — with the abilities of a
-CAS calculator: a real 2D maths editor and exact answers.
+CAS calculator: a real 2D math editor and exact answers.
 
 ## What it can do
 It's a computer algebra system: letters stay symbolic, so 2x + 3x gives 5x, and
@@ -94,7 +94,7 @@ Residues come from limits (any pole order up to 8), e.g. Res_{z=i} 1/(z² + 1) =
 ## Help on every key
 Long-press any key for a dialog over the darkened screen with its name, the formula, a line
 of theory and how to use it; it stays until Dismiss (or Back). Formulas are written in LaTeX
-in KeyHelp.kt (inline maths as \( … \)) and turned into the calculator's own maths tree by
+in KeyHelp.kt (inline math as \( … \)) and turned into the calculator's own math tree by
 engine/LatexParser.kt, so they're drawn in Computer Modern by the same renderer as answers:
 fractions, roots, scripts, ∫ … dx, ∮, Σ, lim, binomials, matrices, Greek, and TeX's spacing
 around operator names. A test checks every help formula uses only supported LaTeX. Constants
@@ -105,7 +105,7 @@ show their value, unit and whether they're exact.
   implicit surface by marching tetrahedra: x² + y² + z² = 4 is a sphere.
 - **Limits:** − and + zoom; tapping the ranges opens a dialog for x, y and z (z can fit itself).
 - **Tap the surface** to read (x, y, z) there (on z = f(x, y), z is computed exactly at x, y).
-- Chips above the keypad type x, y and z; long-press a function's dot for its colour.
+- Chips above the keypad type x, y and z; long-press a function's dot for its color.
 
 ## 2D area
 Tap a curve, press the area button (∫ with shading) in the bubble, then tap a second point:
@@ -140,7 +140,7 @@ Settings (⋮ menu), in sections (AppSettings.kt keeps them):
 - Calculator: live answer, continue from the answer after =, explanations on long-press,
   history length (50, 100, 500, all), ask before clearing history.
 - Appearance: theme (system, light, dark), dynamic color, app color (when dynamic color is
-  off or unavailable), maths size, keypad size, expressive or standard motion, keep the screen on.
+  off or unavailable), math size, keypad size, expressive or standard motion, keep the screen on.
 - Feel: haptic feedback, key sounds.
 - Graphs: grid lines, marking zeros/extrema/crossings, starting view (±5, ±10, ±20),
   complex plot quality (standard or full resolution), 3D surface detail.
@@ -206,9 +206,9 @@ signed with a throwaway debug key, so they install alongside nothing from the Pl
 ## Latest changes (1 October)
 - **Folders**: every line has its own depth, so a folder holds only the lines inside it: +
   never drops a new line into a folder, and moving a (closed) folder carries its lines as a block
-  without taking in others (graph/FolderTree.kt). Folders have a colour and a name, set by
+  without taking in others (graph/FolderTree.kt). Folders have a color and a name, set by
   long-pressing them (with "Into folder above" / "Out of folder"); × deletes one (its lines stay).
-  Lines in a folder are marked with bars in the folder's colour. Older saves keep their folders.
+  Lines in a folder are marked with bars in the folder's color. Older saves keep their folders.
 - **Add menu**: + is a Material 3 FAB menu (Line, Note, Folder, Table).
 - **Backspace** in an empty graph line removes the line and continues in the one above (empty
   constructions inside a line already go as in the calculator).
@@ -221,13 +221,13 @@ signed with a throwaway debug key, so they install alongside nothing from the Pl
   the legend (on screen and exported) draws each as it is (dotted is no longer dashed).
 - **Tracing**: drag along a curve in 2D to read it continuously; on the complex plane and in 3D,
   touch and hold, then drag.
-- **Complex plane**: grid, axes and numbers in the theme's colours, as in 2D. Derivatives and
+- **Complex plane**: grid, axes and numbers in the theme's colors, as in 2D. Derivatives and
   integrals plot: ψ (digamma), ψ′, erf, ζ′ and ζ″ on complex arguments; Bessel derivatives by
   their recurrence; integrals with z in a limit by Gauss–Legendre along the straight path; an
   integral with no closed form (∫ Γ(z) dz) is drawn as ∫₁^z.
 - **3D**: a Cartesian button beside cylindrical and spherical; exactly one is always chosen.
 - **Tablets**: drag the pill between the list and the graph to resize them (double-tap resets).
-- **2D fields**: an expression in x and y with no = (x² − y²) is drawn as a coloured field with
+- **2D fields**: an expression in x and y with no = (x² − y²) is drawn as a colored field with
   a colormap (viridis by default; long-press its dot for others), with its value on tap.
 
 ## Latest changes (30 September, ninth round)
@@ -250,7 +250,7 @@ signed with a throwaway debug key, so they install alongside nothing from the Pl
 
 ## Latest changes (30 September, sixth round)
 - **Graph files**: .g2d (2D graphs), .g3d (3D graphs) and .gcp (complex plots) hold a whole
-  graph (lines, colours, styles, notes, sliders, ranges). Save or share one from the export
+  graph (lines, colors, styles, notes, sliders, ranges). Save or share one from the export
   dialog or a saved graph's menu; import them on the Saved graphs page (the import button), or
   open one from a file manager to import it and switch to its mode. The format is plain text
   (graph/GraphFile.kt).
@@ -261,10 +261,10 @@ signed with a throwaway debug key, so they install alongside nothing from the Pl
 - **Saved graphs, redone**: no longer draws data sets point by point (that crashed the app);
   they show as a "Data set" chip, and only short lines are drawn. The page has search, an
   order menu (newest, oldest, name), a connected button group for the modes with counts in
-  brackets, date groups (Today, Yesterday, This week, Earlier), cards with each line's colour,
+  brackets, date groups (Today, Yesterday, This week, Earlier), cards with each line's color,
   the mode's icon and a menu (rename, duplicate, delete), and a Save button at the bottom. It
   fills the screen and is a grid on tablets.
-- **ħ key**: the Maltese ħ in the key font; maths keeps the italic ħ.
+- **ħ key**: the Maltese ħ in the key font; math keeps the italic ħ.
 - **Symbol builder**: with Italic off, the script buttons turn upright too; lowercase Greek
   written upright uses New Computer Modern's upright Greek; the Hebrew group is the Unicode
   letters only (ℵ ℶ ℷ ℸ removed); accents sit on Hebrew letters without the extra gap.
@@ -277,17 +277,17 @@ signed with a throwaway debug key, so they install alongside nothing from the Pl
   is gone.
 - **Fonts**: blackboard bold, Hebrew, ħ and the Greek letters Computer Modern lacks (ϰ, and
   capitals like Α that look Latin) come from New Computer Modern (GUST Font License), so they
-  match the rest of the maths; the ħ key and ħ in equations are drawn with the barred h.
+  match the rest of the math; the ħ key and ħ in equations are drawn with the barred h.
 - **3D coordinates** are chosen like the calculus variables: a segmented row of the letters
   and ✎ to pick your own.
-- **Colour sliders** leave the M3 Expressive gap either side of the thumb.
-- **Folders**: the arrow follows the theme; lines in a folder get a bar in the primary colour
+- **Color sliders** leave the M3 Expressive gap either side of the thumb.
+- **Folders**: the arrow follows the theme; lines in a folder get a bar in the primary color
   (the red swipe strip no longer shows in the indent).
 - **Points**: eleven shapes and a Filled switch instead of fifteen shapes.
 - **Data tables**: the brackets in σ(x) and σ(y) are upright.
 - **Export**: preview beside the options on tablets; files are named with the date and time
   (graph-2026-09-30_14-05-12.pdf).
-- **Defaults**: small maths and a compact keypad on phones, medium on tablets.
+- **Defaults**: small math and a compact keypad on phones, medium on tablets.
 - **Saved graphs**: one page for all graph modes, with filter chips and each mode's icon in the
   card's corner; a grid on tablets; opening one switches to its mode.
 
@@ -311,16 +311,16 @@ signed with a throwaway debug key, so they install alongside nothing from the Pl
 - **Export legend set in LaTeX**: fractions stacked, exponents raised, roots and |x| drawn,
   brackets as tall as their contents, letters in math italic, all in Computer Modern with the
   fonts' real widths (graph/MathScene.kt).
-- **Export colours**: #165c99, #0bb04b, #f9950f, #ed310c, #7c5e8b, #484848 in turn (the grey
+- **Export colors**: #165c99, #0bb04b, #f9950f, #ed310c, #7c5e8b, #484848 in turn (the gray
   lightened on dark exports); 3D surfaces are shaded dark to light in these, one per line.
-- **Line colours on screen**: the theme's primary, secondary, tertiary, error and surface
-  (inverse surface, so it shows) in turn, unless a colour is picked.
+- **Line colors on screen**: the theme's primary, secondary, tertiary, error and surface
+  (inverse surface, so it shows) in turn, unless a color is picked.
 - **Data sets aren't edited inline**: tapping a list of points does nothing; its table button edits it.
 - **Cursor**: tapping past the end of the line (or before it, in the calculator) puts the cursor
   at the end (or start) in all four modes; in graphs the end of the line stays in view.
 - **2 sin x**: a thin space before function names, as LaTeX sets it.
 - **u·v, u×v, ∘, ⊗** before a matrix, letter or bracket take it as the second operand.
-- **Colour picker**: theme and standard colours first, then a saturation–brightness square with
+- **Color picker**: theme and standard colors first, then a saturation–brightness square with
   hue, exact values, the line and point options; two columns on tablets.
 - **Colormap picker**: the chosen map large with a Reversed switch, your maps as cards (Edit to
   reorder or remove), then every map by kind or name with a star to add it; two panes on tablets.
@@ -331,14 +331,14 @@ signed with a throwaway debug key, so they install alongside nothing from the Pl
 ## Latest changes (30 September)
 - **Legend**: each line has a name, shown top left on all three graphs (under the range control
   in 3D) and in exports, SciencePlots-style. Hold a line to rename it; names are text with
-  LaTeX maths between $ signs. The default is the line's maths, "Data" for a list, the point
+  LaTeX math between $ signs. The default is the line's math, "Data" for a list, the point
   itself for a point. Settings › Graphs › Legend turns it off.
 - **Data tables**: a file imports as one line, its first column x and its second y. The table
   opens full screen from the table button on the line (before ✕); each column's role is x, y,
   σ(x), σ(y) or unused, and σ columns draw error bars (on screen and exported).
-- **Exports** use SciencePlots' colour cycle, one colour per line in list order.
-- **Line colours** come from the theme (Material You's when on): primary, tertiary, then the
-  primary's hue turned round the wheel, unless a colour is picked.
+- **Exports** use SciencePlots' color cycle, one color per line in list order.
+- **Line colors** come from the theme (Material You's when on): primary, tertiary, then the
+  primary's hue turned round the wheel, unless a color is picked.
 - **The first line is drawn over everything below it** (its points and region too), in 2D, 3D
   and on the complex plane.
 - **Cursor**: long lines scroll to keep the cursor in view, the cursor at the end isn't cut
@@ -362,7 +362,7 @@ signed with a throwaway debug key, so they install alongside nothing from the Pl
   red when they aren't numbers.
 - **Tapping beside a fraction, root, power…** puts the cursor just before or after it, so a
   bracket can go round it.
-- **Long lines scroll sideways**; swiping to delete starts from the row's edges (the colour
+- **Long lines scroll sideways**; swiping to delete starts from the row's edges (the color
   dot, the handle, ✕), so it no longer fights the scrolling.
 - **The first line is drawn on top**, so reordering lines changes which is in front.
 - **Complex plot export**: z and i are italic in the axis names and labels.
@@ -395,7 +395,7 @@ signed with a throwaway debug key, so they install alongside nothing from the Pl
   coordinates: guides are drawn and a line without "=" means r = … or ρ = …. All seven letters
   are on the chips above the keypad.
 - **3D view** now looks down on the graph (the camera looked up from below before), and the
-  **3D export** is drawn like pgfplots: back walls with a grid, viridis-coloured faceted
+  **3D export** is drawn like pgfplots: back walls with a grid, viridis-colored faceted
   surfaces, Computer Modern ticks and labels.
 - **Graph settings** in 3D (limits, coordinates, surface detail) and on the complex plane
   (limits, plot quality).
@@ -448,14 +448,14 @@ signed with a throwaway debug key, so they install alongside nothing from the Pl
 - **Settings** are ordered Appearance, Calculator, History, Numbers, Graphs, Touch and screen,
   About. The **acknowledgements** are grouped (fonts, libraries, data, numerical methods,
   graphics, inspiration), each entry with its authors, what it's used for here, a line on what
-  it is and its licence.
+  it is and its license.
 
 ## Latest changes (29 September)
 - **Export graphs**: the share button on the 2D and complex toolbars exports the graph as PDF
   (the default), PNG, JPG or SVG, with the limits you type (the current view to start with)
   and light or dark colors; then Save (the system's save dialog) or Share. The graph is
   rebuilt as a list of shapes (graph/Scene.kt) at the new limits, so SVG and PDF are real
-  vector files; the complex plane's colouring is rendered afresh and embedded as a picture.
+  vector files; the complex plane's coloring is rendered afresh and embedded as a picture.
 - **Colormaps on the complex plane**: long-press a function's dot to pick how arg f is
   colored: the classic wheel, matplotlib's cyclic twilight maps, or viridis, plasma, magma,
   cividis and turbo (the dot shows the map as a ring). ∮ loops and curves such as |z − 1| = 2
@@ -553,7 +553,7 @@ message rather than a crash. −(a + b) keeps its brackets.
 - Delete a history item by swiping it sideways, or from its share menu.
 - In graphs, long-press a function's color dot to pick any color, by sliders (HSV, RGB or OKLab) or typed as
   HSV, RGB, OKLab or hex, or one of eight standard ones; "Default" goes back to the theme's.
-- Letters (i, e and π too) are italic in the maths; capital Greek letters are upright.
+- Letters (i, e and π too) are italic in the math; capital Greek letters are upright.
 - The letters tab has every Latin and Greek letter, including those with their own keys.
 - Font fallback uses each font's real character table (FontCoverage.kt, regenerate with
   preview-render/font_coverage.py): Android's Paint.hasGlyph also counts system fonts, which
@@ -574,7 +574,7 @@ type y, r, θ and t. Letters other than the plotting ones become sliders; **▶ 
 animates it**, bouncing between −10 and 10 (dragging it stops the animation).
 
 **Polar coordinates** in both 2D views: the polar-grid toggle (bottom right) swaps the square
-grid for circles and rays every 30° (labelled π/6, π/3… or degrees), and tapped points read
+grid for circles and rays every 30° (labeled π/6, π/3… or degrees), and tapped points read
 as r and θ with "Use r" / "Use θ". On the complex plane the same toggle overlays circles of
 |z| and rays of arg z, readouts show both a + bi and |z|∠arg z (e.g. 1.4142∠π/4), and f can be
 written with r and θ, which mean |z| and arg z.
@@ -614,16 +614,16 @@ variable box is tinted to show it can be changed. In ∬ and ∭ each integral h
 variable, so the order (dy dx or dx dy) is up to you.
 
 ## Complex plotting
-A fourth mode (the Argand-diagram icon in the switcher) plots f(z) by domain colouring,
+A fourth mode (the Argand-diagram icon in the switcher) plots f(z) by domain coloring,
 after samuelj.li's complex function plotter:
-- **Colour** is arg f(z) (red = positive real, then yellow, green, cyan, blue, magenta
-  anticlockwise); **brightness** is log |f(z)|, so zeros are black and poles white. The
-  number of times the colours cycle around a point is its order (a double zero cycles twice).
+- **Color** is arg f(z) (red = positive real, then yellow, green, cyan, blue, magenta
+  counterclockwise); **brightness** is log |f(z)|, so zeros are black and poles white. The
+  number of times the colors cycle around a point is its order (a double zero cycles twice).
 - A floating toolbar toggles **modulus bands** (a brightness step each time |f| doubles),
   **phase lines** (every 30° of arg f), and a **grid** where Re f and Im f are whole
   numbers (the image of the coordinate grid, which shows where f is conformal).
 - **Loop tool**: draw a closed loop with a finger and it shows ∮ f(z) dz and the sum of
-  residues inside (= ∮/2πi for a loop drawn anticlockwise). E.g. around i for 1/(z² + 1):
+  residues inside (= ∮/2πi for a loop drawn counterclockwise). E.g. around i for 1/(z² + 1):
   ∮ = π, residues = −i/2.
 - Tap a point to read z and f(z); drag and pinch to move and zoom; double-tap to reset.
 - Letters other than z get **sliders**, e.g. f(z) = z − t.
@@ -647,9 +647,9 @@ button stretches into a wide filled pill.
   being edited) gets its zeros, maxima, minima, y-intercept and crossings with other
   curves marked, and tapping a mark shows its coordinates. Letters other than x become
   sliders (y = a·sin(bx) gets a and b). Lines break at jumps and gaps (tan x, √x), and
-  odd roots of negatives stay real (∛−8 = −2). Tap a colour dot to hide a curve.
+  odd roots of negatives stay real (∛−8 = −2). Tap a color dot to hide a curve.
 - **3D graphing** (3D box icon): z = f(x, y) surfaces, shaded by height and lit, inside a
-  box with labelled axes. Drag to turn, pinch to zoom, double-tap to reset; the range
+  box with labeled axes. Drag to turn, pinch to zoom, double-tap to reset; the range
   control sets x, y ∈ [−r, r]. Parameters get sliders here too.
 
 Functions are symbolic first: they go through the CAS (so stored variables and exact
@@ -657,7 +657,7 @@ simplification apply), then get compiled to fast numeric code for drawing.
 
 ## Function tabs
 Tabs are icons (TabIcons.kt: drawn on a 24×24 grid with 2 dp round strokes, to match
-Material Symbols Rounded) and keys are maths notation or icons. Every operation appears
+Material Symbols Rounded) and keys are math notation or icons. Every operation appears
 once; long-press a key to see its name. Three rows show at a time; the "more" and
 letters tabs scroll.
 
@@ -691,7 +691,7 @@ Brackets are on the number pad's smart ( ) key.
   back into 2D rows (`Formatter.kt`).
 - `graph/` — compiling expressions to numeric functions, 2D sampling with zeros and
   extrema, 3D surface sampling and projection (painter's algorithm).
-- `ui/` — the maths renderer (`MathView.kt`), keys, the calculator, the mode switcher
+- `ui/` — the math renderer (`MathView.kt`), keys, the calculator, the mode switcher
   and the two graph screens.
 
 Everything except `ui/` is plain Kotlin; `./gradlew test` runs 562 tests covering the
@@ -706,7 +706,7 @@ above don't cover fall back to numbers (definite) or report "No antiderivative f
 Open the folder in Android Studio and run on a phone or emulator (Android 8+).
 Colors follow the wallpaper on Android 12+, with an olive palette before that.
 
-Fonts: the maths display uses Computer Modern, LaTeX's typeface (MathJax's TeX fonts:
+Fonts: the math display uses Computer Modern, LaTeX's typeface (MathJax's TeX fonts:
 upright roman plus math italic for variables, and TeX's display-size ∫ and ∮). Everything else — keys, tabs, labels —
 uses Google Sans Flex, always fully rounded (ROND 100), including Material dialogs, menus and
 buttons (a rounded type scale in Theme.kt). Roboto covers any character neither has. All three are

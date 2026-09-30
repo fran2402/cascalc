@@ -49,7 +49,7 @@ data class Answer(val value: Expr, val exact: MathRow, val approx: MathRow?) {
     val isApproximate: Boolean get() = value.contains { it is Flt }
 }
 
-/** Turns symbolic expressions into rows the maths renderer draws: real fractions, roots, powers, matrices. */
+/** Turns symbolic expressions into rows the math renderer draws: real fractions, roots, powers, matrices. */
 object Formatter {
     const val THIN_SPACE = "\u2009"
 

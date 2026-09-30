@@ -4,7 +4,7 @@ package com.example.cas.editor
  * The expression being edited is a tree: a [MathRow] is a horizontal list of
  * [Node]s, and structured nodes (fractions, powers, roots, integrals…) own
  * child rows ("slots") that the cursor can move into. This is what lets the
- * editor show real 2D maths with a box for every empty slot.
+ * editor show real 2D math with a box for every empty slot.
  */
 class MathRow(val items: MutableList<Node> = mutableListOf()) {
     var parent: Node? = null

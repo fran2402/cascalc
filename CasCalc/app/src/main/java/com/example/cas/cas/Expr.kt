@@ -120,7 +120,7 @@ fun Expr.freeVars(): Set<String> = when {
     this is Sym -> if (name in CONSTANT_SYMBOLS) emptySet() else setOf(name)
     // A held integral ∫ₐᵇ body d(var): its variable is bound, not free.
     this is Fn && name == "integral" -> (args[0].freeVars() - (args[1] as Sym).name) + args[2].freeVars() + args[3].freeVars()
-    // A held contour integral ∮ body d(var) around |var − centre| = radius: var is bound too.
+    // A held contour integral ∮ body d(var) around |var − center| = radius: var is bound too.
     this is Fn && name == "contour" && args.size == 4 -> (args[0].freeVars() - (args[1] as Sym).name) + args[2].freeVars() + args[3].freeVars()
     // A held Σ or Π: body, variable, lower, upper (the variable is bound).
     // (A substitution can replace the variable with a number; then nothing is bound.)

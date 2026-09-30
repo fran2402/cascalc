@@ -12,7 +12,7 @@ import kotlin.math.sin
  * 60° round), each with its own chroma, and every role takes a fixed tone from one of them.
  *
  * Tones are CIELAB lightness L* (0 black to 100 white), as in Material's HCT; they're built in
- * OKLab at the matching lightness (for a grey, OKLab L = ∛Y = (L* + 16)/116), with the chroma
+ * OKLab at the matching lightness (for a gray, OKLab L = ∛Y = (L* + 16)/116), with the chroma
  * reduced until the color fits in sRGB. Plain Kotlin (ARGB ints), so it's tested directly.
  */
 object TonalScheme {
@@ -34,7 +34,7 @@ object TonalScheme {
         fun tone(t: Double): Int = TonalScheme.tone(t, hue, chroma)
     }
 
-    /** OKLab lightness for a CIELAB lightness L* (exact for greys). */
+    /** OKLab lightness for a CIELAB lightness L* (exact for grays). */
     private fun oklabLightness(tone: Double): Double {
         val t = tone.coerceIn(0.0, 100.0)
         val y = if (t > 8) ((t + 16) / 116).let { it * it * it } else t / 903.2963
@@ -72,7 +72,7 @@ object TonalScheme {
     fun from(seed: Int, dark: Boolean): Roles {
         val (_, a, b) = ColorMath.toOklab(ColorMath.fromArgb(seed))
         val hue = atan2(b, a)
-        // A grey seed gives grey palettes (its hue means nothing), with a hint of it in the accents.
+        // A gray seed gives gray palettes (its hue means nothing), with a hint of it in the accents.
         val vivid = (hypot(a, b) / 0.04).coerceIn(0.0, 1.0)
         val p = Palette(hue, 0.13 * vivid)
         val s = Palette(hue, 0.045 * vivid)
@@ -112,6 +112,6 @@ object TonalScheme {
         "Red" to 0xFFC23B32.toInt(),
         "Rose" to 0xFFC0476F.toInt(),
         "Purple" to 0xFF7A4FC4.toInt(),
-        "Grey" to 0xFF777777.toInt(),
+        "Gray" to 0xFF777777.toInt(),
     )
 }

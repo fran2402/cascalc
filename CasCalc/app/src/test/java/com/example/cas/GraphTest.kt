@@ -91,7 +91,7 @@ class GraphTest {
         assertTrue(polys.all { p -> p.points.all { q -> abs(Math.sqrt(q[0] * q[0] + q[1] * q[1] + q[2] * q[2]) - 1) < 0.05 } })
     }
     @Test fun pickFindsTheNearestFace() {
-        // A flat plane z = 0.5 seen from above: the point under the screen centre is near (0, 0, 0.5).
+        // A flat plane z = 0.5 seen from above: the point under the screen center is near (0, 0, 0.5).
         val polys = Surface3D.explicit({ _, _ -> 0.5 }, box, 20)
         val cam = Camera(yaw = 0.0, pitch = 1.45)
         val faces = Surface3D.faces(polys, box, cam, 400f, 400f)

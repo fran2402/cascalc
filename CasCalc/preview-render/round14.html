@@ -1,0 +1,142 @@
+<!doctype html><html><head><meta charset="utf-8"><title>round14</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1700px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--c1:#1B1C14;--c2:#1F2018;--c3:#292A22;--c4:#34352C;--outv:#47473B;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sec:#3D3F28;--onsec:#E0E1C4;--tc:#244D44;--otc:#BDECDE;--err:#FFB4AB;--tert:#A2D0C3;--grid:#47473B;--axis:#C8C7B5;--shadow:rgba(0,0,0,.55)}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--c1:#F6F4E8;--c2:#F1EEE2;--c3:#EBE9DC;--c4:#E5E3D6;--outv:#C8C7B5;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sec:#E2E4C4;--onsec:#1B1D0A;--tc:#BDECDE;--otc:#00201A;--err:#BA1A1A;--tert:#3B665C;--grid:#C8C7B5;--axis:#47473B;--shadow:rgba(40,40,20,.28)}
+.phone{position:relative;width:412px;height:880px;border-radius:44px;overflow:hidden;background:var(--bg);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35);display:flex;flex-direction:column}
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font:500 14px GSF}
+.bar{height:56px;display:flex;align-items:center;padding:0 8px 0 18px;gap:6px;font:500 20px GSF}
+.bar .sp{flex:1}.ib{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--onv)}
+.graph{position:relative;flex:1;overflow:hidden}
+.graph>svg{position:absolute;inset:0}
+.m{font-family:CMI}.r{font-family:CMR}
+/* --- point card --- */
+.pt{position:absolute;min-width:216px;background:var(--c3);border-radius:24px;padding:12px 12px 12px 16px;box-shadow:0 6px 18px var(--shadow),0 1px 3px var(--shadow)}
+.pt:after{content:"";position:absolute;left:var(--tail,50%);bottom:-9px;width:18px;height:18px;background:var(--c3);transform:translateX(-50%) rotate(45deg);border-radius:0 0 5px 0}
+.pt.below:after{bottom:auto;top:-9px;border-radius:5px 0 0 0}
+.hd{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.dot{width:12px;height:12px;border-radius:50%}
+.kind{font:600 13px GSF;letter-spacing:.2px;padding:3px 10px;border-radius:99px;background:var(--tc);color:var(--otc)}
+.fname{margin-left:auto;color:var(--onv);font-size:17px;padding-right:4px}
+.vr{display:flex;align-items:center;height:40px;gap:10px}
+.vr .l{width:18px;font-size:21px;color:var(--onv);text-align:center}
+.vr .v{flex:1;font:500 21px GSF;font-variant-numeric:tabular-nums;letter-spacing:.2px}
+.use{height:32px;padding:0 12px 0 9px;border-radius:99px;background:var(--pc);color:var(--onpc);font:600 13px GSF;display:flex;align-items:center;gap:4px}
+.use svg{width:16px;height:16px}
+.acts{display:flex;gap:8px;margin-top:8px;padding-top:10px;border-top:1px solid var(--outv)}
+.tb{height:36px;padding:0 14px 0 10px;border-radius:12px;background:var(--sec);color:var(--onsec);font:600 13.5px GSF;display:flex;align-items:center;gap:6px}
+.tb svg{width:18px;height:18px}
+.old{position:absolute;display:flex;align-items:center;background:var(--on);color:var(--bg);border-radius:99px;padding:4px 4px 4px 14px;font:13px GSF;gap:6px;white-space:nowrap}
+.old span{background:var(--pri);color:var(--onpri);border-radius:99px;padding:6px 12px}
+/* --- constants sheet --- */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.32)}
+.sheet{position:absolute;left:0;right:0;bottom:0;top:120px;background:var(--c1);border-radius:28px 28px 0 0;display:flex;flex-direction:column}
+.handle{width:32px;height:4px;border-radius:2px;background:var(--onv);opacity:.5;margin:14px auto 6px}
+.sh{display:flex;align-items:center;padding:4px 20px 0 24px}
+.sh .t{font:500 22px GSF;flex:1}
+.unit{font:600 12.5px GSF;padding:6px 12px;border-radius:99px;background:var(--sec);color:var(--onsec)}
+.search{margin:12px 16px 8px;height:52px;border-radius:99px;background:var(--c4);display:flex;align-items:center;gap:12px;padding:0 18px;color:var(--onv);font:16px GSF}
+.chips{display:flex;gap:8px;padding:4px 16px 10px;overflow:hidden;white-space:nowrap}
+.fc{height:32px;padding:0 14px;border-radius:10px;border:1px solid var(--outv);display:flex;align-items:center;font:500 14px GSF;color:var(--onv);flex-shrink:0}
+.fc.on{background:var(--sec);border-color:transparent;color:var(--onsec)}
+.fc.on:before{content:"✓";margin-right:6px;font-size:13px}
+.list{flex:1;overflow:hidden;padding:0 12px}
+.sec{font:600 13.5px GSF;color:var(--pri);padding:12px 12px 6px;letter-spacing:.2px}
+.it{display:flex;align-items:center;gap:14px;padding:10px 10px;border-radius:20px}
+.it.first{background:var(--c2);border-radius:20px 20px 6px 6px;margin-bottom:2px}
+.it.mid{background:var(--c2);border-radius:6px;margin-bottom:2px}
+.it.last{background:var(--c2);border-radius:6px 6px 20px 20px;margin-bottom:2px}
+.sym{width:56px;height:56px;border-radius:16px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+.tx{flex:1;min-width:0}
+.nm{font:500 15.5px GSF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.val{font-size:17px;margin-top:3px;color:var(--on);white-space:nowrap}
+.val .u{font:13.5px GSF;color:var(--onv);margin-left:6px}
+.ex{font:600 11.5px GSF;padding:3px 8px;border-radius:99px;background:var(--tc);color:var(--otc);margin-left:8px;vertical-align:2px}
+.cp{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--onv)}
+.detail{background:var(--c3);border-radius:28px;margin:6px 4px 10px;padding:16px 18px}
+</style></head><body>
+<h2>Point popup</h2>
+<p class="note">Tap or drag on a curve. The card floats above the point (below it near the top edge) with a tail pointing at it. The header has the line's color dot, the kind of point as a tonal chip (Maximum, Zero, Intersection…) and the line's name. Each coordinate gets its own row in large numerals with a <b>Use</b> button that puts it in the calculator. The area actions come last as tonal buttons, shown only when they apply. Before: the old dark pill (left).</p>
+<div class="row" id="pts"></div>
+<h2>Constants sheet</h2>
+<p class="note">The <b>More constants</b> key opens this sheet: a search bar, category chips (Universal, Electromagnetic, Atomic and nuclear, Physicochemical, Adopted), then the constants grouped in rounded cards. Each row shows the symbol in a tonal tile, the name, and the value in math type with its unit. Exact SI values get an <b>exact</b> chip. Tap a row to insert the constant; the copy button copies its value. The unit system (SI / Planck / atomic / natural) is shown top-right and changes the values listed.</p>
+<div class="row" id="consts"></div>
+<script>
+const I={use:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 7v4H5.83l3.58-3.59L8 6l-6 6 6 6 1.41-1.41L5.83 13H21V7z"/></svg>',
+area:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18M5 20V9c3 0 5 6 8 6s4-7 6-9v14" /><path d="M5 20V9c3 0 5 6 8 6s4-7 6-9v14z" fill="currentColor" opacity=".3"/></svg>',
+between:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17C8 17 10 5 21 5M3 8c6 0 10 9 18 9"/><path d="M9 11.5c2-3 5-4.5 7-5.3v9.6c-3-.8-5-2.3-7-4.3z" fill="currentColor" opacity=".3" stroke="none"/></svg>',
+copy:'<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>',
+search:'<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"/></svg>'};
+function status(){return '<div class="status"><span>9:41</span><span>▾ ▴ ▮</span></div>'}
+// graph: view x -2..8, y from width
+function graph(W,H,curves,dots){
+ const xmin=-2,xmax=8,sc=W/(xmax-xmin),ymax=H/2/sc,ymin=-ymax;
+ const X=x=>(x-xmin)*sc,Y=y=>(ymax-y)*sc;let s=`<svg width="${W}" height="${H}">`;
+ for(let x=Math.ceil(xmin*5)/5;x<=xmax;x+=.2)s+=`<line x1="${X(x)}" x2="${X(x)}" y1="0" y2="${H}" stroke="var(--grid)" stroke-opacity=".35"/>`;
+ for(let y=Math.ceil(ymin*5)/5;y<=ymax;y+=.2)s+=`<line y1="${Y(y)}" y2="${Y(y)}" x1="0" x2="${W}" stroke="var(--grid)" stroke-opacity=".35"/>`;
+ for(let x=-2;x<=8;x++)s+=`<line x1="${X(x)}" x2="${X(x)}" y1="0" y2="${H}" stroke="var(--grid)" stroke-opacity=".9"/>`;
+ for(let y=Math.ceil(ymin);y<=ymax;y++)s+=`<line y1="${Y(y)}" y2="${Y(y)}" x1="0" x2="${W}" stroke="var(--grid)" stroke-opacity=".9"/>`;
+ s+=`<line x1="0" x2="${W}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--axis)" stroke-width="2"/><line y1="0" y2="${H}" x1="${X(0)}" x2="${X(0)}" stroke="var(--axis)" stroke-width="2"/>`;
+ for(let x=-1;x<=7;x++)if(x)s+=`<text x="${X(x)}" y="${Y(0)+16}" font-family="GSF" font-size="11" fill="var(--axis)" text-anchor="middle">${x<0?'−'+(-x):x}</text>`;
+ for(let y=Math.ceil(ymin);y<=ymax;y++)if(y)s+=`<text x="${X(0)+5}" y="${Y(y)+4}" font-family="GSF" font-size="11" fill="var(--axis)">${y<0?'−'+(-y):y}</text>`;
+ curves.forEach(([f,c])=>{let d='';for(let i=0;i<=W;i+=2){const x=xmin+i/sc,y=f(x);d+=(i?'L':'M')+i+' '+Y(y).toFixed(1)}s+=`<path d="${d}" fill="none" stroke="${c}" stroke-width="3" stroke-linecap="round"/>`});
+ dots.forEach(([x,y,c])=>{s+=`<circle cx="${X(x)}" cy="${Y(y)}" r="8" fill="${c}"/><circle cx="${X(x)}" cy="${Y(y)}" r="3.5" fill="var(--on)"/>`});
+ return [s+'</svg>',X,Y];
+}
+function phone(theme,inner,cap){return `<div><div class="phone ${theme}">${status()}${inner}</div><div class="cap">${cap}</div></div>`}
+function card({x,y,kind,name,rows,acts,color,below,tail}){
+ return `<div class="pt${below?' below':''}" style="left:${x}px;top:${y}px;--tail:${tail||'50%'}"><div class="hd"><div class="dot" style="background:${color}"></div>${kind?`<span class="kind">${kind}</span>`:''}<span class="fname">${name}</span></div>`+
+ rows.map(([l,v])=>`<div class="vr"><span class="l m">${l}</span><span class="v">${v}</span><span class="use">${I.use}Use</span></div>`).join('')+
+ (acts?`<div class="acts">${acts.map(([ic,t])=>`<span class="tb">${I[ic]}${t}</span>`).join('')}</div>`:'')+'</div>';
+}
+const pts=document.getElementById('pts');
+function gphone(theme,cap,build){
+ const W=412,H=880-32-56;const c1=theme=='light'?'#5B6133':'#C5CB86',c2=theme=='light'?'#8E4E48':'#FFB4AB';
+ const [svg,X,Y]=build.curves(c1,c2);
+ pts.insertAdjacentHTML('beforeend',phone(theme,`<div class="bar">Graph<span class="sp"></span><span class="ib">⌂</span><span class="ib">⚙</span></div><div class="graph">${graph(W,H,...build.curves(c1,c2))[0]}${build.pop(X,Y,c1,c2)}</div>`,cap));
+}
+const sinC=(c1,c2)=>[[[x=>Math.sin(x),c1],[x=>0.3*x-0.6,c2]],[[Math.PI/2,1,c1]]];
+// 0 old
+(()=>{const W=412,H=792;const [svg,X,Y]=graph(W,H,[[x=>Math.sin(x),'#5B6133']],[[Math.PI/2,1,'#5B6133']]);
+pts.insertAdjacentHTML('beforeend',phone('light',`<div class="bar">Graph<span class="sp"></span><span class="ib">⌂</span><span class="ib">⚙</span></div><div class="graph">${svg}<div class="old" style="left:${X(Math.PI/2)-150}px;top:${Y(1)-52}px">maximum (1.571, 1)<span>∫</span><span>Use x</span><span>Use y</span></div></div>`,'Before: the dark pill.'))})();
+function add(theme,cap,curves,dots,pop){const W=412,H=792;const [svg,X,Y]=graph(W,H,curves,dots);
+ pts.insertAdjacentHTML('beforeend',phone(theme,`<div class="bar">Graph<span class="sp"></span><span class="ib">⌂</span><span class="ib">⚙</span></div><div class="graph">${svg}${pop(X,Y)}</div>`,cap))}
+add('light','A maximum: kind chip, both coordinates, and the area from here.',[[x=>Math.sin(x),'#5B6133']],[[Math.PI/2,1,'#5B6133']],
+ (X,Y)=>card({x:X(Math.PI/2)-118,y:Y(1)-196,kind:'Maximum',name:'<span class="r">sin</span> <span class="m">x</span>',color:'#5B6133',rows:[['x','1.570 796'],['y','1']],acts:[['area','Area from here']]}));
+add('light','An ordinary point while dragging along the curve: no chip, no actions.',[[x=>0.25*x*x-1,'#8E4E48']],[[3.2,1.56,'#8E4E48']],
+ (X,Y)=>card({x:X(3.2)-118,y:Y(1.56)-156,name:'<span class="m">y</span> <span class="r">=</span> <span class="m">x</span><sup class="r" style="font-size:12px">2</sup><span class="r">/4 − 1</span>',color:'#8E4E48',rows:[['x','3.2'],['y','1.56']]}));
+add('dark','Dark mode, at a crossing: area under the curve, or between the two.',[[x=>Math.sin(x),'#C5CB86'],[x=>0.3*x-0.6,'#FFB4AB']],[[2.395,0.1185,'#C5CB86']],
+ (X,Y)=>card({x:X(2.395)-145,y:Y(0.1185)-204,kind:'Intersection',name:'',color:'#C5CB86',rows:[['x','2.395 44'],['y','0.118 63']],acts:[['area','Area'],['between','Between curves']],tail:'50%'}));
+add('dark','Polar grid on: r and θ instead of x and y. Near the top it opens below.',[[x=>Math.sin(x),'#C5CB86']],[[0.35,Math.sin(.35),'#C5CB86']],
+ (X,Y)=>card({x:X(0.35)-80,y:Y(Math.sin(.35))+22,below:true,tail:'80px',name:'<span class="r">sin</span> <span class="m">x</span>',color:'#C5CB86',rows:[['r','0.482 67'],['θ','0.750 41']]}));
+
+// ---------- constants
+const C=[['Universal',[
+ ['<span class="m">c</span>','Speed of light in vacuum','299 792 458','m/s',1],
+ ['<span class="m">h</span>','Planck constant','6.626 070 15 × 10<sup>−34</sup>','J·s',1],
+ ['<span class="r">ℏ</span>','Reduced Planck constant','1.054 571 817… × 10<sup>−34</sup>','J·s',0],
+ ['<span class="m">k</span><sub class="r" style="font-size:15px">B</sub>','Boltzmann constant','1.380 649 × 10<sup>−23</sup>','J/K',1],
+ ['<span class="m">G</span>','Newtonian constant of gravitation','6.674 30 × 10<sup>−11</sup>','m³/(kg·s²)',0]]],
+ ['Electromagnetic',[
+ ['<span class="m">e</span><sup class="r" style="font-size:15px">−</sup>','Elementary charge','1.602 176 634 × 10<sup>−19</sup>','C',1],
+ ['<span class="m">μ</span><sub class="r" style="font-size:15px">0</sub>','Vacuum magnetic permeability','1.256 637 061 27 × 10<sup>−6</sup>','N/A²',0],
+ ['<span class="m">ε</span><sub class="r" style="font-size:15px">0</sub>','Vacuum electric permittivity','8.854 187 818 8 × 10<sup>−12</sup>','F/m',0]]]];
+function row(r,pos){return `<div class="it ${pos}"><div class="sym">${r[0]}</div><div class="tx"><div class="nm">${r[1]}${r[4]?'<span class="ex">exact</span>':''}</div><div class="val r">${r[2]}<span class="u">${r[3]}</span></div></div><span class="cp">${I.copy}</span></div>`}
+function sheet(theme,cap,{query,chip,groups,units}){
+ let list=groups.map(([g,rs])=>`<div class="sec">${g}</div>`+rs.map((r,i)=>row(r,rs.length==1?'first last':i==0?'first':i==rs.length-1?'last':'mid')).join('')).join('');
+ const chips=['All','Universal','Electromagnetic','Atomic and nuclear','Physicochemical','Adopted'].map(c=>`<span class="fc${c==chip?' on':''}">${c}</span>`).join('');
+ document.getElementById('consts').insertAdjacentHTML('beforeend',phone(theme,`<div class="bar">Calculator</div><div class="scrim"></div><div class="sheet"><div class="handle"></div><div class="sh"><span class="t">Physical constants</span><span class="unit">${units}</span></div><div class="search">${I.search}<span style="${query?'color:var(--on)':''}">${query||'Search constants'}</span></div><div class="chips">${chips}</div><div class="list">${list}</div></div>`,cap));
+}
+sheet('light','Open: all constants, grouped; tap to insert, copy the value.',{chip:'All',groups:C,units:'SI units'});
+sheet('dark','Dark mode, filtered to one category.',{chip:'Electromagnetic',groups:[C[1]],units:'SI units'});
+sheet('light','Searching “planck” (names and symbols); values in Planck units.',{query:'planck',chip:'All',units:'Planck units',groups:[['Universal',[
+ ['<span class="m">h</span>','Planck constant','2π','',0],['<span class="r">ℏ</span>','Reduced Planck constant','1','',0]]],['Physicochemical',[['<span class="m">N</span><sub class="r" style="font-size:15px">A</sub><span class="m">h</span>','Molar Planck constant','3.990 312 712… × 10<sup>−10</sup>','',0]]]]});
+document.fonts.ready.then(()=>document.title='ready');
+</script></body></html>

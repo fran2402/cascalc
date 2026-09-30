@@ -236,7 +236,7 @@ object ComplexCompiler {
     private val GAUSS_W = doubleArrayOf(0.0666713443086881, 0.1494513491505806, 0.2190863625159820, 0.2692667193099963, 0.2955242247147529, 0.2955242247147529, 0.2692667193099963, 0.2190863625159820, 0.1494513491505806, 0.0666713443086881)
 }
 
-/** Which extra features the domain colouring shows. */
+/** Which extra features the domain coloring shows. */
 data class ColoringOptions(
     /** Brightness steps at each doubling of |f|: contours of the modulus. */
     val modulusBands: Boolean = true,
@@ -244,16 +244,16 @@ data class ColoringOptions(
     val phaseLines: Boolean = false,
     /** Lines where Re f or Im f is a whole number: the image of the grid, showing conformality. */
     val grid: Boolean = false,
-    /** The colours for arg f. */
+    /** The colors for arg f. */
     val colormap: Colormap = Colormap.CLASSIC,
     /** The colormap run backwards (matplotlib's _r maps). */
     val reversed: Boolean = false,
 )
 
 /**
- * Domain colouring: each point z is coloured by f(z). Hue is the argument
+ * Domain coloring: each point z is colored by f(z). Hue is the argument
  * (red = positive real, then yellow, green, cyan, blue, magenta going
- * anticlockwise), brightness is the modulus (zeros black, poles white).
+ * counterclockwise), brightness is the modulus (zeros black, poles white).
  */
 object DomainColoring {
     fun color(w: CD, o: ColoringOptions): Int {
@@ -316,7 +316,7 @@ object DomainColoring {
     }
 
     /**
-     * Colours a [width] × [height] image of the view, one pixel per sample
+     * Colors a [width] × [height] image of the view, one pixel per sample
      * (row 0 at the top, like the screen). [shouldStop] lets a newer render
      * cancel this one.
      */
@@ -345,7 +345,7 @@ object DomainColoring {
     /**
      * ∮ f(z) dz along a closed path (the last point joins the first), by the
      * midpoint rule on each segment split into [steps] pieces. Dividing by 2πi
-     * gives the sum of the residues inside (for a path going once anticlockwise).
+     * gives the sum of the residues inside (for a path going once counterclockwise).
      */
     fun contourIntegral(f: ComplexFunction, params: DoubleArray, path: List<CD>, steps: Int = 8): CD {
         if (path.size < 3) throw MathError("Draw a closed loop")

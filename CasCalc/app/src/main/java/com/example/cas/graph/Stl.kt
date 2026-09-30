@@ -4,9 +4,9 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * A 3D graph as an STL file, for 3D printing or modelling programs: every polygon cut into
+ * A 3D graph as an STL file, for 3D printing or modeling programs: every polygon cut into
  * triangles, written as binary STL. The box is scaled so its longest side is [size]
- * millimetres, with its lowest corner at the origin.
+ * millimeters, with its lowest corner at the origin.
  */
 object Stl {
     fun write(polygons: List<Polygon>, b: Bounds, size: Double = 100.0, name: String = "CAS Scientific Calculator graph"): ByteArray {

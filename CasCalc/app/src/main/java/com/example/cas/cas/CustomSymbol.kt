@@ -32,7 +32,7 @@ data class CustomSymbol(
     val preSup: String = "",
     val bold: Boolean = false,
     /**
-     * Scripts written upright, as text rather than as maths (typed from the keyboard, or with
+     * Scripts written upright, as text rather than as math (typed from the keyboard, or with
      * italic off): letters from "s" subscript, "p" superscript, "l" left subscript, "q" left
      * superscript; "u" is the letter itself upright (\mathrm{d}, or a word: \text{max}).
      */
@@ -56,9 +56,9 @@ data class CustomSymbol(
             val plainLetter = if (isUpright('u')) (if (base.length == 1) "\\mathrm{$base}" else "\\text{$base}") else letter
             val b = if (bold) "\\boldsymbol{$plainLetter}" else plainLetter
             val withAccent = accent?.let { "${it.latex}{$b}" } ?: b
-            fun maths(s: String) = s.map { LATEX_NAMES[it.toString()]?.let { n -> "$n " } ?: it.toString().replace("−", "-") }.joinToString("").trim()
+            fun math(s: String) = s.map { LATEX_NAMES[it.toString()]?.let { n -> "$n " } ?: it.toString().replace("−", "-") }.joinToString("").trim()
             // An upright script is text: \text{max}.
-            fun script(s: String, slot: Char) = if (isUpright(slot)) "\\text{$s}" else maths(s)
+            fun script(s: String, slot: Char) = if (isUpright(slot)) "\\text{$s}" else math(s)
             val pre = if (preSub.isEmpty() && preSup.isEmpty()) "" else "{}" + (if (preSub.isNotEmpty()) "_{${script(preSub, 'l')}}" else "") + (if (preSup.isNotEmpty()) "^{${script(preSup, 'q')}}" else "")
             return pre + withAccent + (if (sub.isNotEmpty()) "_{${script(sub, 's')}}" else "") + (if (sup.isNotEmpty()) "^{${script(sup, 'p')}}" else "")
         }
@@ -174,7 +174,7 @@ data class CustomSymbol(
             /** Which scripts were written as \text{…} (upright): sub, sup. */
             var uprightSub = false
             var uprightSup = false
-            /** A script's content: \text{…}, \mathrm{…} or \textrm{…} (upright, kept as typed), or maths. */
+            /** A script's content: \text{…}, \mathrm{…} or \textrm{…} (upright, kept as typed), or math. */
             fun script(g: String, set: (Boolean) -> Unit): String {
                 val m = Regex("""^\s*\\(text|mathrm|textrm|textit|operatorname)\s*\{(.*)\}\s*$""").find(g)
                 return if (m != null) { set(true); m.groupValues[2] } else { set(false); scriptText(g) }

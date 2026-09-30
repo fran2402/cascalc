@@ -205,11 +205,11 @@ fun SymbolBuilderPage(onDone: (String?) -> Unit) {
                 box(Slot.Sub)
             }
         }
-        // Italic: letters in the chosen box as maths (italic) or as text (upright).
+        // Italic: letters in the chosen box as math (italic) or as text (upright).
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Italic", style = MaterialTheme.typography.bodyLarge)
-                Text("Letters in the ${slot.label.lowercase()} as maths; off for upright text", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                Text("Letters in the ${slot.label.lowercase()} as math; off for upright text", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             }
             Switch(checked = slot.flag !in upright, onCheckedChange = { on -> if (on) upright.remove(slot.flag) else if (slot.flag !in upright) upright += slot.flag; changed() })
         }

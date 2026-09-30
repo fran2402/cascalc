@@ -1,5 +1,9 @@
 package com.example.cas.ui
 
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ContentCopy
 import android.view.HapticFeedbackConstants
 import android.content.Context
 import androidx.compose.foundation.layout.offset
@@ -236,7 +240,7 @@ fun Keypad(host: KeypadHost, modifier: Modifier = Modifier, tablet: Boolean = fa
         onDone = { symbol -> showBuilder = false; if (symbol != null) { SavedSymbols.add(symbol); host.press(KeyAction.Type(symbol)) } },
     )
     val screen = LocalConfiguration.current.screenHeightDp.dp
-    // A little shorter than Google Calculator's keys, to leave more room for the maths.
+    // A little shorter than Google Calculator's keys, to leave more room for the math.
     // The same size in all four modes (calculator, 2D, 3D, complex).
     // On a tablet the keyboard has a whole column to itself, so its keys are taller.
     val mainRow = if (tablet) (screen * 0.075f * AppSettings.keypadScale).coerceIn(44.dp, 88.dp)
@@ -408,7 +412,7 @@ private fun InputPanel(vm: CalculatorViewModel) {
         if (vm.editor.row === vm.editor.root && vm.editor.index == vm.editor.root.items.size) scroll.animateScrollTo(scroll.maxValue)
     }
     Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), horizontalAlignment = Alignment.End) {
-        // Where the maths sits in its box, so a tap beside it (the space to its left, or just past
+        // Where the math sits in its box, so a tap beside it (the space to its left, or just past
         // its end) puts the cursor at the start or the end of the line.
         var mathLeft by remember { mutableStateOf(0f) }
         var mathRight by remember { mutableStateOf(0f) }
@@ -911,7 +915,7 @@ private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, 
 /**
  * A key's explanation as a dialog over the darkened screen: its name, the
  * formula (LaTeX, drawn by the calculator's own renderer), a line of theory
- * with inline maths, and how to use it. It stays until Dismiss (or Back).
+ * with inline math, and how to use it. It stays until Dismiss (or Back).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -1002,22 +1006,22 @@ private fun KeyHelpDialog(
     )
 }
 
-/** Text with inline maths written \( … \): words flow and wrap, the maths is drawn in Computer Modern. */
+/** Text with inline math written \( … \): words flow and wrap, the math is drawn in Computer Modern. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TextWithMaths(text: String, style: TextStyle, color: Color) {
     FlowRow(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         LatexParser.inline(text).forEach { (isMaths, piece) ->
             if (isMaths) {
-                val maths = remember(piece) { LatexParser.parse(piece) }
-                MathView(maths, style.fontSize * 1.15f, color, modifier = Modifier.align(Alignment.CenterVertically))
+                val math = remember(piece) { LatexParser.parse(piece) }
+                MathView(math, style.fontSize * 1.15f, color, modifier = Modifier.align(Alignment.CenterVertically))
             } else {
                 // One Text per word so lines can wrap between words.
                 val words = piece.split(" ")
                 val firstWord = words.indexOfFirst { it.isNotEmpty() }
                 words.forEachIndexed { k, word ->
                     if (word.isNotEmpty()) {
-                        // Keep the space between maths and the word after it ("… \(x\) here").
+                        // Keep the space between math and the word after it ("… \(x\) here").
                         val lead = if (k == firstWord && piece.startsWith(" ")) " " else ""
                         Text(
                             lead + if (k < words.lastIndex || piece.endsWith(" ")) "$word " else word,
@@ -1053,7 +1057,7 @@ private fun QuickVariables(host: KeypadHost) {
                     .padding(horizontal = 14.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                // Letters in italic Computer Modern, as they appear in the maths.
+                // Letters in italic Computer Modern, as they appear in the math.
                 Text(v, color = colors.onTertiaryContainer, style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 20.sp))
             }
         }
@@ -1123,7 +1127,7 @@ fun ShowKeypadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     }
 }
 
-/** A key or tab label: text, maths notation (in Google Sans Flex), or an icon. */
+/** A key or tab label: text, math notation (in Google Sans Flex), or an icon. */
 @Composable
 private fun LabelView(label: KeyLabel, fg: Color, fontSize: Float, iconSize: Dp) {
     val glyphs = LocalGlyphFallback.current
@@ -1208,46 +1212,127 @@ private fun MatrixPickerDialog(onPick: (Int, Int) -> Unit, onDismiss: () -> Unit
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Every physical constant: a search, a chip per section of the list, then the constants in
+ * rounded groups, each with its symbol on a tile, its name, its value in the chosen units and
+ * its SI unit. Tap one to insert it; the copy button copies its value.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun ConstantsSheet(units: UnitSystem, onPick: (String) -> Unit, onDismiss: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Text(
-            "Physical constants · ${units.label} units",
-            color = colors.onSurface,
-            style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 18.sp),
-            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
-        )
-        LazyColumn(contentPadding = PaddingValues(bottom = 32.dp)) {
-            items(Constant.entries) { k ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable(onClickLabel = "Insert ${k.description}") { onPick(k.id) }
-                        .padding(horizontal = 24.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(Modifier.width(72.dp)) { MathView(row(Const(k.id)), 22.sp, colors.onSurface) }
-                    Column(Modifier.weight(1f)) {
-                        Text(k.description, color = colors.onSurface, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 15.sp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            MathView(Formatter.row(com.example.cas.cas.Numeric.approx(k.value(units))), 15.sp, colors.onSurfaceVariant)
-                            // SI units only mean something in SI; other systems are in their own units.
-                            if (units == UnitSystem.SI && k.unit.isNotEmpty()) {
-                                Text("  " + k.unit, color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp))
+    val clipboard = LocalClipboardManager.current
+    var query by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf<String?>(null) }
+    fun symbolText(k: Constant) = k.pieces.joinToString("") { it.text + it.sub + it.sup }
+    val shown = remember(query, category) {
+        val q = query.trim().lowercase()
+        Constant.entries.filter { k ->
+            (category == null || k.category == category) &&
+                (q.isEmpty() || k.description.lowercase().contains(q) || k.id.lowercase() == q || symbolText(k).lowercase() == q)
+        }.groupBy { it.category }
+    }
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerLow) {
+        Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Physical constants", style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.weight(1f))
+            Text(
+                "${units.label} units",
+                style = MaterialTheme.typography.labelMedium,
+                color = colors.onSecondaryContainer,
+                modifier = Modifier.clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+        }
+        // The search, as a pill.
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).height(52.dp).clip(CircleShape).background(colors.surfaceContainerHighest).padding(horizontal = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Default.Search, contentDescription = null, tint = colors.onSurfaceVariant)
+            Spacer(Modifier.width(12.dp))
+            Box(Modifier.weight(1f)) {
+                if (query.isEmpty()) Text("Search constants", color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
+                androidx.compose.foundation.text.BasicTextField(
+                    query, { query = it }, singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.primary),
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Search constants" },
+                )
+            }
+            if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Default.Close, contentDescription = "Clear the search", tint = colors.onSurfaceVariant) }
+        }
+        // A chip for each section of the list.
+        Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            (listOf<String?>(null) + Constant.CATEGORIES).forEach { c ->
+                androidx.compose.material3.FilterChip(
+                    selected = category == c,
+                    onClick = { category = c },
+                    label = { Text(c ?: "All") },
+                    leadingIcon = if (category == c) ({ Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }) else null,
+                )
+            }
+        }
+        LazyColumn(contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 32.dp)) {
+            if (shown.isEmpty()) item {
+                Text("No constant matches “$query”.", color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(24.dp))
+            }
+            shown.forEach { (section, list) ->
+                item(key = "h$section") {
+                    Text(section, style = MaterialTheme.typography.labelLarge, color = colors.primary, modifier = Modifier.padding(start = 12.dp, top = 14.dp, bottom = 6.dp))
+                }
+                items(list, key = { it.id }) { k ->
+                    val i = list.indexOf(k)
+                    // One rounded group per section: big corners at its ends, small between rows.
+                    val big = 20.dp; val small = 6.dp
+                    val shape = RoundedCornerShape(
+                        topStart = if (i == 0) big else small, topEnd = if (i == 0) big else small,
+                        bottomStart = if (i == list.lastIndex) big else small, bottomEnd = if (i == list.lastIndex) big else small,
+                    )
+                    val value = k.value(units)
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 2.dp)
+                            .clip(shape)
+                            .background(colors.surfaceContainer)
+                            .clickable(onClickLabel = "Insert ${k.description}") { onPick(k.id) }
+                            .padding(start = 10.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(colors.primaryContainer), contentAlignment = Alignment.Center) {
+                            MathView(row(Const(k.id)), 22.sp, colors.onPrimaryContainer)
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            FlowRow(verticalArrangement = Arrangement.Center, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(k.description, color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
+                                if (k.exact && units == UnitSystem.SI) Text(
+                                    "exact",
+                                    color = colors.onTertiaryContainer,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.align(Alignment.CenterVertically).clip(CircleShape).background(colors.tertiaryContainer).padding(horizontal = 8.dp, vertical = 2.dp),
+                                )
+                            }
+                            Spacer(Modifier.height(3.dp))
+                            Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+                                MathView(Formatter.row(com.example.cas.cas.Numeric.approx(value)), 16.sp, colors.onSurface)
+                                // SI units only mean something in SI; other systems are in their own units.
+                                if (units == UnitSystem.SI && k.unit.isNotEmpty()) {
+                                    Text("  " + k.unit, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                                }
                             }
                         }
-                    }
-                    if (k.exact && units == UnitSystem.SI) {
-                        Text("exact", color = colors.primary, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp))
+                        IconButton(onClick = {
+                            val text = if (units == UnitSystem.SI) k.decimal else com.example.cas.cas.Numeric.real(value).toString()
+                            clipboard.setText(AnnotatedString(text))
+                        }) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy the value of ${k.description}", tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                        }
                     }
                 }
             }
         }
     }
 }
-
 
 @Composable
 internal fun SettingsSection(title: String) =
@@ -1338,9 +1423,9 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             }
             // Without Material You, the colors grow from one you choose.
             if (!wallpaperColors || !AppSettings.dynamicColor) ThemeColorChoice()
-            SettingsChoice("Maths size", listOf("Small", "Medium", "Large"), AppSettings.mathSize, AppSettings::changeMathSize)
+            SettingsChoice("Math size", listOf("Small", "Medium", "Large"), AppSettings.mathSize, AppSettings::changeMathSize)
             SettingsChoice("Keypad size", listOf("Compact", "Medium", "Tall"), AppSettings.keypadSize, AppSettings::changeKeypadSize)
-            // Only on tablets (and unfolded foldables), where the keyboard sits beside the maths.
+            // Only on tablets (and unfolded foldables), where the keyboard sits beside the math.
             if (tablet) SettingsChoice("Keyboard side", listOf("Left", "Right"), AppSettings.keypadSide, AppSettings::changeKeypadSide)
             SettingsToggle("Expressive motion", "Springy animations; off for calmer ones", AppSettings.expressiveMotion, AppSettings::changeExpressiveMotion)
         },
@@ -1428,7 +1513,7 @@ private fun shareText(context: Context, text: String) {
 }
 
 
-/** Letters offered for coordinates: the usual ones in maths and physics. */
+/** Letters offered for coordinates: the usual ones in math and physics. */
 // The usual choices (x, y, z, r, ρ, θ, φ) come first so they're visible without scrolling.
 private val COORDINATE_LETTERS = listOf("x", "y", "z", "r", "ρ", "θ", "φ", "s", "ϕ", "ψ", "u", "v", "w", "t", "q", "ξ", "η", "ζ", "i", "j", "k", "a", "b", "c", "h", "l", "α", "β", "γ")
 
@@ -1448,7 +1533,7 @@ private fun CoordinatesDialog(current: com.example.cas.cas.Coordinates, onDone: 
 
 /**
  * Choosing three coordinate letters: a row of letters for each coordinate ([roles]), one tap
- * each, letters in use elsewhere greyed out. Used by the calculator's ∇ tab and the 3D graph.
+ * each, letters in use elsewhere grayed out. Used by the calculator's ∇ tab and the 3D graph.
  */
 @Composable
 internal fun CoordinateLettersDialog(title: String, roles: List<String>, current: List<String>, defaults: List<String>, onDone: (List<String>) -> Unit, onDismiss: () -> Unit) {
@@ -1492,7 +1577,7 @@ internal fun CoordinateLettersDialog(title: String, roles: List<String>, current
 }
 
 
-/** Maths sizes on the calculator screen, kept small so more fits. */
+/** Math sizes on the calculator screen, kept small so more fits. */
 object MathSizes {
     val input get() = (30 * AppSettings.mathScale).sp
     val preview get() = (17 * AppSettings.mathScale).sp

@@ -52,7 +52,7 @@ class UserFunctionTest {
         assertEquals("x^2+y^2+z^2=4", Printer.plain(e))
     }
 
-    // \mathcal and \mathfrak letters: stored as Unicode maths letters, usable as variables.
+    // \mathcal and \mathfrak letters: stored as Unicode math letters, usable as variables.
     @Test fun calligraphicLetters() {
         assertEquals("\uD835\uDC9C", com.example.cas.editor.MathAlphabets.calligraphic('A'))   // 𝒜
         assertEquals("\u212C", com.example.cas.editor.MathAlphabets.calligraphic('B'))          // ℬ

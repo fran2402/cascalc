@@ -77,9 +77,9 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
         internal set
     var error by mutableStateOf<String?>(null)
         internal set
-    /** A colour picked by long-pressing the dot (ARGB), or null for the theme's colour for [colorIndex]. */
+    /** A color picked by long-pressing the dot (ARGB), or null for the theme's color for [colorIndex]. */
     var customColor by mutableStateOf<Int?>(null)
-    /** On the complex plane: the colours for arg f. */
+    /** On the complex plane: the colors for arg f. */
     var colormap by mutableStateOf(com.example.cas.graph.Colormap.CLASSIC)
     /** The colormap run backwards. */
     var colormapReversed by mutableStateOf(false)
@@ -97,7 +97,7 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
     /** A line with a list in it (y = [1, 2, 3]x): one hidden line per entry, drawn in its place. */
     var family: List<PlotFunction> = emptyList()
         internal set
-    /** Text instead of maths: a note, or a folder's title (see [isFolder]). */
+    /** Text instead of math: a note, or a folder's title (see [isFolder]). */
     var note by mutableStateOf<String?>(null)
     /** A folder: the lines after it, up to the next folder, are in it. */
     var isFolder by mutableStateOf(false)
@@ -108,7 +108,7 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
     /** Notes and folders aren't drawn. */
     val isText get() = note != null
     /**
-     * The line's name in the legend, as LaTeX-style text with maths between $ signs
+     * The line's name in the legend, as LaTeX-style text with math between $ signs
      * ("Data", "$\sin x$"); null for the default (see [legendSource]).
      */
     var name by mutableStateOf<String?>(null)
@@ -419,7 +419,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         nextColor = index + 1
         val f = PlotFunction(r, index)
         // On the complex plane a new function takes the colormap at the top of your list.
-        if (isComplex) FavouriteColormaps.list.firstOrNull()?.let { f.colormap = com.example.cas.graph.Colormap.byName(it) }
+        if (isComplex) FavoriteColormaps.list.firstOrNull()?.let { f.colormap = com.example.cas.graph.Colormap.byName(it) }
         f.editor.onChange = {
             f.version++
             // Lines can use functions defined on other lines, so a list with definitions recompiles whole.
@@ -785,7 +785,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     val definedLetters: Set<String> get() = functions.mapNotNull { it.definition?.first }.toSet()
 
     /**
-     * The complex plane: w = f(z) (or just f(z)) is coloured; an equation that's real on
+     * The complex plane: w = f(z) (or just f(z)) is colored; an equation that's real on
      * both sides (|z − 1| = 2, x² + y² = 4) is drawn as a curve; ∮ around a circle draws the
      * circle with the integral's value. x, y, r, θ mean ℜz, ℑz, |z|, arg z.
      */
@@ -1132,10 +1132,10 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             .apply()
     }
 
-    /** A line as saved: its maths, or for a note or folder a placeholder (its text is in [notesJson]). */
+    /** A line as saved: its math, or for a note or folder a placeholder (its text is in [notesJson]). */
     private fun encodeLine(f: PlotFunction) = if (f.isText) MathCodec.encode(MathRow(mutableListOf(com.example.cas.editor.Sym("…")))) else MathCodec.encode(f.editor.root)
 
-    /** Notes' and folders' texts, by position (null for maths lines). */
+    /** Notes' and folders' texts, by position (null for math lines). */
     private fun notesJson(): String = org.json.JSONArray().apply {
         functions.forEach { f ->
             put(if (!f.isText) org.json.JSONObject.NULL else org.json.JSONObject().apply { put("text", f.note); put("folder", f.isFolder); put("collapsed", f.collapsed); put("level", f.folderLevel) })
@@ -1281,7 +1281,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         return passed.filter { it !in unit && !hiddenByFolder(it) }
     }
 
-    /** A folder's colour ([PlotFunction.customColor]) and name, set together from its dialog. */
+    /** A folder's color ([PlotFunction.customColor]) and name, set together from its dialog. */
     fun setFolder(folder: PlotFunction, name: String, color: Int?) {
         folder.note = name
         folder.customColor = color
@@ -1343,7 +1343,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         save()
     }
 
-    /** The colours for arg f on the complex plane. */
+    /** The colors for arg f on the complex plane. */
     fun setColormap(f: PlotFunction, map: com.example.cas.graph.Colormap, reversed: Boolean = false) {
         f.colormap = map
         f.colormapReversed = reversed
@@ -1351,7 +1351,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         save()
     }
 
-    /** Sets (or with null, resets) a function's colour. */
+    /** Sets (or with null, resets) a function's color. */
     fun setColor(f: PlotFunction, argb: Int?) {
         f.customColor = argb
         version++
@@ -1469,7 +1469,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         const val PLOT_COLOR_COUNT = 5
     }
 
-    // Kotlin runs initialisers top to bottom, so saved functions are compiled here, last:
+    // Kotlin runs initializers top to bottom, so saved functions are compiled here, last:
     // compiling needs the unit and coordinate settings declared above. (Doing it in the first
     // init block made every saved graph fail with "Can't graph this" on reopening.)
     init {
@@ -1484,7 +1484,7 @@ class Graph2DViewModel(app: Application) : GraphViewModel(app, "g2", listOf("x")
     /** Draw a polar grid (circles and rays) instead of the square grid, and read points as (r, θ). */
     var polarGrid by mutableStateOf(false)
 
-    /** Equal scales on both axes (a circle looks round), keeping the centre and the x range. */
+    /** Equal scales on both axes (a circle looks round), keeping the center and the x range. */
     fun zoomSquare(width: Int, height: Int) {
         val v = view ?: return
         if (width == 0 || height == 0) return
@@ -1557,7 +1557,7 @@ class Graph3DViewModel(app: Application) : GraphViewModel(app, "g3", listOf("x",
 
 
 
-    /** Zooms the x and y ranges about their centres (the − and + buttons). */
+    /** Zooms the x and y ranges about their centers (the − and + buttons). */
     fun scaleRanges(factor: Double) {
         val cx = (xMin + xMax) / 2; val hx = (xMax - xMin) / 2 * factor
         val cy = (yMin + yMax) / 2; val hy = (yMax - yMin) / 2 * factor
@@ -1567,20 +1567,20 @@ class Graph3DViewModel(app: Application) : GraphViewModel(app, "g3", listOf("x",
 }
 
 /**
- * Complex functions f(z), drawn by domain colouring on the complex plane.
+ * Complex functions f(z), drawn by domain coloring on the complex plane.
  * The plotted function is the one being edited or tapped, else the first shown.
  */
 class ComplexViewModel(app: Application) : GraphViewModel(app, "gc", listOf("z"), defaults = emptyList()) {
     var view by mutableStateOf<Viewport?>(null)
     var options by mutableStateOf(com.example.cas.graph.ColoringOptions())
-    /** Circles of constant |z| and rays of constant arg z over the colouring. */
+    /** Circles of constant |z| and rays of constant arg z over the coloring. */
     var polarGrid by mutableStateOf(false)
     /** Drawing a loop for ∮ f dz instead of moving the view. */
     var contourMode by mutableStateOf(false)
     var contour by mutableStateOf<List<com.example.cas.cas.CD>>(emptyList())
     var contourResult by mutableStateOf<com.example.cas.cas.CD?>(null)
 
-    /** The function coloured: the one being edited if it's a function, else the first visible one. */
+    /** The function colored: the one being edited if it's a function, else the first visible one. */
     val plotted: PlotFunction? get() = active?.takeIf { it.complexCompiled != null }
         ?: functions.firstOrNull { it.visible && it.complexCompiled != null }
 

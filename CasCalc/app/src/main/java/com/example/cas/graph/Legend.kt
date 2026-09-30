@@ -15,18 +15,18 @@ import com.example.cas.engine.LatexParser
 
 /**
  * Names of graph lines in the legend. A name is written like a matplotlib label: text, with
- * maths in LaTeX between dollar signs ("Data", "$\sin x$", "Fit $a = 2$"). A line's default name
- * is what's typed, as maths; a list of points is "Data".
+ * math in LaTeX between dollar signs ("Data", "$\sin x$", "Fit $a = 2$"). A line's default name
+ * is what's typed, as math; a list of points is "Data".
  */
 object Legend {
-    /** The name a line has until it's renamed: its maths, or "Data" for a list of points. */
+    /** The name a line has until it's renamed: its math, or "Data" for a list of points. */
     fun defaultSource(row: MathRow, isData: Boolean): String = when {
         isData -> "Data"
         row.items.isEmpty() -> ""
         else -> "$" + Latex.of(row) + "$"
     }
 
-    /** The name split into (piece, is it maths?); \$ is a dollar sign in the text. */
+    /** The name split into (piece, is it math?); \$ is a dollar sign in the text. */
     fun segments(source: String): List<Pair<String, Boolean>> {
         val out = ArrayList<Pair<String, Boolean>>()
         val cur = StringBuilder()
@@ -45,11 +45,11 @@ object Legend {
         return out
     }
 
-    /** The name as a row for drawing: text pieces as upright words, maths as parsed. */
+    /** The name as a row for drawing: text pieces as upright words, math as parsed. */
     fun row(source: String): MathRow {
         val out = MathRow()
         for ((piece, math) in segments(source)) {
-            // Text is upright, even a single letter (which in maths would be italic).
+            // Text is upright, even a single letter (which in math would be italic).
             if (!math) { out.add(Sym(if (piece.length == 1 && piece[0].isLetter()) LatexParser.UPRIGHT + piece else piece)); continue }
             val parsed = runCatching { LatexParser.parse(piece) }.getOrNull()
             if (parsed == null) { out.add(Sym(piece)); continue }

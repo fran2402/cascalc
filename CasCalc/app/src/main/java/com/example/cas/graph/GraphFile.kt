@@ -2,7 +2,7 @@ package com.example.cas.graph
 
 /**
  * CasCalc's own graph files: .g2d (2D graphs), .g3d (3D graphs) and .gcp (complex plots). A
- * file holds one graph as saved (its lines, colours, styles, notes, sliders and ranges), so it
+ * file holds one graph as saved (its lines, colors, styles, notes, sliders and ranges), so it
  * opens again exactly as it was, on this device or another.
  *
  * Plain UTF-8 text: a first line naming the format and version, then one entry per line,

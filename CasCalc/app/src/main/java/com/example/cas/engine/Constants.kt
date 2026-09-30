@@ -151,10 +151,20 @@ enum class Constant(
         return Flt(v)
     }
 
+    /** Its section in Wikipedia's list, which the entries follow in order. */
+    val category: String get() = when {
+        ordinal <= WienEntropy.ordinal -> "Universal"
+        ordinal <= Permittivity.ordinal -> "Electromagnetic"
+        ordinal <= Fermi.ordinal -> "Atomic and nuclear"
+        ordinal <= MolarVolumeSi.ordinal -> "Physicochemical"
+        else -> "Adopted values"
+    }
+
     /** Backwards compatible: the SI value. */
     val value: Expr get() = value(UnitSystem.SI)
 
     companion object {
         fun byId(id: String) = entries.firstOrNull { it.id == id }
+        val CATEGORIES = listOf("Universal", "Electromagnetic", "Atomic and nuclear", "Physicochemical", "Adopted values")
     }
 }

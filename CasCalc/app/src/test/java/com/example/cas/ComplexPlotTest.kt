@@ -53,7 +53,7 @@ class ComplexPlotTest {
     @Test fun compileExp() = near(f(row(Sym("e"), Pow(row("z"))))(CD(0.0, PI), DoubleArray(0)), CD(-1.0))
     @Test fun compileSqrtBranch() = near(f(row(com.example.cas.editor.Sqrt(row("z"))))(CD(-4.0, -1e-12), DoubleArray(0)), CD(0.0, -2.0), 1e-6)
 
-    // ---- Colours
+    // ---- Colors
     private fun rgb(c: Int) = Triple((c shr 16) and 255, (c shr 8) and 255, c and 255)
     @Test fun zeroIsBlack() = assertEquals(Triple(0, 0, 0), rgb(DomainColoring.color(CD(0.0), ColoringOptions(modulusBands = false))))
     @Test fun infinityIsWhite() = assertEquals(Triple(255, 255, 255), rgb(DomainColoring.color(CD(Double.POSITIVE_INFINITY), ColoringOptions())))

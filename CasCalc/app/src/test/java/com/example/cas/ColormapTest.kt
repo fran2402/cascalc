@@ -43,7 +43,7 @@ class ColormapTest {
     }
 
     @Test fun unitModulusShowsTheMapsOwnColour() {
-        // |f| = 1 is the middle brightness, so the map's colour shows unchanged.
+        // |f| = 1 is the middle brightness, so the map's color shows unchanged.
         val w = CD(-1.0, 1e-12)
         val c = DomainColoring.color(w, ColoringOptions(modulusBands = false, colormap = Colormap.VIRIDIS))
         assertTrue(close(c, Colormap.VIRIDIS.rgb(1.0)))
@@ -70,7 +70,7 @@ class ColormapTest {
     }
 
     @Test fun qualitativeMapsKeepTheirColours() {
-        // tab10's first colour, #1f77b4, unblended.
+        // tab10's first color, #1f77b4, unblended.
         assertTrue(close(Colormap.byName("tab10").rgb(0.02), 0x1F77B4, 0))
     }
 

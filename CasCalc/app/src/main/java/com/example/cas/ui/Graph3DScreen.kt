@@ -128,7 +128,7 @@ fun Graph3DScreen(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
     }
 }
 
-/** "x ∈ [a, b],  y ∈ [c, d]" with the letters in italic Computer Modern, like the maths. */
+/** "x ∈ [a, b],  y ∈ [c, d]" with the letters in italic Computer Modern, like the math. */
 private fun limitsText(vm: Graph3DViewModel): AnnotatedString = buildAnnotatedString {
     fun letter(v: String) = withStyle(SpanStyle(fontFamily = CasFonts.CmItalic)) { append(v) }
     val (lx, ly) = vm.letters3D.getValue(Coordinates3D.Mode.Cartesian)
@@ -265,7 +265,7 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier) {
     var size by remember { mutableStateOf(IntSize.Zero) }
     var picked by remember { mutableStateOf<DoubleArray?>(null) }
     val version = vm.version
-    // Low and high colours of each surface's height gradient, following picked colours.
+    // Low and high colors of each surface's height gradient, following picked colors.
     val gradients = (0 until GraphViewModel.PLOT_COLOR_COUNT).map { k ->
         val c = vm.functions.firstOrNull { it.colorIndex == k }?.customColor?.let { Color(it) } ?: plotColor(k)
         lerp(c, Color.Black, 0.35f) to lerp(c, Color.White, 0.45f)

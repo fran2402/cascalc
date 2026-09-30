@@ -385,7 +385,7 @@ object Calculus {
      * lim f(x) as x → a, from both sides ([side] 0), the right (+1) or the left (−1).
      * At ±∞, x is replaced by ±1/t with t → 0⁺. Otherwise: direct substitution,
      * then cancelling, then L'Hôpital's rule for 0/0, and numerically as a last
-     * resort, which also recognises limits that are ±∞.
+     * resort, which also recognizes limits that are ±∞.
      */
     /** A held Σ whose upper limit → ∞ as x → [a] is worked out as an infinite sum. */
     private fun replaceInfiniteSums(e: Expr, x: Sym, a: Expr): Expr = when {
@@ -399,7 +399,7 @@ object Calculus {
         else -> e
     }
 
-    /** Held ∮s whose radius → ∞ as x → [a] (centre fixed) become 2πi times the sum of all residues. */
+    /** Held ∮s whose radius → ∞ as x → [a] (center fixed) become 2πi times the sum of all residues. */
     private fun replaceGrowingContours(e: Expr, x: Sym, a: Expr): Expr = when {
         e is Fn && e.name == "contour" && e.args.size == 4 && e.args[2].freeOf(x) &&
             runCatching { isInfinite(limit(e.args[3], x, a)) }.getOrDefault(false) ->

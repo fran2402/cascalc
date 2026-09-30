@@ -154,7 +154,7 @@ class EngineTest {
     // ---- Constants
     @Test fun speedOfLightSquared() = assertEquals("89875517873681764", cas(row(Const("c0"), Pow(row("2")))))
 
-    // ---- Editor behaviour
+    // ---- Editor behavior
     @Test fun fractionTakesOperand() = assertEquals("'3;'+;frac{'1;'2;|'5;}", MathCodec.encode(type("3+12÷5")))
     @Test fun exitExponent() = assertEquals("'2;pow{'3;}'+;'1;", MathCodec.encode(type("2^3>+1")))
     @Test fun backspaceEmptyFraction() = assertEquals("'5;", MathCodec.encode(type("5+÷⌫⌫")))
@@ -172,7 +172,7 @@ class EngineTest {
         }
     }
 
-    // ---- More CAS behaviour
+    // ---- More CAS behavior
     @Test fun differenceOfSquares() = assertEquals("x^2-1", cas(row(f("expand", type("(x+1)(x−1)")))))
     @Test fun partialFractions() = assertEquals("ln(|x-1|)/2-ln(|x+1|)/2", cas(row(Integral(MathRow(), MathRow(), row(Frac(row("1"), row(Sym("x"), Pow(row("2")), Sym("−"), Sym("1")))), row("x")))))
     @Test fun trigSubstitution() = assertEquals("-cos(x)^2/2", cas(row(Integral(MathRow(), MathRow(), row(f("sin", row("x")), f("cos", row("x"))), row("x")))))

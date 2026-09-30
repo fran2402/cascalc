@@ -86,12 +86,12 @@ import kotlin.math.roundToInt
 
 /*
  * A small TeX-like renderer for editor trees. Every piece reports a "math
- * baseline" so rows line up the way printed maths does: fraction bars sit on
- * the maths axis, exponents ride above the previous item, brackets stretch
+ * baseline" so rows line up the way printed math does: fraction bars sit on
+ * the math axis, exponents ride above the previous item, brackets stretch
  * to their contents, and every empty slot shows a box you can tap.
  */
 
-/** Baseline used to line up maths. */
+/** Baseline used to line up math. */
 val MathBaseline = HorizontalAlignmentLine { a, b -> minOf(a, b) }
 
 /** Everything the renderer needs, provided once per [MathView]. A new instance on every edit makes all pieces redraw. */
@@ -105,7 +105,7 @@ class MathEnv(
     val cursorIndex: Int,
     /** Key labels draw empty slots as small dots instead of boxes. */
     val emptyAsDot: Boolean,
-    /** Computer Modern for the maths display; false for key labels, which use Google Sans Flex. */
+    /** Computer Modern for the math display; false for key labels, which use Google Sans Flex. */
     val computerModern: Boolean,
     val mathGlyphs: MathGlyphs,
     val onTap: ((MathRow, Int) -> Unit)?,
@@ -168,7 +168,7 @@ private val Loose = Constraints()
 
 private fun Density.em(env: MathEnv, level: Int) = env.size(level).toPx()
 
-/** Distance from the baseline up to the maths axis (where fraction bars and minus signs sit). */
+/** Distance from the baseline up to the math axis (where fraction bars and minus signs sit). */
 private fun Density.mathAxis(env: MathEnv, level: Int) = em(env, level) * 0.28f
 
 @Composable
@@ -342,7 +342,7 @@ fun RowView(row: MathRow, level: Int) {
         val cursor = cursorM?.measure(Constraints.fixed(2.dp.roundToPx(), max(asc + desc, (em * 1.05f).roundToInt())))
         val sum = placeables.sumOf { it!!.width }
         // The whole line with the cursor at its end: room for the cursor, so it isn't cut in half
-        // by a scrolling box that ends where the maths does.
+        // by a scrolling box that ends where the math does.
         val width = if (active && row.parent == null && items.isNotEmpty() && env.cursorIndex >= items.size) sum + (cursor?.width ?: 0) else sum
         layout(width, asc + desc, mapOf(MathBaseline to asc)) {
             var x = 0
@@ -1189,7 +1189,7 @@ internal fun alreadyBracketed(row: MathRow): Boolean {
 
 /**
  * A symbol from the symbol builder, drawn as TeX would: the letter (italic if Latin or small
- * Greek, upright if capital Greek), its accent centred above (shifted a little right on
+ * Greek, upright if capital Greek), its accent centered above (shifted a little right on
  * italic letters, as TeX does), and its subscript and superscript.
  */
 @Composable
@@ -1199,7 +1199,7 @@ internal fun CustomSymbolView(sym: com.example.cas.cas.CustomSymbol, level: Int,
     // blackboard, calligraphic and Fraktur letters upright.
     val c = base.firstOrNull() ?: ' '
     val italic = !sym.isUpright('u') && base.length == 1 && (c in 'a'..'z' || c in 'A'..'Z' || c in 'α'..'ω' || c in "ϵϑϕϱςϖϰ")
-    // A script as maths (letters italic), or, written as text, upright as typed.
+    // A script as math (letters italic), or, written as text, upright as typed.
     fun scriptRow(s: String, slot: Char): MathRow =
         if (sym.isUpright(slot)) MathRow(mutableListOf(Sym(com.example.cas.engine.LatexParser.UPRIGHT + s)))
         else MathRow(s.map { Sym(it.toString()) }.toMutableList())
@@ -1242,8 +1242,8 @@ private fun Phantom(content: @Composable () -> Unit) {
 private fun AccentedLetter(base: String, accent: com.example.cas.cas.Accent?, italic: Boolean, level: Int, bold: Boolean = false, upright: Boolean = false) {
     val env = LocalMath.current
     if (accent == null) { MathText(base, level, italic = italic, bold = bold, upright = upright); return }
-    // TeX's vector arrow is small. An arrow's ink is centred in its box (unlike the other accents),
-    // so it's placed at full size and scaled down about its own centre.
+    // TeX's vector arrow is small. An arrow's ink is centered in its box (unlike the other accents),
+    // so it's placed at full size and scaled down about its own center.
     val isVector = accent == com.example.cas.cas.Accent.Vector
     Layout(content = {
         MathText(base, level, italic = italic, bold = bold, upright = upright)
@@ -1255,7 +1255,7 @@ private fun AccentedLetter(base: String, accent: com.example.cas.cas.Accent?, it
         // The accent's ink sits high in its box: overlap it well down onto the letter, and further
         // on letters without an ascender (x, v, α…), as TeX lowers accents to the x-height.
         val short = base.length == 1 && base[0] in "acegmnopqrsuvwxyzαγεηικμνοπρστυφχψω"
-        // The arrow's ink is centred in its (tall) box, so it needs much less overlap than a hat
+        // The arrow's ink is centered in its (tall) box, so it needs much less overlap than a hat
         // or it sits on the letter: it's lifted to clear the letter's top.
         val overlap = if (isVector) (a.height * 0.3f + if (short) em * 0.16f else 0f).roundToInt()
             else (a.height * 0.55f + if (short) em * 0.22f else 0f).roundToInt()

@@ -82,7 +82,7 @@ sealed interface KeyAction {
 
 enum class KeyRole { Digit, Operator, Function, Clear, Equals }
 
-/** Pictures for operations that have no standard maths symbol. */
+/** Pictures for operations that have no standard math symbol. */
 enum class IconId {
     Simplify, Expand, Factor, Apart, Together, Answer, MoreConstants,
     // Tab icons (TabIcons.kt)
@@ -92,8 +92,8 @@ enum class IconId {
 sealed interface KeyLabel {
     data class Text(val text: String) : KeyLabel
     /**
-     * Drawn with the maths renderer (x², ⁿ√x, log_a(x)); [latex] draws it in Computer Modern
-     * like the maths itself, as the letters group does, rather than in Google Sans Flex.
+     * Drawn with the math renderer (x², ⁿ√x, log_a(x)); [latex] draws it in Computer Modern
+     * like the math itself, as the letters group does, rather than in Google Sans Flex.
      */
     class Math(val row: MathRow, val latex: Boolean = false) : KeyLabel
     data class Icon(val id: IconId) : KeyLabel
@@ -126,11 +126,18 @@ private fun math(r: MathRow, action: KeyAction, spoken: String) = KeySpec(KeyLab
 private fun type(t: String, spoken: String = t) = text(t, KeyAction.Type(t), spoken = spoken)
 
 
-private fun constant(id: String, spoken: String) = math(row(Const(id)), KeyAction.Insert(null) { Const(id) }, spoken)
+private fun constant(id: String, spoken: String) = math(constantLabel(id), KeyAction.Insert(null) { Const(id) }, spoken)
+
+/** A constant's key label: the constant itself, but a prime (Wien's b′) on the line, not raised. */
+private fun constantLabel(id: String): MathRow {
+    val pieces = com.example.cas.engine.Constant.byId(id)?.pieces ?: return row(Const(id))
+    val p = pieces.singleOrNull()?.takeIf { it.sub.isEmpty() && it.sup.isNotEmpty() && it.sup.all { c -> c == '′' } } ?: return row(Const(id))
+    return MathRow((listOf(Sym(p.text)) + p.sup.map { Sym("'") }).toMutableList<com.example.cas.editor.Node>())
+}
 
 private fun icon(id: IconId, action: KeyAction, spoken: String) = KeySpec(KeyLabel.Icon(id), action, KeyRole.Function, spoken)
 
-/** A key whose label is written in maths notation, e.g. "|A|" for det or "Av = λv" for eigenvectors. */
+/** A key whose label is written in math notation, e.g. "|A|" for det or "Av = λv" for eigenvectors. */
 private fun notation(label: MathRow, action: KeyAction, spoken: String) = math(label, action, spoken)
 
 private fun letters(vararg parts: String) = MathRow(parts.map { Sym(it) }.toMutableList())
@@ -210,7 +217,7 @@ val LetterKeys: List<List<KeySpec>> = run {
     keys += KeySpec(KeyLabel.Text(":="), KeyAction.Type(":="), KeyRole.Equals, "store in variable")
     // Every letter, including those that also have their own keys elsewhere (x, e, i, z, w, π),
     // so all of them are in one place.
-    // Drawn in LaTeX's fonts, as in the maths: italic Latin and small Greek, upright capital Greek.
+    // Drawn in LaTeX's fonts, as in the math: italic Latin and small Greek, upright capital Greek.
     fun letter(t: String, spoken: String) = KeySpec(KeyLabel.Math(row(Sym(t)), latex = true), KeyAction.Type(t), KeyRole.Function, spoken)
     ('a'..'z').forEach { c -> keys += letter(c.toString(), "letter $c") }
     ('A'..'Z').forEach { c -> keys += letter(c.toString(), "capital $c") }
@@ -404,7 +411,7 @@ private fun op(t: String, spoken: String, action: KeyAction = KeyAction.Type(t))
 /** Google Calculator's number pad. */
 val MainKeys: List<List<KeySpec>> = listOf(
     // x is on the number pad in a CAS: it's the letter you type most.
-    // The variable is drawn as maths, so it's italic like the x in the display.
+    // The variable is drawn as math, so it's italic like the x in the display.
     listOf(text("AC", KeyAction.Clear, KeyRole.Clear, "all clear"), op("( )", "brackets", KeyAction.Paren), KeySpec(KeyLabel.Math(row(Sym("x"))), KeyAction.Type("x"), KeyRole.Operator, "x"), op("÷", "divide", KeyAction.Fraction)),
     listOf(digit("7"), digit("8"), digit("9"), op("×", "times")),
     listOf(digit("4"), digit("5"), digit("6"), op("−", "minus")),

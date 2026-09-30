@@ -84,8 +84,8 @@ import kotlinx.coroutines.withContext
 import kotlin.coroutines.coroutineContext
 
 /**
- * Complex functions by domain colouring, after samuelj.li's complex function
- * plotter: colour shows arg f(z), brightness |f(z)| (zeros black, poles white).
+ * Complex functions by domain coloring, after samuelj.li's complex function
+ * plotter: color shows arg f(z), brightness |f(z)| (zeros black, poles white).
  * Drag and pinch to move and zoom; tap a point to read z and f(z); letters
  * other than z get sliders (f(z) = z − t); draw a loop to integrate around it.
  */
@@ -140,7 +140,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
     val f = vm.plotted
     val params = vm.parameters.toMap()
 
-    // Equations drawn as curves over the colouring (|z − 1| = 2, x² + y² = 4).
+    // Equations drawn as curves over the coloring (|z − 1| = 2, x² + y² = 4).
     val curves = remember(view, vm.version, size, params) {
         val v = view
         if (v == null || size.width == 0) emptyList() else vm.functions.filter { it.visible && it.complexCurve != null }.mapNotNull { fn ->
@@ -176,12 +176,10 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
         }
     }
 
-    // The plane before (or without) a plot: white in light mode, black in dark mode.
-    val lightPlane = MaterialTheme.colorScheme.surface.luminance() >= 0.5f
     Box(
         modifier
             .clipToBounds()
-            .background(if (lightPlane) Color.White else Color.Black)
+            .background(MaterialTheme.colorScheme.surface)
             .onSizeChanged { size = it; if (vm.view == null) vm.resetView(it) }
             .pointerInput(vm.contourMode) {
                 if (vm.contourMode) {
@@ -215,26 +213,11 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
             val size = this.size
             val v = view ?: return@Canvas
             image?.let { drawImage(it, dstSize = IntSize(size.width.toInt(), size.height.toInt()), filterQuality = FilterQuality.Low) }
-            // The grid, axes and numbers in the theme's colours, as on the 2D graph (the numbers with
-            // a halo in the surface colour so they read over the colouring).
-            val origin = Offset(((0 - v.xMin) / v.width * size.width).toFloat(), ((v.yMax - 0) / v.height * size.height).toFloat())
-            drawGrid(v, if (AppSettings.showGrid) colors.outlineVariant else Color.Transparent, colors.onSurfaceVariant, measurer, ySuffix = "i", halo = colors.surface)
-            // Polar grid: circles of constant |z| and rays every 30° of arg z.
-            if (vm.polarGrid) {
-                val corners = listOf(v.xMin to v.yMin, v.xMin to v.yMax, v.xMax to v.yMin, v.xMax to v.yMax)
-                val far = corners.maxOf { (x, y) -> kotlin.math.hypot(x, y) }
-                val step = Plot2D.niceStep(minOf(v.width, v.height) / 2, 4)
-                val px = size.width / v.width.toFloat()
-                val line = colors.outlineVariant
-                var r = step
-                while (r <= far) { drawCircle(line, (r * px).toFloat(), origin, style = Stroke(1.2f)); r += step }
-                val reach = (far * px).toFloat() + size.width
-                for (a in 0 until 12) {
-                    val ang = a * Math.PI / 6
-                    drawLine(line, origin, Offset(origin.x + (reach * kotlin.math.cos(ang)).toFloat(), origin.y - (reach * kotlin.math.sin(ang)).toFloat()), 1.2f)
-                }
-            }
-            // Curves, outlined so they show on any colour.
+            // The grid (or the polar grid), axes and numbers exactly as on the 2D graph, the numbers
+            // with a halo in the surface color so they read over the coloring.
+            if (vm.polarGrid) drawPolarGrid(v, if (AppSettings.showGrid) colors.outlineVariant else Color.Transparent, colors.onSurfaceVariant, measurer, vm.angle == com.example.cas.engine.AngleUnit.Degrees, halo = colors.surface)
+            else drawGrid(v, if (AppSettings.showGrid) colors.outlineVariant else Color.Transparent, colors.onSurfaceVariant, measurer, ySuffix = "i", halo = colors.surface)
+            // Curves, outlined so they show on any color.
             // The first line in the list last, so it's on top.
             curves.asReversed().forEach { (lineColor, segs) ->
                 val path = Path()
@@ -245,7 +228,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
                 drawPath(path, Color.Black.copy(alpha = 0.55f), style = Stroke(4.5.dp.toPx(), cap = StrokeCap.Round))
                 drawPath(path, lineColor, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
             }
-            // Typed contour integrals: the circle, an arrow showing it runs anticlockwise, and the value.
+            // Typed contour integrals: the circle, an arrow showing it runs counterclockwise, and the value.
             vm.functions.filter { it.visible && it.contour != null }.asReversed().forEach { fn ->
                 val c = fn.contour!!
                 // Its own plain color, white unless one was picked.
@@ -257,7 +240,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier) {
                 val oval = androidx.compose.ui.geometry.Rect(cx - rx, cy - ry, cx + rx, cy + ry)
                 drawOval(Color.Black.copy(alpha = 0.55f), oval.topLeft, oval.size, style = Stroke(4.5.dp.toPx()))
                 drawOval(lineColor, oval.topLeft, oval.size, style = Stroke(2.dp.toPx()))
-                // Arrowhead at the right of the circle, pointing up (anticlockwise).
+                // Arrowhead at the right of the circle, pointing up (counterclockwise).
                 val tip = Offset(cx + rx, cy - 8.dp.toPx())
                 val arrow = Path().apply {
                     moveTo(tip.x, tip.y); lineTo(tip.x - 6.dp.toPx(), tip.y + 10.dp.toPx()); lineTo(tip.x + 6.dp.toPx(), tip.y + 10.dp.toPx()); close()
@@ -365,7 +348,7 @@ private fun androidx.compose.foundation.layout.RowScope.PlotTools(vm: ComplexVie
 
 /**
  * The complex plane over [view] as a square [Scene] [size] units across, framed like pgfplots
- * (see [Pgf]): the domain colouring as a picture (rendered afresh for the export) with the polar
+ * (see [Pgf]): the domain coloring as a picture (rendered afresh for the export) with the polar
  * grid, curves, ∮ loops and a drawn loop as lines on top, Re z and Im z on the axes.
  */
 internal fun complexScene(vm: ComplexViewModel, view: Viewport, size: Double, dark: Boolean, quick: Boolean = false): Scene {
@@ -417,7 +400,7 @@ internal fun complexScene(vm: ComplexViewModel, view: Viewport, size: Double, da
         val rx = cc.radius / v.width * frame.width; val ry = cc.radius / v.height * frame.height
         val color = complexLineColor(fn).toArgb()
         outlined(listOf(DoubleArray(2 * 97) { k -> val t = (k / 2) * 2 * Math.PI / 96; if (k % 2 == 0) cx + rx * kotlin.math.cos(t) else cy - ry * kotlin.math.sin(t) }), color)
-        // Arrowhead at the right, pointing up (anticlockwise).
+        // Arrowhead at the right, pointing up (counterclockwise).
         val tx = cx + rx; val ty = cy - 5
         scene.add(Scene.Fill(listOf(doubleArrayOf(tx, ty, tx - 4, ty + 7, tx + 4, ty + 7)), color))
         val shown = runCatching { roundedComplex(com.example.cas.cas.Numeric.eval(cc.value)) }.getOrDefault("?")
@@ -444,7 +427,7 @@ internal fun complexScene(vm: ComplexViewModel, view: Viewport, size: Double, da
     return scene
 }
 
-/** The complex plane's lines in the legend: the coloured function, then curves and ∮ loops. */
+/** The complex plane's lines in the legend: the colored function, then curves and ∮ loops. */
 internal fun complexLegendLines(vm: ComplexViewModel): List<PlotFunction> =
     vm.functions.filter { fn -> fn.visible && !fn.isText && (fn === vm.plotted || fn.complexCurve != null || fn.contour != null) && legendSource(fn).isNotBlank() }
 
@@ -477,7 +460,7 @@ private fun ContourCard(integral: CD, onClose: () -> Unit, modifier: Modifier = 
         Column {
             Text("Integral around the loop ≈ " + roundedComplex(integral), color = colors.onSurface, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 16.sp))
             Text("Residues inside add up to ≈ " + roundedComplex(residues), color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp))
-            Text("for a loop drawn anticlockwise", color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 12.sp))
+            Text("for a loop drawn counterclockwise", color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 12.sp))
         }
         IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = "Clear the loop", tint = colors.onSurfaceVariant) }
     }
@@ -500,7 +483,7 @@ fun roundedComplex(z: CD): String {
 }
 
 
-/** The complex plane's settings: its limits typed exactly, and how finely it's coloured. */
+/** The complex plane's settings: its limits typed exactly, and how finely it's colored. */
 @Composable
 private fun ComplexSettingsDialog(vm: ComplexViewModel, view: Viewport, onDismiss: () -> Unit) {
     fun text(v: Double) = shortNumber(v).replace("−", "-")

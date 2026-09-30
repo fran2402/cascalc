@@ -31,7 +31,7 @@ sealed class PlotSpec {
     class Parametric(val x: Expr, val y: Expr, override val parameters: List<String>) : PlotSpec()
     class Implicit(val f: Expr, override val parameters: List<String>) : PlotSpec()
     class Region(val rel: Rel, override val parameters: List<String>) : PlotSpec()
-    /** An expression in x and y with no = (x² − y²): a scalar field, drawn in colour. */
+    /** An expression in x and y with no = (x² − y²): a scalar field, drawn in color. */
     class Field(val f: Expr, override val parameters: List<String>) : PlotSpec()
 
     companion object {
@@ -62,7 +62,7 @@ sealed class PlotSpec {
                     if ((!f.freeOf(R) || !f.freeOf(THETA)) && (!f.freeOf(X) || !f.freeOf(Y)) && !f.freeOf(THETA)) throw MathError("Write polar curves as r = f(θ)")
                     Implicit(f, params(XY, f))
                 }
-                // f(x, y) on its own: the field's value everywhere, as colour.
+                // f(x, y) on its own: the field's value everywhere, as color.
                 !e.freeOf(Y) -> Field(e, params(XY, e))
                 !e.freeOf(THETA) && e.freeOf(X) -> Polar(e, params(setOf("r", "θ"), e))
                 // Anything else is a function of x; other letters (t, a, k…) get sliders.
@@ -164,7 +164,7 @@ object Curves {
             edge(c, d, xs[i + 1], ys[j + 1], xs[i], ys[j + 1])
             edge(d, a, xs[i], ys[j + 1], xs[i], ys[j])
             if (pts.size < 2) continue
-            // A sign change through a pole: the centre value is huge, not near zero.
+            // A sign change through a pole: the center value is huge, not near zero.
             val mid = f((xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2)
             val scale = maxOf(abs(a), abs(b), abs(c), abs(d))
             if (!mid.isFinite() || abs(mid) > 4 * scale) continue
@@ -174,7 +174,7 @@ object Curves {
         return out
     }
 
-    /** Which cells of an [nx] × [ny] grid satisfy [test] at their centre (row 0 at the top). */
+    /** Which cells of an [nx] × [ny] grid satisfy [test] at their center (row 0 at the top). */
     fun region(test: (Double, Double) -> Boolean, view: Viewport, nx: Int, ny: Int): BooleanArray {
         val out = BooleanArray(nx * ny)
         for (j in 0 until ny) {
@@ -194,7 +194,7 @@ object Curves {
         if (block <= 1) return region(test, view, nx, ny)
         val bx = (nx + block - 1) / block
         val by = (ny + block - 1) / block
-        // Each group tested at the centre of its middle cell.
+        // Each group tested at the center of its middle cell.
         val coarse = BooleanArray(bx * by)
         for (J in 0 until by) for (I in 0 until bx) {
             val i = minOf(I * block + block / 2, nx - 1); val j = minOf(J * block + block / 2, ny - 1)

@@ -37,7 +37,7 @@ data class Viewport(val xMin: Double, val xMax: Double, val yMin: Double, val yM
     }
 
     companion object {
-        /** A square-ish view centred on the origin for a screen of the given aspect ratio (height / width). */
+        /** A square-ish view centered on the origin for a screen of the given aspect ratio (height / width). */
         fun standard(aspect: Double, halfWidth: Double = 10.0) = Viewport(-halfWidth, halfWidth, -halfWidth * aspect, halfWidth * aspect)
     }
 }

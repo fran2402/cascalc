@@ -179,7 +179,7 @@ object Algebra {
         if (e is Rel) return Rel(e.parts.map { simplify(it) }, e.ops)
         val inner = if (e is Fn) Simplify.function(e.name, e.args.map { simplify(it) }) else e
         val (n, d) = together(inner)
-        // Try the cancelled fraction and the expanded form; keep whichever is shortest.
+        // Try the canceled fraction and the expanded form; keep whichever is shortest.
         // (2 + 2√2)/2 → 1 + √2 comes from expanding.
         val candidates = listOfNotNull(inner, runCatching { cancel(n, d) }.getOrNull(), runCatching { expand(inner) }.getOrNull())
         return candidates.minBy { Printer.plain(it).length }

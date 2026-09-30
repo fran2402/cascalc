@@ -16,10 +16,10 @@ object Pgf {
     /** Light is pgfplots' own look (white page, black frame); dark is its negative. */
     class Style(val background: Int, val ink: Int, val grid: Int, val cycle: List<Int>) {
         companion object {
-            // The export colors, SciencePlots-like: blue, green, orange, red, purple, grey. Lines take
+            // The export colors, SciencePlots-like: blue, green, orange, red, purple, gray. Lines take
             // them in turn, in list order (the app's own colors are for the screen).
             val LIGHT = Style(0xFFFFFFFF.toInt(), 0xFF000000.toInt(), 0xFFD9D9D9.toInt(), SCIENCE)
-            // The same on a dark page, with the grey turned light so it shows.
+            // The same on a dark page, with the gray turned light so it shows.
             val DARK = Style(0xFF141414.toInt(), 0xFFEDEDED.toInt(), 0xFF3A3A3A.toInt(), SCIENCE.dropLast(1) + 0xFFBDBDBD.toInt())
         }
     }
@@ -41,7 +41,7 @@ object Pgf {
         val markerSize: Double = 2.6,
         val fill: Int? = null,
         val strip: List<Int>? = null,
-        /** The name as maths, set as LaTeX sets it (see [MathScene]); [spans] is the plain fallback. */
+        /** The name as math, set as LaTeX sets it (see [MathScene]); [spans] is the plain fallback. */
         val math: com.example.cas.editor.MathRow? = null,
     )
 

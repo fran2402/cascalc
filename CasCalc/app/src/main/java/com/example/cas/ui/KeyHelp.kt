@@ -110,7 +110,7 @@ F' = f""", """The area under \(f\). Leave the limits empty for an antiderivative
         "z" to h("z", """z = x + iy""", """The complex variable; the number pad's variable key types \(z\) in the complex plotter.""", ""),
         "w" to h("w", """w = f(z)""", """A second complex variable.""", ""),
         "contour integral" to h("Contour integral", """\oint_{|z - a| = r} f(z)\,dz
-= 2\pi i \sum_k \operatorname{Res}_{z = a_k} f""", """Around a circle, anticlockwise; equals \(2\pi i\) times the residues inside.""", """Edit the circle \(|z - a| = r\) underneath."""),
+= 2\pi i \sum_k \operatorname{Res}_{z = a_k} f""", """Around a circle, counterclockwise; equals \(2\pi i\) times the residues inside.""", """Edit the circle \(|z - a| = r\) underneath."""),
         "residue" to h("Residue", """\operatorname{Res}_{z=a} f = \frac{1}{2\pi i}\oint f(z)\,dz""", """The coefficient of \(\frac{1}{z - a}\) in the Laurent series of \(f\).""", """Set the point \(a\) underneath."""),
         // ---- More functions
         "absolute value" to h("Absolute value", """|x| = \sqrt{x^2}""", """The distance from 0; for vectors, the length.""", ""),

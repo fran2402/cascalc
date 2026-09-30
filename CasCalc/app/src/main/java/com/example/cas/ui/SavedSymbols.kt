@@ -58,7 +58,7 @@ object PinnedKeys {
  * The colormaps offered first on the complex plane, in the order you've put them; the rest are
  * under "More colormaps". Kept in preferences by matplotlib name.
  */
-object FavouriteColormaps {
+object FavoriteColormaps {
     private var prefs: SharedPreferences? = null
     val list = mutableStateListOf<String>()
 
@@ -67,13 +67,13 @@ object FavouriteColormaps {
         prefs = p
         list.clear()
         val saved = p.getString("colormaps", null)
-        list.addAll(saved?.split('\n')?.filter { it.isNotEmpty() } ?: com.example.cas.graph.Colormap.DEFAULT_FAVOURITES)
+        list.addAll(saved?.split('\n')?.filter { it.isNotEmpty() } ?: com.example.cas.graph.Colormap.DEFAULT_FAVORITES)
     }
 
     fun add(name: String) { if (name !in list) { list.add(name); save() } }
     fun remove(name: String) { list.remove(name); save() }
 
-    /** Moves the favourite at [from] to [to] (dragging it in the list). */
+    /** Moves the favorite at [from] to [to] (dragging it in the list). */
     fun move(from: Int, to: Int) {
         if (from !in list.indices || to !in list.indices || from == to) return
         list.add(to, list.removeAt(from))

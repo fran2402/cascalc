@@ -39,9 +39,9 @@ import androidx.compose.ui.unit.dp
 
 /**
  * One thing the app is built on or with: its name, who made it, what it does in this app,
- * a line on what it is, its licence, and a link.
+ * a line on what it is, its license, and a link.
  */
-data class Credit(val name: String, val by: String, val use: String, val about: String, val licence: String, val url: String)
+data class Credit(val name: String, val by: String, val use: String, val about: String, val license: String, val url: String)
 
 /** A group of credits with a line saying what the group is. */
 data class CreditGroup(val title: String, val intro: String, val credits: List<Credit>)
@@ -52,10 +52,10 @@ val CREDITS: List<CreditGroup> = listOf(
             "A variable font; the app always uses its fully rounded setting (ROND 100).", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Google+Sans+Flex"),
         Credit("Roboto", "Christian Robertson, Google", "Characters Google Sans Flex doesn't have",
             "Android's own typeface, used as the fallback.", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Roboto"),
-        Credit("MathJax TeX fonts", "The MathJax Consortium, after Donald Knuth's Computer Modern", "All the maths: Main, Math Italic, Caligraphic, Fraktur and Size2 (the large ∫ and ∮)",
+        Credit("MathJax TeX fonts", "The MathJax Consortium, after Donald Knuth's Computer Modern", "All the math: Main, Math Italic, Caligraphic, Fraktur and Size2 (the large ∫ and ∮)",
             "The fonts LaTeX documents are set in, so answers look as they would in print.", "SIL Open Font License 1.1", "https://github.com/mathjax/MathJax/tree/legacy-v2/fonts"),
         Credit("New Computer Modern", "Antonis Tsolomitis, after Donald Knuth's Computer Modern", "Blackboard bold (ℝ, ℂ…), Hebrew letters, upright Greek, ħ and the Greek letters Computer Modern lacks",
-            "Computer Modern extended with Unicode maths and more scripts, so these match the rest of the maths.", "GUST Font License", "https://ctan.org/pkg/newcomputermodern"),
+            "Computer Modern extended with Unicode math and more scripts, so these match the rest of the math.", "GUST Font License", "https://ctan.org/pkg/newcomputermodern"),
         Credit("Material Symbols", "Google", "Icons",
             "Google's icon set, through Compose's extended icons.", "Apache License 2.0", "https://fonts.google.com/icons"),
     )),
@@ -63,7 +63,7 @@ val CREDITS: List<CreditGroup> = listOf(
         Credit("Kotlin", "JetBrains", "The language the whole app is written in",
             "The computer algebra, the graphs and the interface are all plain Kotlin.", "Apache License 2.0", "https://kotlinlang.org"),
         Credit("Jetpack Compose", "Google", "The interface",
-            "Android's toolkit for drawing screens from code; the maths renderer is built on its layouts.", "Apache License 2.0", "https://developer.android.com/compose"),
+            "Android's toolkit for drawing screens from code; the math renderer is built on its layouts.", "Apache License 2.0", "https://developer.android.com/compose"),
         Credit("Material 3 Expressive", "Google", "Components, colors and springy motion",
             "material3 1.4.0-alpha18, the last release with the expressive API that builds on SDK 36.", "Apache License 2.0", "https://m3.material.io"),
         Credit("AndroidX (Activity, Lifecycle, Core)", "Google", "Saving files, view models, sharing",
@@ -112,7 +112,7 @@ val CREDITS: List<CreditGroup> = listOf(
             "The graphing calculator many people learn with.", "—", "https://www.desmos.com/calculator"),
         Credit("Google Calculator", "Google", "The look, the keypad, and continuing from an answer",
             "The calculator on Pixel phones.", "—", "https://play.google.com/store/apps/details?id=com.google.android.calculator"),
-        Credit("TI-Nspire CAS and HP Prime", "Texas Instruments, HP", "A 2D maths editor with exact answers",
+        Credit("TI-Nspire CAS and HP Prime", "Texas Instruments, HP", "A 2D math editor with exact answers",
             "Handheld computer algebra calculators.", "—", "https://en.wikipedia.org/wiki/Computer_algebra_system"),
     )),
 )
@@ -152,7 +152,7 @@ private fun iconFor(group: String): androidx.compose.ui.graphics.vector.ImageVec
     else -> Icons.Outlined.Info
 }
 
-/** One credit: name, who made it, what it's used for, a line about it and its licence. Tap to open its page. */
+/** One credit: name, who made it, what it's used for, a line about it and its license. Tap to open its page. */
 @Composable
 private fun CreditCard(c: Credit, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
@@ -172,9 +172,9 @@ private fun CreditCard(c: Credit, modifier: Modifier) {
         if (c.by != "—") Text(c.by, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
         Text("Used for: " + c.use, style = MaterialTheme.typography.bodyMedium, color = colors.onSurface)
         Text(c.about, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-        if (c.licence != "—") {
+        if (c.license != "—") {
             Text(
-                c.licence,
+                c.license,
                 style = MaterialTheme.typography.labelSmall,
                 color = colors.onSecondaryContainer,
                 modifier = Modifier.padding(top = 4.dp).clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 8.dp, vertical = 2.dp),

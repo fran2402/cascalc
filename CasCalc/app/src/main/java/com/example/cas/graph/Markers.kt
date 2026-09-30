@@ -27,7 +27,7 @@ enum class Marker(val label: String) {
     fun filled(on: Boolean): Marker = if (on || !fillable) base else entries.first { it.base == base && it.hollow }
 
     /**
-     * The shape centred on (cx, cy) with "radius" [r], as closed outlines to fill (circle and
+     * The shape centered on (cx, cy) with "radius" [r], as closed outlines to fill (circle and
      * ring as 32-sided polygons; the ring's inner edge runs the other way so it stays hollow)
      * or, for the cross, as two strokes. Both are x₀, y₀, x₁, y₁… in the same units.
      */

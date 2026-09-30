@@ -6,7 +6,7 @@ import kotlin.math.pow
 import kotlin.math.roundToInt
 
 /**
- * Colour conversions for the colour picker: hex, RGB (0–255), HSV (hue in
+ * Color conversions for the color picker: hex, RGB (0–255), HSV (hue in
  * degrees, saturation and value 0–100) and OKLab (L 0–1, a and b about ±0.4,
  * Björn Ottosson's perceptual space). Plain Kotlin, so it's tested directly.
  */
@@ -70,7 +70,7 @@ object ColorMath {
         )
     }
 
-    /** OKLab to the nearest sRGB colour (out-of-gamut values are clipped). */
+    /** OKLab to the nearest sRGB color (out-of-gamut values are clipped). */
     fun fromOklab(lightness: Double, a: Double, b: Double): Rgb {
         val l = (lightness + 0.3963377774 * a + 0.2158037573 * b).pow(3)
         val m = (lightness - 0.1055613458 * a - 0.0638541728 * b).pow(3)

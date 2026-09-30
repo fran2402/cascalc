@@ -8,7 +8,7 @@ import java.math.RoundingMode
 /**
  * Text forms of expressions.
  *  - [key]: a structural string used only to sort expressions canonically.
- *  - [plain]: readable one-line maths in display order, e.g. "x^2+2x+1", "2√2", "(x+1)/2".
+ *  - [plain]: readable one-line math in display order, e.g. "x^2+2x+1", "2√2", "(x+1)/2".
  * The display order rules here ([sortedTerms], [factorRank]) are shared with
  * the 2D formatter so both agree.
  */

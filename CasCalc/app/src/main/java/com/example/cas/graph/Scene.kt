@@ -28,15 +28,15 @@ class Scene(val width: Double, val height: Double, val background: Int) {
     /** [Size2] is TeX's large-operator font (the display ∫ and ∮). */
     enum class Font { Sans, Roman, Italic, Size2 }
 
-    /** Text with its [anchor] at x and its middle at y, turned [angle] degrees (anticlockwise) about that point. */
+    /** Text with its [anchor] at x and its middle at y, turned [angle] degrees (counterclockwise) about that point. */
     class Label(
         val x: Double, val y: Double, val text: String, val size: Double, val color: Int,
         val anchor: Anchor = Anchor.Start, val font: Font = Font.Sans, val angle: Double = 0.0,
         /** Letters drawn in math italic within a roman label (the z of "Re z", the i of "2i"). */
         val italic: Set<Char> = emptySet(),
-        /** Maths set as runs (italic letters, raised exponents, lowered indices), instead of [text]. */
+        /** Math set as runs (italic letters, raised exponents, lowered indices), instead of [text]. */
         val spans: List<Span>? = null,
-        /** y is the text's baseline rather than its middle (maths laid out by [MathScene]). */
+        /** y is the text's baseline rather than its middle (math laid out by [MathScene]). */
         val baseline: Boolean = false,
     ) : Item() {
         /** The label as runs: [spans], or [text] split by font. */
@@ -56,7 +56,7 @@ class Scene(val width: Double, val height: Double, val background: Int) {
     }
 
     /**
-     * A run of a maths label: its text, italic (math italic) or roman, and [shift] 1 for an
+     * A run of a math label: its text, italic (math italic) or roman, and [shift] 1 for an
      * exponent, −1 for an index (drawn smaller, raised or lowered), 0 on the line.
      */
     class Span(val text: String, val italic: Boolean, val shift: Int = 0) {
@@ -112,7 +112,7 @@ object SvgWriter {
 
     /**
      * The SVG for [scene]. Font files in [embedded] (the Computer Modern OTFs) are put inside the
-     * file, so its maths text shows in LaTeX's font on any computer.
+     * file, so its math text shows in LaTeX's font on any computer.
      */
     fun write(scene: Scene, embedded: Map<Scene.Font, ByteArray> = emptyMap()): String = buildString {
         var clips = 0

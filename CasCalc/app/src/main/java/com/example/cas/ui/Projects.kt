@@ -100,7 +100,7 @@ private enum class Order(val label: String) { Newest("Newest first"), Oldest("Ol
  * Saved graphs, like projects in Desmos. All graph modes are listed together, grouped by when
  * they were saved (Today, Yesterday, This week, Earlier); a connected button group narrows the
  * list to one mode, with the counts in brackets; search by name and change the order at the
- * top. Each card shows the mode's icon in its corner, the first lines with their colours (data
+ * top. Each card shows the mode's icon in its corner, the first lines with their colors (data
  * sets as a chip, never drawn point by point) and a menu to rename, duplicate or delete. The
  * button at the bottom saves the graph on screen. Cards fill the width on a phone and form a grid
  * on a tablet.
@@ -282,7 +282,7 @@ private fun EmptyProjects(searching: Boolean, modifier: Modifier) {
         }
         Text(if (searching) "No saved graphs with that name" else "No saved graphs yet", style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
         if (!searching) Text(
-            "Save a graph to keep its lines, colours and sliders, and open it again later.",
+            "Save a graph to keep its lines, colors and sliders, and open it again later.",
             style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
@@ -291,7 +291,7 @@ private fun EmptyProjects(searching: Boolean, modifier: Modifier) {
 
 /**
  * A saved graph: its mode's icon top right, its name and when it was saved, then up to three
- * lines in their colours (drawn as maths when short; data sets as a chip) and "+ n more".
+ * lines in their colors (drawn as math when short; data sets as a chip) and "+ n more".
  */
 @Composable
 private fun ProjectCard(s: Saved, current: Boolean, onOpen: () -> Unit, onRename: () -> Unit, onDuplicate: () -> Unit, onExportFile: (Boolean) -> Unit, onDelete: () -> Unit) {
@@ -337,7 +337,7 @@ private fun ProjectCard(s: Saved, current: Boolean, onOpen: () -> Unit, onRename
                 }
             }
         }
-        // The lines, as on the graph's list: a colour dot, then the maths.
+        // The lines, as on the graph's list: a color dot, then the math.
         Column(
             Modifier.padding(end = 10.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(colors.surfaceContainerLowest).padding(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),

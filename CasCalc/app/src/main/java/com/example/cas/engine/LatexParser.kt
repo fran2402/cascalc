@@ -17,7 +17,7 @@ import com.example.cas.editor.Sym
 
 /**
  * Reads the LaTeX used in formulas (the key help is written in it) into the
- * calculator's own maths tree, so it's drawn by the same renderer as answers:
+ * calculator's own math tree, so it's drawn by the same renderer as answers:
  * \frac, \sqrt, ^ and _, \int … dx, \oint, \sum, \prod, \lim, \binom,
  * bmatrix, \left/\right, \text, \operatorname, \bar, Greek letters and the
  * usual symbols. Anything unknown is shown as its name.
@@ -219,7 +219,7 @@ object LatexParser {
                 "lim" -> { limit(out); return }
                 "begin" -> { environment(out); return }
                 "bmod", "mod" -> out.add(Sym("mod"))
-                // \mathcal{A} and \mathfrak{g}: the Unicode maths letters.
+                // \mathcal{A} and \mathfrak{g}: the Unicode math letters.
                 "mathcal", "mathfrak", "mathbb" -> {
                     skipSpaces()
                     val arg = if (i < s.length && s[i] == '{') { val end = s.indexOf('}', i); s.substring(i + 1, end).also { i = end + 1 } } else s[i++].toString()
@@ -380,7 +380,7 @@ object LatexParser {
 
     private fun MathRow.add(n: Node) { items.add(n) }
 
-    /** Splits text with inline maths \( … \) into (isMaths, piece) parts. */
+    /** Splits text with inline math \( … \) into (isMaths, piece) parts. */
     fun inline(text: String): List<Pair<Boolean, String>> {
         val out = ArrayList<Pair<Boolean, String>>()
         var k = 0

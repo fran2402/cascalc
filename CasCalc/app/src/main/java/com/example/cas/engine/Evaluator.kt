@@ -471,7 +471,7 @@ class Evaluator(
             return parts
         }
 
-        /** |z − a| = r (or |z| = r): the variable, the centre a and the radius r. */
+        /** |z − a| = r (or |z| = r): the variable, the center a and the radius r. */
         private fun circleSpec(e: Expr): Triple<Sym, Expr, Expr> {
             val eq = e as? com.example.cas.cas.Eq ?: throw MathError("Write the circle as |z − a| = r")
             val abs = eq.lhs as? com.example.cas.cas.Fn

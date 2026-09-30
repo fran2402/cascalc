@@ -4,8 +4,8 @@ import kotlin.math.floor
 import kotlin.math.roundToInt
 
 /**
- * A colour map for the phase of f(z) on the complex plane, as in matplotlib. [CLASSIC] is the
- * usual domain-colouring wheel (the hue of the HSV wheel, shaded as HSL); the rest are every map
+ * A color map for the phase of f(z) on the complex plane, as in matplotlib. [CLASSIC] is the
+ * usual domain-coloring wheel (the hue of the HSV wheel, shaded as HSL); the rest are every map
  * on matplotlib's "Choosing Colormaps" page, sampled from matplotlib (see [COLORMAP_DATA]) and
  * blended between samples. Cyclic maps join up at ±π, so they show no seam along the negative
  * real axis; the others run from arg f = −π to π, with a seam there.
@@ -16,14 +16,14 @@ class Colormap private constructor(
     /** Its group on matplotlib's page: Perceptually uniform, Sequential, Diverging… */
     val category: String,
     val cyclic: Boolean,
-    /** Qualitative maps are a few separate colours, shown without blending. */
+    /** Qualitative maps are a few separate colors, shown without blending. */
     private val qualitative: Boolean,
     private val samples: IntArray?,
 ) {
     /** Shown in the app: one word, from matplotlib's name (Viridis, RdBu, Dusk for twilight_shifted). */
     val label: String get() = LABELS[name] ?: name.replaceFirstChar { it.uppercaseChar() }
 
-    /** The colour (RGB, no alpha) at [t] from 0 to 1 (arg f from −π to π for the non-cyclic maps). */
+    /** The color (RGB, no alpha) at [t] from 0 to 1 (arg f from −π to π for the non-cyclic maps). */
     fun rgb(t: Double): Int {
         val s = samples ?: return hue(t)
         val n = s.size
@@ -43,7 +43,7 @@ class Colormap private constructor(
     override fun toString() = name
 
     companion object {
-        /** The usual domain-colouring wheel. */
+        /** The usual domain-coloring wheel. */
         val CLASSIC = Colormap("classic", "Cyclic", cyclic = true, qualitative = false, samples = null)
 
         /** Every map: the classic wheel, then matplotlib's in the order of its page. */
@@ -67,7 +67,7 @@ class Colormap private constructor(
         )
 
         /** The maps offered first until the list is changed. */
-        val DEFAULT_FAVOURITES = listOf("classic", "twilight", "twilight_shifted", "viridis", "plasma", "magma", "cividis", "turbo")
+        val DEFAULT_FAVORITES = listOf("classic", "twilight", "twilight_shifted", "viridis", "plasma", "magma", "cividis", "turbo")
 
         /**
          * A map by its saved name; older saves used upper-case names (VIRIDIS, TWILIGHT_SHIFTED),
@@ -87,7 +87,7 @@ class Colormap private constructor(
         /** The name to save: with _r when reversed. */
         fun save(map: Colormap, reversed: Boolean) = map.name + if (reversed) "_r" else ""
 
-        /** The fully saturated hue at [t] turns round the colour wheel (red at 0). */
+        /** The fully saturated hue at [t] turns round the color wheel (red at 0). */
         private fun hue(t: Double): Int {
             val h = (t - floor(t)) * 6
             val x = 1 - kotlin.math.abs(h % 2 - 1)
