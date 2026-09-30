@@ -6,7 +6,8 @@ import com.example.cas.graph.SvgWriter
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import javax.imageio.ImageIO
+import java.io.ByteArrayOutputStream
+import java.util.zip.Inflater
 import javax.xml.parsers.DocumentBuilderFactory
 
 class ExportTest {
@@ -40,11 +41,54 @@ class ExportTest {
 
     @Test fun pngDecodes() {
         val px = IntArray(12) { k -> if (k % 2 == 0) 0xFFFF0000.toInt() else 0x8000FF00.toInt() }
-        val img = ImageIO.read(Png.encode(px, 4, 3).inputStream())
-        assertEquals(4, img.width)
-        assertEquals(3, img.height)
-        assertEquals(0xFFFF0000.toInt(), img.getRGB(0, 0))
-        assertEquals(0x8000FF00.toInt(), img.getRGB(1, 0))
+        val (w, h, argb) = decodePng(Png.encode(px, 4, 3))
+        assertEquals(4, w)
+        assertEquals(3, h)
+        assertEquals(0xFFFF0000.toInt(), argb[0])
+        assertEquals(0x8000FF00.toInt(), argb[1])
+    }
+
+    /** A minimal decoder for 8-bit RGBA PNGs (javax.imageio isn't on Android's test classpath). */
+    private fun decodePng(bytes: ByteArray): Triple<Int, Int, IntArray> {
+        fun int(at: Int) = (0..3).fold(0) { a, k -> (a shl 8) or (bytes[at + k].toInt() and 0xFF) }
+        assertEquals(listOf(137, 80, 78, 71, 13, 10, 26, 10), (0..7).map { bytes[it].toInt() and 0xFF })
+        var w = 0; var h = 0
+        val idat = ByteArrayOutputStream()
+        var at = 8
+        while (at < bytes.size) {
+            val len = int(at)
+            val type = String(bytes, at + 4, 4, Charsets.US_ASCII)
+            if (type == "IHDR") {
+                w = int(at + 8); h = int(at + 12)
+                assertEquals(8, bytes[at + 16].toInt()); assertEquals(6, bytes[at + 17].toInt())
+            }
+            if (type == "IDAT") idat.write(bytes, at + 8, len)
+            at += 12 + len
+        }
+        val stride = w * 4
+        val raw = ByteArray(h * (stride + 1))
+        Inflater().run { setInput(idat.toByteArray()); var n = 0; while (n < raw.size && !finished()) n += inflate(raw, n, raw.size - n); end() }
+        val out = ByteArray(h * stride)
+        for (y in 0 until h) {
+            val f = raw[y * (stride + 1)].toInt()
+            for (x in 0 until stride) {
+                val v = raw[y * (stride + 1) + 1 + x].toInt() and 0xFF
+                val a = if (x >= 4) out[y * stride + x - 4].toInt() and 0xFF else 0
+                val b = if (y > 0) out[(y - 1) * stride + x].toInt() and 0xFF else 0
+                val c = if (x >= 4 && y > 0) out[(y - 1) * stride + x - 4].toInt() and 0xFF else 0
+                val pred = when (f) {
+                    0 -> 0; 1 -> a; 2 -> b; 3 -> (a + b) / 2
+                    else -> { val p = a + b - c; val pa = kotlin.math.abs(p - a); val pb = kotlin.math.abs(p - b); val pc = kotlin.math.abs(p - c)
+                        if (pa <= pb && pa <= pc) a else if (pb <= pc) b else c }
+                }
+                out[y * stride + x] = (v + pred).toByte()
+            }
+        }
+        val argb = IntArray(w * h) { k ->
+            val o = k * 4
+            ((out[o + 3].toInt() and 0xFF) shl 24) or ((out[o].toInt() and 0xFF) shl 16) or ((out[o + 1].toInt() and 0xFF) shl 8) or (out[o + 2].toInt() and 0xFF)
+        }
+        return Triple(w, h, argb)
     }
 
     @Test fun italicLettersInRomanLabels() {
