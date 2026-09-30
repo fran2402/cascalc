@@ -248,7 +248,9 @@ object ConstantLatex {
         val italic = p.italic || (p.text.length == 2 && p.text[0].isLetter() && p.text[1] == '′')
         text(p.text, italic) +
             (if (p.sub.isNotEmpty()) "_{" + text(p.sub, false) + "}" else "") +
-            (if (p.sup.isNotEmpty()) "^{" + p.sup.map { SUPER[it] ?: it }.joinToString("") + "}" else "")
+            // A prime is written as LaTeX writes it, b'; other superscripts in braces.
+            (if (p.sup.isNotEmpty() && p.sup.all { it == '′' }) "'".repeat(p.sup.length)
+            else if (p.sup.isNotEmpty()) "^{" + p.sup.map { SUPER[it] ?: it }.joinToString("") + "}" else "")
     }
 
     /** 6.62607015e-34 → 6.626\,070\,15 \times 10^{-34} */

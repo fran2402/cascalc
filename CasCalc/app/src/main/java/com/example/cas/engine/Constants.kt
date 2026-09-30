@@ -93,7 +93,7 @@ enum class Constant(
     FirstRadiationL("c1L", listOf(Piece("c", sub = "1L")), "First radiation constant for spectral radiance", "W·m²/sr", Dim(1, 4, -3), "1.19104297239718841407948920e-16", exact = true),
     SecondRadiation("c2", listOf(Piece("c", sub = "2")), "Second radiation constant", "m·K", Dim(l = 1, k = 1), "1.438776877503933e-2"),
     WienWavelength("b", listOf(Piece("b")), "Wien wavelength displacement law constant", "m·K", Dim(l = 1, k = 1), "2.897771955185172e-3"),
-    WienFrequency("bprime", listOf(Piece("b′")), "Wien frequency displacement law constant", "Hz/K", Dim(t = -1, k = -1), "5.878925757646824e10"),
+    WienFrequency("bprime", listOf(Piece("b", sup = "′")), "Wien frequency displacement law constant", "Hz/K", Dim(t = -1, k = -1), "5.878925757646824e10"),
     WienEntropy("bentropy", listOf(Piece("b", sub = "entropy")), "Wien entropy displacement law constant", "m·K", Dim(l = 1, k = 1), "3.002916077e-3"),
     ElementaryCharge("qe", listOf(Piece("e", sup = "−")), "Elementary charge", "C", Dim(t = 1, i = 1), "1.602176634e-19", exact = true),
     ConductanceQuantum("G0", listOf(Piece("G", sub = "0")), "Conductance quantum", "S", Dim(-1, -2, 3, 2), "7.748091729863650e-5"),
