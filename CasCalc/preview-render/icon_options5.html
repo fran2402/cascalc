@@ -1,0 +1,110 @@
+<!-- Icon options for CasCalc: six directions, each shown as Android draws it. -->
+<html><head><meta charset="utf-8"><style>
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000}
+@font-face{font-family:Rob;src:url(../app/src/main/res/font/roboto.ttf);font-weight:100 900}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:CMS2;src:url(../app/src/main/res/font/cm_size2.otf)}
+body{margin:0;background:#e9e5dc;font-family:GSF;padding:40px;color:#23221c}
+h1{font:500 34px GSF;margin:0 0 6px} .sub{font:16px GSF;color:#5c5a50;margin-bottom:30px}
+.opt{display:flex;align-items:center;gap:34px;background:#f7f4ec;border-radius:32px;padding:26px 30px;margin-bottom:22px}
+.meta{width:300px} .meta b{font:600 26px GSF;display:block;margin-bottom:6px} .meta span{font:15px GSF;color:#5c5a50;line-height:1.4}
+.col{display:flex;flex-direction:column;align-items:center;gap:8px;font:12px GSF;color:#6b695e}
+.circle{clip-path:circle(50%)} .squircle{clip-path:url(#sq)} .rsq{border-radius:22%;overflow:hidden}
+.home{width:250px;height:150px;border-radius:22px;background:linear-gradient(135deg,#6f7fa8,#c79b8b 60%,#e7c38e);display:flex;align-items:center;justify-content:space-around;padding:0 10px}
+.home.dark{background:linear-gradient(135deg,#1f2433,#3b2f3a)}
+.mini{width:52px;height:52px;border-radius:50%;overflow:hidden}
+.fake{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.55)}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><clipPath id="sq" clipPathUnits="objectBoundingBox"><path d="M.5 0C.9 0 1 .1 1 .5S.9 1 .5 1 0 .9 0 .5.1 0 .5 0z"/></clipPath></svg>
+<h1>CasCalc icon: H5 with large maths in Google Sans Flex</h1>
+<div class="sub">Each row: full colour in a circle mask and a squircle mask, the themed icon (Android 13+ monochrome) in light and dark, and at real size on a home screen. Maths in Google Sans Flex, rounded, as on the app's keys.</div>
+<div id="list"></div>
+<script>
+// Each option: fg(theme) = the foreground layer (108×108, content inside the 66 dp safe zone, 21–87),
+// bg = the background layer, mono = the one-colour version (drawn in currentColor).
+const W='http://www.w3.org/2000/svg';
+const T=(x,y,s,f,t,fill,extra='')=>`<text x="${x}" y="${y}" font-family="${f}" font-size="${s}" fill="${fill}" text-anchor="middle" ${extra}>${t}</text>`;
+// The saddle z = x² − y² over a square, seen from azimuth 0.6 rad and elevation asin 0.55 (chosen
+// from a contact sheet of views: the one where the saddle reads at a glance).
+const AZ=.6,ZK=.8,EL=.55,CA=Math.cos(AZ),SA=Math.sin(AZ),CE=Math.sqrt(1-EL*EL),S=24;
+const P0=(x,y)=>{const z=(x*x-y*y)*ZK;const sx=x*CA-y*SA,dp=x*SA+y*CA;return [sx,dp*EL-z*CE]};
+// Centred on its own bounds and scaled to 58 units across (inside the 66 dp safe zone).
+const BB=(()=>{let a=[1e9,1e9,-1e9,-1e9];for(let i=0;i<=40;i++)for(let j=0;j<=40;j++){const q=P0(-1+i/20,-1+j/20);a=[Math.min(a[0],q[0]),Math.min(a[1],q[1]),Math.max(a[2],q[0]),Math.max(a[3],q[1])]}return a})();
+const SC=58/Math.max(BB[2]-BB[0],BB[3]-BB[1]);
+const P=(x,y,k=1)=>{const q=P0(x,y);return [54+(q[0]-(BB[0]+BB[2])/2)*SC*k,54+(q[1]-(BB[1]+BB[3])/2)*SC*k]};
+const depth=(x,y)=>x*SA+y*CA;
+const f2=p=>p.map(v=>v.toFixed(1)).join(' ');
+const edge=(n=24,k=1)=>{let d='';const add=(x,y,f)=>{d+=(f?'M':'L')+f2(P(x,y,k))};
+ for(let i=0;i<=n;i++)add(-1+2*i/n,-1,i==0);for(let i=1;i<=n;i++)add(1,-1+2*i/n);for(let i=1;i<=n;i++)add(1-2*i/n,1);for(let i=1;i<n;i++)add(-1,1-2*i/n);return d+'Z'};
+const uLine=(y,k=1,n=30)=>{let d='';for(let i=0;i<=n;i++)d+=(i?'L':'M')+f2(P(-1+2*i/n,y,k));return d};
+const vLine=(x,k=1,n=30)=>{let d='';for(let i=0;i<=n;i++)d+=(i?'L':'M')+f2(P(x,-1+2*i/n,k));return d};
+const grid=(m,stroke,w,k=1)=>{let g='';for(let i=1;i<m;i++){const c=-1+2*i/m;g+=`<path d="${uLine(c,k)}" fill="none" stroke="${stroke}" stroke-width="${w}" stroke-linecap="round"/><path d="${vLine(c,k)}" fill="none" stroke="${stroke}" stroke-width="${w}" stroke-linecap="round"/>`}return g};
+// Cells coloured by the side they show (top light, underside darker), drawn back to front.
+const faces=(top,under,k=1,n=18)=>{const q=[];for(let i=0;i<n;i++)for(let j=0;j<n;j++){const x0=-1+2*i/n,x1=-1+2*(i+1)/n,y0=-1+2*j/n,y1=-1+2*(j+1)/n;
+ const a=P(x0,y0,k),b=P(x1,y0,k),c=P(x1,y1,k),d=P(x0,y1,k);const cr=(b[0]-a[0])*(d[1]-a[1])-(b[1]-a[1])*(d[0]-a[0]);
+ q.push({d:depth((x0+x1)/2,(y0+y1)/2),p:[a,b,c,d],up:cr>0})}q.sort((x,y)=>x.d-y.d);
+ return q.map(o=>`<path d="M${o.p.map(f2).join('L')}Z" fill="${o.up?top:under}" stroke="${o.up?top:under}" stroke-width=".5"/>`).join('')};
+// H5 at scale k, moved by (dx, dy): the dim surface and the two coloured curves.
+const MINT='#8BE9C9',GOLD='#FFD27A',INK='#E6F4F1';
+const at=(k,dx,dy,body)=>`<g transform="translate(${54+dx} ${54+dy}) scale(${k}) translate(-54 -54)">${body}</g>`;
+const h5=(k=1,dx=0,dy=0)=>at(k,dx,dy,faces('#2F6F7E','#1E4D5C')+`<path d="${edge()}" fill="none" stroke="${MINT}" stroke-width="1.6" stroke-linejoin="round" opacity=".6"/><path d="${uLine(0)}" fill="none" stroke="${MINT}" stroke-width="${3.4/k}" stroke-linecap="round"/><path d="${vLine(0)}" fill="none" stroke="${GOLD}" stroke-width="${3.4/k}" stroke-linecap="round"/>`);
+const h5m=(k=1,dx=0,dy=0)=>at(k,dx,dy,`<path d="${edge()}" fill="none" stroke="currentColor" stroke-width="${2.4/k}" stroke-linejoin="round"/><path d="${uLine(0)}" fill="none" stroke="currentColor" stroke-width="${3.4/k}" stroke-linecap="round"/><path d="${vLine(0)}" fill="none" stroke="currentColor" stroke-width="${3.4/k}" stroke-linecap="round"/>`);
+// A point of the surface after at(k, dx, dy).
+const Q=(x,y,k=1,dx=0,dy=0)=>{const p=P(x,y);return [54+dx+(p[0]-54)*k,54+dy+(p[1]-54)*k]};
+// Maths in Google Sans Flex, rounded (ROND 100) and semi-bold like the app's keys; letters use the
+// font's own slant axis for italic.
+const M=(x,y,size,fill,parts,anchor='middle')=>`<text x="${x}" y="${y}" font-size="${size}" fill="${fill}" text-anchor="${anchor}" style="font-family:GSF;font-weight:600;font-variation-settings:'ROND' 100">${parts}</text>`;
+const it=t=>`<tspan style="font-variation-settings:'ROND' 100,'slnt' -10">${t}</tspan>`, rm=t=>`<tspan>${t}</tspan>`;
+const sup=t=>`<tspan font-size="62%" dy="-.55em">${t}</tspan><tspan dy=".55em" font-size="40%"> </tspan>`;
+const sub=t=>`<tspan font-size="62%" dy=".3em" style="font-variation-settings:'ROND' 100,'slnt' -10">${t}</tspan><tspan dy="-.3em"></tspan>`;
+const del=`<tspan style="font-family:Rob;font-weight:600">∂</tspan>`;
+const eq=`${it('z')}${rm('=')}${it('x')}${sup('2')}${rm('−')}${it('y')}${sup('2')}`;
+// ∇ isn't in Google Sans Flex (or Roboto): drawn as a rounded triangle with the font's stroke weight.
+const NABLA=(x,y,c)=>`<path d="M${x} ${y}H${x+12}L${x+6} ${y+12.5}Z" fill="none" stroke="${c}" stroke-width="2.1" stroke-linejoin="round"/>`;
+const O=[
+{name:'1 · Equation', note:'z = x² − y² in large Google Sans Flex under a smaller saddle. The equation is now as prominent as the picture.',
+ bg:'#0E2A3A',
+ fg:h5(.64,0,-12)+M(54,80,17,INK,eq),
+ mono:h5m(.64,0,-12)+M(54,80,17,'currentColor',eq)},
+{name:'2 · ∂x ∂y', note:'Big ∂x and ∂y (∂ from Roboto, the app’s fallback for it) in the curve colours, on either side of the saddle: each partial derivative next to the curve that shows it.',
+ bg:'#0E2A3A',
+ fg:h5(.66,0,-3)+M(32,40,21,GOLD,`${del}${sub('y')}`)+M(78,82,21,MINT,`${del}${sub('x')}`),
+ mono:h5m(.66,0,-3)+M(32,40,21,'currentColor',`${del}${sub('y')}`)+M(78,82,21,'currentColor',`${del}${sub('x')}`)},
+{name:'3 · + and −', note:'A large mint “+” and gold “−” (the curvatures along x and y). Two bold characters: the most legible maths at icon size.',
+ bg:'#0E2A3A',
+ fg:h5(.68,-3,3)+M(79,40,30,MINT,rm('+'))+M(28,72,30,GOLD,rm('−')),
+ mono:h5m(.68,-3,3)+M(79,40,30,'currentColor',rm('+'))+M(28,72,30,'currentColor',rm('−'))},
+{name:'4 · ∇f = 0', note:'∇f = 0 in large type above the saddle (∇ drawn to match, as neither Google Sans Flex nor Roboto has it), with a dot at the saddle point where it holds.',
+ bg:'#0E2A3A',
+ fg:(()=>{const k=.66,dy=10,o=Q(0,0,k,0,dy);return h5(k,0,dy)+`<circle cx="${o[0]}" cy="${o[1]}" r="3.2" fill="#fff"/>`+NABLA(29,25.5,INK)+M(44,38,17,INK,`${it('f')}${rm(' = 0')}`,'start')})(),
+ mono:(()=>{const k=.66,dy=10,o=Q(0,0,k,0,dy);return h5m(k,0,dy)+`<circle cx="${o[0]}" cy="${o[1]}" r="3.4" fill="currentColor"/>`+NABLA(29,25.5,'currentColor')+M(44,38,17,'currentColor',`${it('f')}${rm(' = 0')}`,'start')})()},
+{name:'5 · Equation in a key', note:'The equation large in a rounded key under the saddle, like the app’s input line.',
+ bg:'#0E2A3A',
+ fg:h5(.6,0,-13)+`<rect x="24" y="66" width="60" height="21" rx="10.5" fill="#1C4659"/>`+M(54,81.5,14.5,INK,eq),
+ mono:h5m(.6,0,-13)+`<rect x="24" y="66" width="60" height="21" rx="10.5" fill="none" stroke="currentColor" stroke-width="2"/>`+M(54,81.5,14.5,'currentColor',eq)},
+{name:'6 · Axis letters', note:'Large x, y and z at the ends of the curves and the z axis, in matching colours.',
+ bg:'#0E2A3A',
+ fg:(()=>{const k=.7,dy=6,ex=Q(1,0,k,-4,dy),ey=Q(0,1,k,-4,dy),o=Q(0,0,k,-4,dy);return h5(k,-4,dy)+`<path d="M${o[0]} ${o[1]-5}V${o[1]-24}" stroke="${INK}" stroke-width="2" stroke-linecap="round"/>`+M(ex[0]+4,ex[1]-2,19,MINT,it('x'),'start')+M(ey[0]-4,ey[1]+13,19,GOLD,it('y'),'end')+M(o[0]+6,o[1]-18,19,INK,it('z'),'start')})(),
+ mono:(()=>{const k=.7,dy=6,ex=Q(1,0,k,-4,dy),ey=Q(0,1,k,-4,dy),o=Q(0,0,k,-4,dy);return h5m(k,-4,dy)+`<path d="M${o[0]} ${o[1]-5}V${o[1]-24}" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>`+M(ex[0]+4,ex[1]-2,19,'currentColor',it('x'),'start')+M(ey[0]-4,ey[1]+13,19,'currentColor',it('y'),'end')+M(o[0]+6,o[1]-18,19,'currentColor',it('z'),'start')})()},
+{name:'7 · Light, with equation', note:'Option 1 on a pale Material You tile: teal and amber curves, the equation in dark ink.',
+ bg:'#E3F4EE',
+ fg:at(.64,0,-12,faces('#9FD8C8','#6FB5AA')+`<path d="${edge()}" fill="none" stroke="#0F5C4D" stroke-width="1.6" stroke-linejoin="round" opacity=".6"/><path d="${uLine(0)}" fill="none" stroke="#0F6B57" stroke-width="5.3" stroke-linecap="round"/><path d="${vLine(0)}" fill="none" stroke="#C0780F" stroke-width="5.3" stroke-linecap="round"/>`)+M(54,80,17,'#10322A',eq),
+ mono:h5m(.64,0,-12)+M(54,80,17,'currentColor',eq)},
+];
+
+
+
+
+const svg=(bg,fg,size,cls='')=>`<svg class="${cls}" xmlns="${W}" viewBox="0 0 108 108" width="${size}" height="${size}"><rect width="108" height="108" fill="${bg}"/>${fg}</svg>`;
+// Themed icons: Material You tints (light: dark ink on pale; dark: pale ink on dark).
+const mono=(o,size,dark)=>`<svg xmlns="${W}" viewBox="0 0 108 108" width="${size}" height="${size}" style="color:${dark?'#D4E3FF':'#1D3A66'};--mbg:${dark?'#2A3446':'#D6E3FF'}"><rect width="108" height="108" fill="${dark?'#2A3446':'#D6E3FF'}"/>${o.mono}</svg>`;
+document.getElementById('list').innerHTML=O.map(o=>`<div class="opt"><div class="meta"><b>${o.name}</b><span>${o.note}</span></div>
+ <div class="col">${svg(o.bg,o.fg,190,'circle')}Circle</div>
+ <div class="col">${svg(o.bg,o.fg,190,'squircle')}Squircle</div>
+ <div class="col"><div class="circle" style="width:120px;height:120px">${mono(o,120,false)}</div>Themed, light</div>
+ <div class="col"><div class="circle" style="width:120px;height:120px">${mono(o,120,true)}</div>Themed, dark</div>
+ <div class="col"><div class="home"><span class="fake"></span><span class="mini">${svg(o.bg,o.fg,52)}</span><span class="fake"></span></div>Home screen, 52 dp</div>
+</div>`).join('');
+Promise.all(['GSF','Rob','CMR','CMI','CMS2'].map(f=>document.fonts.load((f=='GSF'||f=='Rob'?'600':'400')+' 20px '+f,f=='CMS2'?'∫':f=='GSF'?'xyz':'a'))).then(()=>document.title='ready');
+</script></body></html>
