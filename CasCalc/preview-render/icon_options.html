@@ -1,0 +1,66 @@
+<!-- Icon options for CasCalc: six directions, each shown as Android draws it. -->
+<html><head><meta charset="utf-8"><style>
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:CMS2;src:url(../app/src/main/res/font/cm_size2.otf)}
+body{margin:0;background:#e9e5dc;font-family:GSF;padding:40px;color:#23221c}
+h1{font:500 34px GSF;margin:0 0 6px} .sub{font:16px GSF;color:#5c5a50;margin-bottom:30px}
+.opt{display:flex;align-items:center;gap:34px;background:#f7f4ec;border-radius:32px;padding:26px 30px;margin-bottom:22px}
+.meta{width:300px} .meta b{font:600 26px GSF;display:block;margin-bottom:6px} .meta span{font:15px GSF;color:#5c5a50;line-height:1.4}
+.col{display:flex;flex-direction:column;align-items:center;gap:8px;font:12px GSF;color:#6b695e}
+.circle{clip-path:circle(50%)} .squircle{clip-path:url(#sq)} .rsq{border-radius:22%;overflow:hidden}
+.home{width:250px;height:150px;border-radius:22px;background:linear-gradient(135deg,#6f7fa8,#c79b8b 60%,#e7c38e);display:flex;align-items:center;justify-content:space-around;padding:0 10px}
+.home.dark{background:linear-gradient(135deg,#1f2433,#3b2f3a)}
+.mini{width:52px;height:52px;border-radius:50%;overflow:hidden}
+.fake{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.55)}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute"><clipPath id="sq" clipPathUnits="objectBoundingBox"><path d="M.5 0C.9 0 1 .1 1 .5S.9 1 .5 1 0 .9 0 .5.1 0 .5 0z"/></clipPath></svg>
+<h1>CasCalc icon: six directions</h1>
+<div class="sub">Each row: full colour in a circle mask and a squircle mask, the themed icon (Android 13+ monochrome) in light and dark, and at real size on a home screen. Glyphs are Computer Modern, like the app's maths.</div>
+<div id="list"></div>
+<script>
+// Each option: fg(theme) = the foreground layer (108×108, content inside the 66 dp safe zone, 21–87),
+// bg = the background layer, mono = the one-colour version (drawn in currentColor).
+const W='http://www.w3.org/2000/svg';
+const T=(x,y,s,f,t,fill,extra='')=>`<text x="${x}" y="${y}" font-family="${f}" font-size="${s}" fill="${fill}" text-anchor="middle" ${extra}>${t}</text>`;
+const O=[
+{name:'A · Integral key', note:'A single calculator key, fully rounded as in the app’s keypad, carrying ∫ in Computer Modern. The equals key’s peach as a small dot: “calculate”.',
+ bg:'#DDE3FF',
+ fg:`<rect x="27" y="27" width="54" height="54" rx="27" fill="#3F4FB8"/>${T(52,63,24,'CMS2','∫','#fff')}<circle cx="68" cy="66" r="5.5" fill="#FFB68A"/>`,
+ mono:`<rect x="27" y="27" width="54" height="54" rx="27" fill="none" stroke="currentColor" stroke-width="4"/>${T(52,63,24,'CMS2','∫','currentColor')}<circle cx="68" cy="66" r="5" fill="currentColor"/>`},
+{name:'B · Curve on the plane', note:'Axes and a sine-like curve with a point on it, over a soft grid: says “graphing” first. Two-tone, reads well small.',
+ bg:'#0F5C4D',
+ fg:`<g stroke="#9ED8C8" stroke-width="1" opacity=".45">${[36,48,60,72].map(v=>`<path d="M${v} 26V82M26 ${v}H82"/>`).join('')}</g><path d="M26 54H82M54 26V82" stroke="#D6F5EC" stroke-width="2.4" stroke-linecap="round"/><path d="M26 64C35 64 39 38 50 38S66 72 82 42" fill="none" stroke="#FFD27A" stroke-width="5" stroke-linecap="round"/><circle cx="50" cy="38" r="5" fill="#fff"/>`,
+ mono:`<path d="M26 54H82M54 26V82" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".6"/><path d="M26 64C35 64 39 38 50 38S66 72 82 42" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linecap="round"/><circle cx="50" cy="38" r="5" fill="currentColor"/>`},
+{name:'C · Expressive f(x)', note:'The M3 Expressive “cookie” shape with f(x) set in Computer Modern italic, as the app writes it. Friendly and very Material You.',
+ bg:'#FFF1E3',
+ fg:(()=>{let d='';for(let k=0;k<=72;k++){const a=k/72*2*Math.PI,r=27+2.6*Math.cos(9*a);d+=(k?'L':'M')+(54+r*Math.cos(a)).toFixed(2)+' '+(54+r*Math.sin(a)).toFixed(2)}return `<path d="${d}Z" fill="#9A4521"/>`+T(54,63,24,'CMI','<tspan>f</tspan><tspan font-family="CMR">(</tspan>x<tspan font-family="CMR">)</tspan>','#FFF1E3')})(),
+ mono:(()=>{let d='';for(let k=0;k<=72;k++){const a=k/72*2*Math.PI,r=27+2.6*Math.cos(9*a);d+=(k?'L':'M')+(54+r*Math.cos(a)).toFixed(2)+' '+(54+r*Math.sin(a)).toFixed(2)}return `<path d="${d}Z" fill="none" stroke="currentColor" stroke-width="3.5"/>`+T(54,63,24,'CMI','<tspan>f</tspan><tspan font-family="CMR">(</tspan>x<tspan font-family="CMR">)</tspan>','currentColor')})()},
+{name:'D · Keypad', note:'Four rounded keys: ∫, π, x² and a peach “=”, exactly the app’s key styles. Unmistakably a calculator; the maths keys say “CAS”.',
+ bg:'#F4F1FF',
+ fg:`<rect x="26" y="26" width="26" height="26" rx="13" fill="#DCDDF6"/><rect x="56" y="26" width="26" height="26" rx="13" fill="#DCDDF6"/><rect x="26" y="56" width="26" height="26" rx="13" fill="#DCDDF6"/><rect x="56" y="56" width="26" height="26" rx="9" fill="#FFB68A"/>
+  ${T(39,42.5,11,'CMS2','∫','#2A2F63')}${T(69,44,19,'CMI','π','#2A2F63')}${T(38,74,17,'CMI','x','#2A2F63')}${T(45.5,67,10,'CMR','2','#2A2F63')}${T(69,75,22,'CMR','=','#5A2A0E')}`,
+ mono:`<rect x="26" y="26" width="26" height="26" rx="13" fill="none" stroke="currentColor" stroke-width="2.5"/><rect x="56" y="26" width="26" height="26" rx="13" fill="none" stroke="currentColor" stroke-width="2.5"/><rect x="26" y="56" width="26" height="26" rx="13" fill="none" stroke="currentColor" stroke-width="2.5"/><rect x="56" y="56" width="26" height="26" rx="9" fill="currentColor"/>
+  ${T(39,42.5,11,'CMS2','∫','currentColor')}${T(69,44,19,'CMI','π','currentColor')}${T(38,74,17,'CMI','x','currentColor')}${T(45.5,67,10,'CMR','2','currentColor')}${T(69,75,22,'CMR','=','var(--mbg)')}`},
+{name:'E · Colour wheel', note:'A domain-colouring disc (the complex plot’s own colours) with a white ∫ over it. The most striking on a home screen; ties the icon to what makes the app different.',
+ bg:'#16161C',
+ fg:`<defs><clipPath id="disc"><circle cx="54" cy="54" r="27"/></clipPath></defs><foreignObject x="27" y="27" width="54" height="54" clip-path="url(#disc)"><div xmlns="http://www.w3.org/1999/xhtml" style="width:54px;height:54px;border-radius:50%;background:radial-gradient(circle,rgba(0,0,0,.0) 0,rgba(0,0,0,0) 30%,rgba(0,0,0,.35) 100%),conic-gradient(from 90deg,#ff3b3b,#ffb000,#9bdc28,#1ec8a0,#2d7cff,#a44dff,#ff3b3b)"></div></foreignObject>${T(53,64,27,'CMS2','∫','#fff',' stroke="#16161C" stroke-width="1.2" paint-order="stroke"')}`,
+ mono:`<circle cx="54" cy="54" r="27" fill="none" stroke="currentColor" stroke-width="3.5"/>${[0,1,2,3,4,5].map(k=>{const a=k*Math.PI/3;return `<path d="M${54+18*Math.cos(a)} ${54+18*Math.sin(a)}L${54+27*Math.cos(a)} ${54+27*Math.sin(a)}" stroke="currentColor" stroke-width="2.5"/>`}).join('')}${T(53,64,27,'CMS2','∫','currentColor')}`},
+{name:'F · Monogram ∫ + curve', note:'An evolution of today’s icon: the ∫ becomes a graph curve that ends in a point, on a squircle tile. Calmer, keeps continuity with the current blue.',
+ bg:'#FFFFFF',
+ fg:`<defs><radialGradient id="b" cx="60" cy="46" r="40" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ACB2FF"/><stop offset=".6" stop-color="#7C92F7"/><stop offset="1" stop-color="#4E69E8"/></radialGradient></defs><rect x="27" y="27" width="54" height="54" rx="18" fill="url(#b)"/><path d="M60 36C58 32 52.5 33 52 38L49 70C48.5 75 43 76 41 72" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/><path d="M55 58C60 58 62 46 68 46S72 54 75 50" fill="none" stroke="#1E2157" stroke-width="3.2" stroke-linecap="round"/><circle cx="68" cy="46" r="3.6" fill="#FFB68A"/>`,
+ mono:`<rect x="27" y="27" width="54" height="54" rx="18" fill="none" stroke="currentColor" stroke-width="3.5"/><path d="M60 36C58 32 52.5 33 52 38L49 70C48.5 75 43 76 41 72" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><path d="M55 58C60 58 62 46 68 46S72 54 75 50" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/><circle cx="68" cy="46" r="3.6" fill="currentColor"/>`},
+];
+const svg=(bg,fg,size,cls='')=>`<svg class="${cls}" xmlns="${W}" viewBox="0 0 108 108" width="${size}" height="${size}"><rect width="108" height="108" fill="${bg}"/>${fg}</svg>`;
+// Themed icons: Material You tints (light: dark ink on pale; dark: pale ink on dark).
+const mono=(o,size,dark)=>`<svg xmlns="${W}" viewBox="0 0 108 108" width="${size}" height="${size}" style="color:${dark?'#D4E3FF':'#1D3A66'};--mbg:${dark?'#2A3446':'#D6E3FF'}"><rect width="108" height="108" fill="${dark?'#2A3446':'#D6E3FF'}"/>${o.mono}</svg>`;
+document.getElementById('list').innerHTML=O.map(o=>`<div class="opt"><div class="meta"><b>${o.name}</b><span>${o.note}</span></div>
+ <div class="col">${svg(o.bg,o.fg,190,'circle')}Circle</div>
+ <div class="col">${svg(o.bg,o.fg,190,'squircle')}Squircle</div>
+ <div class="col"><div class="circle" style="width:120px;height:120px">${mono(o,120,false)}</div>Themed, light</div>
+ <div class="col"><div class="circle" style="width:120px;height:120px">${mono(o,120,true)}</div>Themed, dark</div>
+ <div class="col"><div class="home"><span class="fake"></span><span class="mini">${svg(o.bg,o.fg,52)}</span><span class="fake"></span></div>Home screen, 52 dp</div>
+</div>`).join('');
+Promise.all(['GSF','CMR','CMI','CMS2'].map(f=>document.fonts.load('400 20px '+f,f=='CMS2'?'∫':'a'))).then(()=>document.title='ready');
+</script></body></html>
