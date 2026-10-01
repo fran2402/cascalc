@@ -312,7 +312,7 @@ class Evaluator(
             val x = variable(n.variable)
             val body = eval(n.body, env + (x.name to x))
             if (n.lower.isEmpty && n.upper.isEmpty) {
-                return Calculus.integrate(body, x)?.let { Algebra.simplify(it) } ?: throw MathError("No antiderivative found. Add limits for a numerical answer")
+                return Calculus.antiderivative(body, x) ?: throw MathError("No antiderivative found. Add limits for a numerical answer")
             }
             return Calculus.definite(body, x, eval(n.lower, env), eval(n.upper, env))
         }

@@ -147,6 +147,19 @@ object Compiler {
             "zetaprime" -> one { com.example.cas.cas.ComplexMath.zetaDerivative(com.example.cas.cas.CD(it), 1).re }
             "zetaprime2" -> one { com.example.cas.cas.ComplexMath.zetaDerivative(com.example.cas.cas.CD(it), 2).re }
             "gamma" -> one { if (it == Math.rint(it) && it <= 0) Double.NaN else Numeric.gamma(it) }
+            "si", "ci", "shi", "chi", "ei", "li", "erfi", "fresnels", "fresnelc" -> {
+                val op: (com.example.cas.cas.CD) -> com.example.cas.cas.CD = when (e.name) {
+                    "si" -> com.example.cas.cas.Special::si; "ci" -> com.example.cas.cas.Special::ci
+                    "shi" -> com.example.cas.cas.Special::shi; "chi" -> com.example.cas.cas.Special::chi
+                    "ei" -> com.example.cas.cas.Special::ei; "li" -> com.example.cas.cas.Special::li
+                    "erfi" -> com.example.cas.cas.Special::erfi; "fresnels" -> com.example.cas.cas.Special::fresnelS
+                    else -> com.example.cas.cas.Special::fresnelC
+                }
+                one { v -> op(com.example.cas.cas.CD(v)).let { w -> if (kotlin.math.abs(w.im) < 1e-9 * maxOf(1.0, kotlin.math.abs(w.re))) w.re else Double.NaN } }
+            }
+            "gammainc" -> { val g = a[1]; RealFunction { v -> com.example.cas.cas.Special.gammaUpper(f(v), g(v)) } }
+            "ellipticf" -> { val g = a[1]; RealFunction { v -> com.example.cas.cas.Special.ellipticF(f(v), g(v)) } }
+            "elliptice" -> { val g = a[1]; RealFunction { v -> com.example.cas.cas.Special.ellipticE(f(v), g(v)) } }
             "hurwitz" -> { val q = a[1]; RealFunction { v -> com.example.cas.cas.ComplexMath.hurwitz(com.example.cas.cas.CD(f(v)), q(v)).let { w -> if (kotlin.math.abs(w.im) < 1e-9) w.re else Double.NaN } } }
             "polylog" -> { val z = a[1]; RealFunction { v -> com.example.cas.cas.ComplexMath.polylog(com.example.cas.cas.CD(f(v)), com.example.cas.cas.CD(z(v))).let { w -> if (kotlin.math.abs(w.im) < 1e-9) w.re else Double.NaN } } }
             "zeta" -> one { val w = com.example.cas.cas.ComplexMath.zeta(com.example.cas.cas.CD(it)); if (kotlin.math.abs(w.im) < 1e-9) w.re else Double.NaN }

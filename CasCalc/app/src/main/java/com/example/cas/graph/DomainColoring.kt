@@ -140,6 +140,24 @@ object ComplexCompiler {
             "binom" -> { val g = a[1]; ComplexFunction { z, p -> val n = f(z, p); val k = g(z, p); ComplexMath.gamma(n + CD(1.0)) / (ComplexMath.gamma(k + CD(1.0)) * ComplexMath.gamma(n - k + CD(1.0))) } }
             "perm" -> { val g = a[1]; ComplexFunction { z, p -> val n = f(z, p); val k = g(z, p); ComplexMath.gamma(n + CD(1.0)) / ComplexMath.gamma(n - k + CD(1.0)) } }
             // J_a(z), Y_a(z): the order is real (a number or a slider), z anywhere on the plane.
+            "si" -> one(com.example.cas.cas.Special::si)
+            "ci" -> one(com.example.cas.cas.Special::ci)
+            "shi" -> one(com.example.cas.cas.Special::shi)
+            "chi" -> one(com.example.cas.cas.Special::chi)
+            "ei" -> one(com.example.cas.cas.Special::ei)
+            "li" -> one(com.example.cas.cas.Special::li)
+            "erfi" -> one(com.example.cas.cas.Special::erfi)
+            "fresnels" -> one(com.example.cas.cas.Special::fresnelS)
+            "fresnelc" -> one(com.example.cas.cas.Special::fresnelC)
+            // Real arguments only: elsewhere undefined (grey).
+            "gammainc", "ellipticf", "elliptice" -> {
+                val g = a[1]
+                ComplexFunction { z, p ->
+                    val u = f(z, p); val w = g(z, p)
+                    if (kotlin.math.abs(u.im) > 1e-12 || kotlin.math.abs(w.im) > 1e-12) CD(Double.NaN)
+                    else CD(when (e.name) { "gammainc" -> com.example.cas.cas.Special.gammaUpper(u.re, w.re); "ellipticf" -> com.example.cas.cas.Special.ellipticF(u.re, w.re); else -> com.example.cas.cas.Special.ellipticE(u.re, w.re) })
+                }
+            }
             "hurwitz" -> { val q = a[1]; ComplexFunction { z, p -> ComplexMath.hurwitz(f(z, p), q(z, p).re) } }
             "polylog" -> { val w = a[1]; ComplexFunction { z, p -> ComplexMath.polylog(f(z, p), w(z, p)) } }
             "besselj", "bessely" -> {

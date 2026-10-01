@@ -44,6 +44,26 @@ object Calculus {
                 return diff(div(fn("gamma", add(n, ONE)), fn("gamma", add(sub(n, k), ONE))), x)
             }
         }
+        // F(φ | m) and E(φ | m) in φ (m fixed): the integrands.
+        if ((f.name == "ellipticf" || f.name == "elliptice") && f.args.size == 2 && f.args[1].freeOf(x)) {
+            val (phi, m) = f.args
+            val root = sqrt(sub(ONE, mul(m, pow(fn("sin", phi), TWO))))
+            return mul(if (f.name == "ellipticf") pow(root, MINUS_ONE) else root, diff(phi, x))
+        }
+        // Γ(s, u) in u (s fixed): −u^(s−1) e^(−u).
+        if (f.name == "gammainc" && f.args.size == 2 && f.args[0].freeOf(x)) {
+            val (s, u) = f.args
+            return mul(neg(mul(pow(u, sub(s, ONE)), pow(E, neg(u)))), diff(u, x))
+        }
+        // Li_s(u) in u: Li_{s−1}(u)/u. ζ(s, q) in q: −s ζ(s + 1, q).
+        if (f.name == "polylog" && f.args.size == 2 && f.args[0].freeOf(x)) {
+            val (s, u) = f.args
+            return mul(div(fn("polylog", sub(s, ONE), u), u), diff(u, x))
+        }
+        if (f.name == "hurwitz" && f.args.size == 2 && f.args[0].freeOf(x)) {
+            val (s, q) = f.args
+            return mul(neg(s), fn("hurwitz", add(s, ONE), q), diff(q, x))
+        }
         // Bessel functions of fixed order a: J′ₐ(u) = (Jₐ₋₁(u) − Jₐ₊₁(u))/2, the same for Y.
         if ((f.name == "besselj" || f.name == "bessely") && f.args.size == 2 && f.args[0].freeOf(x)) {
             val (a, u) = f.args
@@ -73,6 +93,16 @@ object Calculus {
             "sgn" -> ZERO
             // d/du erf u = 2/√π e^(−u²)
             "erf" -> div(mul(TWO, pow(E, neg(pow(u, TWO)))), sqrt(PI))
+            "erfi" -> div(mul(TWO, pow(E, pow(u, TWO))), sqrt(PI))
+            // The integrals' integrands: Si′ = sin u/u, Ci′ = cos u/u, Ei′ = eᵘ/u, li′ = 1/ln u, …
+            "si" -> div(fn("sin", u), u)
+            "ci" -> div(fn("cos", u), u)
+            "shi" -> div(fn("sinh", u), u)
+            "chi" -> div(fn("cosh", u), u)
+            "ei" -> div(pow(E, u), u)
+            "li" -> pow(fn("ln", u), MINUS_ONE)
+            "fresnels" -> fn("sin", div(mul(PI, pow(u, TWO)), TWO))
+            "fresnelc" -> fn("cos", div(mul(PI, pow(u, TWO)), TWO))
             "frac" -> ONE
             // Piecewise constant: 0 wherever the derivative exists (as Desmos draws it).
             "floor", "ceil", "round", "arg" -> ZERO
@@ -93,6 +123,35 @@ object Calculus {
 
     // ---- Antiderivatives ------------------------------------------------------------------
 
+    /**
+     * An antiderivative of [e], checked: its derivative must equal [e] at sample points (any
+     * other letters given values too), so a wrong closed form is never shown. Null if there's
+     * none or it doesn't check out.
+     */
+    fun antiderivative(e: Expr, x: Sym): Expr? {
+        val f = integrate(e, x) ?: return null
+        return Algebra.simplify(f).takeIf { verified(e, it, x) }
+    }
+
+    /** Whether d/dx [big] = [small] at the sample points where both are defined (at least two of them). */
+    private fun verified(small: Expr, big: Expr, x: Sym): Boolean {
+        val d = runCatching { diff(big, x) }.getOrNull() ?: return true
+        val others = (small.freeVars() + big.freeVars() - x.name).sorted()
+        var compared = 0
+        for (p in listOf(0.37, 1.13, 2.71, -0.83, 0.61, 1.9, -1.7, 3.3, 0.093, 5.2)) {
+            val env = mapOf(x.name to p) + others.mapIndexed { k, n -> n to 0.7 + 0.13 * k }
+            val a = runCatching { Numeric.eval(small, env) }.getOrNull() ?: continue
+            val b = runCatching { Numeric.eval(d, env) }.getOrNull() ?: continue
+            if (!a.re.isFinite() || !a.im.isFinite() || !b.re.isFinite() || !b.im.isFinite()) continue
+            // Only where the integrand is real: elsewhere ln|u| and ln u legitimately differ.
+            if (kotlin.math.abs(a.im) > 1e-9 * maxOf(1.0, a.abs())) continue
+            if ((a - b).abs() > 1e-6 * maxOf(1.0, a.abs())) return false
+            compared++
+            if (compared >= 4) return true
+        }
+        return true
+    }
+
     /** An antiderivative of e, or null if none of the methods finds one. */
     fun integrate(e: Expr, x: Sym, depth: Int = 0): Expr? {
         if (e is Mat) {
@@ -108,9 +167,11 @@ object Calculus {
         }
         return table(e, x)
             ?: rational(e, x)
+            ?: Integrals.special(e, x, depth)
             ?: byParts(e, x, depth)
             ?: substitution(e, x, depth)
             ?: expandFirst(e, x, depth)
+            ?: Integrals.rewrites(e, x, depth)
     }
 
     /** u = a·x + b: the linear coefficient a, or null if u isn't linear in x. */
@@ -268,12 +329,15 @@ object Calculus {
     private fun byParts(e: Expr, x: Sym, depth: Int): Expr? {
         if (e !is Mul) return null
         val (polyParts, others) = e.factors.partition { Algebra.coefficients(it, x) != null }
-        if (polyParts.isEmpty() || others.size != 1) return null
+        if (polyParts.isEmpty() || others.isEmpty()) return null
         val p = mul(polyParts)
-        val f = others[0]
+        val f = if (others.size == 1) others[0] else Mul(others)
         val isExpLike = (f is Pow && f.base.freeOf(x) && linear(f.exp, x) != null) ||
             (f is Fn && f.name in setOf("sin", "cos", "sinh", "cosh") && linear(f.args[0], x) != null)
-        if (isExpLike) {
+        // Polynomial × anything else that can be integrated (eˣ sin x, say), as long as it has no
+        // logarithm or inverse function (those are differentiated instead, below).
+        val generalPart = !isExpLike && f !is Fn && f.freeOf(x).not() && !f.contains { it is Fn && it.name in setOf("ln", "atan", "asin", "acos", "erf") }
+        if (isExpLike || generalPart) {
             val v = integrate(f, x, depth + 1) ?: return null
             val rest = integrate(mul(diff(p, x), v), x, depth + 1) ?: return null
             return sub(mul(p, v), rest)
@@ -333,7 +397,7 @@ object Calculus {
         if (body is Mat) return Mat(body.rows, body.cols, body.cells.map { definite(it, x, a, b) })
         val bothConstant = a.isConstant && b.isConstant && body.freeVars().all { it == x.name }
         val numeric = if (bothConstant) runCatching { numericIntegral(body, x, a, b) }.getOrNull() else null
-        val f = runCatching { integrate(body, x) }.getOrNull()
+        val f = runCatching { antiderivative(body, x) }.getOrNull()
         if (f != null) {
             // F(b) − F(a), with limits at infinite ends: ∫₀^∞ e^(−x) dx = 1.
             fun at(end: Expr, fromBelow: Boolean): Expr =
@@ -422,6 +486,12 @@ object Calculus {
             // A circle growing without bound eventually encloses every pole: ∮ → 2πi Σ Res.
             val grown = replaceGrowingContours(f, x, a)
             if (grown != f) return limit(Algebra.simplify(grown), x, a, side, depth)
+        }
+        if (depth == 0) {
+            // Continuous there: the value itself. Otherwise a series around the point, whose
+            // leading term is exact (L'Hôpital and the numerical estimate are the fallbacks).
+            if (!isInfinite(a)) runCatching { Algebra.simplify(f.subst(x, a)) }.getOrNull()?.let { if (finite(it)) return it }
+            Puiseux.limit(f, x, a, side)?.let { return it }
         }
         if (isInfinite(a)) {
             val t = Sym("\u0001t")

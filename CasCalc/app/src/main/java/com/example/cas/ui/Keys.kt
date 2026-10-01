@@ -395,6 +395,21 @@ val FunctionTabs: List<FunctionTab> = listOf(
                 type("z"),
                 type("w"),
             ),
+            // The special functions integrals come out in.
+            listOf(
+                notation(row(Func("si", listOf(row("x")))), KeyAction.Insert(0) { Func("si") }, "sine integral"),
+                notation(row(Func("ci", listOf(row("x")))), KeyAction.Insert(0) { Func("ci") }, "cosine integral"),
+                notation(row(Func("ei", listOf(row("x")))), KeyAction.Insert(0) { Func("ei") }, "exponential integral"),
+                notation(row(Func("li", listOf(row("x")))), KeyAction.Insert(0) { Func("li") }, "logarithmic integral"),
+                notation(row(Func("erfi", listOf(row("x")))), KeyAction.Insert(0) { Func("erfi") }, "imaginary error function"),
+            ),
+            listOf(
+                notation(row(Func("fresnels", listOf(row("x")))), KeyAction.Insert(0) { Func("fresnels") }, "Fresnel sine integral"),
+                notation(row(Func("fresnelc", listOf(row("x")))), KeyAction.Insert(0) { Func("fresnelc") }, "Fresnel cosine integral"),
+                notation(row(Func("gammainc", listOf(row("s"), row("x")))), KeyAction.Insert(0) { Func("gammainc", 2) }, "upper incomplete gamma function"),
+                notation(row(Func("ellipticf", listOf(row("φ"), row("m")))), KeyAction.Insert(0) { Func("ellipticf", 2) }, "incomplete elliptic integral of the first kind"),
+                notation(row(Func("polylog", listOf(row("s"), row("z")))), KeyAction.Insert(0) { Func("polylog", 2) }, "polylogarithm"),
+            ),
         ),
         columns = 5,
     ),

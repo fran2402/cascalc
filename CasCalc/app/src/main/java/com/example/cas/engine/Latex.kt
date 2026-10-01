@@ -104,6 +104,12 @@ object Latex {
             "hessian" -> "H" + paren(a[0])
             "zeta" -> "\\zeta" + paren(a[0])
             "hurwitz" -> "\\zeta(" + a[0] + ", " + a[1] + ")"
+            "si", "ci", "shi", "chi", "ei", "li", "erfi" -> "\\operatorname{" + mapOf("si" to "Si", "ci" to "Ci", "shi" to "Shi", "chi" to "Chi", "ei" to "Ei", "li" to "li", "erfi" to "erfi")[f.name] + "}" + paren(a[0])
+            "fresnels" -> "S" + paren(a[0])
+            "fresnelc" -> "C" + paren(a[0])
+            "gammainc" -> "\\Gamma(" + a[0] + ", " + a[1] + ")"
+            "ellipticf" -> "F(" + a[0] + " \\mid " + a[1] + ")"
+            "elliptice" -> "E(" + a[0] + " \\mid " + a[1] + ")"
             "polylog" -> "\\operatorname{Li}_{" + a[0] + "}" + paren(a[1])
             "besselj" -> "J_{" + a[0] + "}" + paren(a[1])
             "bessely" -> "Y_{" + a[0] + "}" + paren(a[1])

@@ -70,7 +70,7 @@ class NewFeaturesTest {
     @Test fun limitAtInfinityOfInverse() = assertEquals("0", lim(row(Frac(r("1"), r("x"))), "x→∞"))
     @Test fun improperExact() = assertEquals("1", cas(row(Integral(r("0"), r("∞"), row(Sym("e"), Pow(r("−x"))), r("x")))))
     @Test fun improperOneOverXSquared() = assertEquals("1", cas(row(Integral(r("1"), r("∞"), row(Frac(r("1"), r("x²"))), r("x")))))
-    @Test fun improperGaussian() = assertEquals("1.772453851", cas(row(Integral(r("−∞"), r("∞"), row(Sym("e"), Pow(row(Sym("−"), Sym("x"), Pow(row("2"))))), r("x")))))
+    @Test fun improperGaussian() = assertEquals("√π", cas(row(Integral(r("−∞"), r("∞"), row(Sym("e"), Pow(row(Sym("−"), Sym("x"), Pow(row("2"))))), r("x")))))
 
     // ---- Higher derivatives
     @Test fun secondDerivative() = assertEquals("-sin(x)", cas(row(Derivative(r("x"), row(Func("sin", listOf(r("x")))), MathRow(), r("2")))))

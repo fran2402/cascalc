@@ -177,6 +177,8 @@ object ComplexMath {
         }
     }
 
+    private fun powInt(z: CD, n: Int): CD { var r = ONE; repeat(n) { r = r * z }; return r }
+
     /** x^(−s) for real x > 0. */
     private fun powNeg(x: Double, s: CD) = exp(CD(-ln(x)) * s)
 
@@ -217,7 +219,25 @@ object ComplexMath {
      */
     fun polylog(s: CD, z: CD): CD {
         val m = z.abs()
-        if (m.isNaN() || m > 1 + 1e-12) return CD(Double.NaN)
+        if (m.isNaN()) return CD(Double.NaN)
+        if (m > 1 + 1e-12) {
+            // |z| > 1, whole s ≥ 1: the inversion formula
+            // Li_s(z) = −(−1)ˢ Li_s(1/z) − (2πi)ˢ/s! B_s(½ + ln(−z)/(2πi))
+            val n = s.re.toInt()
+            if (s.im != 0.0 || s.re != n.toDouble() || n < 1 || n > 30) return CD(Double.NaN)
+            val twoPiI = CD(0.0, 2 * PI)
+            val y = CD(0.5) + ln(-z) / twoPiI
+            // B_n(y) = Σ C(n, k) B_k y^(n−k)
+            var b = CD(0.0)
+            var binom = 1.0
+            for (k in 0..n) {
+                b = b + CD(binom * Bernoulli.of(k).toDouble()) * powInt(y, n - k)
+                binom = binom * (n - k) / (k + 1)
+            }
+            var fact = 1.0; for (k in 2..n) fact *= k
+            val sign = if (n % 2 == 0) -1.0 else 1.0
+            return CD(sign) * polylog(s, ONE / z) - powInt(twoPiI, n) / CD(fact) * b
+        }
         if (m == 0.0) return CD(0.0)
         if (abs(z.re - 1) < 1e-15 && abs(z.im) < 1e-15) return zeta(s)
         if (abs(z.re + 1) < 1e-15 && abs(z.im) < 1e-15) return -(ONE - exp((ONE - s) * CD(ln(2.0)))) * zeta(s)

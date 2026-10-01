@@ -482,6 +482,8 @@ private val FUNCTION_NAMES = mapOf(
     "perm" to "P", "normpdf" to "φ", "normcdf" to "Φ", "binompdf" to "Bin", "poissonpdf" to "Pois", "total" to "Σ",
     "sd" to "s", "psd" to "σ", "median" to "med", "digamma" to "ψ", "zetaprime" to "ζ′",
     "hadamard" to "∘", "kron" to "⊗", "lambertw" to "W",
+    "si" to "Si", "ci" to "Ci", "shi" to "Shi", "chi" to "Chi", "ei" to "Ei",
+    "fresnels" to "S", "fresnelc" to "C", "gammainc" to "Γ", "ellipticf" to "F", "elliptice" to "E",
 )
 
 private val SPACED = setOf("+", "−", "×", "=", "mod", "<", ">", "≤", "≥", "or", ":=", "≠", "≈", "∈", "→", "↦", "±")

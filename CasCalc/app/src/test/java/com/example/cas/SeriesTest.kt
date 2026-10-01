@@ -75,6 +75,10 @@ class SeriesTest {
         close(64.6638699687685, ComplexMath.hurwitz(CD(3.0), 0.25).re, 1e-9)
         // Complex arguments: Li₂(−0.7 + 0.5i), ζ(0.3 + 2i, 0.7)
         val li = ComplexMath.polylog(CD(2.0), CD(-0.7, 0.5)); close(-0.634803441693774, li.re, 1e-9); close(0.375008404437177, li.im, 1e-9)
+        // Beyond |z| = 1, by the inversion formula: Li₂(−2), Li₃(−5), Li₂(3)
+        close(-1.43674636688368, ComplexMath.polylog(CD(2.0), CD(-2.0)).re, 1e-9)
+        close(-3.53751143761861, ComplexMath.polylog(CD(3.0), CD(-5.0)).re, 1e-9)
+        val l3 = ComplexMath.polylog(CD(2.0), CD(3.0)); close(2.3201804233131, l3.re, 1e-9); close(3.4513922952232, kotlin.math.abs(l3.im), 1e-9)
         val hz = ComplexMath.hurwitz(CD(0.3, 2.0), 0.7); close(0.455940037382897, hz.re, 1e-9); close(0.265156899857882, hz.im, 1e-9)
     }
 }

@@ -290,7 +290,7 @@ object Simplify {
 
     // ---- Functions -------------------------------------------------------------------
 
-    private val ODD = setOf("sin", "tan", "asin", "atan", "sinh", "tanh", "asinh", "atanh")
+    private val ODD = setOf("sin", "tan", "asin", "atan", "sinh", "tanh", "asinh", "atanh", "erf", "erfi", "si", "shi", "fresnels", "fresnelc")
     private val INVERSE = mapOf(
         "sin" to "asin", "cos" to "acos", "tan" to "atan",
         "sinh" to "asinh", "cosh" to "acosh", "tanh" to "atanh", "ln" to "exp",
@@ -326,6 +326,21 @@ object Simplify {
         }
         // sin(asin x) = x …
         if (args.size == 1 && x is Fn && INVERSE[name] == x.name && name != "ln") return x.args[0]
+        // cos(asin z) = √(1 − z²), cosh(asinh z) = √(1 + z²), sinh(acosh z) = √(z² − 1), … (what
+        // a trigonometric substitution leaves behind).
+        if (args.size == 1 && x is Fn && x.args.size == 1) {
+            val z = x.args[0]
+            fun root(e: Expr) = power(e, HALF)
+            val zz = power(z, TWO)
+            when (name to x.name) {
+                "cos" to "asin", "sin" to "acos" -> return root(sum(listOf(ONE, product(listOf(MINUS_ONE, zz)))))
+                "tan" to "asin" -> return product(listOf(z, power(sum(listOf(ONE, product(listOf(MINUS_ONE, zz)))), num(-1, 2))))
+                "cosh" to "asinh" -> return root(sum(listOf(zz, ONE)))
+                "sinh" to "acosh" -> return root(sum(listOf(zz, MINUS_ONE)))
+                "cos" to "atan" -> return power(sum(listOf(zz, ONE)), num(-1, 2))
+                "sin" to "atan" -> return product(listOf(z, power(sum(listOf(zz, ONE)), num(-1, 2))))
+            }
+        }
         return when (name) {
             "sin", "cos", "tan" -> trig(name, x) ?: Fn(name, args)
             "asin", "acos", "atan" -> inverseTrig(name, x) ?: complexInverseTrig(name, x) ?: Fn(name, args)
@@ -376,6 +391,13 @@ object Simplify {
             }
             "zeta" -> zetaExact(x) ?: Fn(name, args)
             "hurwitz" -> hurwitzExact(args[0], args[1]) ?: Fn(name, args)
+            // Odd functions and integrals from 0 vanish at 0.
+            "si", "shi", "erfi", "fresnels", "fresnelc" -> if (x == ZERO) ZERO else if (x is Mul && isNegative(x)) product(listOf(MINUS_ONE, function(name, listOf(product(listOf(MINUS_ONE, x)))))) else Fn(name, args)
+            "ei" -> if (x == ZERO) throw MathError("Ei has a pole at 0") else Fn(name, args)
+            "li" -> if (x == ONE) throw MathError("li has a pole at 1") else if (x == ZERO) ZERO else Fn(name, args)
+            "ellipticf", "elliptice" -> when { x == ZERO -> ZERO; args[1] == ZERO -> x; else -> Fn(name, args) }
+            // Γ(1, x) = e^(−x); Γ(s, 0) = Γ(s).
+            "gammainc" -> when { x == ONE -> power(E, product(listOf(MINUS_ONE, args[1]))); args[1] == ZERO -> function("gamma", listOf(x)); else -> Fn(name, args) }
             "polylog" -> polylogExact(args[0], args[1]) ?: Fn(name, args)
             "hadamard" -> Matrices.hadamard(x as? Mat ?: throw MathError("∘ needs two matrices"), args[1] as? Mat ?: throw MathError("∘ needs two matrices"))
             "kron" -> Matrices.kronecker(x as? Mat ?: throw MathError("⊗ needs two matrices"), args[1] as? Mat ?: throw MathError("⊗ needs two matrices"))
@@ -394,6 +416,7 @@ object Simplify {
     private val NUMERIC_OK = setOf(
         "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh", "asinh", "acosh", "atanh",
         "ln", "log", "abs", "floor", "ceil", "round", "Re", "Im", "conj", "arg", "fact", "binom", "mod", "min", "max", "sgn", "frac", "gamma", "zeta", "erf", "perm", "invnorm", "digamma", "zetaprime", "lambertw", "besselj", "bessely", "hurwitz", "polylog",
+        "si", "ci", "shi", "chi", "ei", "li", "erfi", "fresnels", "fresnelc", "gammainc", "ellipticf", "elliptice",
     )
 
     fun isNegative(x: Expr): Boolean = when (x) {

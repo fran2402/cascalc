@@ -123,7 +123,7 @@ class EngineTest {
     @Test fun definiteExact() = assertEquals("2", cas(row(Integral(row("0"), row("π"), row(f("sin", row("x"))), row("x")))))
     @Test fun definiteThird() = assertEquals("1/3", cas(row(Integral(row("0"), row("1"), x2(), row("x")))))
     @Test fun definiteSymbolicBound() = assertEquals("b^2/2", cas(row(Integral(row("0"), row("b"), row("x"), row("x")))))
-    @Test fun definiteNumeric() = assertEquals("1.772453851", cas(row(Integral(row("−10"), row("10"), row(Sym("e"), Pow(row(Sym("−"), Sym("x"), Pow(row("2"))))), row("x")))))
+    @Test fun definiteNumeric() = assertEquals("erf(10)√π", cas(row(Integral(row("−10"), row("10"), row(Sym("e"), Pow(row(Sym("−"), Sym("x"), Pow(row("2"))))), row("x")))))
     @Test fun taylor() = assertEquals("x^4/24+x^3/6+x^2/2+x+1", cas(row(f("taylor", row(Sym("e"), Pow(row("x"))), row("x=0"), row("4")))))
     @Test fun taylorSin() = assertEquals("x^5/120-x^3/6+x", cas(row(f("taylor", row(f("sin", row("x"))), row("x"), row("5")))))
     @Test fun sumNumeric() = assertEquals("5050", cas(row(BigOp(BigOpKind.Sum, row("k"), row("1"), row("100"), row("k")))))
@@ -175,7 +175,7 @@ class EngineTest {
     // ---- More CAS behavior
     @Test fun differenceOfSquares() = assertEquals("x^2-1", cas(row(f("expand", type("(x+1)(x−1)")))))
     @Test fun partialFractions() = assertEquals("ln(|x-1|)/2-ln(|x+1|)/2", cas(row(Integral(MathRow(), MathRow(), row(Frac(row("1"), row(Sym("x"), Pow(row("2")), Sym("−"), Sym("1")))), row("x")))))
-    @Test fun trigSubstitution() = assertEquals("-cos(x)^2/2", cas(row(Integral(MathRow(), MathRow(), row(f("sin", row("x")), f("cos", row("x"))), row("x")))))
+    @Test fun trigSubstitution() = assertEquals("sin(x)^2/2", cas(row(Integral(MathRow(), MathRow(), row(f("sin", row("x")), f("cos", row("x"))), row("x")))))
     @Test fun lnSquared() = assertEquals("ln(x)^2/2", cas(row(Integral(MathRow(), MathRow(), row(Frac(row(f("ln", row("x"))), row("x"))), row("x")))))
     @Test fun solveBiquadratic() = assertEquals("x=-2, x=-1, x=1, x=2", solve(row(Sym("x"), Pow(row("4")), Sym("−"), Sym("5"), Sym("x"), Pow(row("2")), Sym("+"), Sym("4"), Sym("="), Sym("0"))))
     @Test fun solveCubicRational() = assertEquals("x=1, x=2, x=3", solve(row(Sym("x"), Pow(row("3")), Sym("−"), Sym("6"), Sym("x"), Pow(row("2")), Sym("+"), Sym("1"), Sym("1"), Sym("x"), Sym("−"), Sym("6"), Sym("="), Sym("0"))))
@@ -186,8 +186,10 @@ class EngineTest {
     @Test fun derivativeNumericalFallback() = assertEquals("0.4227843351", cas(row(Derivative(row("x"), row(Sym("x"), Sym("!")), row("1")))))
     // x! = Γ(x + 1), so its derivative is Γ(x + 1) ψ(x + 1).
     @Test fun derivativeOfFactorialUsesDigamma() = assertEquals("digamma(x+1)gamma(x+1)", cas(row(Derivative(row("x"), row(Sym("x"), Sym("!"))))))
-    @Test fun integralNumericalFallback() = assertEquals("0.7468241328", cas(row(Integral(row("0"), row("1"), row(Sym("e"), Pow(row(Sym("−"), Sym("x"), Pow(row("2"))))), row("x")))))
-    @Test fun antiderivativeHint() = assertEquals("Error: No antiderivative found. Add limits for a numerical answer", cas(row(Integral(MathRow(), MathRow(), row(Sym("e"), Pow(row(Sym("−"), Sym("x"), Pow(row("2"))))), row("x")))))
+    // ∫₀¹ e^(−x²) dx in closed form now (it used to be numerical).
+    @Test fun integralNumericalFallback() = assertEquals("erf(1)√π/2", cas(row(Integral(row("0"), row("1"), row(Sym("e"), Pow(row(Sym("−"), Sym("x"), Pow(row("2"))))), row("x")))))
+    // xˣ has no antiderivative in closed form.
+    @Test fun antiderivativeHint() = assertEquals("Error: No antiderivative found. Add limits for a numerical answer", cas(row(Integral(MathRow(), MathRow(), row(Sym("x"), Pow(row("x"))), row("x")))))
 
     // ---- Linear algebra
     private fun m33(vararg c: String) = Matrix(3, 3, c.map { row(it) })
