@@ -224,6 +224,12 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
         if (needsBrackets) editor.type(")")
     }
 
+    /** An example from a guide, typed in place of what's there. */
+    fun tryExample(row: MathRow) {
+        editor.clear()
+        reuse(row)
+    }
+
     fun clearHistory() {
         history.clear()
         save()

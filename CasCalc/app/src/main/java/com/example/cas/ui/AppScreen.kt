@@ -55,6 +55,21 @@ fun AppScreen() {
         prefs.edit().putString("mode", m.name).apply()
     }
 
+    // Holding a mode's button opens its guide; an example tapped there is typed in that mode.
+    var guide by remember { mutableStateOf<Mode?>(null) }
+    guide?.let { g ->
+        ModeGuide(g, onTry = { m, row ->
+            guide = null
+            when (m) {
+                Mode.Calculator -> calculator.tryExample(row)
+                Mode.Graph2D -> graph2d.show(listOf(row))
+                Mode.Graph3D -> graph3d.show(listOf(row))
+                Mode.Complex -> complex.show(listOf(row))
+            }
+            switchTo(m)
+        }, onDismiss = { guide = null })
+    }
+
     // A graph file the app was opened with: imported, opened, and its mode shown.
     OpenGraphFileEffect(mapOf(Mode.Graph2D to graph2d, Mode.Graph3D to graph3d, Mode.Complex to complex), onSwitch = switchTo)
 
@@ -69,7 +84,7 @@ fun AppScreen() {
                 }
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                ModeSwitcher(mode, onSelect = switchTo)
+                ModeSwitcher(mode, onSelect = switchTo, onGuide = { guide = it })
             }
             Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                 // The ⋮ menu (settings, acknowledgements) is in every mode; the calculator's own

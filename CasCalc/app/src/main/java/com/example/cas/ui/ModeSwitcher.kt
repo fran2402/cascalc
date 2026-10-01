@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -46,9 +47,11 @@ enum class Mode(val label: String, val icon: ImageVector) {
  * floating pill holding round buttons, where the selected one stretches into
  * a wide filled pill with a springy width change.
  */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun ModeSwitcher(selected: Mode, onSelect: (Mode) -> Unit, modifier: Modifier = Modifier) {
+fun ModeSwitcher(selected: Mode, onSelect: (Mode) -> Unit, modifier: Modifier = Modifier, onGuide: (Mode) -> Unit = {}) {
     val colors = MaterialTheme.colorScheme
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     Row(
         modifier
             .shadow(6.dp, CircleShape)
@@ -73,7 +76,13 @@ fun ModeSwitcher(selected: Mode, onSelect: (Mode) -> Unit, modifier: Modifier = 
                     .height(48.dp)
                     .clip(CircleShape)
                     .background(bg)
-                    .clickable { onSelect(mode) }
+                    // Hold for the mode's guide: what it does and examples to try.
+                    .combinedClickable(
+                        onClickLabel = "Open ${mode.label}",
+                        onLongClickLabel = "Guide to ${mode.label}",
+                        onLongClick = { haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); onGuide(mode) },
+                        onClick = { onSelect(mode) },
+                    )
                     .semantics {
                         contentDescription = mode.label
                         role = Role.Tab
