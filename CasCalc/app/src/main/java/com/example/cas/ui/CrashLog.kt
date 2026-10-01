@@ -22,11 +22,12 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import java.io.File
 
 /**
  * Keeps the stack trace of a crash, so the next start can show it and it can be copied into a
- * bug report. Nothing leaves the phone unless it's copied.
+ * bug report. Nothing leaves the phone unless it's copied or sent in a report.
  */
 object CrashLog {
     private fun file(context: Context) = File(context.filesDir, "last_crash.txt")
@@ -47,7 +48,13 @@ object CrashLog {
 
     fun take(context: Context): String? = runCatching { file(context).takeIf { it.exists() }?.readText() }.getOrNull()
 
-    fun clear(context: Context) { runCatching { file(context).delete() } }
+    /** Once shown, the crash is kept aside (not shown again) for the next bug report. */
+    fun clear(context: Context) {
+        runCatching { val f = file(context); if (f.exists()) { val kept = File(context.filesDir, "previous_crash.txt"); kept.delete(); f.renameTo(kept) } }
+    }
+
+    /** The last crash, shown or not, for a bug report. */
+    fun last(context: Context): String? = take(context) ?: runCatching { File(context.filesDir, "previous_crash.txt").takeIf { it.exists() }?.readText() }.getOrNull()
 }
 
 /** After a crash: what went wrong, with Copy for a bug report. */
@@ -58,12 +65,13 @@ fun CrashReportDialog() {
     val shown = text ?: return
     @Suppress("DEPRECATION") val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     val close = { CrashLog.clear(context); text = null }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     AlertDialog(
         onDismissRequest = close,
         title = { Text("The app closed unexpectedly") },
         text = {
             Column {
-                Text("This is what went wrong. Copy it into a bug report to help fix it.", style = MaterialTheme.typography.bodyMedium)
+                Text("This is what went wrong. Report it (an email with it attached) to help fix it.", style = MaterialTheme.typography.bodyMedium)
                 Text(
                     shown,
                     style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
@@ -71,7 +79,14 @@ fun CrashReportDialog() {
                 )
             }
         },
-        confirmButton = { TextButton(onClick = { clipboard.setText(AnnotatedString(shown)); close() }) { Text("Copy") } },
-        dismissButton = { TextButton(onClick = close) { Text("Close") } },
+        confirmButton = {
+            TextButton(onClick = { scope.launch { Feedback.reportBug(context); close() } }) { Text("Report") }
+        },
+        dismissButton = {
+            androidx.compose.foundation.layout.Row {
+                TextButton(onClick = { clipboard.setText(AnnotatedString(shown)); close() }) { Text("Copy") }
+                TextButton(onClick = close) { Text("Close") }
+            }
+        },
     )
 }

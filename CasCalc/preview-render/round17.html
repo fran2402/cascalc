@@ -1,0 +1,119 @@
+<!doctype html><html><head><meta charset="utf-8"><title>round17</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1700px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--c1:#1B1C14;--c2:#1F2018;--c3:#292A22;--c4:#34352C;--outv:#47473B;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sec:#3D3F28;--onsec:#E0E1C4;--tc:#244D44;--otc:#BDECDE;--err:#FFB4AB;--tert:#A2D0C3;--grid:#47473B;--axis:#C8C7B5;--shadow:rgba(0,0,0,.55)}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--c1:#F6F4E8;--c2:#F1EEE2;--c3:#EBE9DC;--c4:#E5E3D6;--outv:#C8C7B5;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sec:#E2E4C4;--onsec:#1B1D0A;--tc:#BDECDE;--otc:#00201A;--err:#BA1A1A;--tert:#3B665C;--grid:#C8C7B5;--axis:#47473B;--shadow:rgba(40,40,20,.28)}
+.phone{position:relative;width:412px;height:880px;border-radius:44px;overflow:hidden;background:var(--bg);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35);display:flex;flex-direction:column}
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font:500 14px GSF}
+.bar{height:56px;display:flex;align-items:center;padding:0 8px 0 18px;gap:6px;font:500 20px GSF}
+.bar .sp{flex:1}.ib{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--onv)}
+.graph{position:relative;flex:1;overflow:hidden}
+.graph>svg{position:absolute;inset:0}
+.m{font-family:CMI}.r{font-family:CMR}
+/* --- point card --- */
+.pt{position:absolute;min-width:216px;background:var(--c3);border-radius:24px;padding:12px 12px 12px 16px;box-shadow:0 6px 18px var(--shadow),0 1px 3px var(--shadow)}
+.pt:after{content:"";position:absolute;left:var(--tail,50%);bottom:-9px;width:18px;height:18px;background:var(--c3);transform:translateX(-50%) rotate(45deg);border-radius:0 0 5px 0}
+.pt.below:after{bottom:auto;top:-9px;border-radius:5px 0 0 0}
+.hd{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.dot{width:12px;height:12px;border-radius:50%}
+.kind{font:600 13px GSF;letter-spacing:.2px;padding:3px 10px;border-radius:99px;background:var(--tc);color:var(--otc)}
+.fname{margin-left:auto;color:var(--onv);font-size:17px;padding-right:4px}
+.vr{display:flex;align-items:center;height:40px;gap:10px}
+.vr .l{width:18px;font-size:21px;color:var(--onv);text-align:center}
+.vr .v{flex:1;font:500 21px GSF;font-variant-numeric:tabular-nums;letter-spacing:.2px}
+.use{height:32px;padding:0 12px 0 9px;border-radius:99px;background:var(--pc);color:var(--onpc);font:600 13px GSF;display:flex;align-items:center;gap:4px}
+.use svg{width:16px;height:16px}
+.acts{display:flex;gap:8px;margin-top:8px;padding-top:10px;border-top:1px solid var(--outv)}
+.tb{height:36px;padding:0 14px 0 10px;border-radius:12px;background:var(--sec);color:var(--onsec);font:600 13.5px GSF;display:flex;align-items:center;gap:6px}
+.tb svg{width:18px;height:18px}
+.old{position:absolute;display:flex;align-items:center;background:var(--on);color:var(--bg);border-radius:99px;padding:4px 4px 4px 14px;font:13px GSF;gap:6px;white-space:nowrap}
+.old span{background:var(--pri);color:var(--onpri);border-radius:99px;padding:6px 12px}
+
+.list{background:var(--c1);border-radius:28px 28px 0 0;padding:10px 12px 14px;display:flex;flex-direction:column;gap:6px}
+.fr{display:flex;align-items:center;gap:6px;background:var(--c2);border-radius:20px;padding:6px 8px;height:56px}
+.ring{width:18px;height:18px;border-radius:50%;margin:0 11px}
+.fx{font:22px CMR;flex:1}
+.legend{position:absolute;left:12px;top:12px;background:color-mix(in srgb,var(--bg) 82%,transparent);border-radius:14px;padding:6px 10px;display:flex;align-items:center;gap:8px;font:16px CMR}
+.dlg{position:absolute;left:12px;right:12px;top:40px;bottom:40px;background:var(--c3);border-radius:28px;padding:20px 20px 12px;display:flex;flex-direction:column;gap:9px;box-shadow:0 10px 30px var(--shadow)}
+.dlg h3{margin:0;font:500 22px GSF}
+.lbl{font:600 14px GSF;color:var(--pri);margin-top:4px}
+.sub{font:500 12.5px GSF;color:var(--onv)}
+.seg{display:flex;border:1px solid var(--outv);border-radius:99px;overflow:hidden;height:38px}
+.seg div{flex:1;display:flex;align-items:center;justify-content:center;font:600 13px GSF;border-right:1px solid var(--outv);gap:4px}
+.seg div:last-child{border:none}.seg .on{background:var(--sec);color:var(--onsec)}
+.strip{height:40px;border-radius:14px;display:flex;align-items:center;padding-left:10px}
+.strip span{background:rgba(0,0,0,.35);color:#fff;font:600 13.5px GSF;padding:2px 8px;border-radius:8px}
+.sl{position:relative;height:30px;display:flex;align-items:center}
+.sl .t{position:absolute;left:0;right:0;height:14px;border-radius:7px;background:var(--sec)}
+.sl .a{position:absolute;left:0;height:14px;border-radius:7px 2px 2px 7px;background:var(--pri)}
+.sl .h{position:absolute;width:4px;height:30px;border-radius:2px;background:var(--pri)}
+.tips{display:flex;gap:6px}.tips div{width:52px;height:36px;border-radius:10px;background:var(--c4);display:flex;align-items:center;justify-content:center}
+.tips .on{background:var(--sec)}
+.btns{display:flex;justify-content:flex-end;gap:8px;margin-top:auto}.btns div{font:600 14px GSF;color:var(--pri);padding:10px 12px}
+.sw{display:flex;gap:8px;flex-wrap:wrap}.sw div{width:30px;height:30px;border-radius:50%}
+</style></head><body>
+<h2>Round 17 · vector fields on the 2D graph</h2>
+<p class="note">Type a pair with x or y in it: <span class="m">(−y, x)</span>, <span class="m">F(x, y) = (sin y, sin x)</span>, a column vector, or <span class="m">∇f</span>. Conditions after a comma (<span class="m">x² + y² &lt; 9</span>) limit where arrows are drawn; other letters get sliders. Long-press the dot: arrow color (this color, or by length along any colormap, the complex plane's picker), length (scaled, same length, true length), scale, arrowhead (triangle, stealth, open, dot, none) and its size, how many arrows, thickness. Tap the field for F and |F| there.</p>
+<div class="row">
+ <div><div class="phone dark" id="p1"></div><div class="cap">Colored by |F| (viridis), scaled lengths, triangle heads; the legend shows short → long arrows.</div></div>
+ <div><div class="phone dark" id="p2"></div><div class="cap">Long-press the dot: the arrow options under the colors.</div></div>
+ <div><div class="phone light" id="p3"></div><div class="cap">One color, same length, stealth heads; tapped: the Vector card with P, Q and |F|.</div></div>
+</div>
+<script>
+const VIR=[[68,1,84],[72,40,120],[62,74,137],[49,104,142],[38,130,142],[31,158,137],[53,183,121],[109,205,89],[180,222,44],[253,231,37]];
+function vir(t){t=Math.max(0,Math.min(1,t))*9;const i=Math.min(8,Math.floor(t)),f=t-i,a=VIR[i],b=VIR[i+1];return `rgb(${a.map((v,k)=>Math.round(v+(b[k]-v)*f)).join(',')})`}
+const virGrad='linear-gradient(90deg,'+[0,.25,.5,.75,1].map(vir).join(',')+')';
+function status(){return `<div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div><div class="bar">Graph<div class="sp"></div><div class="ib">⋮</div></div>`}
+function grid(W,H,u,dark){let s='';const ox=W/2,oy=H/2;const g=dark?'#47473B':'#C8C7B5',ax=dark?'#C8C7B5':'#47473B';
+ for(let k=-12;k<=12;k++){s+=`<line x1="${ox+k*u}" y1="0" x2="${ox+k*u}" y2="${H}" stroke="${g}" stroke-width="${k%5?0.5:1.2}" opacity="${k%5?.5:.9}"/>`;s+=`<line x1="0" y1="${oy+k*u}" x2="${W}" y2="${oy+k*u}" stroke="${g}" stroke-width="${k%5?0.5:1.2}" opacity="${k%5?.5:.9}"/>`}
+ s+=`<line x1="0" y1="${oy}" x2="${W}" y2="${oy}" stroke="${ax}" stroke-width="2"/><line x1="${ox}" y1="0" x2="${ox}" y2="${H}" stroke="${ax}" stroke-width="2"/>`;return s}
+function head(tip,hx,hy,ux,uy,s,c,w){const bx=hx-ux*s,by=hy-uy*s,nx=-uy,ny=ux;
+ if(tip=='tri')return [`<polygon points="${hx},${hy} ${bx+nx*s*.45},${by+ny*s*.45} ${bx-nx*s*.45},${by-ny*s*.45}" fill="${c}"/>`,hx-ux*s*.7,hy-uy*s*.7];
+ if(tip=='stealth'){const qx=hx-ux*s*.62,qy=hy-uy*s*.62;return [`<polygon points="${hx},${hy} ${bx+nx*s*.5},${by+ny*s*.5} ${qx},${qy} ${bx-nx*s*.5},${by-ny*s*.5}" fill="${c}"/>`,qx+ux*s*.1,qy+uy*s*.1]}
+ if(tip=='open')return [`<polyline points="${bx+nx*s*.5},${by+ny*s*.5} ${hx},${hy} ${bx-nx*s*.5},${by-ny*s*.5}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`,hx,hy];
+ if(tip=='dot')return [`<circle cx="${hx}" cy="${hy}" r="${s*.32}" fill="${c}"/>`,hx,hy];return ['',hx,hy]}
+function field(W,H,u,F,cols,mode,tip,color){const cell=W/cols,rows=Math.floor(H/cell);let vs=[];
+ for(let j=0;j<rows;j++)for(let i=0;i<cols;i++){const sx=(i+.5)*cell,sy=(j+.5)*(H/rows);const x=(sx-W/2)/u,y=(H/2-sy)/u;const [p,q]=F(x,y);vs.push([sx,sy,p,q,Math.hypot(p,q)])}
+ const mx=Math.max(...vs.map(v=>v[4])),mn=Math.min(...vs.map(v=>v[4]));let s='';const full=.86*cell;
+ for(const [sx,sy,p,q,m] of vs){if(m==0)continue;const L=mode=='eq'?full*.8:full*m/mx;const ux=p/m,uy=-q/m;const c=color||vir((m-mn)/(mx-mn));
+  const hx=sx+ux*L/2,hy=sy+uy*L/2;const [h,ex,ey]=head(tip,hx,hy,ux,uy,Math.min(8,L*.6),c,1.6);
+  s+=`<line x1="${sx-ux*L/2}" y1="${sy-uy*L/2}" x2="${ex}" y2="${ey}" stroke="${c}" stroke-width="1.6" stroke-linecap="round"/>`+h}return s}
+function legArrows(cs){let s='<svg width="30" height="14">';const n=cs.length,slot=30/n;cs.forEach((c,k)=>{const len=n==1?30:slot*(.45+.5*k/(n-1));const ax=k*slot+(slot-len)/2,hd=Math.min(5,len*.5);
+ s+=`<line x1="${ax}" y1="7" x2="${ax+len-hd*.7}" y2="7" stroke="${c}" stroke-width="1.6" stroke-linecap="round"/><polygon points="${ax+len},7 ${ax+len-hd},${7-hd*.45} ${ax+len-hd},${7+hd*.45}" fill="${c}"/>`});return s+'</svg>'}
+function sl(f){return `<div class="sl"><div class="t"></div><div class="a" style="width:calc(${f*100}% - 6px)"></div><div class="h" style="left:${f*100}%"></div></div>`}
+const W=412,H=560,u=W/10;
+// phone 1
+document.getElementById('p1').innerHTML=status()+`<div class="graph" style="flex:none;height:${H}px"><svg width="${W}" height="${H}">${grid(W,H,u,true)}${field(W,H,u,(x,y)=>[Math.sin(y),Math.sin(x)],18,'sc','tri')}</svg>
+ <div class="legend">${legArrows([vir(0),vir(.5),vir(1)])}<span class="m">F</span>(<span class="m">x</span>, <span class="m">y</span>) = (sin <span class="m">y</span>, sin <span class="m">x</span>)</div></div>
+ <div class="list"><div class="fr"><div class="ring" style="background:conic-gradient(${[0,.2,.4,.6,.8,1].map(vir).join(',')})"></div><div class="fx"><span class="m">F</span>(<span class="m">x</span>, <span class="m">y</span>) = (sin <span class="m">y</span>, sin <span class="m">x</span>)</div><div class="ib">⋮</div></div>
+ <div class="fr"><div class="ring" style="background:#B6C46A"></div><div class="fx" style="color:var(--onv)">+</div></div></div>`;
+// phone 2
+document.getElementById('p2').innerHTML=status()+`<div class="graph" style="flex:none;height:${H}px;filter:brightness(.55)"><svg width="${W}" height="${H}">${grid(W,H,u,true)}${field(W,H,u,(x,y)=>[Math.sin(y),Math.sin(x)],18,'sc','tri')}</svg></div>
+ <div class="dlg"><h3>Color</h3>
+ <div class="sw">${['#B6C46A','#7FD4C1','#F2B8B5','#B5C7F2','#E8C26E','#D5BBFF','#FFFFFF','#9E9E9E'].map(c=>`<div style="background:${c}"></div>`).join('')}</div>
+ <div class="lbl">Arrows</div><div class="sub">Color</div>
+ <div class="seg"><div>This color</div><div class="on">✓ By length</div></div>
+ <div class="strip" style="background:${virGrad}"><span>Viridis · short → long</span></div>
+ <div class="sub">Length</div><div class="seg"><div class="on">✓ Scaled</div><div>Same length</div><div>True length</div></div>
+ <div class="sub">Scale: ×1.00</div>${sl(.29)}
+ <div class="sub">Arrowhead</div><div class="tips">${['tri','stealth','open','dot','none'].map((t,k)=>{const [h,ex]=head(t,32,10,1,0,9,k==0?'var(--onsec)':'var(--onv)',1.8);return `<div class="${k==0?'on':''}"><svg width="34" height="20"><line x1="2" y1="10" x2="${ex}" y2="10" stroke="${k==0?'var(--onsec)':'var(--onv)'}" stroke-width="1.8" stroke-linecap="round"/>${h}</svg></div>`}).join('')}</div>
+ <div class="sub">Head size: ×1.0</div>${sl(.23)}
+ <div class="sub">18 arrows across</div>${sl(.27)}
+ <div class="sub">Thickness: 3.0 dp</div>${sl(.29)}
+ <div class="btns"><div>Default</div><div>Cancel</div><div>Done</div></div></div>`;
+// phone 3
+document.getElementById('p3').innerHTML=status()+`<div class="graph" style="flex:none;height:${H}px"><svg width="${W}" height="${H}">${grid(W,H,u,false)}${field(W,H,u,(x,y)=>[-y,x],14,'eq','stealth','#5B6133')}
+ <circle cx="${W/2+2*u}" cy="${H/2-1*u}" r="6" fill="#5B6133" stroke="#fff" stroke-width="2"/></svg>
+ <div class="legend">${legArrows(['#5B6133'])}(−<span class="m">y</span>, <span class="m">x</span>)</div>
+ <div class="pt" style="left:${W/2+2*u-108}px;top:${H/2-u-250}px;--tail:108px"><div class="hd"><div class="dot" style="background:#5B6133"></div><div class="kind">Vector</div><div class="fname">(−<span class="m">y</span>, <span class="m">x</span>)</div></div>
+ ${[['x','2'],['y','1'],['P','−1'],['Q','2'],['|F|','2.2361']].map(([l,v])=>`<div class="vr"><div class="l m" style="width:30px">${l}</div><div class="v">${v}</div><div class="use">↵ Use</div></div>`).join('')}</div></div>
+ <div class="list"><div class="fr"><div class="ring" style="background:#5B6133"></div><div class="fx">(−<span class="m">y</span>, <span class="m">x</span>)</div><div class="ib">⋮</div></div></div>`;
+document.title='ready';
+</script></body></html>

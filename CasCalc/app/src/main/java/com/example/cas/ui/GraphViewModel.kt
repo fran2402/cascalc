@@ -103,6 +103,16 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
     var pointShape by mutableStateOf(0)
     /** 2D lists of points: closed up and filled, as a polygon. */
     var closedShape by mutableStateOf(false)
+    /** A vector field's arrows: colored by |F| along the colormap (else the line's color). */
+    var arrowsByLength by mutableStateOf(true)
+    /** A vector field's arrow lengths ([com.example.cas.graph.VectorField.Length] by position) and their scale. */
+    var arrowLength by mutableStateOf(0)
+    var arrowScale by mutableStateOf(1f)
+    /** A vector field's arrowheads ([com.example.cas.graph.VectorField.Tip] by position) and their size. */
+    var arrowTip by mutableStateOf(0)
+    var arrowTipSize by mutableStateOf(1f)
+    /** How many arrows across the view. */
+    var arrowDensity by mutableStateOf(18)
     /** A line with a list in it (y = [1, 2, 3]x): one hidden line per entry, drawn in its place. */
     var family: List<PlotFunction> = emptyList()
         internal set
@@ -147,6 +157,8 @@ sealed class Plot2DKind {
     class Point(val x: RealFunction, val y: RealFunction) : Plot2DKind() { override val label: String? = null }
     /** A list of points [(x₁, y₁), (x₂, y₂), …], drawn as dots and used by Fit. */
     class PointList(val xs: DoubleArray, val ys: DoubleArray) : Plot2DKind() { override val label: String? = null }
+    /** A vector field (P(x, y), Q(x, y)), drawn as arrows on a grid. */
+    class VectorField(val p: RealFunction, val q: RealFunction) : Plot2DKind() { override val label: String? = null }
     /** A column vector, drawn as an arrow from the origin (or from [fromX], [fromY]). */
     class Vector(val x: RealFunction, val y: RealFunction, val fromX: RealFunction? = null, val fromY: RealFunction? = null) : Plot2DKind() { override val label: String? = null }
 }
@@ -293,6 +305,13 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 parts.getOrNull(4)?.toFloatOrNull()?.let { f.fillOpacity = it.coerceIn(0f, 1f) }
                 parts.getOrNull(5)?.toFloatOrNull()?.let { f.pointSize = it.coerceIn(2f, 16f) }
                 parts.getOrNull(6)?.toIntOrNull()?.let { f.pointShape = it.coerceIn(0, com.example.cas.graph.Marker.entries.lastIndex) }
+                // A vector field's arrows: coloring (V by length, else solid), length mode and scale, tip and its size, density.
+                parts.getOrNull(7)?.takeIf { it.isNotEmpty() }?.let { f.arrowsByLength = it == "V" }
+                parts.getOrNull(8)?.toIntOrNull()?.let { f.arrowLength = it.coerceIn(0, com.example.cas.graph.VectorField.Length.entries.lastIndex) }
+                parts.getOrNull(9)?.toFloatOrNull()?.let { f.arrowScale = it.coerceIn(0.2f, 3f) }
+                parts.getOrNull(10)?.toIntOrNull()?.let { f.arrowTip = it.coerceIn(0, com.example.cas.graph.VectorField.Tip.entries.lastIndex) }
+                parts.getOrNull(11)?.toFloatOrNull()?.let { f.arrowTipSize = it.coerceIn(0.4f, 3f) }
+                parts.getOrNull(12)?.toIntOrNull()?.let { f.arrowDensity = it.coerceIn(6, 50) }
             }
         }
         // Names and data tables, by position (null where there's none).
@@ -660,6 +679,25 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             // A 2-vector (or a matrix times one) is drawn as an arrow from the origin.
             val vector = parts.singleOrNull()?.let { e ->
                 (e as? com.example.cas.cas.Mat)?.takeIf { it.rows == 2 && it.cols == 1 }
+            }
+            // A pair (or 2-vector) with x or y in it is a vector field: (−y, x), F(x, y) = (P, Q), ∇f.
+            // ∇f in the plane comes out with a third component of 0.
+            val flat = parts.singleOrNull()?.let { e -> (e as? com.example.cas.cas.Mat)?.takeIf { it.rows == 3 && it.cols == 1 && it.cells[2] == com.example.cas.cas.Num(0L) } }
+            val fieldParts = when {
+                vector != null -> vector.cells
+                flat != null -> flat.cells.take(2)
+                parts.size == 2 && !parts.all { !it.freeOf(t) } -> parts
+                else -> null
+            }?.takeIf { ps -> ps.any { e -> !e.freeOf(com.example.cas.cas.Sym("x")) || !e.freeOf(com.example.cas.cas.Sym("y")) } }
+            if (fieldParts != null) {
+                val params = (fieldParts.flatMap { it.freeVars() }.filter { it != "x" && it != "y" } + conditions.flatMap { it.freeVars() }.filter { it !in plotLetters }).distinct().sorted()
+                params.forEach { if (it !in parameters) parameters[it] = 1.0 }
+                // Colored by |F| from the start, on viridis.
+                if (f.colormap == com.example.cas.graph.Colormap.CLASSIC) f.colormap = com.example.cas.graph.Colormap.VIRIDIS
+                f.plot = Plot2DKind.VectorField(Compiler.compile(fieldParts[0], listOf("x", "y") + params), Compiler.compile(fieldParts[1], listOf("x", "y") + params))
+                f.restrictions = conditions.map { rel -> rel.parts.map { Compiler.compile(it, listOf("x", "y", "t", "θ", "r") + params) } to rel.ops }
+                f.compiled = null; f.parameters = params; f.definition = null; f.error = null
+                return
             }
             if (vector != null && conditions.isEmpty()) {
                 // A vector is a fixed arrow, so every letter in it is a slider (x, y, t included),
@@ -1410,7 +1448,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     /** A line's saved style: style:thickness:colormap:flags:opacity:point size:point shape. */
     private fun styleText(f: PlotFunction) =
         "${f.lineStyle}:${f.thickness}:${com.example.cas.graph.Colormap.save(f.colormap, f.colormapReversed)}:" +
-            (if (f.showLabel) "L" else "") + (if (f.connectPoints) "C" else "") + (if (f.closedShape) "S" else "") + ":${f.fillOpacity}:${f.pointSize}:${f.pointShape}"
+            (if (f.showLabel) "L" else "") + (if (f.connectPoints) "C" else "") + (if (f.closedShape) "S" else "") + ":${f.fillOpacity}:${f.pointSize}:${f.pointShape}" +
+            ":${if (f.arrowsByLength) "V" else "S"}:${f.arrowLength}:${f.arrowScale}:${f.arrowTip}:${f.arrowTipSize}:${f.arrowDensity}"
 
     /** Label, connect-the-points and fill opacity, from a line's options. */
     fun setOptions(
@@ -1420,6 +1459,17 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         f.closedShape = closed
         f.showLabel = label; f.connectPoints = connect; f.fillOpacity = opacity.coerceIn(0f, 1f)
         f.pointSize = size.coerceIn(2f, 16f); f.pointShape = shape
+        version++
+        save()
+    }
+
+    /** A vector field's arrow options. */
+    fun setArrows(
+        f: PlotFunction, byLength: Boolean = f.arrowsByLength, length: Int = f.arrowLength, scale: Float = f.arrowScale,
+        tip: Int = f.arrowTip, tipSize: Float = f.arrowTipSize, density: Int = f.arrowDensity,
+    ) {
+        f.arrowsByLength = byLength; f.arrowLength = length; f.arrowScale = scale.coerceIn(0.2f, 3f)
+        f.arrowTip = tip; f.arrowTipSize = tipSize.coerceIn(0.4f, 3f); f.arrowDensity = density.coerceIn(6, 50)
         version++
         save()
     }

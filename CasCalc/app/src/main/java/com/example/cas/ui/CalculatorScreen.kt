@@ -119,6 +119,7 @@ import androidx.compose.material.icons.outlined.Pin
 import androidx.compose.material.icons.automirrored.outlined.ShowChart
 import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Backspace
@@ -1369,6 +1370,22 @@ private fun SettingsToggle(title: String, detail: String?, checked: Boolean, onC
     }
 }
 
+/** A row that opens something: a page, or an email draft. */
+@Composable
+private fun SettingsLink(title: String, detail: String?, clickLabel: String, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = clickLabel, onClick = onClick).padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
+            if (detail != null) Text(detail, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.onSurfaceVariant)
+    }
+}
+
 /** A whole-number setting on a slider, its value spelled out in the title. */
 @Composable
 private fun SettingsSlider(title: String, subtitle: String?, value: Int, range: IntRange, description: String, onChange: (Int) -> Unit) {
@@ -1524,17 +1541,14 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsToggle("Key sounds", "A click on each key (uses the system's touch sounds)", AppSettings.keySounds, AppSettings::changeKeySounds)
             SettingsToggle("Keep the screen on", "While the app is open", AppSettings.keepScreenOn, AppSettings::changeKeepScreenOn)
         },
+        PageSection("Feedback", androidx.compose.material.icons.Icons.Outlined.BugReport) {
+            val context = LocalContext.current
+            val scope = rememberCoroutineScope()
+            SettingsLink("Report a bug", "An email to the developer with the app's log attached", "Report a bug") { scope.launch { Feedback.reportBug(context) } }
+            SettingsLink("Request a feature", "An email to the developer with your idea", "Request a feature") { Feedback.requestFeature(context) }
+        },
         PageSection("About", Icons.Outlined.Info) {
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = "Open the acknowledgements") { onAcknowledgements() }.padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text("Acknowledgements", color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
-                    Text("Fonts, libraries, data and methods, with links", color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                }
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.onSurfaceVariant)
-            }
+            SettingsLink("Acknowledgements", "Fonts, libraries, data and methods, with links", "Open the acknowledgements") { onAcknowledgements() }
         },
     ))
 }

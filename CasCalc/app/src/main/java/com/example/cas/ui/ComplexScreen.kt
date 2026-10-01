@@ -124,8 +124,11 @@ fun ComplexScreen(vm: ComplexViewModel, onUseValue: (CD) -> Unit = {}, modifier:
                 val version = vm.version
                 GraphLegend(remember(version, vm.plotted) {
                     complexLegendLines(vm).map { fn ->
-                        if (fn === vm.plotted) ScreenLegendEntry(legendSource(fn), Color.White, line = false, strip = colormapStops(fn.colormap, 7, fn.colormapReversed))
-                        else ScreenLegendEntry(legendSource(fn), complexLineColor(fn))
+                        when {
+                            fn === vm.plotted -> ScreenLegendEntry(legendSource(fn), Color.White, line = false, strip = colormapStops(fn.colormap, 7, fn.colormapReversed))
+                            fn.complexPoints != null -> ScreenLegendEntry(legendSource(fn), complexLineColor(fn), line = fn.connectPoints || fn.closedShape, marker = com.example.cas.graph.Marker.of(fn.pointShape))
+                            else -> ScreenLegendEntry(legendSource(fn), complexLineColor(fn))
+                        }
                     }
                 })
             }
@@ -513,6 +516,44 @@ internal fun complexScene(vm: ComplexViewModel, view: Viewport, size: Double, da
         val shown = runCatching { roundedComplex(com.example.cas.cas.Numeric.eval(cc.value)) }.getOrDefault("?")
         scene.add(Scene.Label(minOf(cx + rx * 0.72, frame.right - 4), maxOf(cy - ry * 0.72 - 8, frame.top + 10), "Integral ≈ $shown", 13.0, white, Scene.Anchor.Start, Scene.Font.Roman, italic = setOf('i')))
     }
+    // Points and curves z(t), as on screen: outlined, points with their marks.
+    vm.functions.filter { it.visible && (it.complexPoints != null || it.complexPath != null) }.asReversed().forEach { fn ->
+        val color = complexLineColor(fn).toArgb()
+        if (fn.complexPath != null) {
+            val runs = ArrayList<DoubleArray>()
+            var cur = ArrayList<Double>()
+            var last: Pair<Double, Double>? = null
+            for ((_, w) in vm.pathSamples(fn, v)) {
+                val o = if (w.re.isFinite() && w.im.isFinite()) sx(w.re) to sy(w.im) else null
+                // Breaks where it's undefined or jumps across the frame.
+                if (o == null || (last != null && kotlin.math.hypot(o.first - last!!.first, o.second - last!!.second) > size)) {
+                    if (cur.size >= 4) runs += cur.toDoubleArray()
+                    cur = ArrayList(); last = o
+                    if (o != null) { cur += o.first; cur += o.second }
+                    continue
+                }
+                cur += o.first; cur += o.second; last = o
+            }
+            if (cur.size >= 4) runs += cur.toDoubleArray()
+            outlined(runs, color)
+        }
+        if (fn.complexPoints != null) {
+            val ws = vm.pointsOf(fn)
+            val pts = ws.map { sx(it.re) to sy(it.im) }
+            if (pts.size > 1 && (fn.connectPoints || fn.closedShape)) {
+                val closed = if (fn.closedShape && pts.size > 2) pts + pts.first() else pts
+                val flat = closed.flatMap { listOf(it.first, it.second) }.toDoubleArray()
+                if (fn.closedShape && pts.size > 2) scene.add(Scene.Fill(listOf(flat), ((255 * fn.fillOpacity).toInt().coerceIn(0, 255) shl 24) or (color and 0xFFFFFF)))
+                outlined(listOf(flat), color)
+            }
+            val marker = com.example.cas.graph.Marker.of(fn.pointShape)
+            pts.forEachIndexed { k, (x, y) ->
+                marker.addTo(scene, x, y, fn.pointSize * 0.43 + 0.8, halo)
+                marker.addTo(scene, x, y, fn.pointSize * 0.43, color)
+                if (fn.showLabel) scene.add(Scene.Label(x + 5, y - 9, complexText(ws[k]), Pgf.TICK_SIZE * 0.85, white, Scene.Anchor.Start, Scene.Font.Roman, italic = setOf('i')))
+            }
+        }
+    }
     if (vm.contour.size > 1) {
         val pts = DoubleArray(vm.contour.size * 2 + if (vm.contourResult != null) 2 else 0)
         vm.contour.forEachIndexed { k, z -> pts[2 * k] = sx(z.re); pts[2 * k + 1] = sy(z.im) }
@@ -526,17 +567,25 @@ internal fun complexScene(vm: ComplexViewModel, view: Viewport, size: Double, da
         val entries = complexLegendLines(vm).map { fn ->
             val name = com.example.cas.graph.Legend.row(legendSource(fn))
     val spans = com.example.cas.graph.Legend.spans(name)
-            if (fn === f) Pgf.LegendEntry(math = name, spans = spans, color =  style.ink, line = false, strip = (0..7).map { k -> 0xFF000000.toInt() or fn.colormap.rgb(if (fn.colormapReversed) 1 - k / 7.0 else k / 7.0) })
-            else Pgf.LegendEntry(math = name, spans = spans, color =  complexLineColor(fn).toArgb(), width = 1.3)
+            when {
+                fn === f -> Pgf.LegendEntry(math = name, spans = spans, color = style.ink, line = false, strip = (0..7).map { k -> 0xFF000000.toInt() or fn.colormap.rgb(if (fn.colormapReversed) 1 - k / 7.0 else k / 7.0) })
+                // Points: their mark (on a line when they're joined).
+                fn.complexPoints != null -> Pgf.LegendEntry(math = name, spans = spans, color = complexLineColor(fn).toArgb(), line = fn.connectPoints || fn.closedShape, width = 1.3,
+                    marker = com.example.cas.graph.Marker.of(fn.pointShape), markerSize = fn.pointSize * 0.43)
+                else -> Pgf.LegendEntry(math = name, spans = spans, color = complexLineColor(fn).toArgb(), width = 1.3)
+            }
         }
         Pgf.legend(scene, frame, style, entries, panel = (style.background and 0xFFFFFF) or 0xD9000000.toInt())
     }
     return scene
 }
 
-/** The complex plane's lines in the legend: the colored function, then curves and ∮ loops. */
+/** The complex plane's lines in the legend: the colored function, then curves, ∮ loops, points and paths z(t). */
 internal fun complexLegendLines(vm: ComplexViewModel): List<PlotFunction> =
-    vm.functions.filter { fn -> fn.visible && !fn.isText && (fn === vm.plotted || fn.complexCurve != null || fn.contour != null) && legendSource(fn).isNotBlank() }
+    vm.functions.filter { fn ->
+        fn.visible && !fn.isText && legendSource(fn).isNotBlank() &&
+            (fn === vm.plotted || fn.complexCurve != null || fn.contour != null || fn.complexPoints != null || fn.complexPath != null)
+    }
 
 @Composable
 internal fun ToolToggle(icon: ImageVector, label: String, on: Boolean, onClick: () -> Unit) {

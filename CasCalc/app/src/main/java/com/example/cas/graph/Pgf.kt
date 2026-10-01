@@ -43,6 +43,8 @@ object Pgf {
         val strip: List<Int>? = null,
         /** The name as math, set as LaTeX sets it (see [MathScene]); [spans] is the plain fallback. */
         val math: com.example.cas.editor.MathRow? = null,
+        /** A vector field: arrows in these colors, short to long (one: a single arrow). */
+        val arrows: List<Int>? = null,
     )
 
     /**
@@ -73,6 +75,18 @@ object Pgf {
             e.fill?.let { c -> scene.add(Scene.Fill(listOf(doubleArrayOf(x0, y - 4.5, x0 + sample, y - 4.5, x0 + sample, y + 4.5, x0, y + 4.5)), c)) }
             if (e.line) scene.add(Scene.Stroke(listOf(doubleArrayOf(x0, y, x0 + sample, y)), e.color, e.width, e.dash))
             e.marker?.addTo(scene, x0 + sample / 2, y, e.markerSize, e.color)
+            e.arrows?.let { cs ->
+                // Side by side, growing in length: |F| from small to large.
+                val n = cs.size
+                cs.forEachIndexed { k, c ->
+                    val slot = sample / n
+                    val len = if (n == 1) sample else slot * (0.45 + 0.5 * k / (n - 1).coerceAtLeast(1))
+                    val ax = x0 + k * slot + (slot - len) / 2
+                    val head = minOf(3.2, len * 0.5)
+                    scene.add(Scene.Stroke(listOf(doubleArrayOf(ax, y, ax + len - head * 0.7, y)), c, e.width))
+                    scene.add(Scene.Fill(listOf(doubleArrayOf(ax + len, y, ax + len - head, y - head * 0.45, ax + len - head, y + head * 0.45)), c))
+                }
+            }
             val box = boxes[i]
             if (box != null) box.draw(scene, x0 + sample + 6, y + (box.ascent - box.descent) / 2)
             else scene.add(Scene.Label(x0 + sample + 6, y, e.spans.joinToString("") { it.text }, size, style.ink, Scene.Anchor.Start, Scene.Font.Roman, spans = e.spans))

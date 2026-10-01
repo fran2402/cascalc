@@ -115,6 +115,9 @@ private class Plotted(
     val fieldSize: IntSize = IntSize.Zero,
     val fieldRange: Pair<Double, Double>? = null,
     val fieldImage: androidx.compose.ui.graphics.ImageBitmap? = null,
+    /** A vector field's arrows and the range of |F| their colors span. */
+    val arrows: List<com.example.cas.graph.VectorField.Arrow> = emptyList(),
+    val arrowRange: Pair<Double, Double> = 0.0 to 1.0,
 )
 
 private data class Special(val x: Double, val y: Double, val label: String, val colorIndex: Int, /** At a crossing, the other curve's color slot. */ val other: Int? = null)
@@ -427,12 +430,16 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
             val shownTheta = if (degrees) theta * 180 / PI else theta
             // Over a field, its value there as a third row.
             val fieldValue = t.label.takeIf { it.startsWith("value ") }?.removePrefix("value ")?.replace("−", "-")?.toDoubleOrNull()
+            // Over a vector field: F there, and |F|.
+            val vectorValue = t.label.takeIf { it.startsWith("vector ") }?.removePrefix("vector ")?.split(" ")?.mapNotNull { it.toDoubleOrNull() }?.takeIf { it.size == 2 }
             fun use(v: Double): () -> Unit = { trace = null; onUseValue(v) }
             val rows = (if (vm.polarGrid) listOf(CardValue("r", shortNumber(r), onUse = use(r)), CardValue("θ", shortNumber(shownTheta) + if (degrees) "°" else "", onUse = use(shownTheta)))
                 else listOf(CardValue("x", shortNumber(t.x), onUse = use(t.x)), CardValue("y", shortNumber(t.y), onUse = use(t.y)))) +
-                listOfNotNull(fieldValue?.let { CardValue("f", shortNumber(it), onUse = use(it)) })
+                listOfNotNull(fieldValue?.let { CardValue("f", shortNumber(it), onUse = use(it)) }) +
+                (vectorValue?.let { (p, q) -> val m = kotlin.math.hypot(p, q); listOf(CardValue("P", shortNumber(p), onUse = use(p)), CardValue("Q", shortNumber(q), onUse = use(q)), CardValue("|F|", shortNumber(m), onUse = use(m))) } ?: emptyList())
             val kind = when {
                 fieldValue != null -> "Value"
+                vectorValue != null -> "Vector"
                 t.label == "point" || t.label.isEmpty() -> null
                 t.label == "y-intercept" -> "y-intercept"
                 else -> t.label.replaceFirstChar { it.uppercase() }
@@ -473,6 +480,14 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
                 val x0 = k.fromX?.let { vm.call(g, it) } ?: 0.0
                 val y0 = k.fromY?.let { vm.call(g, it) } ?: 0.0
                 if (listOf(x, y, x0, y0).all { it.isFinite() }) out += Plotted(f, listOf(listOf(x0 to y0, x to y)), emptyList(), arrow = true)
+            }
+            is Plot2DKind.VectorField -> {
+                val p = vm.caller2(g, k.p); val q = vm.caller2(g, k.q); val ok = vm.allowedCaller(g)
+                val arrows = com.example.cas.graph.VectorField.arrows(
+                    { x, y -> if (ok(x, y)) p(x, y) to q(x, y) else null }, view, size.width.toDouble(), size.height.toDouble(),
+                    f.arrowDensity, com.example.cas.graph.VectorField.Length.entries[f.arrowLength], f.arrowScale.toDouble(),
+                )
+                out += Plotted(f, emptyList(), emptyList(), arrows = arrows, arrowRange = com.example.cas.graph.VectorField.range(arrows))
             }
             is Plot2DKind.PointList -> {
                 val shown = k.xs.indices.filter { k.xs[it].isFinite() && k.ys[it].isFinite() }
@@ -733,7 +748,35 @@ private fun DrawScope.drawArrowHead(from: Offset, to: Offset, color: Color, widt
     drawPath(head, color)
 }
 
+/** A vector field's arrows, each in the line's color or its |F| along the colormap. */
+private fun DrawScope.drawArrows(v: Viewport, p: Plotted, color: Color) {
+    val f = p.f
+    val w = (f.thickness * 0.5f).dp.toPx().coerceAtLeast(1f)
+    val tip = com.example.cas.graph.VectorField.Tip.entries[f.arrowTip]
+    val headSize = (4.5f + f.thickness).dp.toPx() * f.arrowTipSize
+    for (a in p.arrows) {
+        val c = if (f.arrowsByLength) Color(0xFF000000.toInt() or f.colormap.rgb(com.example.cas.graph.VectorField.position(a.magnitude, p.arrowRange).let { if (f.colormapReversed) 1 - it else it })) else color
+        val from = toScreen(v, a.x0, a.y0); val to = toScreen(v, a.x1, a.y1)
+        val len = (to - from).getDistance()
+        if (len < 0.5f) { drawCircle(c, w, to); continue }
+        val ux = (to.x - from.x) / len; val uy = (to.y - from.y) / len
+        val h = com.example.cas.graph.VectorField.head(tip, to.x.toDouble(), to.y.toDouble(), ux.toDouble(), uy.toDouble(), minOf(headSize, len * 0.6f).toDouble())
+        drawLine(c, from, Offset(h.shaftEndX.toFloat(), h.shaftEndY.toFloat()), w, cap = StrokeCap.Round)
+        h.fills.forEach { pts ->
+            val path = Path()
+            path.moveTo(pts[0].toFloat(), pts[1].toFloat())
+            var k = 2
+            while (k + 1 < pts.size) { path.lineTo(pts[k].toFloat(), pts[k + 1].toFloat()); k += 2 }
+            path.close()
+            drawPath(path, c)
+        }
+        h.strokes.forEach { sg -> drawLine(c, Offset(sg[0].toFloat(), sg[1].toFloat()), Offset(sg[2].toFloat(), sg[3].toFloat()), w, cap = StrokeCap.Round) }
+        h.dot?.let { d -> drawCircle(c, d[2].toFloat().coerceAtLeast(w), Offset(d[0].toFloat(), d[1].toFloat())) }
+    }
+}
+
 private fun DrawScope.drawCurve(v: Viewport, p: Plotted, color: Color) {
+    if (p.arrows.isNotEmpty()) drawArrows(v, p, color)
     // The function's own thickness and style (long-press its dot): solid, dashed, dotted…
     val w = p.f.thickness.dp.toPx()
     val style = com.example.cas.graph.LineStyle.of(p.f.lineStyle).pattern(w.toDouble())?.let { d -> PathEffect.dashPathEffect(FloatArray(d.size) { d[it].toFloat() }) }
@@ -877,6 +920,30 @@ internal fun graph2DScene(vm: Graph2DViewModel, view: Viewport, size: Double, da
                 scene.add(Scene.Fill(listOf(doubleArrayOf(tx, ty, bx - uy * head * 0.4, by + ux * head * 0.4, bx + uy * head * 0.4, by - ux * head * 0.4)), color))
             }
         }
+        // A vector field's arrows: the shafts in one stroke per color, then the heads.
+        if (p.arrows.isNotEmpty()) {
+            val f = p.f
+            val tip = com.example.cas.graph.VectorField.Tip.entries[f.arrowTip]
+            val shaft = maxOf(f.thickness * 0.25, 0.4)
+            val headSize = (2.6 + f.thickness * 0.5) * f.arrowTipSize
+            val shafts = LinkedHashMap<Int, MutableList<DoubleArray>>()
+            val strokes = LinkedHashMap<Int, MutableList<DoubleArray>>()
+            val fills = LinkedHashMap<Int, MutableList<DoubleArray>>()
+            for (a in p.arrows) {
+                val c = if (f.arrowsByLength) 0xFF000000.toInt() or f.colormap.rgb(com.example.cas.graph.VectorField.position(a.magnitude, p.arrowRange).let { if (f.colormapReversed) 1 - it else it }) else color
+                val fx = sx(a.x0); val fy = sy(a.y0); val tx = sx(a.x1); val ty = sy(a.y1)
+                val len = kotlin.math.hypot(tx - fx, ty - fy)
+                if (len < 0.2) continue
+                val h = com.example.cas.graph.VectorField.head(tip, tx, ty, (tx - fx) / len, (ty - fy) / len, minOf(headSize, len * 0.6))
+                shafts.getOrPut(c) { ArrayList() } += doubleArrayOf(fx, fy, h.shaftEndX, h.shaftEndY)
+                h.strokes.forEach { strokes.getOrPut(c) { ArrayList() } += it }
+                h.fills.forEach { fills.getOrPut(c) { ArrayList() } += it }
+                h.dot?.let { d -> fills.getOrPut(c) { ArrayList() } += DoubleArray(2 * 16) { k -> val t = (k / 2) * 2 * PI / 16; if (k % 2 == 0) d[0] + d[2] * kotlin.math.cos(t) else d[1] + d[2] * kotlin.math.sin(t) } }
+            }
+            shafts.forEach { (c, list) -> scene.add(Scene.Stroke(list, c, shaft)) }
+            strokes.forEach { (c, list) -> scene.add(Scene.Stroke(list, c, shaft)) }
+            fills.forEach { (c, list) -> scene.add(Scene.Fill(list, c)) }
+        }
         // Error bars, thin with short caps (as matplotlib's errorbar), under the marks.
         if (p.errors.isNotEmpty()) {
             val bars = ArrayList<DoubleArray>()
@@ -919,6 +986,9 @@ internal fun legendEntry2D(f: PlotFunction, color: Int): Pgf.LegendEntry {
             marker = com.example.cas.graph.Marker.of(f.pointShape), markerSize = f.pointSize * 0.43,
         )
         is Plot2DKind.Region -> Pgf.LegendEntry(math = name, spans = spans, color =  color, line = true, width = 1.0, fill = alpha(color, f.fillOpacity))
+        // A vector field: an arrow, or three (short to long) in their colors when colored by |F|.
+        is Plot2DKind.VectorField -> Pgf.LegendEntry(math = name, spans = spans, color = color, line = false, width = maxOf(f.thickness * 0.25, 0.5),
+            arrows = if (f.arrowsByLength) (0..2).map { k -> 0xFF000000.toInt() or f.colormap.rgb(if (f.colormapReversed) 1 - k / 2.0 else k / 2.0) } else listOf(color))
         // A field: its colormap as a strip.
         is Plot2DKind.Field -> Pgf.LegendEntry(math = name, spans = spans, color = color, line = false, strip = (0..7).map { k -> 0xFF000000.toInt() or f.colormap.rgb(if (f.colormapReversed) 1 - k / 7.0 else k / 7.0) })
         else -> Pgf.LegendEntry(math = name, spans = spans, color =  color, dash = dash, width = lw)
@@ -955,6 +1025,11 @@ private fun findTrace(vm: Graph2DViewModel, plotted: List<Plotted>, tap: Offset,
     if (best != null) return best
     // Over a field: its value there.
     val y = v.yMax - tap.y / size.height * v.height
+    vm.functions.firstOrNull { it.visible && it.plot is Plot2DKind.VectorField }?.let { f ->
+        val k = f.plot as Plot2DKind.VectorField
+        val p = vm.caller2(f, k.p)(x, y); val q = vm.caller2(f, k.q)(x, y)
+        if (p.isFinite() && q.isFinite()) return Special(x, y, "vector $p $q", f.colorIndex)
+    }
     return vm.functions.firstOrNull { it.visible && it.plot is Plot2DKind.Field }?.let { f ->
         val value = vm.caller2(f, (f.plot as Plot2DKind.Field).f)(x, y)
         if (value.isFinite()) Special(x, y, "value " + shortNumber(value), f.colorIndex) else null

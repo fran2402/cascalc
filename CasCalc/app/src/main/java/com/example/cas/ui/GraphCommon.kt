@@ -1,5 +1,6 @@
 package com.example.cas.ui
 
+import androidx.compose.material3.SegmentedButton
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -720,6 +721,8 @@ class ScreenLegendEntry(
     val fill: Float? = null,
     /** A colormap's colors (the complex plane) or a surface's shades (3D), as a strip. */
     val strip: List<Color>? = null,
+    /** A vector field: arrows in these colors, short to long (one: a single arrow). */
+    val arrows: List<Color>? = null,
 )
 
 /**
@@ -759,6 +762,17 @@ fun GraphLegend(entries: List<ScreenLegendEntry>, modifier: Modifier = Modifier)
                         pathEffect = com.example.cas.graph.LineStyle.of(e.style).pattern(2.5.dp.toPx().toDouble())?.let { d -> PathEffect.dashPathEffect(FloatArray(d.size) { d[it].toFloat() }) },
                     )
                     e.marker?.let { m -> drawMarker(m, Offset(size.width / 2, mid), 4.dp.toPx(), e.color) }
+                    e.arrows?.let { cs ->
+                        val n = cs.size
+                        val slot = size.width / n
+                        cs.forEachIndexed { k, c ->
+                            val len = if (n == 1) size.width else slot * (0.45f + 0.5f * k / (n - 1).coerceAtLeast(1))
+                            val ax = k * slot + (slot - len) / 2
+                            val head = minOf(5.dp.toPx(), len * 0.5f)
+                            drawLine(c, Offset(ax, mid), Offset(ax + len - head * 0.7f, mid), 1.6.dp.toPx(), cap = StrokeCap.Round)
+                            drawPath(androidx.compose.ui.graphics.Path().apply { moveTo(ax + len, mid); lineTo(ax + len - head, mid - head * 0.45f); lineTo(ax + len - head, mid + head * 0.45f); close() }, c)
+                        }
+                    }
                 }
                 Spacer(Modifier.width(8.dp))
                 val row = remember(e.source) { com.example.cas.graph.Legend.row(e.source) }
@@ -776,6 +790,8 @@ fun screenLegendEntry2D(f: PlotFunction, color: Color): ScreenLegendEntry = when
         ScreenLegendEntry(legendSource(f), color, line = f.connectPoints || f.closedShape, marker = com.example.cas.graph.Marker.of(f.pointShape))
     is Plot2DKind.Region -> ScreenLegendEntry(legendSource(f), color, fill = f.fillOpacity)
     is Plot2DKind.Field -> ScreenLegendEntry(legendSource(f), color, line = false, strip = colormapStops(f.colormap, 8, f.colormapReversed))
+    is Plot2DKind.VectorField -> ScreenLegendEntry(legendSource(f), color, line = false,
+        arrows = if (f.arrowsByLength) colormapStops(f.colormap, 2, f.colormapReversed) else listOf(color))
     else -> ScreenLegendEntry(legendSource(f), color, style = f.lineStyle)
 }
 
@@ -904,7 +920,7 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
                     .semantics { contentDescription = if (f.visible) "Shown" else "Hidden" },
                 contentAlignment = Alignment.Center,
             ) {
-                if (colormapDot) {
+                if (colormapDot || (f.plot is Plot2DKind.VectorField && f.arrowsByLength)) {
                     val ring = Brush.sweepGradient(colormapStops(f.colormap, reversed = f.colormapReversed))
                     Box(
                         Modifier
@@ -1066,6 +1082,7 @@ private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable andro
     // Several points (a list): they can be joined, or closed into a polygon.
     val many = kind is Plot2DKind.PointList || (f.complexPoints?.size ?: 0) > 1
     val region = kind is Plot2DKind.Region
+    if (kind is Plot2DKind.VectorField) return { ArrowOptions(vm, f) }
     if (!points && !region) return null
     return {
         val colors = MaterialTheme.colorScheme
@@ -1127,6 +1144,93 @@ private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable andro
             ExpressiveSlider(value = f.fillOpacity, onValueChange = { vm.setOptions(f, opacity = it) }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Fill opacity" })
         }
     }
+}
+
+/** Choices in a row of segments, M3's single-choice segmented buttons. */
+@Composable
+private fun Segments(labels: List<String>, selected: Int, description: String, onSelect: (Int) -> Unit) {
+    androidx.compose.material3.SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().semantics { contentDescription = description }) {
+        labels.forEachIndexed { i, label ->
+            SegmentedButton(
+                selected = i == selected,
+                onClick = { onSelect(i) },
+                shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(i, labels.size),
+                icon = {},
+                label = { Text(label, maxLines = 1, style = MaterialTheme.typography.labelMedium) },
+            )
+        }
+    }
+}
+
+/**
+ * A vector field's arrows: colored by |F| along a colormap (the same picker as the complex
+ * plane's) or in the line's color, how long they are, their heads, how many and how thick.
+ */
+@Composable
+private fun androidx.compose.foundation.layout.ColumnScope.ArrowOptions(vm: GraphViewModel, f: PlotFunction) {
+    val colors = MaterialTheme.colorScheme
+    var pickingMap by remember { mutableStateOf(false) }
+    if (pickingMap) ColormapPickerDialog(f.colormap, f.colormapReversed, onPick = { map, rev -> vm.setColormap(f, map, rev) }, onDismiss = { pickingMap = false })
+    Text("Arrows", style = MaterialTheme.typography.labelLarge, color = colors.primary)
+    Text("Color", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    Segments(listOf("This color", "By length"), if (f.arrowsByLength) 1 else 0, "Arrow color") { vm.setArrows(f, byLength = it == 1) }
+    if (f.arrowsByLength) {
+        // The colormap, as a strip: tap it to pick another.
+        Box(
+            Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(14.dp))
+                .background(Brush.horizontalGradient(colormapStops(f.colormap, reversed = f.colormapReversed)))
+                .clickable(onClickLabel = "Change the colormap") { pickingMap = true },
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Text(
+                f.colormap.label + (if (f.colormapReversed) " (reversed)" else "") + " · short → long",
+                style = MaterialTheme.typography.labelLarge, color = Color.White,
+                modifier = Modifier.padding(start = 10.dp).clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(alpha = 0.35f)).padding(horizontal = 8.dp, vertical = 2.dp),
+            )
+        }
+    }
+    Text("Length", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    Segments(com.example.cas.graph.VectorField.Length.entries.map { it.label }, f.arrowLength, "Arrow length") { vm.setArrows(f, length = it) }
+    Text("Scale: ×${String.format(java.util.Locale.US, "%.2f", f.arrowScale)}", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    ExpressiveSlider(value = f.arrowScale, onValueChange = { vm.setArrows(f, scale = kotlin.math.round(it * 20f) / 20f) }, valueRange = 0.2f..3f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Arrow scale" })
+    Text("Arrowhead", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        com.example.cas.graph.VectorField.Tip.entries.forEach { tip ->
+            val chosen = f.arrowTip == tip.ordinal
+            Box(
+                Modifier.size(width = 52.dp, height = 36.dp).clip(RoundedCornerShape(10.dp))
+                    .background(if (chosen) colors.secondaryContainer else colors.surfaceContainerHigh)
+                    .clickable(onClickLabel = tip.label) { vm.setArrows(f, tip = tip.ordinal) }
+                    .semantics { contentDescription = tip.label + if (chosen) ", chosen" else "" },
+                contentAlignment = Alignment.Center,
+            ) {
+                val tint = if (chosen) colors.onSecondaryContainer else colors.onSurfaceVariant
+                androidx.compose.foundation.Canvas(Modifier.size(width = 34.dp, height = 20.dp)) {
+                    val y = size.height / 2
+                    val h = com.example.cas.graph.VectorField.head(tip, size.width.toDouble() - 2, y.toDouble(), 1.0, 0.0, 9.dp.toPx().toDouble())
+                    drawLine(tint, Offset(2f, y), Offset(h.shaftEndX.toFloat(), y), 1.8.dp.toPx(), cap = StrokeCap.Round)
+                    h.fills.forEach { pts ->
+                        drawPath(androidx.compose.ui.graphics.Path().apply {
+                            moveTo(pts[0].toFloat(), pts[1].toFloat())
+                            var k = 2
+                            while (k + 1 < pts.size) { lineTo(pts[k].toFloat(), pts[k + 1].toFloat()); k += 2 }
+                            close()
+                        }, tint)
+                    }
+                    h.strokes.forEach { sg -> drawLine(tint, Offset(sg[0].toFloat(), sg[1].toFloat()), Offset(sg[2].toFloat(), sg[3].toFloat()), 1.8.dp.toPx(), cap = StrokeCap.Round) }
+                    h.dot?.let { d -> drawCircle(tint, d[2].toFloat(), Offset(d[0].toFloat(), d[1].toFloat())) }
+                }
+            }
+        }
+    }
+    if (f.arrowTip != com.example.cas.graph.VectorField.Tip.None.ordinal) {
+        Text("Head size: ×${String.format(java.util.Locale.US, "%.1f", f.arrowTipSize)}", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+        ExpressiveSlider(value = f.arrowTipSize, onValueChange = { vm.setArrows(f, tipSize = kotlin.math.round(it * 10f) / 10f) }, valueRange = 0.4f..3f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Arrowhead size" })
+    }
+    Text("${f.arrowDensity} arrows across", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    ExpressiveSlider(value = f.arrowDensity.toFloat(), onValueChange = { vm.setArrows(f, density = it.roundToInt()) }, valueRange = 6f..50f, steps = 43, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Number of arrows across" })
+    Text("Thickness: ${String.format(java.util.Locale.US, "%.1f", f.thickness)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    ExpressiveSlider(value = f.thickness, onValueChange = { vm.setStyle(f, f.lineStyle, kotlin.math.round(it * 10f) / 10f) }, valueRange = 1f..8f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Arrow thickness" })
 }
 
 @Composable
