@@ -39,7 +39,7 @@ import com.example.cas.editor.Sym as SymNode
  * A result ready to show: the exact form first (like any CAS), and the
  * decimal approximation behind the "≈" chip when it says something different.
  */
-data class Answer(val value: Expr, val exact: MathRow, val approx: MathRow?) {
+data class Answer(val value: Expr, val exact: MathRow, val approx: MathRow?, val preferApprox: Boolean = false) {
     val text: String get() = Printer.plain(value)
 
     /** Solutions and assignments (x = 2, a = 5) already contain "=", so no extra "=" goes in front. */
@@ -59,6 +59,12 @@ object Formatter {
     @Volatile var numberFormat = 0
     /** Complex decimal answers as r·e^{iθ}; a setting. */
     @Volatile var polarComplex = false
+
+    /** In the auto format, decimals with more whole digits than this are shown as a × 10ⁿ; a setting. */
+    @Volatile var sciAfter: Int = 10
+
+    /** Exact numbers with more digits than this (in a numerator) show their decimal first; 0 never. A setting. */
+    @Volatile var longExact: Int = 10
 
     /** Significant digits in decimal answers (a setting, 4 to 15). */
     @Volatile var significantDigits: Int = 10
@@ -98,8 +104,14 @@ object Formatter {
         // For formulas like xeˣ − eˣ it would just turn e into 2.718….
         val approx = if (numeric(e)) runCatching { approxRow(e) }.getOrNull() else null
         val useful = approx != null && MathCodec.encode(approx) != MathCodec.encode(exact)
-        return Answer(e, exact, if (useful) approx else null)
+        return Answer(e, exact, if (useful) approx else null, preferApprox = useful && long(e))
     }
+
+    /** Whether [e] has a number too long to read at a glance (12345678901/7): its decimal is shown first. */
+    private fun long(e: Expr): Boolean = longExact > 0 && e.contains { it is Num && it.q.num.abs().toString().length > longExact }
+
+    /** The row an answer shows: its decimal when that's preferred (or asked for), else the exact form. */
+    fun shown(a: Answer, decimalFirst: Boolean): MathRow = if ((decimalFirst || a.preferApprox) && a.approx != null) a.approx else a.exact
 
     /** The decimal form; complex numbers as r·e^{iθ} when the polar setting is on. */
     private fun approxRow(e: Expr): MathRow {
@@ -266,7 +278,7 @@ object Formatter {
         }
         val plain = when (numberFormat) {
             1, 2 -> exponent == 0
-            else -> exponent in -5 until significantDigits
+            else -> exponent in -5 until sciAfter
         }
         if (plain) { digits(out, bd.toPlainString()); return }
         val mantissa = bd.movePointLeft(exponent).round(MathContext(significantDigits, RoundingMode.HALF_EVEN)).stripTrailingZeros()

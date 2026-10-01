@@ -138,6 +138,8 @@ object ComplexMath {
      */
     fun zeta(s: CD): CD {
         if (abs(s.re - 1) < 1e-12 && abs(s.im) < 1e-12) return CD(Double.POSITIVE_INFINITY)
+        // ζ(0) = −½ (the reflection formula below would give 0·∞ there).
+        if (s.re == 0.0 && s.im == 0.0) return CD(-0.5)
         if (s.re < 0.5) {
             // ζ(s) = 2^s π^(s−1) sin(πs/2) Γ(1−s) ζ(1−s)
             val one = ONE - s
@@ -163,6 +165,96 @@ object ComplexMath {
         val eta = CD(-1.0 / d[n]) * acc
         // ζ = η / (1 − 2^(1−s))
         return eta / (ONE - exp((ONE - s) * CD(ln(2.0))))
+    }
+
+    /** B₂ⱼ/(2j)! for j = 1…12, for Euler–Maclaurin. */
+    private val BERNOULLI_OVER_FACT: DoubleArray by lazy {
+        var f = 1.0
+        DoubleArray(12) { j ->
+            val n = 2 * (j + 1)
+            f = 1.0; for (k in 2..n) f *= k
+            Bernoulli.of(n).toDouble() / f
+        }
+    }
+
+    /** x^(−s) for real x > 0. */
+    private fun powNeg(x: Double, s: CD) = exp(CD(-ln(x)) * s)
+
+    /**
+     * The Hurwitz zeta function ζ(s, q) = Σ_{n≥0} (n + q)^(−s), for complex s ≠ 1 and real q > 0
+     * (smaller q are shifted up: ζ(s, q) = q^(−s) + ζ(s, q + 1)), by Euler–Maclaurin summation.
+     */
+    fun hurwitz(s: CD, q: Double): CD {
+        if (q.isNaN() || s.re.isNaN() || s.im.isNaN()) return CD(Double.NaN)
+        if (abs(s.re - 1) < 1e-12 && abs(s.im) < 1e-12) return CD(Double.POSITIVE_INFINITY)
+        if (q <= 0) {
+            if (q == Math.rint(q)) return CD(Double.POSITIVE_INFINITY)
+            // (q)^(−s) for negative q: the principal power.
+            return exp(-(s * ln(CD(q)))) + hurwitz(s, q + 1)
+        }
+        val n = maxOf(16, s.abs().toInt() + 16)
+        var sum = CD(0.0)
+        for (k in 0 until n) sum = sum + powNeg(k + q, s)
+        val x = n + q
+        // ∫ tail, the half end term, then the Bernoulli corrections.
+        sum = sum + powNeg(x, s - ONE) / (s - ONE) + powNeg(x, s) * CD(0.5)
+        var rising = s // s(s+1)…(s+2j−2)
+        var xp = powNeg(x, s + ONE) // x^(−s−1)
+        for (j in 0 until 12) {
+            val term = CD(BERNOULLI_OVER_FACT[j]) * rising * xp
+            sum = sum + term
+            if (term.abs() < 1e-17 * sum.abs()) break
+            rising = rising * (s + CD(2.0 * j + 1)) * (s + CD(2.0 * j + 2))
+            xp = xp / CD(x * x)
+        }
+        return sum
+    }
+
+    /**
+     * The polylogarithm Li_s(z) = Σ_{k≥1} zᵏ/kˢ for |z| ≤ 1 (undefined further out): the series
+     * where it converges fast, and near |z| = 1 the expansion in μ = ln z,
+     * Γ(1 − s)(−μ)^(s−1) + Σ ζ(s − k) μᵏ/k! (with the logarithmic term for whole s).
+     */
+    fun polylog(s: CD, z: CD): CD {
+        val m = z.abs()
+        if (m.isNaN() || m > 1 + 1e-12) return CD(Double.NaN)
+        if (m == 0.0) return CD(0.0)
+        if (abs(z.re - 1) < 1e-15 && abs(z.im) < 1e-15) return zeta(s)
+        if (abs(z.re + 1) < 1e-15 && abs(z.im) < 1e-15) return -(ONE - exp((ONE - s) * CD(ln(2.0)))) * zeta(s)
+        if (m < 0.75) {
+            var sum = CD(0.0)
+            var zk = ONE
+            for (k in 1..400) {
+                zk = zk * z
+                val term = zk * powNeg(k.toDouble(), s)
+                sum = sum + term
+                if (term.abs() < 1e-17 * (sum.abs() + 1e-300)) break
+            }
+            return sum
+        }
+        val mu = ln(z)
+        val whole = s.im == 0.0 && s.re == Math.rint(s.re) && s.re >= 1
+        var sum = CD(0.0)
+        var muk = ONE
+        var fact = 1.0
+        val n = if (whole) s.re.toInt() else -1
+        // ζ at negative even numbers is 0, so one tiny term doesn't mean the end: wait for two.
+        var tiny = 0
+        for (k in 0..80) {
+            if (k > 0) { muk = muk * mu; fact *= k }
+            if (k == n - 1) {
+                // μ^(n−1)/(n−1)! (H_{n−1} − ln(−μ))
+                var h = 0.0; for (j in 1 until n) h += 1.0 / j
+                sum = sum + muk / CD(fact) * (CD(h) - ln(-mu))
+            } else {
+                val term = zeta(s - CD(k.toDouble())) * muk / CD(fact)
+                sum = sum + term
+                tiny = if (term.abs() < 1e-17 * sum.abs()) tiny + 1 else 0
+                if (k > 4 && tiny >= 2) break
+            }
+        }
+        if (!whole) sum = sum + gamma(ONE - s) * exp((s - ONE) * ln(-mu))
+        return sum
     }
 
     /**

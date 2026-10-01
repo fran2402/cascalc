@@ -172,8 +172,17 @@ fun functionColor(f: PlotFunction): Color = f.customColor?.let { Color(it) } ?: 
 /** On the complex plane, ∮ loops and curves are lines in a plain color (white unless picked); the rest are colored by a colormap. */
 fun isComplexLine(f: PlotFunction) = f.contour != null || f.complexCurve != null || f.complexPoints != null || f.complexPath != null
 
-/** The color of a ∮ loop or curve on the complex plane. */
-fun complexLineColor(f: PlotFunction): Color = f.customColor?.let { Color(it) } ?: Color.White
+/** The color of a point, curve or ∮ loop on the complex plane: its own, or the 2D graph's color for its slot. */
+fun complexLineColor(f: PlotFunction): Color = f.customColor?.let { Color(it) }
+    ?: PlotPalette.colors.takeIf { it.isNotEmpty() }?.let { Color(it[f.colorIndex % it.size]) } ?: Color.White
+
+/**
+ * The theme's line colors (as on the 2D graph), kept for drawing and exporting outside
+ * composition; the complex plane refreshes it as it's shown.
+ */
+object PlotPalette {
+    @Volatile var colors: List<Int> = emptyList()
+}
 
 /** A colormap's colors in order, for drawing it as a gradient. */
 fun colormapStops(map: com.example.cas.graph.Colormap, n: Int = 32, reversed: Boolean = false): List<Color> =
@@ -943,16 +952,24 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
                         listOf(Sym(","), Sym("…"), Sym("]"))).toMutableList()) to points
                 } else null
                 // At least as wide as the row, so a tap after the end of the math puts the cursor at
-                // the end of the line (taps on the math itself are handled by it first).
+                // the end of the line, and one in the margin before it at the start, to add something
+                // in front (taps on the math itself are handled by it first).
                 Column(
                     Modifier.widthIn(min = viewport).pointerInput(f, isData) {
-                        detectTapGestures { if (isData) Unit else if (f.editor.root.items.size <= 300 || vm.active === f) vm.tapAt(f, f.editor.root, f.editor.root.items.size) else vm.edit(f) }
+                        detectTapGestures { o ->
+                            val atStart = o.x < 14.dp.toPx()
+                            if (isData) Unit
+                            else if (f.editor.root.items.size <= 300 || vm.active === f) vm.tapAt(f, f.editor.root, if (atStart) 0 else f.editor.root.items.size)
+                            else vm.edit(f)
+                        }
                     },
                 ) {
                     shortened?.second?.let { n ->
                         Text("$n points", style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                    // The margin before the math: a tap here puts the cursor at the start.
+                    Spacer(Modifier.width(14.dp))
                     MathView(
                         row = shortened?.first ?: f.editor.root,
                         fontSize = 22.sp,
@@ -2088,6 +2105,46 @@ fun ResultCard(
     val colors = MaterialTheme.colorScheme
     val tap = rememberKeyTap()
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    // On a phone: one header line with the actions as icons, the integral, then the value with its
+    // figures beside it. On a tablet: roomier, with labeled buttons and the note.
+    if (!isTabletLayout()) {
+        androidx.compose.material3.Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = colors.surfaceContainerHigh,
+            shadowElevation = 4.dp,
+            modifier = Modifier.widthIn(min = 200.dp, max = 280.dp),
+        ) {
+            Column(Modifier.padding(start = 12.dp, end = 2.dp, top = 2.dp, bottom = 10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(icon, contentDescription = null, tint = colors.primary, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(title, style = MaterialTheme.typography.labelLarge, color = colors.onSurface, modifier = Modifier.weight(1f), maxLines = 1)
+                    @Composable
+                    fun action(vector: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) =
+                        IconButton(onClick = { tap(); onClick() }, modifier = Modifier.size(36.dp)) { Icon(vector, contentDescription = label, tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp)) }
+                    if (copyText != null) action(Icons.Default.ContentCopy, "Copy the value") { clipboard.setText(androidx.compose.ui.text.AnnotatedString(copyText)) }
+                    if (onUse != null) action(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardReturn, "Use the value in the calculator", onUse)
+                    action(Icons.Default.Close, "Close", onClose)
+                }
+                Column(Modifier.padding(end = 10.dp)) {
+                    if (math != null) Box(Modifier.horizontalScroll(rememberScrollState())) { MathView(math, 14.sp, colors.onSurfaceVariant, computerModern = true) }
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            value,
+                            color = colors.onSurface,
+                            style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 22.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, fontFeatureSettings = "tnum"),
+                        )
+                    }
+                    if (stats.isNotEmpty()) Text(
+                        stats.joinToString("  ·  ") { (label, v) -> "$label $v" },
+                        style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
+                    )
+                    else if (note != null && value == "—") Text(note, style = MaterialTheme.typography.bodySmall, color = colors.error)
+                }
+            }
+        }
+        return
+    }
     androidx.compose.material3.Surface(
         shape = RoundedCornerShape(24.dp),
         color = colors.surfaceContainerHigh,

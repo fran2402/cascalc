@@ -90,6 +90,28 @@ object Compiler {
     }
 
     private fun function(e: Fn, vars: List<String>): RealFunction {
+        // Σ kept as it is (no closed form): its letter is one more variable; added up at each point.
+        if ((e.name == "sum" || e.name == "product") && e.args.size == 4 && e.args[1] is com.example.cas.cas.Sym) {
+            val body = compile(e.args[0], vars + (e.args[1] as com.example.cas.cas.Sym).name)
+            val lo = compile(e.args[2], vars)
+            val infinite = e.args[3] == com.example.cas.cas.INF
+            val hi = if (infinite) null else compile(e.args[3], vars)
+            val product = e.name == "product"
+            return RealFunction { v ->
+                val w = v.copyOf(v.size + 1)
+                val from = Math.round(lo(v))
+                fun term(i: Long): Double { w[v.size] = i.toDouble(); return body(w) }
+                if (infinite && !product) com.example.cas.cas.Numeric.series(from, 20_000) { i -> com.example.cas.cas.CD(term(i)) }.re
+                else {
+                    val to = hi?.let { Math.round(it(v)) } ?: return@RealFunction Double.NaN
+                    if (to - from > 200_000) return@RealFunction Double.NaN
+                    var acc = if (product) 1.0 else 0.0
+                    var i = from
+                    while (i <= to) { acc = if (product) acc * term(i) else acc + term(i); i++ }
+                    acc
+                }
+            }
+        }
         val a = e.args.map { compile(it, vars) }
         val f = a[0]
         fun one(op: (Double) -> Double) = RealFunction { v -> op(f(v)) }
@@ -125,6 +147,8 @@ object Compiler {
             "zetaprime" -> one { com.example.cas.cas.ComplexMath.zetaDerivative(com.example.cas.cas.CD(it), 1).re }
             "zetaprime2" -> one { com.example.cas.cas.ComplexMath.zetaDerivative(com.example.cas.cas.CD(it), 2).re }
             "gamma" -> one { if (it == Math.rint(it) && it <= 0) Double.NaN else Numeric.gamma(it) }
+            "hurwitz" -> { val q = a[1]; RealFunction { v -> com.example.cas.cas.ComplexMath.hurwitz(com.example.cas.cas.CD(f(v)), q(v)).let { w -> if (kotlin.math.abs(w.im) < 1e-9) w.re else Double.NaN } } }
+            "polylog" -> { val z = a[1]; RealFunction { v -> com.example.cas.cas.ComplexMath.polylog(com.example.cas.cas.CD(f(v)), com.example.cas.cas.CD(z(v))).let { w -> if (kotlin.math.abs(w.im) < 1e-9) w.re else Double.NaN } } }
             "zeta" -> one { val w = com.example.cas.cas.ComplexMath.zeta(com.example.cas.cas.CD(it)); if (kotlin.math.abs(w.im) < 1e-9) w.re else Double.NaN }
             "frac" -> one { it - floor(it) }
             "Re", "conj" -> f

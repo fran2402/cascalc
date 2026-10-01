@@ -643,6 +643,7 @@ object Calculus {
      * Null when the body isn't a power of k.
      */
     fun infiniteSum(body: Expr, k: Sym, lo: Expr): Expr? {
+        runCatching { Series.infinite(body, k, lo) }.getOrNull()?.let { return it }
         geometricLimit(body, k, lo)?.let { return it }
         val factors = if (body is Mul) body.factors else listOf(body)
         var power: Rational? = null
@@ -738,6 +739,9 @@ object Calculus {
         }
         // A symbolic upper limit with no closed form stays as it is (a limit may finish it:
         // lim_{n→∞} Σ 1/k² = ζ(2)); the display and numerics handle a held sum.
+        // Σ to ∞: a closed form from the shape of the term (ζ, η, polylogarithms, eˣ, sin x…),
+        // else kept and added up numerically.
+        if (!product && isPlusInfinity(hi)) return Series.infinite(body, k, lo) ?: held(body, k, lo, hi, product)
         if (product || loN == null) return held(body, k, lo, hi, product)
         // Geometric: Σ_{k=a}^{b} c·rᵏ = c(rᵃ − rᵇ⁺¹)/(1 − r), so lim_{b→∞} works for |r| < 1.
         geometricSum(body, k, lo, hi)?.let { return it }

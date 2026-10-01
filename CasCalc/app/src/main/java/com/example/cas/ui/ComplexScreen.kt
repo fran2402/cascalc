@@ -91,6 +91,8 @@ import kotlin.coroutines.coroutineContext
  */
 @Composable
 fun ComplexScreen(vm: ComplexViewModel, onUseValue: (CD) -> Unit = {}, modifier: Modifier = Modifier) {
+    // Points, curves and loops take the 2D graph's colors.
+    PlotPalette.colors = plotColors(MaterialTheme.colorScheme).map { it.toArgb() }
     BackHandler(enabled = vm.active != null) { vm.edit(null) }
     // The plot's size, for exporting it in the same shape.
     var plotSize by remember { mutableStateOf(IntSize.Zero) }
@@ -112,6 +114,13 @@ fun ComplexScreen(vm: ComplexViewModel, onUseValue: (CD) -> Unit = {}, modifier:
             // Top left: the contour result, and the legend under it.
             Column(Modifier.align(Alignment.TopStart).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 vm.contourResult?.let { ContourCard(it, onClose = vm::clearContour, onUse = { v -> vm.clearContour(); onUseValue(v) }) }
+                // Typed ∮ lines: their values on the same card (closed until the line changes).
+                val closedLoops = remember(vm.version) { androidx.compose.runtime.mutableStateListOf<PlotFunction>() }
+                vm.functions.filter { it.visible && it.contour != null && it !in closedLoops }.forEach { fn ->
+                    val value = runCatching { com.example.cas.cas.Numeric.eval(fn.contour!!.value) }.getOrNull()
+                    if (value != null) ContourCard(value, onClose = { closedLoops += fn }, onUse = { v -> onUseValue(v) }, math = remember(fn.version) { com.example.cas.graph.Legend.row(legendSource(fn)) })
+                }
+                vm.complexArea?.let { ar -> ComplexAreaCard(ar, onClose = { vm.complexArea = null }, onUse = { v -> vm.complexArea = null; onUseValue(CD(v)) }) }
                 val version = vm.version
                 GraphLegend(remember(version, vm.plotted) {
                     complexLegendLines(vm).map { fn ->
@@ -136,6 +145,8 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
     var image by remember { mutableStateOf<ImageBitmap?>(null) }
     var refining by remember { mutableStateOf(false) }
     var probe by remember { mutableStateOf<CD?>(null) }
+    // A tapped point, curve or loop: which line, where, and t on a curve z(t).
+    var hit by remember { mutableStateOf<PlaneHit?>(null) }
     val view = vm.view
     val f = vm.plotted
     val params = vm.parameters.toMap()
@@ -146,9 +157,11 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
         if (v == null || size.width == 0) emptyList() else vm.functions.filter { it.visible && it.complexCurve != null }.mapNotNull { fn ->
             val g = fn.complexCurve!!
             runCatching { com.example.cas.graph.Curves.implicit({ x, y -> vm.call(fn, g, x, y) }, v, (size.width / 6).coerceIn(40, 200), (size.height / 6).coerceIn(40, 260)) }.getOrNull()
-                ?.let { complexLineColor(fn) to it }
+                ?.let { fn to it }
         }
     }
+    val curvesState = androidx.compose.runtime.rememberUpdatedState(curves)
+
 
     // Render coarse first so panning feels live, then sharper once the view settles.
     LaunchedEffect(view, vm.version, size, vm.options, params, f, f?.colormap, f?.colormapReversed, AppSettings.complexQuality) {
@@ -200,11 +213,33 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                 }
             }
             // Hold and drag to read f(z) continuously as the finger moves.
-            .holdToTrace(Unit) { o -> vm.view?.let { v -> probe = toPlane(v, o, size) } }
+            .holdToTrace(Unit) { o -> vm.view?.let { v -> hit = null; probe = toPlane(v, o, size) } }
             .pointerInput(Unit) {
                 detectTapGestures(
-                    onDoubleTap = { vm.resetView(size); probe = null },
-                    onTap = { o -> vm.view?.let { v -> probe = if (probe == null) toPlane(v, o, size) else null } },
+                    onDoubleTap = { vm.resetView(size); probe = null; hit = null },
+                    onTap = { o ->
+                        val v = vm.view ?: return@detectTapGestures
+                        val from = vm.areaFrom
+                        if (from != null) {
+                            // The end of an area to the axis: the nearest point of the same curve.
+                            vm.areaFrom = null
+                            val samples = vm.pathSamples(from.first, v)
+                            val end = samples.minByOrNull { (toScreen(v, it.second, size.width, size.height) - o).getDistance() } ?: return@detectTapGestures
+                            val (t0, t1) = minOf(from.second, end.first) to maxOf(from.second, end.first)
+                            val stretch = samples.filter { it.first in t0..t1 }.map { it.second }
+                            if (stretch.size > 1) {
+                                val (signed, total) = com.example.cas.graph.PlaneAreas.toAxis(stretch)
+                                vm.complexArea = PlaneArea(from.first, 1, total, signed, stretch + CD(stretch.last().re, 0.0) + CD(stretch.first().re, 0.0), shortNumber(t0) + " to " + shortNumber(t1))
+                            }
+                            return@detectTapGestures
+                        }
+                        val h = planeHit(vm, curvesState.value, v, o, size, 24.dp.toPx())
+                        when {
+                            h != null -> { hit = h; probe = null }
+                            hit != null || probe != null -> { hit = null; probe = null }
+                            else -> probe = toPlane(v, o, size)
+                        }
+                    },
                 )
             }
             .semantics { contentDescription = "Complex plane. Color shows the argument of f(z), brightness its size. Drag to move, pinch to zoom, tap to read a value. f can use r and θ for |z| and arg z." },
@@ -220,7 +255,8 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
             else drawGrid(v, if (AppSettings.showGrid) colors.outlineVariant else Color.Transparent, colors.onSurfaceVariant, measurer, ySuffix = "i", halo = colors.surface)
             // Curves, outlined so they show on any color.
             // The first line in the list last, so it's on top.
-            curves.asReversed().forEach { (lineColor, segs) ->
+            curves.asReversed().forEach { (fn, segs) ->
+                val lineColor = complexLineColor(fn)
                 val path = Path()
                 segs.forEach { sg ->
                     path.moveTo(((sg[0] - v.xMin) / v.width * size.width).toFloat(), ((v.yMax - sg[1]) / v.height * size.height).toFloat())
@@ -229,14 +265,28 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                 drawPath(path, Color.Black.copy(alpha = 0.55f), style = Stroke(4.5.dp.toPx(), cap = StrokeCap.Round))
                 drawPath(path, lineColor, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
             }
+            // A picked area, shaded in its line's color.
+            vm.complexArea?.let { ar ->
+                if (ar.outline.size > 2) {
+                    val c = complexLineColor(ar.f)
+                    val path = Path().apply { ar.outline.forEachIndexed { k, z -> val o = toScreen(v, z, size.width, size.height); if (k == 0) moveTo(o.x, o.y) else lineTo(o.x, o.y) }; close() }
+                    drawPath(path, c.copy(alpha = 0.3f))
+                }
+            }
+            hit?.let { h ->
+                val o = toScreen(v, h.z, size.width, size.height)
+                drawCircle(Color.Black.copy(alpha = 0.55f), 8.dp.toPx(), o)
+                drawCircle(complexLineColor(h.fn), 6.5.dp.toPx(), o)
+                drawCircle(colors.surface, 2.5.dp.toPx(), o)
+            }
             // Points ([1 + i, 2]) and curves z(t) (e^{it}), outlined like the curves above.
             fun screen(w: com.example.cas.cas.CD) = Offset(((w.re - v.xMin) / v.width * size.width).toFloat(), ((v.yMax - w.im) / v.height * size.height).toFloat())
             vm.functions.filter { it.visible && (it.complexPoints != null || it.complexPath != null) }.asReversed().forEach { fn ->
                 val lineColor = complexLineColor(fn)
                 val p = vm.parameterValues(fn)
                 fn.complexPath?.let { c ->
-                    val (t0, t1) = vm.pathRange(fn)
-                    val n = 800
+                    val (t0, t1) = vm.pathRange(fn, v)
+                    val n = com.example.cas.graph.Curves.samplesFor(t0, t1)
                     val path = Path()
                     var pen = false
                     var last: Offset? = null
@@ -291,12 +341,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                 }
                 drawPath(arrow, lineColor)
                 drawPath(arrow, Color.Black.copy(alpha = 0.55f), style = Stroke(1.dp.toPx()))
-                // The value in rounded Google Sans Flex, to at most 4 decimals.
-                val shown = runCatching { roundedComplex(com.example.cas.cas.Numeric.eval(c.value)) }.getOrDefault("?")
-                val label = measurer.measure("Integral ≈ $shown", TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp, color = colors.inverseOnSurface))
-                val at = Offset((cx + rx * 0.72f).coerceAtMost(size.width - label.size.width - 8f), (cy - ry * 0.72f - label.size.height).coerceAtLeast(4f))
-                drawRoundRect(colors.inverseSurface, at - Offset(8f, 4f), androidx.compose.ui.geometry.Size(label.size.width + 16f, label.size.height + 8f), androidx.compose.ui.geometry.CornerRadius(20f))
-                drawText(label, topLeft = at)
+                // (Its value is on a result card, top left.)
             }
             // The drawn loop.
             if (vm.contour.size > 1) {
@@ -314,6 +359,25 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                 drawCircle(Color.Black, 7.dp.toPx(), o)
                 drawCircle(Color.White, 5.dp.toPx(), o)
             }
+        }
+        if (vm.areaFrom != null) Text(
+            "Tap where the area should end",
+            color = colors.inverseOnSurface,
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp).clip(CircleShape).background(colors.inverseSurface).padding(horizontal = 14.dp, vertical = 8.dp),
+        )
+        // A tapped point or curve: its z (and t, and f(z) if a function is colored), with areas.
+        val h = hit
+        if (h != null && view != null) {
+            val o = toScreen(view, h.z, size.width.toFloat(), size.height.toFloat())
+            fun use(v: CD): () -> Unit = { hit = null; onUseValue(v) }
+            val w = f?.complexCompiled?.let { c -> runCatching { c(h.z, vm.parameterValues(f)) }.getOrNull()?.takeIf { it.re.isFinite() && it.im.isFinite() } }
+            val rows = listOfNotNull(
+                h.t?.let { t -> CardValue("t", shortNumber(t), onUse = use(CD(t))) },
+                CardValue("z", complexText(h.z), polarText(h.z), onUse = use(h.z)),
+                w?.let { CardValue("f(z)", complexText(it), polarText(it), onUse = use(it)) },
+            )
+            PointCardAt(o.x, o.y, complexLineColor(h.fn), null, legendSource(h.fn).takeIf { it.isNotBlank() }, rows, planeActions(vm, h, view, size, curves) { hit = null })
         }
         // Value readout for the tapped point.
         if (refining) Busy(Modifier.align(Alignment.TopCenter).padding(top = 12.dp))
@@ -492,12 +556,12 @@ internal fun ToolToggle(icon: ImageVector, label: String, on: Boolean, onClick: 
 }
 
 @Composable
-private fun ContourCard(integral: CD, onClose: () -> Unit, onUse: (CD) -> Unit) {
+private fun ContourCard(integral: CD, onClose: () -> Unit, onUse: (CD) -> Unit, math: com.example.cas.editor.MathRow? = null) {
     val residues = DomainColoring.residueSum(integral)
-    val math = remember { com.example.cas.graph.Legend.row("$\\oint f(z)\\,dz$") }
+    val shownMath = math ?: remember { com.example.cas.graph.Legend.row("$\\oint f(z)\\,dz$") }
     // The integral large; the sum of the residues inside (the integral over 2πi) under it.
     ResultCard(
-        PlotIcons.Loop, "Loop integral", math, "≈ " + roundedComplex(integral),
+        PlotIcons.Loop, "Loop integral", shownMath, "≈ " + roundedComplex(integral),
         stats = listOf("Residues inside" to roundedComplex(residues)),
         note = "For a loop drawn counterclockwise.",
         copyText = roundedComplex(integral).replace("−", "-"),
@@ -562,5 +626,131 @@ private fun ComplexSettingsDialog(vm: ComplexViewModel, view: Viewport, onDismis
             androidx.compose.material3.TextButton(enabled = valid, onClick = { vm.view = Viewport(n[0]!!, n[1]!!, n[2]!!, n[3]!!); onDismiss() }) { Text("Done") }
         },
         dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+/** What a tap on the plane landed on: a line's point, curve or loop, at [z] (and [t] on a curve z(t)). */
+class PlaneHit(val fn: PlotFunction, val z: CD, val t: Double? = null)
+
+/**
+ * The point, curve z(t), equation curve or ∮ circle nearest the tap, within [reach] pixels:
+ * points first (they're small targets), then whichever line is closest.
+ */
+private fun planeHit(vm: ComplexViewModel, curves: List<Pair<PlotFunction, List<DoubleArray>>>, v: Viewport, o: Offset, size: IntSize, reach: Float): PlaneHit? {
+    fun screen(z: CD) = toScreen(v, z, size.width, size.height)
+    val lines = vm.functions.filter { it.visible }
+    // Points.
+    lines.filter { it.complexPoints != null }.flatMap { fn -> vm.pointsOf(fn).map { fn to it } }
+        .minByOrNull { (screen(it.second) - o).getDistance() }
+        ?.takeIf { (screen(it.second) - o).getDistance() <= reach }
+        ?.let { return PlaneHit(it.first, it.second) }
+    var best: PlaneHit? = null
+    var bestD = reach
+    fun offer(fn: PlotFunction, z: CD, t: Double? = null) {
+        val d = (screen(z) - o).getDistance()
+        if (d <= bestD) { bestD = d; best = PlaneHit(fn, z, t) }
+    }
+    // Curves z(t): the nearest sample.
+    lines.filter { it.complexPath != null }.forEach { fn -> vm.pathSamples(fn, v).forEach { (t, z) -> offer(fn, z, t) } }
+    // Joined points: the nearest point on each edge.
+    lines.filter { it.complexPoints != null && (it.connectPoints || it.closedShape) }.forEach { fn ->
+        val ps = vm.pointsOf(fn).let { if (fn.closedShape && it.size > 2) it + it.first() else it }
+        for (k in 1 until ps.size) offer(fn, nearestOnSegment(ps[k - 1], ps[k], toPlane(v, o, size)))
+    }
+    // Equation curves, from their drawn segments.
+    curves.forEach { (fn, segs) -> segs.forEach { sg -> offer(fn, nearestOnSegment(CD(sg[0], sg[1]), CD(sg[2], sg[3]), toPlane(v, o, size))) } }
+    // ∮ circles.
+    lines.filter { it.contour != null }.forEach { fn ->
+        val c = fn.contour!!
+        val p = toPlane(v, o, size)
+        val d = p - CD(c.centerRe, c.centerIm)
+        if (d.abs() > 0) offer(fn, CD(c.centerRe, c.centerIm) + d * CD(c.radius / d.abs()))
+    }
+    return best
+}
+
+private fun nearestOnSegment(a: CD, b: CD, p: CD): CD {
+    val ab = b - a
+    val len = ab.re * ab.re + ab.im * ab.im
+    if (len == 0.0) return a
+    val t = (((p.re - a.re) * ab.re + (p.im - a.im) * ab.im) / len).coerceIn(0.0, 1.0)
+    return CD(a.re + t * ab.re, a.im + t * ab.im)
+}
+
+/** A line as a polyline, for crossings: a curve's samples, or joined points. */
+private fun outlineOf(vm: ComplexViewModel, fn: PlotFunction, v: Viewport): List<CD>? = when {
+    fn.complexPath != null -> vm.pathSamples(fn, v).map { it.second }
+    fn.complexPoints != null && (fn.connectPoints || fn.closedShape) -> vm.pointsOf(fn).let { if (fn.closedShape && it.size > 2) it + it.first() else it }
+    else -> null
+}
+
+/** The areas a tapped line offers: inside it when it's closed, to the axis from here, between it and a curve crossing here. */
+private fun planeActions(vm: ComplexViewModel, h: PlaneHit, v: Viewport, size: IntSize, curves: List<Pair<PlotFunction, List<DoubleArray>>>, done: () -> Unit): List<CardAction> {
+    val fn = h.fn
+    val out = ArrayList<CardAction>()
+    fun inside(area: () -> PlaneArea?) = CardAction(TabIcons.Area, "Area inside", "Area inside this curve") { area()?.let { vm.complexArea = it }; done() }
+    when {
+        fn.complexPath != null -> {
+            if (vm.closedPath(fn, v)) out += inside {
+                val pts = vm.pathSamples(fn, v).map { it.second }
+                val a = com.example.cas.graph.PlaneAreas.shoelace(pts)
+                PlaneArea(fn, 0, kotlin.math.abs(a), a, pts)
+            }
+            h.t?.let { t -> out += CardAction(TabIcons.Area, "To the axis", "Area to the real axis from here") { vm.complexArea = null; vm.areaFrom = fn to t; done() } }
+        }
+        fn.complexPoints != null && fn.closedShape -> {
+            val pts = vm.pointsOf(fn)
+            if (pts.size > 2) out += inside { val a = com.example.cas.graph.PlaneAreas.shoelace(pts); PlaneArea(fn, 0, kotlin.math.abs(a), a, pts) }
+        }
+        fn.complexCurve != null -> out += inside {
+            val a = vm.insideArea(fn, v) ?: return@inside null
+            val segs = curves.firstOrNull { it.first === fn }?.second.orEmpty()
+            // Shaded as its drawn outline is: the segments in order around the center.
+            val pts = segs.map { CD((it[0] + it[2]) / 2, (it[1] + it[3]) / 2) }
+            val c = if (pts.isEmpty()) CD(0.0) else CD(pts.sumOf { it.re } / pts.size, pts.sumOf { it.im } / pts.size)
+            PlaneArea(fn, 0, a, null, pts.sortedBy { (it - c).arg() }, "In view")
+        }
+        fn.contour != null -> out += inside {
+            val c = fn.contour!!
+            val pts = (0 until 240).map { k -> CD(c.centerRe + c.radius * kotlin.math.cos(2 * Math.PI * k / 240), c.centerIm + c.radius * kotlin.math.sin(2 * Math.PI * k / 240)) }
+            PlaneArea(fn, 0, Math.PI * c.radius * c.radius, null, pts)
+        }
+    }
+    // Another line crossing here: the region between them, to their next crossing.
+    val mine = outlineOf(vm, fn, v)
+    if (mine != null) {
+        val reach = 0.04 * maxOf(v.width, v.height)
+        for (other in vm.functions.filter { it.visible && it !== fn }) {
+            val theirs = outlineOf(vm, other, v) ?: continue
+            val a = com.example.cas.graph.PlaneAreas.thin(mine); val b = com.example.cas.graph.PlaneAreas.thin(theirs)
+            if (com.example.cas.graph.PlaneAreas.crossings(a, b).none { (it.at - h.z).abs() < reach }) continue
+            out += CardAction(TabIcons.AreaBetween, "Between", "Area between the curves from here") {
+                com.example.cas.graph.PlaneAreas.between(a, b, h.z)?.let { region ->
+                    vm.complexArea = PlaneArea(fn, 2, kotlin.math.abs(com.example.cas.graph.PlaneAreas.shoelace(region)), null, region)
+                }
+                done()
+            }
+            break
+        }
+    }
+    return out
+}
+
+/** The area picked on the plane, on the same card as the 2D graph's areas. */
+@Composable
+private fun ComplexAreaCard(ar: PlaneArea, onClose: () -> Unit, onUse: (Double) -> Unit) {
+    val title = when (ar.kind) { 1 -> "Area to the real axis"; 2 -> "Area between the curves"; else -> "Area inside" }
+    val math = remember(ar) { legendSource(ar.f).takeIf { it.isNotBlank() }?.let { com.example.cas.graph.Legend.row(it) } }
+    // To the axis: the signed integral ∫ y dx and the range of t; inside an equation's curve: counted in view.
+    val stats = listOfNotNull(
+        ar.signed?.takeIf { ar.kind == 1 }?.let { "Signed" to shortNumber(it) },
+        ar.detail?.let { if (ar.kind == 1) "t from" to it else "Counted" to "in the view" },
+    )
+    ResultCard(
+        if (ar.kind == 2) TabIcons.AreaBetween else TabIcons.Area, title, math, "≈ " + shortNumber(ar.total),
+        stats = stats,
+        copyText = ar.total.toString(),
+        onUse = { onUse(ar.total) },
+        onClose = onClose,
     )
 }

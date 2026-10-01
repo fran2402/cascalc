@@ -34,7 +34,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 class HistoryItem(val expression: MathRow, val answer: Answer, decimalFirst: Boolean = false) {
     /** Showing the decimal approximation instead of the exact answer. */
-    var showApprox by mutableStateOf(decimalFirst && answer.approx != null)
+    var showApprox by mutableStateOf((decimalFirst || answer.preferApprox) && answer.approx != null)
 
     /** What this result would add to a graph, if anything ("graph this"). */
     val graph: GraphRequest? by lazy { runCatching { Graphing.request(expression, answer.value) }.getOrNull() }
@@ -94,7 +94,15 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
     fun changeDecimalFirst(on: Boolean) {
         decimalFirst = on
         prefs.edit().putBoolean("decimalFirst", on).apply()
-        history.forEach { it.showApprox = on && it.answer.approx != null }
+        history.forEach { it.showApprox = (on || it.answer.preferApprox) && it.answer.approx != null }
+    }
+
+    /** Past answers formatted again (after a number setting changed), each shown as the settings say. */
+    fun reformat() {
+        val redone = history.map { HistoryItem(it.expression, Formatter.answer(it.answer.value), decimalFirst) }
+        history.clear(); history.addAll(redone)
+        schedulePreview()
+        save()
     }
 
     init {

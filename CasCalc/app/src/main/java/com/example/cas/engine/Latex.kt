@@ -103,6 +103,8 @@ object Latex {
             "jacobian" -> "J" + paren(a[0])
             "hessian" -> "H" + paren(a[0])
             "zeta" -> "\\zeta" + paren(a[0])
+            "hurwitz" -> "\\zeta(" + a[0] + ", " + a[1] + ")"
+            "polylog" -> "\\operatorname{Li}_{" + a[0] + "}" + paren(a[1])
             "besselj" -> "J_{" + a[0] + "}" + paren(a[1])
             "bessely" -> "Y_{" + a[0] + "}" + paren(a[1])
             "log" -> "\\log_" + group(f.args[0]) + paren(a[1])

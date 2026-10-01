@@ -77,8 +77,36 @@ object Numeric {
     }
 
     /** A held Σ or Π with numeric bounds, added up term by term. */
+    /**
+     * Σ_{k≥lo} term(k) added up until the terms stop mattering (at most [max] of them); for an
+     * alternating series the mean of the last two partial sums, which converges much faster.
+     */
+    fun series(lo: Long, max: Int = 200_000, term: (Long) -> CD): CD {
+        var acc = CD(0.0)
+        var prev = CD(0.0)
+        var small = 0
+        var k = lo
+        var last = CD(0.0)
+        for (n in 0 until max) {
+            val t = term(k)
+            if (t.re.isNaN() || t.im.isNaN()) return CD(Double.NaN)
+            prev = acc
+            acc = acc + t
+            last = t
+            small = if (t.abs() <= 1e-15 * maxOf(acc.abs(), 1e-300)) small + 1 else 0
+            if (small >= 5) return acc
+            k++
+        }
+        // Not settled: an alternating series lands between its last two partial sums.
+        return if (last.abs() < prev.abs() + acc.abs()) (prev + acc) * CD(0.5) else CD(Double.NaN)
+    }
+
     private fun heldSum(e: Fn, env: Map<String, Double>): CD {
         val k = (e.args[1] as? Sym)?.name ?: return ev(e.args[0], env)
+        if (e.name == "sum" && e.args[3] == INF) {
+            val lo0 = Math.round(real(e.args[2], env))
+            return series(lo0) { i -> ev(e.args[0], env + (k to i.toDouble())) }
+        }
         val lo = Math.round(real(e.args[2], env))
         val hi = Math.round(real(e.args[3], env))
         if (hi - lo > 2_000_00L) throw MathError("That's too many terms")
@@ -138,6 +166,8 @@ object Numeric {
             "erf" -> CD(Statistics.erf(r()))
             "digamma" -> CD(Statistics.digamma(r()))
             "trigamma" -> ComplexMath.trigamma(x)
+            "hurwitz" -> ComplexMath.hurwitz(x, a[1].real("hurwitz"))
+            "polylog" -> ComplexMath.polylog(x, a[1]).also { if (it.re.isNaN()) throw MathError("The polylogarithm needs |z| ≤ 1") }
             "zetaprime2" -> ComplexMath.zetaDerivative(x, 2)
             "lambertw" -> CD(Statistics.lambertW(r()))
             "besselj" -> CD(Statistics.besselJ(a[0].real("besselj"), a[1].real("besselj")))

@@ -103,6 +103,7 @@ object ComplexCompiler {
 
     private fun function(e: Fn, vars: List<String>, bound: Map<String, ComplexFunction>): ComplexFunction {
         if (e.name == "integral") return integral(e, vars, bound)
+        if ((e.name == "sum" || e.name == "product") && e.args.size == 4 && e.args[1] is Sym) return heldSum(e, vars, bound)
         val a = e.args.map { compile(it, vars, bound) }
         val f = a[0]
         fun one(op: (CD) -> CD) = ComplexFunction { z, p -> op(f(z, p)) }
@@ -139,6 +140,8 @@ object ComplexCompiler {
             "binom" -> { val g = a[1]; ComplexFunction { z, p -> val n = f(z, p); val k = g(z, p); ComplexMath.gamma(n + CD(1.0)) / (ComplexMath.gamma(k + CD(1.0)) * ComplexMath.gamma(n - k + CD(1.0))) } }
             "perm" -> { val g = a[1]; ComplexFunction { z, p -> val n = f(z, p); val k = g(z, p); ComplexMath.gamma(n + CD(1.0)) / ComplexMath.gamma(n - k + CD(1.0)) } }
             // J_a(z), Y_a(z): the order is real (a number or a slider), z anywhere on the plane.
+            "hurwitz" -> { val q = a[1]; ComplexFunction { z, p -> ComplexMath.hurwitz(f(z, p), q(z, p).re) } }
+            "polylog" -> { val w = a[1]; ComplexFunction { z, p -> ComplexMath.polylog(f(z, p), w(z, p)) } }
             "besselj", "bessely" -> {
                 val order = a[0]; val arg = a[1]
                 val second = e.name == "bessely"
@@ -230,6 +233,30 @@ object ComplexCompiler {
     // 5-point Gauss–Legendre, for the last short piece to z (under half a unit long).
     private val GAUSS_X5 = doubleArrayOf(-0.9061798459386640, -0.5384693101056831, 0.0, 0.5384693101056831, 0.9061798459386640)
     private val GAUSS_W5 = doubleArrayOf(0.2369268850561891, 0.4786286704993665, 0.5688888888888889, 0.4786286704993665, 0.2369268850561891)
+
+    /** A Σ or Π kept as it is: its letter bound to each whole number in turn, to ∞ until the terms stop mattering. */
+    private fun heldSum(e: Fn, vars: List<String>, bound: Map<String, ComplexFunction>): ComplexFunction {
+        val k = (e.args[1] as Sym).name
+        val node = ThreadLocal.withInitial { CD(0.0) }
+        val body = compile(e.args[0], vars, bound + (k to ComplexFunction { _, _ -> node.get() }))
+        val lo = compile(e.args[2], vars, bound)
+        val infinite = e.args[3] == com.example.cas.cas.INF
+        val hi = if (infinite) null else compile(e.args[3], vars, bound)
+        val product = e.name == "product"
+        return ComplexFunction { z, p ->
+            val from = Math.round(lo(z, p).re)
+            fun term(i: Long): CD { node.set(CD(i.toDouble())); return body(z, p) }
+            if (infinite && !product) com.example.cas.cas.Numeric.series(from, 5_000) { term(it) }
+            else {
+                val to = hi?.let { Math.round(it(z, p).re) } ?: return@ComplexFunction CD(Double.NaN)
+                if (to - from > 100_000) return@ComplexFunction CD(Double.NaN)
+                var acc = if (product) CD(1.0) else CD(0.0)
+                var i = from
+                while (i <= to) { acc = if (product) acc * term(i) else acc + term(i); i++ }
+                acc
+            }
+        }
+    }
 
     // 10-point Gauss–Legendre nodes and weights on [−1, 1].
     private val GAUSS_X = doubleArrayOf(-0.9739065285171717, -0.8650633666889845, -0.6794095682990244, -0.4333953941292472, -0.1488743389816312, 0.1488743389816312, 0.4333953941292472, 0.6794095682990244, 0.8650633666889845, 0.9739065285171717)

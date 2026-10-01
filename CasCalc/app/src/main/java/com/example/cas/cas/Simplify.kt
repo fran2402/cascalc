@@ -375,6 +375,8 @@ object Simplify {
                 else -> Fn(name, args)
             }
             "zeta" -> zetaExact(x) ?: Fn(name, args)
+            "hurwitz" -> hurwitzExact(args[0], args[1]) ?: Fn(name, args)
+            "polylog" -> polylogExact(args[0], args[1]) ?: Fn(name, args)
             "hadamard" -> Matrices.hadamard(x as? Mat ?: throw MathError("∘ needs two matrices"), args[1] as? Mat ?: throw MathError("∘ needs two matrices"))
             "kron" -> Matrices.kronecker(x as? Mat ?: throw MathError("⊗ needs two matrices"), args[1] as? Mat ?: throw MathError("⊗ needs two matrices"))
             "hermitian" -> Matrices.hermitian(x as? Mat ?: throw MathError("Aᴴ needs a matrix"))
@@ -391,7 +393,7 @@ object Simplify {
 
     private val NUMERIC_OK = setOf(
         "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh", "asinh", "acosh", "atanh",
-        "ln", "log", "abs", "floor", "ceil", "round", "Re", "Im", "conj", "arg", "fact", "binom", "mod", "min", "max", "sgn", "frac", "gamma", "zeta", "erf", "perm", "invnorm", "digamma", "zetaprime", "lambertw", "besselj", "bessely",
+        "ln", "log", "abs", "floor", "ceil", "round", "Re", "Im", "conj", "arg", "fact", "binom", "mod", "min", "max", "sgn", "frac", "gamma", "zeta", "erf", "perm", "invnorm", "digamma", "zetaprime", "lambertw", "besselj", "bessely", "hurwitz", "polylog",
     )
 
     fun isNegative(x: Expr): Boolean = when (x) {
@@ -521,6 +523,39 @@ object Simplify {
     }
 
     /** ζ(2n) = (−1)ⁿ⁺¹ B₂ₙ (2π)²ⁿ / (2 (2n)!), ζ(0) = −½, ζ(−n) = −Bₙ₊₁/(n + 1). */
+    /**
+     * ζ(s, q) where it's plain ζ: q = 1 is ζ(s), q = ½ is (2ˢ − 1)ζ(s), and q a whole number or
+     * a half more drops the first terms: ζ(s, n) = ζ(s) − Σ_{j<n} j^(−s).
+     */
+    private fun hurwitzExact(s: Expr, q: Expr): Expr? {
+        val r = (q as? Num)?.q ?: return null
+        if (r.signum <= 0) return null
+        val frac = r - Rational.of(r.floor())
+        val n = r.floor().toLong()
+        if (n > 200) return null
+        return when (frac) {
+            Rational.ZERO -> sum(listOf(function("zeta", listOf(s))) + (1 until n).map { j -> product(listOf(MINUS_ONE, power(Num(j), product(listOf(MINUS_ONE, s))))) })
+            Rational.of(1, 2) -> sum(listOf(product(listOf(sum(listOf(power(TWO, s), MINUS_ONE)), function("zeta", listOf(s))))) +
+                (0 until n).map { j -> product(listOf(MINUS_ONE, power(Num(Rational.of(2 * j + 1, 2)), product(listOf(MINUS_ONE, s))))) })
+            else -> null
+        }
+    }
+
+    /** Li_s(z) at z = 1 (ζ(s)), −1 (−η(s)) and 0, and for s = 1, 0, −1…: −ln(1 − z), z/(1 − z), … */
+    private fun polylogExact(s: Expr, z: Expr): Expr? {
+        fun minus(x: Expr) = product(listOf(MINUS_ONE, x))
+        fun oneMinus(x: Expr) = sum(listOf(ONE, minus(x)))
+        return when {
+            z == ZERO -> ZERO
+            z == ONE -> function("zeta", listOf(s))
+            // −η(s) = −(1 − 2^(1−s)) ζ(s)
+            z == MINUS_ONE -> minus(product(listOf(oneMinus(power(TWO, oneMinus(s))), function("zeta", listOf(s)))))
+            s == ONE -> minus(function("ln", listOf(oneMinus(z))))
+            s == ZERO -> product(listOf(z, power(oneMinus(z), MINUS_ONE)))
+            else -> null
+        }
+    }
+
     private fun zetaExact(x: Expr): Expr? {
         val q = (x as? Num)?.q ?: return null
         if (!q.isInteger) return null

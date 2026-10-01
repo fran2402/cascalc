@@ -517,10 +517,10 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
             is Plot2DKind.Parametric -> {
                 val x = { t: Double -> vm.call(g, k.x, t).let { xx -> if (vm.allowed(g, xx, vm.call(g, k.y, t), t = t)) xx else Double.NaN } }
                 val y = { t: Double -> vm.call(g, k.y, t) }
-                // Closed curves go round once; open ones like (t, t²) run over −10 ≤ t ≤ 10.
+                // Closed curves go round once; open ones like (t, t²) run as far as they stay near the view.
                 val turns = periodTurns(listOf(x, y))
-                val (t0, t1) = if (turns <= 6) 0.0 to 2 * PI * turns else -10.0 to 10.0
-                out += Plotted(f, Curves.parametric(x, y, t0, t1, view), emptyList())
+                val (t0, t1) = if (turns <= 6) 0.0 to 2 * PI * turns else Curves.tRange(x, y, view)
+                out += Plotted(f, Curves.parametric(x, y, t0, t1, view, Curves.samplesFor(t0, t1)), emptyList())
             }
             is Plot2DKind.Implicit -> {
                 // Sliders read once for the whole grid.
@@ -1084,7 +1084,7 @@ private fun AreaCard(ar: AreaResult, onClose: () -> Unit, onUse: (Double) -> Uni
     // The area itself large; the signed integral (what's above the axis less what's below) under it.
     ResultCard(
         icon, title, areaRow(between, lo, hi), "≈ " + shortNumber(ar.total),
-        stats = listOf("Signed integral" to shortNumber(ar.signed), "From" to "$lo to $hi"),
+        stats = listOf("Signed" to shortNumber(ar.signed), "From" to "$lo to $hi"),
         note = "Drag the dashed edges to change the limits.",
         copyText = ar.total.toString(),
         onUse = { onClose(); onUse(ar.total) },

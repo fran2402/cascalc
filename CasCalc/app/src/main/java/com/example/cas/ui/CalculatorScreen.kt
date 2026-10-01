@@ -458,8 +458,10 @@ private fun InputPanel(vm: CalculatorViewModel) {
                 vm.busy -> LinearProgressIndicator(Modifier.width(96.dp))
                 error != null -> Text(error, color = colors.error, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 16.sp))
                 preview != null -> Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (!preview.isStatement) Text(if (preview.isApproximate) "≈ " else "= ", color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = MathSizes.preview))
-                    MathView(preview.exact, MathSizes.preview, colors.onSurfaceVariant)
+                    // Long exact numbers (or every answer, if decimals come first) preview as decimals.
+                    val decimal = (vm.decimalFirst || preview.preferApprox) && preview.approx != null
+                    if (!preview.isStatement) Text(if (preview.isApproximate || decimal) "≈ " else "= ", color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = MathSizes.preview))
+                    MathView(if (decimal) preview.approx!! else preview.exact, MathSizes.preview, colors.onSurfaceVariant)
                 }
             }
         }
@@ -543,7 +545,7 @@ private fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (Gr
             if (item.answer.approx != null) ApproxChip(item.showApprox) { item.showApprox = !item.showApprox }
             Spacer(Modifier.weight(1f))
             if (!item.answer.isStatement) {
-                Text(if (item.answer.isApproximate) "≈" else "=", color = colors.primary, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = MathSizes.historyAnswer))
+                Text(if (item.answer.isApproximate || item.showApprox) "≈" else "=", color = colors.primary, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = MathSizes.historyAnswer))
                 Spacer(Modifier.width(12.dp))
             }
             Box(Modifier.horizontalScroll(rememberScrollState())) {
@@ -1469,9 +1471,18 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                     modifier = Modifier.semantics { contentDescription = "Significant digits" },
                 )
             }
-            if (vm != null) SettingsToggle("Show decimals first", "The exact form stays one tap away", vm.decimalFirst, vm::changeDecimalFirst)
+            // Tapping an answer switches between its exact form and its decimal; this picks which comes first.
+            if (vm != null) SettingsChoice("Show answers as", listOf("Exact", "Decimal"), if (vm.decimalFirst) 1 else 0) { vm.changeDecimalFirst(it == 1) }
+            // Exact numbers too long to take in: their decimal first.
+            SettingsChoice("Long exact numbers", listOf("Exact", "Decimal over 10 digits", "Over 20"), when (AppSettings.longExact) { 0 -> 0; 20 -> 2; else -> 1 }) {
+                AppSettings.changeLongExact(listOf(0, 10, 20)[it]); vm?.reformat()
+            }
             SettingsToggle("Group digits", "1 000 000 rather than 1000000", AppSettings.groupDigits, AppSettings::changeGroupDigits)
-            SettingsChoice("Number format", listOf("Auto", "Scientific", "Engineering"), AppSettings.numberFormat, AppSettings::changeNumberFormat)
+            // Auto: plain digits, then a × 10ⁿ from the size chosen below; scientific and engineering always.
+            SettingsChoice("Number format", listOf("Auto", "Scientific", "Engineering"), AppSettings.numberFormat) { AppSettings.changeNumberFormat(it); vm?.reformat() }
+            if (AppSettings.numberFormat == 0) SettingsChoice("Scientific notation from", listOf("10⁶", "10¹⁰", "10¹⁵"), when (AppSettings.sciAfter) { 6 -> 0; 15 -> 2; else -> 1 }) {
+                AppSettings.changeSciAfter(listOf(6, 10, 15)[it]); vm?.reformat()
+            }
             SettingsChoice("Complex decimals", listOf("a + bi", "Polar"), if (AppSettings.polarComplex) 1 else 0) { AppSettings.changePolarComplex(it == 1) }
         },
         PageSection("Graphs", Icons.AutoMirrored.Outlined.ShowChart) {

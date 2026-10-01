@@ -477,7 +477,7 @@ private fun childLevel(level: Int) = if (level == 0) 0 else level + 1
 
 /** Functions written with a symbol rather than their name. */
 private val FUNCTION_NAMES = mapOf(
-    "gamma" to "Γ", "zeta" to "ζ",
+    "gamma" to "Γ", "zeta" to "ζ", "hurwitz" to "ζ",
     "grad" to "∇", "div" to "∇·", "curl" to "∇×", "laplacian" to "∇²", "jacobian" to "J", "hessian" to "H",
     "perm" to "P", "normpdf" to "φ", "normcdf" to "Φ", "binompdf" to "Bin", "poissonpdf" to "Pois", "total" to "Σ",
     "sd" to "s", "psd" to "σ", "median" to "med", "digamma" to "ψ", "zetaprime" to "ζ′",
@@ -747,6 +747,14 @@ private fun FuncView(f: Func, row: MathRow, index: Int, level: Int) {
                 MathText("∇", level, tap)
             }
             Fenced(Delim.Paren, level) { RowView(f.args[0], level) }
+        }
+        // The polylogarithm Li_s(z), its order as a subscript.
+        "polylog" -> if (f.args.size == 2) AxisRow(level) {
+            Scripts(level, tap, base = { MathText("Li", level, upright = true) }, sub = { RowView(f.args[0], level + 1) })
+            Fenced(Delim.Paren, level) { RowView(f.args[1], level) }
+        } else AxisRow(level) {
+            MathText(f.name, level, tap)
+            FuncArguments(f, level)
         }
         // Bessel functions: J_a(z) and Y_a(z), the order as a subscript box.
         "besselj", "bessely" -> if (f.args.size == 2) AxisRow(level) {

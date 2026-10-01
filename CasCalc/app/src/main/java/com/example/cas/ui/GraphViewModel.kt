@@ -822,8 +822,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         return minOf(a, b) to maxOf(a, b)
     }
 
-    /** Where a curve z(t) is drawn: its written range, else once round (0 to 2π) if it closes up, else −10 to 10. */
-    fun pathRange(f: PlotFunction): Pair<Double, Double> {
+    /** Where a curve z(t) is drawn: its written range, else once round (0 to 2π) if it closes up, else as far as it stays near [view]. */
+    fun pathRange(f: PlotFunction, view: com.example.cas.graph.Viewport): Pair<Double, Double> {
         f.complexPathRange?.let { return it }
         val c = f.complexPath ?: return 0.0 to 1.0
         val p = parameterValues(f)
@@ -832,7 +832,9 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             val b = runCatching { c(com.example.cas.cas.CD(t + 2 * Math.PI), p) }.getOrNull() ?: return@all false
             a.re.isFinite() && (a - b).abs() < 1e-7 * (1 + a.abs())
         }
-        return if (periodic) 0.0 to 2 * Math.PI else -10.0 to 10.0
+        if (periodic) return 0.0 to 2 * Math.PI
+        val at = { t: Double -> runCatching { c(com.example.cas.cas.CD(t), p) }.getOrNull() ?: com.example.cas.cas.CD(Double.NaN) }
+        return com.example.cas.graph.Curves.tRange({ at(it).re }, { at(it).im }, view)
     }
 
     /** On the complex plane, ∂/∂x, ∫ … dx and lim x→ from the keys come in with z instead. */
@@ -1163,7 +1165,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     /** Letters that sit above the keypad while editing, for typing curves quickly. */
     override val quickVariables: List<String>
         get() = when {
-            isComplex -> listOf("z", "x", "y", "r", "θ")
+            isComplex -> listOf("z", "t", "x", "y", "r", "θ")
             // Every 3D coordinate letter, those of the current coordinates first.
             plotVars.size == 2 -> {
                 // Your letters: the current system's first, then the others'.
@@ -1672,7 +1674,66 @@ class ComplexViewModel(app: Application) : GraphViewModel(app, "gc", listOf("z")
     }
 
     fun clearContour() { contour = emptyList(); contourResult = null }
+
+    /** An area picked on the plane, shown on a result card with its region shaded. */
+    var complexArea by mutableStateOf<PlaneArea?>(null)
+    /** "Area to the axis" waiting for its end: the curve and where it starts. */
+    var areaFrom by mutableStateOf<Pair<PlotFunction, Double>?>(null)
+
+    /** A curve z(t) as (t, z) samples over the range it's drawn on (undefined points left out). */
+    fun pathSamples(f: PlotFunction, view: Viewport, range: Pair<Double, Double> = pathRange(f, view)): List<Pair<Double, com.example.cas.cas.CD>> {
+        val c = f.complexPath ?: return emptyList()
+        val p = parameterValues(f)
+        val (t0, t1) = range
+        val n = com.example.cas.graph.Curves.samplesFor(t0, t1)
+        return (0..n).mapNotNull { k ->
+            val t = t0 + (t1 - t0) * k / n
+            runCatching { c(com.example.cas.cas.CD(t), p) }.getOrNull()?.takeIf { it.re.isFinite() && it.im.isFinite() }?.let { t to it }
+        }
+    }
+
+    /** The points of a [a, b, …] line, where they are now. */
+    fun pointsOf(f: PlotFunction): List<com.example.cas.cas.CD> {
+        val p = parameterValues(f)
+        return f.complexPoints.orEmpty().mapNotNull { c -> runCatching { c(com.example.cas.cas.CD(0.0), p) }.getOrNull()?.takeIf { it.re.isFinite() && it.im.isFinite() } }
+    }
+
+    /** Whether a curve z(t) closes up over its range (e^{it} from 0 to 2π). */
+    fun closedPath(f: PlotFunction, view: Viewport): Boolean {
+        val s = pathSamples(f, view)
+        if (s.size < 3) return false
+        val span = maxOf(view.width, view.height)
+        return (s.first().second - s.last().second).abs() < 1e-6 * span
+    }
+
+    /**
+     * The area inside an equation's curve (|z − 1| = 2), counted on a fine grid over [view]: the
+     * cells on the other side of the curve from the view's corners. Null if nothing is inside.
+     */
+    fun insideArea(f: PlotFunction, view: Viewport): Double? {
+        val g = f.complexCurve ?: return null
+        val n = 360
+        val p = parameterValues(f)
+        val args = DoubleArray(2 + p.size).also { p.copyInto(it, 2) }
+        fun at(x: Double, y: Double): Double { args[0] = x; args[1] = y; return runCatching { g(args) }.getOrDefault(Double.NaN) }
+        val corners = listOf(at(view.xMin, view.yMin), at(view.xMin, view.yMax), at(view.xMax, view.yMin), at(view.xMax, view.yMax)).filter { it.isFinite() }
+        val outside = if (corners.count { it < 0 } > corners.size / 2) -1.0 else 1.0
+        var count = 0
+        for (j in 0 until n) for (i in 0 until n) {
+            val v = at(view.xMin + (i + 0.5) / n * view.width, view.yMin + (j + 0.5) / n * view.height)
+            if (v.isFinite() && v * outside < 0) count++
+        }
+        if (count == 0) return null
+        return count.toDouble() / (n * n) * view.width * view.height
+    }
 }
+
+/**
+ * An area picked on the complex plane: [outline] is shaded, [total] shown large, [signed] (the
+ * integral, when it means something) beside it. [kind] 0 is inside a closed curve, 1 between a
+ * stretch of curve and the real axis, 2 between two curves.
+ */
+class PlaneArea(val f: PlotFunction, val kind: Int, val total: Double, val signed: Double?, val outline: List<com.example.cas.cas.CD>, val detail: String? = null)
 
 /**
  * The area picked on the 2D graph: [signed] = ∫ₐᵇ f dx, [total] = ∫ₐᵇ |f| dx, or with [g] the same for

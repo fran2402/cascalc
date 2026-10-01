@@ -135,6 +135,30 @@ object Curves {
         return out
     }
 
+    /**
+     * How far t should run for an open curve (x(t), y(t)) to cover [view]: each end starts at 10
+     * and doubles (up to 10⁴) while the curve there is still near the view, so (t, t²) stops
+     * once it has left the screen and (t, sin t) reaches the edges however far out you look.
+     */
+    fun tRange(x: (Double) -> Double, y: (Double) -> Double, view: Viewport): Pair<Double, Double> {
+        // Near: within the view widened by its own size on every side.
+        fun near(t: Double): Boolean {
+            val px = x(t); val py = y(t)
+            return px.isFinite() && py.isFinite() &&
+                px in view.xMin - view.width..view.xMax + view.width && py in view.yMin - view.height..view.yMax + view.height
+        }
+        // Still near anywhere in the last stretch [T/2, T] (sampled), so a wiggle out and back counts.
+        fun reach(sign: Double): Double {
+            var t = 10.0
+            while (t < 1e4 && (0..16).any { k -> near(sign * t * (0.5 + k / 32.0)) }) t *= 2
+            return t
+        }
+        return -reach(-1.0) to reach(1.0)
+    }
+
+    /** Enough samples for [t0, t1]: 1200 per 20 units of t, from 1200 to 24 000. */
+    fun samplesFor(t0: Double, t1: Double): Int = (1200 * (t1 - t0) / 20).toInt().coerceIn(1200, 24_000)
+
     /** r = f(θ) for θ from 0 to [turns]·2π, as x = r cos θ, y = r sin θ. */
     fun polar(r: (Double) -> Double, view: Viewport, turns: Double = 1.0, samples: Int = 1200) =
         parametric({ t -> r(t) * cos(t) }, { t -> r(t) * sin(t) }, 0.0, 2 * PI * turns, view, samples)
