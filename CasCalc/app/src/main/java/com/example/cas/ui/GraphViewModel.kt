@@ -833,8 +833,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             a.re.isFinite() && (a - b).abs() < 1e-7 * (1 + a.abs())
         }
         if (periodic) return 0.0 to 2 * Math.PI
-        val at = { t: Double -> runCatching { c(com.example.cas.cas.CD(t), p) }.getOrNull() ?: com.example.cas.cas.CD(Double.NaN) }
-        return com.example.cas.graph.Curves.tRange({ at(it).re }, { at(it).im }, view)
+        return -10.0 to 10.0
     }
 
     /** On the complex plane, ∂/∂x, ∫ … dx and lim x→ from the keys come in with z instead. */

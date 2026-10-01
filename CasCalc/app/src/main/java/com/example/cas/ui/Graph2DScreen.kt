@@ -517,9 +517,9 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
             is Plot2DKind.Parametric -> {
                 val x = { t: Double -> vm.call(g, k.x, t).let { xx -> if (vm.allowed(g, xx, vm.call(g, k.y, t), t = t)) xx else Double.NaN } }
                 val y = { t: Double -> vm.call(g, k.y, t) }
-                // Closed curves go round once; open ones like (t, t²) run as far as they stay near the view.
+                // Closed curves go round once; open ones like (t, t²) run over −10 ≤ t ≤ 10.
                 val turns = periodTurns(listOf(x, y))
-                val (t0, t1) = if (turns <= 6) 0.0 to 2 * PI * turns else Curves.tRange(x, y, view)
+                val (t0, t1) = if (turns <= 6) 0.0 to 2 * PI * turns else -10.0 to 10.0
                 out += Plotted(f, Curves.parametric(x, y, t0, t1, view, Curves.samplesFor(t0, t1)), emptyList())
             }
             is Plot2DKind.Implicit -> {

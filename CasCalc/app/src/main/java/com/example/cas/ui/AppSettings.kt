@@ -48,11 +48,8 @@ object AppSettings {
     /** Numbers: 0 auto, 1 scientific (a × 10ⁿ), 2 engineering (n a multiple of 3). */
     var numberFormat by mutableStateOf(0)
         private set
-    /** Auto format: scientific notation from 10ⁿ, n = 6, 10 or 15. */
+    /** Numbers with more digits than this show as a × 10ⁿ (exact whole numbers too); 5 to 30. */
     var sciAfter by mutableStateOf(10)
-        private set
-    /** Exact numbers over this many digits show their decimal first (0: always exact). */
-    var longExact by mutableStateOf(10)
         private set
     /** Complex decimal answers as r·e^{iθ} instead of a + bi. */
     var polarComplex by mutableStateOf(false)
@@ -121,8 +118,7 @@ object AppSettings {
         showLegend = p.getBoolean("showLegend", true)
         axisNumbers = p.getBoolean("axisNumbers", true)
         numberFormat = p.getInt("numberFormat", 0)
-        sciAfter = p.getInt("sciAfter", 10)
-        longExact = p.getInt("longExact", 10)
+        sciAfter = p.getInt("sciAfter", 10).coerceIn(5, 30)
         polarComplex = p.getBoolean("polarComplex", false)
         livePreview = p.getBoolean("livePreview", true)
         historyLimit = p.getInt("historyLimit", 100)
@@ -141,7 +137,6 @@ object AppSettings {
         com.example.cas.engine.Formatter.groupDigits = groupDigits
         com.example.cas.engine.Formatter.numberFormat = numberFormat
         com.example.cas.engine.Formatter.sciAfter = sciAfter
-        com.example.cas.engine.Formatter.longExact = longExact
         com.example.cas.engine.Formatter.polarComplex = polarComplex
     }
 
@@ -166,7 +161,6 @@ object AppSettings {
     fun changeShowLegend(v: Boolean) { showLegend = v; save("showLegend", v) }
     fun changeAxisNumbers(v: Boolean) { axisNumbers = v; save("axisNumbers", v) }
     fun changeSciAfter(v: Int) { sciAfter = v; com.example.cas.engine.Formatter.sciAfter = v; save("sciAfter", v) }
-    fun changeLongExact(v: Int) { longExact = v; com.example.cas.engine.Formatter.longExact = v; save("longExact", v) }
     fun changeNumberFormat(v: Int) { numberFormat = v; com.example.cas.engine.Formatter.numberFormat = v; save("numberFormat", v) }
     fun changePolarComplex(v: Boolean) { polarComplex = v; com.example.cas.engine.Formatter.polarComplex = v; save("polarComplex", v) }
     fun changeLivePreview(v: Boolean) { livePreview = v; save("livePreview", v) }

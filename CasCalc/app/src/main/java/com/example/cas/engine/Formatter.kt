@@ -60,11 +60,12 @@ object Formatter {
     /** Complex decimal answers as r·e^{iθ}; a setting. */
     @Volatile var polarComplex = false
 
-    /** In the auto format, decimals with more whole digits than this are shown as a × 10ⁿ; a setting. */
+    /**
+     * Numbers with more digits than this are shown as a × 10ⁿ: whole numbers (exact ones too)
+     * in every format, and decimals in the auto format. Fractions this long show their decimal
+     * first. A setting (the slider in Settings › Numbers).
+     */
     @Volatile var sciAfter: Int = 10
-
-    /** Exact numbers with more digits than this (in a numerator) show their decimal first; 0 never. A setting. */
-    @Volatile var longExact: Int = 10
 
     /** Significant digits in decimal answers (a setting, 4 to 15). */
     @Volatile var significantDigits: Int = 10
@@ -107,8 +108,10 @@ object Formatter {
         return Answer(e, exact, if (useful) approx else null, preferApprox = useful && long(e))
     }
 
-    /** Whether [e] has a number too long to read at a glance (12345678901/7): its decimal is shown first. */
-    private fun long(e: Expr): Boolean = longExact > 0 && e.contains { it is Num && it.q.num.abs().toString().length > longExact }
+    /** Whether [e] has a fraction too long to read at a glance (12345678901/7): its decimal is shown first. */
+    private fun long(e: Expr): Boolean = e.contains {
+        it is Num && !it.q.isInteger && (it.q.num.abs().toString().length > sciAfter || it.q.den.toString().length > sciAfter)
+    }
 
     /** The row an answer shows: its decimal when that's preferred (or asked for), else the exact form. */
     fun shown(a: Answer, decimalFirst: Boolean): MathRow = if ((decimalFirst || a.preferApprox) && a.approx != null) a.approx else a.exact
@@ -261,7 +264,12 @@ object Formatter {
     private fun rational(out: MathRow, q: Rational) {
         if (q.signum < 0) out.add(SymNode("−"))
         val a = q.abs()
-        if (a.isInteger) digits(out, a.num.toString())
+        if (a.isInteger) {
+            val text = a.num.toString()
+            // Too many digits to take in: 1.234567890 × 10¹⁵ (the full number is still copied).
+            if (text.length > sciAfter) exponentForm(out, BigDecimal(a.num).round(MathContext(significantDigits, RoundingMode.HALF_EVEN)).stripTrailingZeros())
+            else digits(out, text)
+        }
         else out.add(Frac(MathRow().also { digits(it, a.num.toString()) }, MathRow().also { digits(it, a.den.toString()) }))
     }
 
@@ -269,20 +277,24 @@ object Formatter {
         if (d == 0.0) { out.add(SymNode("0")); return }
         val bd = BigDecimal(d).round(MathContext(significantDigits, RoundingMode.HALF_EVEN)).stripTrailingZeros()
         val natural = bd.precision() - bd.scale() - 1
-        // Auto: plain digits unless very large or small; scientific: always a × 10ⁿ;
-        // engineering: n a multiple of 3 (so kilo, mega, milli… read off directly).
-        val exponent = when (numberFormat) {
-            1 -> natural
-            2 -> Math.floorDiv(natural, 3) * 3
-            else -> natural
-        }
+        // Auto: plain digits unless it has more whole digits than the setting, or is very small;
+        // scientific and engineering: always a × 10ⁿ.
         val plain = when (numberFormat) {
-            1, 2 -> exponent == 0
-            else -> exponent in -5 until sciAfter
+            1 -> natural == 0
+            2 -> natural in 0..2
+            else -> natural in -5 until sciAfter
         }
-        if (plain) { digits(out, bd.toPlainString()); return }
+        if (plain) digits(out, bd.toPlainString()) else exponentForm(out, bd)
+    }
+
+    /** [bd] as a × 10ⁿ: 1 ≤ a < 10, or in engineering n a multiple of 3 (so kilo, mega, milli… read off directly). */
+    private fun exponentForm(out: MathRow, bd: BigDecimal) {
+        val natural = bd.precision() - bd.scale() - 1
+        val exponent = if (numberFormat == 2) Math.floorDiv(natural, 3) * 3 else natural
         val mantissa = bd.movePointLeft(exponent).round(MathContext(significantDigits, RoundingMode.HALF_EVEN)).stripTrailingZeros()
-        digits(out, mantissa.toPlainString())
+        if (bd.signum() < 0) out.add(SymNode("−"))
+        digits(out, mantissa.abs().toPlainString())
+        if (exponent == 0) return
         out.add(SymNode("×")); out.add(SymNode("1")); out.add(SymNode("0"))
         out.add(PowNode(com.example.cas.editor.row(exponent.toString().replace("-", "−"))))
     }

@@ -1369,6 +1369,23 @@ private fun SettingsToggle(title: String, detail: String?, checked: Boolean, onC
     }
 }
 
+/** A whole-number setting on a slider, its value spelled out in the title. */
+@Composable
+private fun SettingsSlider(title: String, subtitle: String?, value: Int, range: IntRange, description: String, onChange: (Int) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Column {
+        Text(title, color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
+        if (subtitle != null) Text(subtitle, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        ExpressiveSlider(
+            value = value.toFloat(),
+            onValueChange = { v -> v.roundToInt().let { if (it != value) onChange(it) } },
+            valueRange = range.first.toFloat()..range.last.toFloat(),
+            steps = range.last - range.first - 1,
+            modifier = Modifier.semantics { contentDescription = description },
+        )
+    }
+}
+
 /** Swatches for the app's color (the first is the built-in olive), then any color of your own. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -1461,28 +1478,25 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsToggle("Ask before deleting", "A calculation, or a line in a graph", AppSettings.confirmDeleteEntry, AppSettings::changeConfirmDeleteEntry)
         },
         PageSection("Numbers", Icons.Outlined.Pin) {
-            if (vm != null) Column {
-                Text("${vm.digits} significant digits", color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
-                ExpressiveSlider(
-                    value = vm.digits.toFloat(),
-                    onValueChange = { vm.changeDigits(it.roundToInt()) },
-                    valueRange = 4f..15f,
-                    steps = 10,
-                    modifier = Modifier.semantics { contentDescription = "Significant digits" },
-                )
-            }
             // Tapping an answer switches between its exact form and its decimal; this picks which comes first.
             if (vm != null) SettingsChoice("Show answers as", listOf("Exact", "Decimal"), if (vm.decimalFirst) 1 else 0) { vm.changeDecimalFirst(it == 1) }
-            // Exact numbers too long to take in: their decimal first.
-            SettingsChoice("Long exact numbers", listOf("Exact", "Decimal over 10 digits", "Over 20"), when (AppSettings.longExact) { 0 -> 0; 20 -> 2; else -> 1 }) {
-                AppSettings.changeLongExact(listOf(0, 10, 20)[it]); vm?.reformat()
-            }
-            SettingsToggle("Group digits", "1 000 000 rather than 1000000", AppSettings.groupDigits, AppSettings::changeGroupDigits)
-            // Auto: plain digits, then a × 10ⁿ from the size chosen below; scientific and engineering always.
+            // Auto: plain digits up to the length below; scientific and engineering: always a × 10ⁿ.
             SettingsChoice("Number format", listOf("Auto", "Scientific", "Engineering"), AppSettings.numberFormat) { AppSettings.changeNumberFormat(it); vm?.reformat() }
-            if (AppSettings.numberFormat == 0) SettingsChoice("Scientific notation from", listOf("10⁶", "10¹⁰", "10¹⁵"), when (AppSettings.sciAfter) { 6 -> 0; 15 -> 2; else -> 1 }) {
-                AppSettings.changeSciAfter(listOf(6, 10, 15)[it]); vm?.reformat()
-            }
+            SettingsSlider(
+                title = "Scientific notation past ${AppSettings.sciAfter} digits",
+                subtitle = if (AppSettings.numberFormat == 0) "Longer numbers, exact ones too, show as a × 10ⁿ" else "Longer whole numbers show as a × 10ⁿ",
+                value = AppSettings.sciAfter,
+                range = 5..30,
+                description = "Digits before scientific notation",
+            ) { AppSettings.changeSciAfter(it); vm?.reformat() }
+            if (vm != null) SettingsSlider(
+                title = "${vm.digits} significant digits",
+                subtitle = "How many digits a decimal keeps",
+                value = vm.digits,
+                range = 4..15,
+                description = "Significant digits",
+            ) { vm.changeDigits(it) }
+            SettingsToggle("Group digits", "1 000 000 rather than 1000000", AppSettings.groupDigits, AppSettings::changeGroupDigits)
             SettingsChoice("Complex decimals", listOf("a + bi", "Polar"), if (AppSettings.polarComplex) 1 else 0) { AppSettings.changePolarComplex(it == 1) }
         },
         PageSection("Graphs", Icons.AutoMirrored.Outlined.ShowChart) {
