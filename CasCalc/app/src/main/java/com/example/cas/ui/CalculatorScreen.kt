@@ -1489,6 +1489,13 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 range = 5..30,
                 description = "Digits before scientific notation",
             ) { AppSettings.changeSciAfter(it); vm?.reformat() }
+            SettingsSlider(
+                title = "${AppSettings.sciDecimals} ${if (AppSettings.sciDecimals == 1) "decimal" else "decimals"} in a × 10ⁿ",
+                subtitle = "7361516178171161718 = ${java.math.BigDecimal("7.361516178171161718").setScale(AppSettings.sciDecimals, java.math.RoundingMode.HALF_UP).toPlainString()} × 10¹⁸",
+                value = AppSettings.sciDecimals,
+                range = 1..12,
+                description = "Decimals in scientific notation",
+            ) { AppSettings.changeSciDecimals(it); vm?.reformat() }
             if (vm != null) SettingsSlider(
                 title = "${vm.digits} significant digits",
                 subtitle = "How many digits a decimal keeps",

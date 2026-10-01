@@ -18,16 +18,32 @@ class NumberFormatTest {
     private fun shown(e: com.example.cas.cas.Expr) = Formatter.plain(Formatter.shown(Formatter.answer(e), false)).replace(Formatter.THIN_SPACE, "")
 
     @Test fun longWholeNumbersTurnScientific() {
-        val was = Formatter.sciAfter
+        val was = Formatter.sciAfter; val decimals = Formatter.sciDecimals
         try {
-            Formatter.sciAfter = 10
+            Formatter.sciAfter = 10; Formatter.sciDecimals = 6
             // 2⁶⁴ = 18446744073709551616, exact, has 20 digits.
-            assertEquals("1.844674407×10^(19)", shown(Num(Rational.of(java.math.BigInteger.TWO.pow(64)))))
-            assertEquals("−1.844674407×10^(19)", shown(Num(Rational.of(java.math.BigInteger.TWO.pow(64).negate()))))
+            assertEquals("1.844674×10^(19)", shown(Num(Rational.of(java.math.BigInteger.TWO.pow(64)))))
+            assertEquals("−1.844674×10^(19)", shown(Num(Rational.of(java.math.BigInteger.TWO.pow(64).negate()))))
             assertEquals("1234567890", shown(Num(Rational.of(1234567890L))))
             Formatter.sciAfter = 25
             assertEquals("18446744073709551616", shown(Num(Rational.of(java.math.BigInteger.TWO.pow(64)))))
-        } finally { Formatter.sciAfter = was }
+        } finally { Formatter.sciAfter = was; Formatter.sciDecimals = decimals }
+    }
+
+    @Test fun decimalsInScientificNotationAreChosen() {
+        val was = Formatter.sciDecimals
+        try {
+            val n = Num(Rational.of(java.math.BigInteger("7361516178171161718")))
+            Formatter.sciDecimals = 4
+            assertEquals("7.3615×10^(18)", shown(n))
+            Formatter.sciDecimals = 7
+            assertEquals("7.3615162×10^(18)", shown(n))
+            // Rounding that carries into the next power.
+            Formatter.sciDecimals = 2
+            assertEquals("1×10^(12)", shown(Num(Rational.of(999999999999L))))
+            Formatter.numberFormat = 1
+            assertEquals("−2.72×10^(−7)", Formatter.plain(Formatter.row(Flt(-2.7182818e-7))))
+        } finally { Formatter.sciDecimals = was; Formatter.numberFormat = 0 }
     }
 
     @Test fun longFractionsFollowTheSlider() {

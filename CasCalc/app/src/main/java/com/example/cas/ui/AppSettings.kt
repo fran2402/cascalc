@@ -51,6 +51,9 @@ object AppSettings {
     /** Numbers with more digits than this show as a × 10ⁿ (exact whole numbers too); 5 to 30. */
     var sciAfter by mutableStateOf(10)
         private set
+    /** Decimals in a of a × 10ⁿ; 1 to 12. */
+    var sciDecimals by mutableStateOf(6)
+        private set
     /** Complex decimal answers as r·e^{iθ} instead of a + bi. */
     var polarComplex by mutableStateOf(false)
         private set
@@ -119,6 +122,7 @@ object AppSettings {
         axisNumbers = p.getBoolean("axisNumbers", true)
         numberFormat = p.getInt("numberFormat", 0)
         sciAfter = p.getInt("sciAfter", 10).coerceIn(5, 30)
+        sciDecimals = p.getInt("sciDecimals", 6).coerceIn(1, 12)
         polarComplex = p.getBoolean("polarComplex", false)
         livePreview = p.getBoolean("livePreview", true)
         historyLimit = p.getInt("historyLimit", 100)
@@ -137,6 +141,7 @@ object AppSettings {
         com.example.cas.engine.Formatter.groupDigits = groupDigits
         com.example.cas.engine.Formatter.numberFormat = numberFormat
         com.example.cas.engine.Formatter.sciAfter = sciAfter
+        com.example.cas.engine.Formatter.sciDecimals = sciDecimals
         com.example.cas.engine.Formatter.polarComplex = polarComplex
     }
 
@@ -160,6 +165,7 @@ object AppSettings {
     fun changeShowGrid(v: Boolean) { showGrid = v; save("showGrid", v) }
     fun changeShowLegend(v: Boolean) { showLegend = v; save("showLegend", v) }
     fun changeAxisNumbers(v: Boolean) { axisNumbers = v; save("axisNumbers", v) }
+    fun changeSciDecimals(v: Int) { sciDecimals = v; com.example.cas.engine.Formatter.sciDecimals = v; save("sciDecimals", v) }
     fun changeSciAfter(v: Int) { sciAfter = v; com.example.cas.engine.Formatter.sciAfter = v; save("sciAfter", v) }
     fun changeNumberFormat(v: Int) { numberFormat = v; com.example.cas.engine.Formatter.numberFormat = v; save("numberFormat", v) }
     fun changePolarComplex(v: Boolean) { polarComplex = v; com.example.cas.engine.Formatter.polarComplex = v; save("polarComplex", v) }

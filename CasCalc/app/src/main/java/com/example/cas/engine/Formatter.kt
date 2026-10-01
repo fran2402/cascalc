@@ -67,6 +67,9 @@ object Formatter {
      */
     @Volatile var sciAfter: Int = 10
 
+    /** Decimals in the a of a × 10ⁿ (7.361516 × 10¹⁸ with 6); a setting, 1 to 12. */
+    @Volatile var sciDecimals: Int = 6
+
     /** Significant digits in decimal answers (a setting, 4 to 15). */
     @Volatile var significantDigits: Int = 10
 
@@ -81,7 +84,7 @@ object Formatter {
     /** Replaces each huge number by m × 10ⁿ with a 10-digit decimal m (built without computing 10ⁿ). */
     private fun scientific(e: Expr): Expr = when {
         e is Num && (e.q.num.bitLength() > MAX_EXACT_BITS || e.q.den.bitLength() > MAX_EXACT_BITS) -> {
-            val d = java.math.BigDecimal(e.q.num).divide(java.math.BigDecimal(e.q.den), java.math.MathContext(10))
+            val d = java.math.BigDecimal(e.q.num).divide(java.math.BigDecimal(e.q.den), java.math.MathContext(sciDecimals + 1, RoundingMode.HALF_UP))
             val exponent = d.precision() - d.scale() - 1
             val mantissa = d.movePointLeft(exponent).toDouble()
             com.example.cas.cas.Mul(listOf(Flt(mantissa), com.example.cas.cas.Pow(Num(10L), Num(exponent.toLong()))))
@@ -267,7 +270,7 @@ object Formatter {
         if (a.isInteger) {
             val text = a.num.toString()
             // Too many digits to take in: 1.234567890 × 10¹⁵ (the full number is still copied).
-            if (text.length > sciAfter) exponentForm(out, BigDecimal(a.num).round(MathContext(significantDigits, RoundingMode.HALF_EVEN)).stripTrailingZeros())
+            if (text.length > sciAfter) exponentForm(out, BigDecimal(a.num))
             else digits(out, text)
         }
         else out.add(Frac(MathRow().also { digits(it, a.num.toString()) }, MathRow().also { digits(it, a.den.toString()) }))
@@ -284,14 +287,24 @@ object Formatter {
             2 -> natural in 0..2
             else -> natural in -5 until sciAfter
         }
-        if (plain) digits(out, bd.toPlainString()) else exponentForm(out, bd)
+        if (plain) digits(out, bd.toPlainString()) else exponentForm(out, BigDecimal(d))
     }
 
-    /** [bd] as a × 10ⁿ: 1 ≤ a < 10, or in engineering n a multiple of 3 (so kilo, mega, milli… read off directly). */
+    /**
+     * [bd] as a × 10ⁿ with [sciDecimals] decimals in a (trailing zeros dropped): 1 ≤ |a| < 10, or
+     * in engineering n a multiple of 3 (so kilo, mega, milli… read off directly).
+     */
     private fun exponentForm(out: MathRow, bd: BigDecimal) {
-        val natural = bd.precision() - bd.scale() - 1
-        val exponent = if (numberFormat == 2) Math.floorDiv(natural, 3) * 3 else natural
-        val mantissa = bd.movePointLeft(exponent).round(MathContext(significantDigits, RoundingMode.HALF_EVEN)).stripTrailingZeros()
+        fun exponentOf(v: BigDecimal): Int {
+            val natural = v.precision() - v.scale() - 1
+            return if (numberFormat == 2) Math.floorDiv(natural, 3) * 3 else natural
+        }
+        var exponent = exponentOf(bd)
+        var mantissa = bd.movePointLeft(exponent).setScale(sciDecimals, RoundingMode.HALF_UP)
+        // Rounding up can carry over: 9.9999996 → 10.000000, so 1.000000 × 10ⁿ⁺¹.
+        val again = exponentOf(mantissa.movePointRight(exponent))
+        if (again != exponent) { exponent = again; mantissa = bd.movePointLeft(exponent).setScale(sciDecimals, RoundingMode.HALF_UP) }
+        mantissa = mantissa.stripTrailingZeros()
         if (bd.signum() < 0) out.add(SymNode("−"))
         digits(out, mantissa.abs().toPlainString())
         if (exponent == 0) return

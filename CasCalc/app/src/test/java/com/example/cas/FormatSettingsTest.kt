@@ -8,7 +8,8 @@ import org.junit.Test
 
 /** Number format and complex form settings, as the formatter draws them. Each test starts from the defaults. */
 class FormatSettingsTest {
-    private fun defaults() { Formatter.numberFormat = 0; Formatter.polarComplex = false; Formatter.groupDigits = true }
+    @org.junit.After fun reset() { Formatter.sciDecimals = 6 }
+    private fun defaults() { Formatter.numberFormat = 0; Formatter.polarComplex = false; Formatter.groupDigits = true; Formatter.sciDecimals = 9 }
     private fun plain(row: com.example.cas.editor.MathRow) = MathCodec.encode(row).replace("'", "").replace(";", "").replace("\u2009", "")
     private fun shown(d: Double) = plain(Formatter.row(Flt(d)))
 
