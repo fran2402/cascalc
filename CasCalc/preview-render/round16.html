@@ -1,0 +1,196 @@
+<!doctype html><html><head><meta charset="utf-8"><title>round14</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1700px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--c1:#1B1C14;--c2:#1F2018;--c3:#292A22;--c4:#34352C;--outv:#47473B;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sec:#3D3F28;--onsec:#E0E1C4;--tc:#244D44;--otc:#BDECDE;--err:#FFB4AB;--tert:#A2D0C3;--grid:#47473B;--axis:#C8C7B5;--shadow:rgba(0,0,0,.55)}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--c1:#F6F4E8;--c2:#F1EEE2;--c3:#EBE9DC;--c4:#E5E3D6;--outv:#C8C7B5;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sec:#E2E4C4;--onsec:#1B1D0A;--tc:#BDECDE;--otc:#00201A;--err:#BA1A1A;--tert:#3B665C;--grid:#C8C7B5;--axis:#47473B;--shadow:rgba(40,40,20,.28)}
+.phone{position:relative;width:412px;height:880px;border-radius:44px;overflow:hidden;background:var(--bg);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35);display:flex;flex-direction:column}
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font:500 14px GSF}
+.bar{height:56px;display:flex;align-items:center;padding:0 8px 0 18px;gap:6px;font:500 20px GSF}
+.bar .sp{flex:1}.ib{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--onv)}
+.graph{position:relative;flex:1;overflow:hidden}
+.graph>svg{position:absolute;inset:0}
+.m{font-family:CMI}.r{font-family:CMR}
+/* --- point card --- */
+.pt{position:absolute;min-width:216px;background:var(--c3);border-radius:24px;padding:12px 12px 12px 16px;box-shadow:0 6px 18px var(--shadow),0 1px 3px var(--shadow)}
+.pt:after{content:"";position:absolute;left:var(--tail,50%);bottom:-9px;width:18px;height:18px;background:var(--c3);transform:translateX(-50%) rotate(45deg);border-radius:0 0 5px 0}
+.pt.below:after{bottom:auto;top:-9px;border-radius:5px 0 0 0}
+.hd{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.dot{width:12px;height:12px;border-radius:50%}
+.kind{font:600 13px GSF;letter-spacing:.2px;padding:3px 10px;border-radius:99px;background:var(--tc);color:var(--otc)}
+.fname{margin-left:auto;color:var(--onv);font-size:17px;padding-right:4px}
+.vr{display:flex;align-items:center;height:40px;gap:10px}
+.vr .l{width:18px;font-size:21px;color:var(--onv);text-align:center}
+.vr .v{flex:1;font:500 21px GSF;font-variant-numeric:tabular-nums;letter-spacing:.2px}
+.use{height:32px;padding:0 12px 0 9px;border-radius:99px;background:var(--pc);color:var(--onpc);font:600 13px GSF;display:flex;align-items:center;gap:4px}
+.use svg{width:16px;height:16px}
+.acts{display:flex;gap:8px;margin-top:8px;padding-top:10px;border-top:1px solid var(--outv)}
+.tb{height:36px;padding:0 14px 0 10px;border-radius:12px;background:var(--sec);color:var(--onsec);font:600 13.5px GSF;display:flex;align-items:center;gap:6px}
+.tb svg{width:18px;height:18px}
+.old{position:absolute;display:flex;align-items:center;background:var(--on);color:var(--bg);border-radius:99px;padding:4px 4px 4px 14px;font:13px GSF;gap:6px;white-space:nowrap}
+.old span{background:var(--pri);color:var(--onpri);border-radius:99px;padding:6px 12px}
+/* --- constants sheet --- */
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.32)}
+.sheet{position:absolute;left:0;right:0;bottom:0;top:120px;background:var(--c1);border-radius:28px 28px 0 0;display:flex;flex-direction:column}
+.handle{width:32px;height:4px;border-radius:2px;background:var(--onv);opacity:.5;margin:14px auto 6px}
+.sh{display:flex;align-items:center;padding:4px 20px 0 24px}
+.sh .t{font:500 22px GSF;flex:1}
+.unit{font:600 12.5px GSF;padding:6px 12px;border-radius:99px;background:var(--sec);color:var(--onsec)}
+.search{margin:12px 16px 8px;height:52px;border-radius:99px;background:var(--c4);display:flex;align-items:center;gap:12px;padding:0 18px;color:var(--onv);font:16px GSF}
+.chips{display:flex;gap:8px;padding:4px 16px 10px;overflow:hidden;white-space:nowrap}
+.fc{height:32px;padding:0 14px;border-radius:10px;border:1px solid var(--outv);display:flex;align-items:center;font:500 14px GSF;color:var(--onv);flex-shrink:0}
+.fc.on{background:var(--sec);border-color:transparent;color:var(--onsec)}
+.fc.on:before{content:"✓";margin-right:6px;font-size:13px}
+.list{flex:1;overflow:hidden;padding:0 12px}
+.sec{font:600 13.5px GSF;color:var(--pri);padding:12px 12px 6px;letter-spacing:.2px}
+.it{display:flex;align-items:center;gap:14px;padding:10px 10px;border-radius:20px}
+.it.first{background:var(--c2);border-radius:20px 20px 6px 6px;margin-bottom:2px}
+.it.mid{background:var(--c2);border-radius:6px;margin-bottom:2px}
+.it.last{background:var(--c2);border-radius:6px 6px 20px 20px;margin-bottom:2px}
+.sym{width:56px;height:56px;border-radius:16px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0}
+.tx{flex:1;min-width:0}
+.nm{font:500 15.5px GSF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.val{font-size:17px;margin-top:3px;color:var(--on);white-space:nowrap}
+.val .u{font:13.5px GSF;color:var(--onv);margin-left:6px}
+.ex{font:600 11.5px GSF;padding:3px 8px;border-radius:99px;background:var(--tc);color:var(--otc);margin-left:8px;vertical-align:2px}
+.cp{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--onv)}
+.detail{background:var(--c3);border-radius:28px;margin:6px 4px 10px;padding:16px 18px}
+
+.rc{position:absolute;left:12px;top:12px;width:300px;background:var(--c3);border-radius:24px;padding:10px 6px 14px 14px;box-shadow:0 4px 14px var(--shadow)}
+.rh{display:flex;align-items:center;gap:12px}
+.ri{width:36px;height:36px;border-radius:12px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;justify-content:center}
+.ri svg{width:22px;height:22px}
+.rt{font:600 14.5px GSF;flex:1}
+.x{width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--onv);font-size:20px}
+.rm{color:var(--onv);font-size:19px;margin-top:6px}
+.rv{font:500 30px GSF;margin-top:4px;font-variant-numeric:tabular-nums}
+.st{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;padding-right:8px}
+.st div{background:var(--c4);border-radius:12px;padding:6px 10px}
+.st small{display:block;font:500 11px GSF;color:var(--onv)}
+.st b{font:500 15px GSF}
+.rn{font:12.5px GSF;color:var(--onv);margin-top:8px}
+.rb{display:flex;gap:8px;margin-top:10px}
+.rb span{height:36px;border-radius:99px;display:flex;align-items:center;gap:6px;padding:0 16px 0 12px;font:600 13.5px GSF}
+.rb .u{background:var(--pc);color:var(--onpc)}.rb .c{border:1px solid var(--outv);color:var(--onv)}
+.rb svg{width:18px;height:18px}
+.plane{position:absolute;inset:0}
+.lg{position:absolute;left:12px;background:color-mix(in srgb,var(--bg) 82%,transparent);border-radius:14px;padding:6px 10px;font-size:14px;display:flex;flex-direction:column;gap:3px}
+.lg div{display:flex;align-items:center;gap:8px}
+
+.rc.cm{width:262px;border-radius:20px;padding:2px 2px 10px 12px}
+.ch{display:flex;align-items:center;gap:8px;height:40px}
+.ch .ti{font:600 13.5px GSF;flex:1;white-space:nowrap}
+.ch .ib2{width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:var(--onv)}
+.ch .ib2 svg,.ch .ic svg{width:18px;height:18px}.ch .ic{color:var(--pri);display:flex}
+.cmv{font:500 22px GSF;font-variant-numeric:tabular-nums}
+.cms{font:12.5px GSF;color:var(--onv);margin-top:2px}
+.hist{padding:0 12px}
+.hcard{background:var(--card,var(--c2));border-radius:24px;padding:14px 18px;margin-top:8px}
+.hx{color:var(--onv);font-size:21px}
+.hr{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:8px;font-size:24px}
+.hr .eqs{color:var(--pri);font-family:CMR;font-size:22px}
+.apx{font:500 12.5px GSF;padding:4px 10px;border-radius:99px;background:var(--sec);color:var(--onsec);margin-right:auto}
+.set{padding:8px 20px}
+.sec2{font:600 14px GSF;color:var(--pri);margin:18px 0 10px}
+.sl{font:16px GSF;margin:14px 0 8px}
+.segs{display:flex;border:1px solid var(--outv);border-radius:99px;overflow:hidden;height:40px}
+.segs span{flex:1;display:flex;align-items:center;justify-content:center;font:500 13.5px GSF;border-left:1px solid var(--outv);white-space:nowrap;padding:0 4px}
+.segs span:first-child{border-left:none}.segs .on{background:var(--sec);color:var(--onsec)}
+.segs .on:before{content:"✓ ";}
+.tg{display:flex;align-items:center;justify-content:space-between;margin:14px 0}
+.tg small{display:block;font:13px GSF;color:var(--onv)}
+.sw{width:52px;height:32px;border-radius:99px;background:var(--pri);position:relative}.sw:after{content:"";position:absolute;right:4px;top:4px;width:24px;height:24px;border-radius:50%;background:var(--onpri)}
+.chips2{display:flex;gap:6px;padding:6px 10px;background:var(--c1)}
+.chips2 span{min-width:44px;height:36px;border-radius:12px;background:var(--c3);display:flex;align-items:center;justify-content:center;font-size:20px}
+.chips2 .new{background:var(--pc);color:var(--onpc);outline:2px solid var(--pri)}
+.hint{position:absolute;left:50%;top:12px;transform:translateX(-50%);background:var(--on);color:var(--bg);border-radius:99px;padding:8px 14px;font:500 13.5px GSF;white-space:nowrap}
+.pt{min-width:262px}.vr .v{white-space:nowrap}
+.tb2{height:36px;padding:0 12px 0 9px;border-radius:12px;background:var(--sec);color:var(--onsec);font:600 13px GSF;display:flex;align-items:center;gap:5px}
+.tb2 svg{width:17px;height:17px}
+</style></head><body>
+<h2>Sums in closed form</h2>
+<p class="note">Infinite sums come out as ζ, η, ln, π, eˣ, sin… from the shape of the term; with a letter in the exponent the answer is a function (η(z)), which plots on the real line and the complex plane. Long exact numbers show their decimal first (≈), one tap from the exact form.</p>
+<div class="row" id="calc"></div>
+<h2>Number settings</h2>
+<p class="note">Settings › Numbers: exact or decimal answers first, when long exact numbers switch to decimals, the format, and (in Auto) where scientific notation starts.</p>
+<div class="row" id="sets"></div>
+<h2>Complex plane: taps, areas, colors</h2>
+<p class="note">Points and curves take the 2D graph's colors. Tapping a curve shows t, z and f(z) with the areas it offers: inside (closed curves, polygons, loops), to the real axis (tap again for the end), and between curves where another crosses. Results use the compact card on phones; typed ∮ lines show their value on it too. t is among the quick letters.</p>
+<div class="row" id="cx"></div>
+<script>
+const I={use:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 7v4H5.83l3.58-3.59L8 6l-6 6 6 6 1.41-1.41L5.83 13H21V7z"/></svg>',
+copy:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>',
+area:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18"/><path d="M5 20V9c3 0 5 6 8 6s4-7 6-9v14z" fill="currentColor" fill-opacity=".3"/></svg>',
+between:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17C8 17 10 5 21 5M3 8c6 0 10 9 18 9"/></svg>',
+loop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12a7 7 0 1 0-7 7"/><path d="M9.2 16.2L12 19l-2.8 2.8"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg>'};
+function status(){return '<div class="status"><span>9:41</span><span>▾ ▴ ▮</span></div>'}
+function phone(theme,inner,cap){return `<div><div class="phone ${theme}">${status()}${inner}</div><div class="cap">${cap}</div></div>`}
+const m=t=>`<span class="m">${t}</span>`, r=t=>`<span class="r">${t}</span>`;
+const S=(lo,body)=>`<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin-right:4px;line-height:1"><small class="r" style="font-size:13px">∞</small><span class="r" style="font-size:30px">∑</span><small style="font-size:13px">${m('n')}${r('=')}${r(lo)}</small></span>${body}`;
+const fr=(a,b)=>`<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-size:.85em;margin:0 2px"><span style="padding:0 3px">${a}</span><span style="border-top:1.3px solid currentColor;padding:0 3px">${b}</span></span>`;
+// ---- calculator history
+function hist(theme,cap,items,input){
+ const h=items.map(([q,a,ap])=>`<div class="hcard"><div class="hx">${q}</div><div class="hr">${ap?'<span class="apx">≈ / exact</span>':''}<span class="eqs">${ap?'≈':'='}</span><span>${a}</span></div></div>`).join('');
+ document.getElementById('calc').insertAdjacentHTML('beforeend',phone(theme,`<div class="bar">Calculator</div><div class="hist">${h}</div><div style="flex:1"></div><div style="text-align:right;padding:10px 16px;font-size:30px">${input}</div><div style="height:300px;background:var(--c1);margin-top:8px;border-radius:28px 28px 0 0;display:flex;align-items:center;justify-content:center;color:var(--onv);font:14px GSF">keypad</div>`,cap))}
+hist('light','Alternating series: η(z) for a letter, ln 2 and π/4 for numbers.',[
+ [S('1',fr(`(−1)<sup>${m('n')}+1</sup>`,`${m('n')}<sup>${m('z')}</sup>`)),`(1 − 2<sup>1−${m('z')}</sup>) ${r('ζ')}(${m('z')})`],
+ [S('1',fr(`(−1)<sup>${m('n')}+1</sup>`,m('n'))),`${r('ln')} 2`],
+ [S('0',fr(`(−1)<sup>${m('n')}</sup>`,`2${m('n')}+1`)),`${fr(r('π'),'4')}`],
+ [S('1',fr('1',`${m('n')}(${m('n')}+1)`)),'1']],
+ S('1',fr('1',`${m('n')}<sup>2</sup>`))+` <span style="color:var(--onv)">= ${fr('π<sup>2</sup>','6')}</span>`);
+hist('dark','Power series by name (eˣ, sin x), polylogarithms, and a long fraction shown as a decimal first.',[
+ [S('0',fr(`${m('x')}<sup>${m('n')}</sup>`,`${m('n')}!`)),`${m('e')}<sup>${m('x')}</sup>`],
+ [S('0',fr(`(−1)<sup>${m('n')}</sup>${m('x')}<sup>2${m('n')}+1</sup>`,`(2${m('n')}+1)!`)),`${r('sin')} ${m('x')}`],
+ [S('1',fr(`${m('x')}<sup>${m('n')}</sup>`,`${m('n')}<sup>2</sup>`)),`${r('Li')}<sub>2</sub>(${m('x')})`],
+ [fr('12345678901','7'),'1 763 668 414',true]],'');
+// ---- settings
+function sets(theme,cap){document.getElementById('sets').insertAdjacentHTML('beforeend',phone(theme,`<div class="bar">Settings</div><div class="set"><div class="sec2">Numbers</div>
+<div class="sl">10 significant digits</div><div style="height:16px;border-radius:8px;background:linear-gradient(90deg,var(--pri) 55%,var(--c4) 55%)"></div>
+<div class="sl">Show answers as</div><div class="segs"><span class="on">Exact</span><span>Decimal</span></div>
+<div class="sl">Long exact numbers</div><div class="segs"><span>Exact</span><span class="on">Over 10 digits</span><span>Over 20</span></div>
+<div class="tg"><div>Group digits<small>1 000 000 rather than 1000000</small></div><span class="sw"></span></div>
+<div class="sl">Number format</div><div class="segs"><span class="on">Auto</span><span>Scientific</span><span>Engineering</span></div>
+<div class="sl">Scientific notation from</div><div class="segs"><span>10⁶</span><span class="on">10¹⁰</span><span>10¹⁵</span></div>
+<div class="sl">Complex decimals</div><div class="segs"><span class="on">a + bi</span><span>Polar</span></div></div>`,cap))}
+sets('light','The Numbers section (Auto shows where scientific notation starts).');
+sets('dark','Dark mode.');
+// ---- complex plane
+const W=412,H=600;
+function grid(xmin,xmax,fn){const sc=W/(xmax-xmin),ymax=H/2/sc;const X=x=>(x-xmin)*sc,Y=y=>(ymax-y)*sc;let s=`<svg width="${W}" height="${H}" style="position:absolute;inset:0">`;
+ for(let x=Math.ceil(xmin);x<=xmax;x++)s+=`<line x1="${X(x)}" x2="${X(x)}" y1="0" y2="${H}" stroke="var(--grid)" stroke-opacity=".9"/>`;
+ for(let y=Math.ceil(-ymax);y<=ymax;y++)s+=`<line y1="${Y(y)}" y2="${Y(y)}" x1="0" x2="${W}" stroke="var(--grid)" stroke-opacity=".9"/>`;
+ s+=`<line x1="0" x2="${W}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--axis)" stroke-width="2"/><line y1="0" y2="${H}" x1="${X(0)}" x2="${X(0)}" stroke="var(--axis)" stroke-width="2"/>`;
+ for(let x=Math.ceil(xmin);x<=xmax;x++)if(x)s+=`<text x="${X(x)}" y="${Y(0)+15}" font-family="GSF" font-size="11" fill="var(--axis)" text-anchor="middle">${x<0?'−'+(-x):x}</text>`;
+ for(let y=Math.ceil(-ymax);y<=ymax;y++)if(y)s+=`<text x="${X(0)+5}" y="${Y(y)+4}" font-family="GSF" font-size="11" fill="var(--axis)">${y<0?'−'+(-y):y==1?'':y}i</text>`;
+ return [s+(fn?fn(X,Y):'')+'</svg>',X,Y]}
+const P=(f,t0,t1,X,Y,n=300)=>{let d='';for(let k=0;k<=n;k++){const t=t0+(t1-t0)*k/n,[a,b]=f(t);d+=(k?'L':'M')+X(a).toFixed(1)+' '+Y(b).toFixed(1)}return d};
+const line=(d,c)=>`<path d="${d}" fill="none" stroke="#000" stroke-opacity=".45" stroke-width="5"/><path d="${d}" fill="none" stroke="${c}" stroke-width="2.5"/>`;
+function compact(icon,title,math,value,stats){return `<div class="rc cm"><div class="ch"><span class="ic">${I[icon]}</span><span class="ti">${title}</span><span class="ib2">${I.copy}</span><span class="ib2">${I.use}</span><span class="ib2" style="font-size:17px">✕</span></div><div style="color:var(--onv);font-size:16px">${math}</div><div class="cmv">${value}</div><div class="cms">${stats}</div></div>`}
+function cphone(theme,cap,inner,chips){document.getElementById('cx').insertAdjacentHTML('beforeend',phone(theme,`<div class="bar">Complex<span class="sp"></span><span class="ib">⌂</span><span class="ib">⚙</span></div><div class="graph" style="flex:none;height:${H}px">${inner}</div>${chips||''}<div style="flex:1;background:var(--c1)"></div>`,cap))}
+const chipsRow=`<div class="chips2"><span class="m">z</span><span class="m new">t</span><span class="m">x</span><span class="m">y</span><span class="m">r</span><span class="m">θ</span></div>`;
+const pal={light:['#5B6133','#7A5A3A','#3B665C','#BA1A1A'],dark:['#C5CB86','#E3C29A','#A2D0C3','#FFB4AB']};
+// 1 tapped curve card
+(()=>{const c=pal.light;const [g,X,Y]=grid(-3.4,3.4,(X,Y)=>line(P(t=>[t,0.4*t*t-1],-3,3,X,Y),c[0])+line(P(t=>[Math.cos(t)*1.5,Math.sin(t)*1.5],0,2*Math.PI,X,Y),c[1]));
+ const t=1.2,zx=t,zy=0.4*t*t-1;const sx=X(zx),sy=Y(zy);
+ const card=`<div class="pt" style="left:${sx-175}px;top:${sy-262}px;--tail:175px"><div class="hd"><div class="dot" style="background:${c[0]}"></div><span class="fname">${m('t')} + ${m('i')}(0.4${m('t')}<sup>2</sup> − 1)</span></div>
+ <div class="vr"><span class="l m">t</span><span class="v">1.2</span><span class="use">${I.use}Use</span></div>
+ <div class="vr" style="height:50px"><span class="l m">z</span><span class="v">1.2 − 0.424i<br><small style="font-size:12px;color:var(--onv)">1.2727∠−0.3396</small></span><span class="use">${I.use}Use</span></div>
+ <div class="acts"><span class="tb2">${I.area}To the axis</span><span class="tb2">${I.between}Between</span></div></div>`;
+ cphone('light','Tap a curve z(t): t, z and its polar form; areas to the axis and between the crossing curves. Points and curves in the 2D colors; t among the quick letters.',g+card+`<svg style="position:absolute;inset:0" width="${W}" height="${H}"><circle cx="${sx}" cy="${sy}" r="8" fill="#000" fill-opacity=".5"/><circle cx="${sx}" cy="${sy}" r="6.5" fill="${c[0]}"/><circle cx="${sx}" cy="${sy}" r="2.5" fill="var(--bg)"/></svg>`,chipsRow)})();
+// 2 area to axis, hint + result
+(()=>{const c=pal.light;const [g,X,Y]=grid(-3.4,3.4,(X,Y)=>{let s='';let d='';for(let k=0;k<=80;k++){const t=-1.5+3*k/80;d+=(k?'L':'M')+X(t)+' '+Y(0.4*t*t+0.3)}d+=`L${X(1.5)} ${Y(0)}L${X(-1.5)} ${Y(0)}Z`;s+=`<path d="${d}" fill="${c[0]}" fill-opacity=".3"/>`;return s+line(P(t=>[t,0.4*t*t+0.3],-3,3,X,Y),c[0])});
+ cphone('light','Area to the real axis: the first tap starts it; after the second the region is shaded and the compact card shows it.',g+compact('area','Area to the real axis',`${m('t')} + ${m('i')}(0.4${m('t')}<sup>2</sup> + 0.3)`,'≈ 1.8','Signed 1.8  ·  t from −1.5 to 1.5')+`<div class="hint" style="top:${H-60}px;opacity:.35">Tap where the area should end</div>`)})();
+// 3 between + inside, dark
+(()=>{const c=pal.dark;const [g,X,Y]=grid(-2.4,2.4,(X,Y)=>{let s='';let d='';for(let k=0;k<=80;k++){const t=-1+2*k/80;d+=(k?'L':'M')+X(t)+' '+Y(t*t)}for(let k=0;k<=80;k++){const t=1-2*k/80;d+='L'+X(t)+' '+Y(1)}s+=`<path d="${d}Z" fill="${c[2]}" fill-opacity=".3"/>`;return s+line(P(t=>[t,t*t],-1.6,1.6,X,Y),c[2])+line(P(t=>[t,1],-2.4,2.4,X,Y),c[3])});
+ cphone('dark','Between two curves from the tapped crossing to the next one (dark mode).',g+compact('between','Area between the curves',`${m('t')} + ${m('i')}${m('t')}<sup>2</sup>`,'≈ 1.3333',''))})();
+// 4 typed loop + polygon inside
+(()=>{const c=pal.light;const [g,X,Y]=grid(-3.4,3.4,(X,Y)=>{const pts=[[1,1],[-1.6,0.4],[-0.4,-1.4],[1.8,-0.6]];let s=`<path d="M${pts.map(([a,b])=>X(a)+' '+Y(b)).join('L')}Z" fill="${c[2]}" fill-opacity=".3" stroke="${c[2]}" stroke-width="2.5"/>`;pts.forEach(([a,b])=>s+=`<circle cx="${X(a)}" cy="${Y(b)}" r="6" fill="${c[2]}"/>`);s+=`<ellipse cx="${X(0)}" cy="${Y(0)}" rx="${X(2.5)-X(0)}" ry="${X(2.5)-X(0)}" fill="none" stroke="#000" stroke-opacity=".45" stroke-width="5"/><ellipse cx="${X(0)}" cy="${Y(0)}" rx="${X(2.5)-X(0)}" ry="${X(2.5)-X(0)}" fill="none" stroke="${c[1]}" stroke-width="2.5"/>`;return s});
+ cphone('light','A typed ∮ line on the result card, and the area inside a polygon [1+i, −1.6+0.4i, …].',g+`<div style="position:absolute;left:12px;top:12px;display:flex;flex-direction:column;gap:8px">`+compact('loop','Loop integral',`${r('∮')}<sub>|${m('z')}|=2.5</sub> ${fr('1','<span class="m">z</span>')} ${m('dz')}`,'≈ 6.2832i','Residues inside 1').replace('class="rc cm"','class="rc cm" style="position:static"')+compact('area','Area inside',`[1+${m('i')}, −1.6+0.4${m('i')}, …]`,'≈ 4.38','').replace('class="rc cm"','class="rc cm" style="position:static"')+'</div>')})();
+document.fonts.ready.then(()=>document.title='ready');
+</script></body></html>
