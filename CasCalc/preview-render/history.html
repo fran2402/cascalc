@@ -1,0 +1,91 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1700px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--c1:#1B1C14;--c2:#1F2018;--c3:#292A22;--c4:#34352C;--outv:#47473B;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sec:#3D3F28;--onsec:#E0E1C4;--tc:#244D44;--otc:#BDECDE;--err:#FFB4AB;--tert:#A2D0C3;--grid:#47473B;--axis:#C8C7B5;--shadow:rgba(0,0,0,.55)}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--c1:#F6F4E8;--c2:#F1EEE2;--c3:#EBE9DC;--c4:#E5E3D6;--outv:#C8C7B5;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sec:#E2E4C4;--onsec:#1B1D0A;--tc:#BDECDE;--otc:#00201A;--err:#BA1A1A;--tert:#3B665C;--grid:#C8C7B5;--axis:#47473B;--shadow:rgba(40,40,20,.28)}
+.phone{position:relative;width:412px;height:880px;border-radius:44px;overflow:hidden;background:var(--bg);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35);display:flex;flex-direction:column}
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font:500 14px GSF}
+.bar{height:56px;display:flex;align-items:center;padding:0 8px 0 18px;gap:6px;font:500 20px GSF}
+.bar .sp{flex:1}.ib{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--onv)}
+.graph{position:relative;flex:1;overflow:hidden}
+.graph>svg{position:absolute;inset:0}
+.m{font-family:CMI}.r{font-family:CMR}
+
+.top{height:60px;display:flex;align-items:center;padding:0 8px;gap:4px}
+.top .ib{width:44px;height:44px}
+.modes{flex:1;display:flex;justify-content:center;gap:4px}
+.mode{height:40px;min-width:44px;border-radius:20px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--c3);color:var(--onv);font:600 14px GSF;padding:0 12px}
+.mode.on{background:var(--pri);color:var(--onpri)}
+.hist{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;padding:0 12px 8px;overflow:hidden}
+.card{background:var(--c2);border-radius:24px;padding:12px 10px 14px 20px;position:relative}
+.ex{font:19px CMR;color:var(--onv)}
+.ans{font:26px CMR;text-align:right;padding-right:10px;margin-top:8px}
+.ans .eq{color:var(--pri);margin-right:10px}
+.icons{position:absolute;right:8px;top:8px;display:flex;gap:2px;color:var(--onv);font-size:18px}
+.icons span{width:36px;height:36px;display:flex;align-items:center;justify-content:center}
+.chip{display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:8px;border:1px solid var(--outv);font:600 12.5px GSF;color:var(--onv);gap:4px}
+.chip.t{background:var(--sec);color:var(--onsec);border:none}
+.chips{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.input{background:var(--c1);padding:14px 22px 6px;text-align:right;font:30px CMR}
+.prev{text-align:right;font:500 16px GSF;color:var(--onv);padding:0 22px 8px;background:var(--c1)}
+.prev b{color:var(--pri);font-weight:600}
+.ctrl{display:flex;align-items:center;gap:6px;padding:4px 12px;background:var(--c1)}
+.seg{display:flex;border:1px solid var(--outv);border-radius:99px;overflow:hidden;height:34px}
+.seg div{padding:0 14px;display:flex;align-items:center;font:600 13px GSF}.seg .on{background:var(--sec);color:var(--onsec)}
+.sq{width:40px;height:40px;border-radius:14px;background:var(--c3);display:flex;align-items:center;justify-content:center;font-size:18px}
+.groups{display:flex;gap:2px;padding:4px 10px;background:var(--c1)}
+.g{flex:1;height:38px;border-radius:8px;background:var(--c3);display:flex;align-items:center;justify-content:center;font:16px CMR;color:var(--onv)}
+.g.on{border-radius:20px;background:var(--pri);color:var(--onpri)}
+.g.lab{flex:3.4;gap:6px;font:600 13px GSF}
+.g:first-child{border-radius:20px 8px 8px 20px}.g:last-child{border-radius:8px 20px 20px 8px}
+.fpanel{margin:4px 8px;background:var(--c2);border-radius:28px;padding:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.fk{height:38px;border-radius:19px;background:var(--c4);display:flex;align-items:center;justify-content:center;font:17px CMR}
+.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px 12px 14px;background:var(--c1)}
+.k{height:50px;border-radius:25px;background:var(--c3);display:flex;align-items:center;justify-content:center;font:500 22px GSF}
+.k.op{background:var(--sec);color:var(--onsec)}.k.ac{background:var(--pc);color:var(--onpc)}.k.en{background:#FFDDB3;color:#2A1800}
+.tag{position:absolute;background:#E8453C;color:#fff;font:700 13px GSF;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.4);z-index:5}
+.gr{position:relative;flex:1}
+.empty{position:absolute;left:16px;right:16px;bottom:16px;background:var(--c2);border-radius:24px;padding:16px}
+.empty h4{margin:0 0 4px;font:600 17px GSF}.empty p{margin:0 0 12px;font:14px GSF;color:var(--onv)}
+.ex2{display:flex;flex-wrap:wrap;gap:8px}
+.ex2 div{background:var(--c4);border-radius:12px;padding:8px 12px;font:17px CMR;display:flex;flex-direction:column;gap:2px}
+.ex2 small{font:600 11px GSF;color:var(--onv)}
+.fab{position:absolute;right:16px;bottom:16px;height:56px;border-radius:18px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;gap:8px;padding:0 20px;font:600 16px GSF;box-shadow:0 4px 12px var(--shadow)}
+ol.why{font:15px/1.5 GSF;color:#2a2a22;max-width:1700px;margin:0 0 26px;padding-left:22px}
+ol.why li{margin-bottom:4px}
+
+.hc{background:var(--c2);border-radius:22px;padding:14px 16px 14px 20px}
+.hc.f{background:var(--c3);border-radius:28px;padding-bottom:12px}
+.q{font:19px CMR;color:var(--onv)}
+.a{font:23px CMR;text-align:right;margin-top:6px}.hc.f .a{font-size:27px}
+.a .eq{color:var(--pri);margin-right:12px}
+.alt{display:flex;justify-content:flex-end;margin-top:2px}.alt span{font:18px CMR;color:var(--onv);padding:4px 8px;border-radius:10px;display:flex;gap:6px;align-items:center}
+.alt i.s{font:normal 15px GSF;color:var(--pri)}
+.acts2{display:flex;justify-content:flex-end;gap:8px;margin-top:10px;flex-wrap:wrap}
+.b{height:36px;border-radius:12px;border:1px solid var(--outv);display:flex;align-items:center;gap:6px;padding:0 14px 0 10px;font:600 13.5px GSF;color:var(--onv)}
+.b.t{background:var(--sec);color:var(--onsec);border:none}.b.d{width:36px;padding:0;justify-content:center;border:none}
+</style></head><body><h2>History, redesigned</h2>
+<p class="note">The answer leads, large and right-aligned, with = or ≈ in the accent color; the question sits above, small and muted. When there's a decimal as well as the exact form, the other form is under the answer: tap ⇅ to swap. The newest card (or any card you tap) is raised and shows its actions: Graph, Use, Copy, Share (image, LaTeX, or delete). Tapping the math still reuses it, holding copies it (with a "copied" toast), swiping deletes; cards slide into place.</p>
+<div class="row"><div><div class="phone dark" id="a"></div></div><div><div class="phone light" id="b"></div></div></div>
+<script>
+const st='<div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div><div class="top"><div class="ib">⟲</div><div class="modes"><div class="mode on">▦</div><div class="mode">⟋</div><div class="mode">◎</div><div class="mode">∠</div></div><div class="ib">⋮</div></div>';
+const M=t=>t;
+function card(q,a,{eq='=',alt=null,f=false,graph=false}={}){return `<div class="hc ${f?'f':''}"><div class="q">${q}</div><div class="a">${eq?`<span class="eq">${eq}</span>`:''}${a}</div>${alt?`<div class="alt"><span><i class="s">⇅</i>${alt}</span></div>`:''}
+${f?`<div class="acts2">${graph?'<div class="b t">⟋ Graph</div>':''}<div class="b ${graph?'':'t'}">↵ Use</div><div class="b">⧉ Copy</div><div class="b">⇪ Share</div></div>`:''}</div>`}
+const keys=document.createElement('div');
+function phone(id){document.getElementById(id).innerHTML=st+`<div class="hist" style="gap:8px">
+${card('solve(<i class="m">x</i>² − 5<i class="m">x</i> + 6 = 0)','<i class="m">x</i> = 2,&nbsp; <i class="m">x</i> = 3',{eq:''})}
+${card('√8','2√2',{alt:'≈ 2.828 427 125'})}
+${card('12345678901 / 7','1.763 668 414 × 10<sup>9</sup>',{eq:'≈',alt:'= <span style="display:inline-flex;flex-direction:column;align-items:center;font-size:14px;line-height:1.1"><span style="border-bottom:1px solid">12345678901</span><span>7</span></span>'})}
+${card('∫ <i class="m">xe<sup>x</sup></i> d<i class="m">x</i>','<i class="m">xe<sup>x</sup></i> − <i class="m">e<sup>x</sup></i>',{f:true,graph:true})}
+</div><div class="input">sin(π/6)<span style="color:var(--pri)">|</span></div><div class="prev">= 1/2</div>
+<div class="keys" style="padding-top:12px">${[['AC','ac'],['( )',''],['<i class="m">x</i>',''],['÷','op'],['7',''],['8',''],['9',''],['×','op'],['4',''],['5',''],['6',''],['−','op']].map(([t,c])=>`<div class="k ${c}">${t}</div>`).join('')}</div>`}
+phone('a');phone('b');document.title='ready';
+</script></body></html>

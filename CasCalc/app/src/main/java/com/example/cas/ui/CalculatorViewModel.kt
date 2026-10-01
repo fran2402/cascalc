@@ -117,6 +117,12 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
 
     override var keypadHidden by mutableStateOf(false)
 
+    /** The history card showing its actions; null for the newest. */
+    var focused by mutableStateOf<HistoryItem?>(null)
+
+    /** Whether [item]'s card is the one showing its actions. */
+    fun isFocused(item: HistoryItem): Boolean = (focused?.takeIf { it in history } ?: history.lastOrNull()) === item
+
     fun deleteHistory(item: HistoryItem) {
         history.remove(item)
         save()
@@ -295,6 +301,7 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
                 evaluator.definedFunction?.let { (name, fn) -> userFunctions[name] = fn }
                 evaluator.assigned?.let { (name, value) -> variables[name] = value } ?: run { if (evaluator.definedFunction == null) lastValue = v }
                 history += HistoryItem(snapshot, answer, decimalFirst)
+                focused = null
                 // Keep only as many as the history length setting allows (0: all).
                 val limit = AppSettings.historyLimit
                 while (limit > 0 && history.size > limit) history.removeAt(0)

@@ -75,6 +75,8 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.animation.animateContentSize
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.FilledTonalButton
@@ -389,16 +391,22 @@ private fun Display(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, mo
                     )
                 }
                 // Swiping deletes, or asks first when that's turned on in settings.
-                SwipeToDelete(onDelete = { if (AppSettings.confirmDeleteEntry) confirm = true else vm.deleteHistory(item) }) { HistoryCard(item, vm, onGraph) }
+                Box(Modifier.animateItem()) {
+                    SwipeToDelete(onDelete = { if (AppSettings.confirmDeleteEntry) confirm = true else vm.deleteHistory(item) }) { HistoryCard(item, vm, onGraph) }
+                }
             }
             if (vm.history.isEmpty() && vm.historyMode) {
                 item {
-                    Text(
-                        "Your calculations will appear here",
-                        modifier = Modifier.fillMaxWidth().padding(32.dp),
-                        color = colors.onSurfaceVariant,
-                        style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 16.sp),
-                    )
+                    Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Outlined.History, contentDescription = null, tint = colors.outline, modifier = Modifier.size(40.dp))
+                        Spacer(Modifier.height(10.dp))
+                        Text("Your calculations will appear here", color = colors.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Tap a past question or answer to use it again, hold it to copy it, swipe it away to delete it",
+                            color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
                 }
             }
         }
@@ -469,18 +477,34 @@ private fun InputPanel(vm: CalculatorViewModel) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+/**
+ * A past calculation. The answer leads, large and to the right, with = or ≈ in the accent color;
+ * the question sits above it, smaller and muted (tap either to use it again). When an answer has
+ * both forms, the other one is written under it, small: tap it to swap them. The newest card (or
+ * one you tap) also shows its actions: use the answer, graph it, copy, share, delete.
+ */
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 private fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit) {
     val colors = MaterialTheme.colorScheme
     @Suppress("DEPRECATION") val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val tap = rememberKeyTap()
+    val focused = vm.isFocused(item)
     val shown = if (item.showApprox && item.answer.approx != null) item.answer.approx else item.answer.exact
+    val other = if (item.answer.approx == null) null else if (item.showApprox) item.answer.exact else item.answer.approx
     // The card draws into a layer too, so "share as image" can take a picture of it.
     val layer = rememberGraphicsLayer()
     var shareMenu by remember { mutableStateOf(false) }
+    var confirm by remember { mutableStateOf(false) }
     val latex = { Latex.of(item.expression) + (if (item.answer.isStatement) "\\quad " else " = ") + Latex.of(shown) }
+    val copy = { text: String, what: String ->
+        clipboard.setText(AnnotatedString(text))
+        android.widget.Toast.makeText(context, "$what copied", android.widget.Toast.LENGTH_SHORT).show()
+    }
+    val background by androidx.compose.animation.animateColorAsState(if (focused) colors.surfaceContainerHigh else colors.surfaceContainer, label = "card")
+    val answerSize = if (focused) MathSizes.historyAnswer * 1.15f else MathSizes.historyAnswer
     Column(
         Modifier
             .fillMaxWidth()
@@ -489,99 +513,124 @@ private fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (Gr
                 layer.record { this@drawWithContent.drawContent() }
                 drawLayer(layer)
             }
-            .clip(RoundedCornerShape(24.dp))
-            .background(colors.surfaceContainer)
-            .padding(start = 20.dp, end = 8.dp, top = 12.dp, bottom = 16.dp),
+            .clip(RoundedCornerShape(if (focused) 28.dp else 22.dp))
+            .background(background)
+            // A tap on the card (not on its math) shows its actions.
+            .clickable(onClickLabel = "Show actions") { vm.focused = item }
+            .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow))
+            .padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = if (focused) 12.dp else 14.dp),
     ) {
-        Row(verticalAlignment = Alignment.Top) {
-            Box(Modifier.weight(1f).padding(top = 4.dp).horizontalScroll(rememberScrollState())) {
-                MathView(
-                    item.expression,
-                    MathSizes.historyInput,
-                    colors.onSurfaceVariant,
-                    modifier = Modifier.combinedClickable(
-                        onClickLabel = "Use this expression",
-                        onLongClick = { clipboard.setText(AnnotatedString(Formatter.plain(item.expression))) },
-                        onClick = { vm.reuse(item.expression) },
-                    ),
-                )
-            }
-            item.graph?.let { g ->
-                IconButton(onClick = { onGraph(g) }) {
-                    Icon(
-                        if (g.dimensions == 1) TabIcons.Complex else Icons.AutoMirrored.Filled.ShowChart,
-                        contentDescription = when (g.dimensions) { 1 -> "Plot on the complex plane"; 2 -> "Graph this"; else -> "Graph this in 3D" },
-                        tint = colors.primary,
-                    )
-                }
-            }
-            Box {
-                IconButton(onClick = { shareMenu = true }) {
-                    Icon(Icons.Default.Share, contentDescription = "Share or delete", tint = colors.onSurfaceVariant)
-                }
-                DropdownMenu(expanded = shareMenu, onDismissRequest = { shareMenu = false }) {
-                    DropdownMenuItem(text = { Text("Share as image") }, onClick = {
-                        shareMenu = false
-                        scope.launch { shareImage(context, layer.toImageBitmap().asAndroidBitmap()) }
-                    })
-                    DropdownMenuItem(text = { Text("Share as LaTeX") }, onClick = {
-                        shareMenu = false
-                        shareText(context, latex())
-                    })
-                    DropdownMenuItem(text = { Text("Copy LaTeX") }, onClick = {
-                        shareMenu = false
-                        clipboard.setText(AnnotatedString(latex()))
-                    })
-                    HorizontalDivider()
-                    DropdownMenuItem(
-                        text = { Text("Delete") },
-                        leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
-                        onClick = { shareMenu = false; vm.deleteHistory(item) },
-                    )
-                }
-            }
+        // The question: small and muted, tap to use it again, hold to copy it.
+        Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+            MathView(
+                item.expression,
+                MathSizes.historyInput,
+                colors.onSurfaceVariant,
+                modifier = Modifier.combinedClickable(
+                    onClickLabel = "Use this expression",
+                    onLongClick = { copy(Formatter.plain(item.expression), "Expression") },
+                    onClick = { vm.reuse(item.expression) },
+                ),
+            )
         }
-        Spacer(Modifier.height(8.dp))
-        Row(Modifier.fillMaxWidth().padding(end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (item.answer.approx != null) ApproxChip(item.showApprox) { item.showApprox = !item.showApprox }
-            Spacer(Modifier.weight(1f))
+        Spacer(Modifier.height(6.dp))
+        // The answer, large, to the right.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             if (!item.answer.isStatement) {
-                Text(if (item.answer.isApproximate || item.showApprox) "≈" else "=", color = colors.primary, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = MathSizes.historyAnswer))
+                Text(if (item.answer.isApproximate || item.showApprox) "≈" else "=", color = colors.primary, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = answerSize))
                 Spacer(Modifier.width(12.dp))
             }
-            Box(Modifier.horizontalScroll(rememberScrollState())) {
+            Box(Modifier.weight(1f, fill = false).horizontalScroll(rememberScrollState())) {
                 MathView(
                     shown,
-                    MathSizes.historyAnswer,
+                    answerSize,
                     colors.onSurface,
                     modifier = Modifier.combinedClickable(
                         onClickLabel = "Use this answer",
-                        onLongClick = { clipboard.setText(AnnotatedString(Formatter.plain(shown))) },
+                        onLongClick = { copy(Formatter.plain(shown), "Answer") },
                         onClick = { vm.reuse(shown) },
                     ),
                 )
             }
         }
-    }
-}
-
-/** Switches a card between the exact answer and its decimal approximation. */
-@Composable
-private fun ApproxChip(expanded: Boolean, onClick: () -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    val turn by animateFloatAsState(if (expanded) 90f else 0f, label = "chevron")
-    Row(
-        Modifier
-            .clip(CircleShape)
-            .background(if (expanded) colors.primary else colors.primaryContainer)
-            .clickable(onClickLabel = if (expanded) "Show exact answer" else "Show decimal", onClick = onClick)
-            .padding(start = 10.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val fg = if (expanded) colors.onPrimary else colors.onPrimaryContainer
-        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = fg, modifier = Modifier.size(20.dp).rotate(turn))
-        Spacer(Modifier.width(4.dp))
-        Text(if (expanded) "exact" else "≈", color = fg, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 16.sp))
+        // The other form, small: tap to swap.
+        if (other != null) {
+            Row(
+                Modifier.fillMaxWidth().padding(top = 2.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    Modifier.clip(RoundedCornerShape(10.dp))
+                        .clickable(onClickLabel = if (item.showApprox) "Show the exact answer" else "Show the decimal") { tap(); item.showApprox = !item.showApprox }
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Default.SwapVert, contentDescription = null, tint = colors.primary, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (item.showApprox) "= " else "≈ ", color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = MathSizes.historyInput))
+                    Box(Modifier.widthIn(max = 260.dp).horizontalScroll(rememberScrollState())) { MathView(other, MathSizes.historyInput, colors.onSurfaceVariant) }
+                }
+            }
+        }
+        // Actions, on the newest card or a tapped one.
+        AnimatedVisibility(focused, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
+            androidx.compose.foundation.layout.FlowRow(
+                Modifier.fillMaxWidth().padding(top = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                @Composable
+                fun action(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, spoken: String, tonal: Boolean = false, onClick: () -> Unit) {
+                    Row(
+                        Modifier.height(36.dp).clip(RoundedCornerShape(12.dp))
+                            .background(if (tonal) colors.secondaryContainer else Color.Transparent)
+                            .then(if (tonal) Modifier else Modifier.border(1.dp, colors.outlineVariant, RoundedCornerShape(12.dp)))
+                            .clickable(onClickLabel = spoken) { tap(); onClick() }
+                            .padding(start = 10.dp, end = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        val fg = if (tonal) colors.onSecondaryContainer else colors.onSurfaceVariant
+                        Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(label, color = fg, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                    }
+                }
+                item.graph?.let { g ->
+                    action(
+                        if (g.dimensions == 1) TabIcons.Complex else Icons.AutoMirrored.Filled.ShowChart,
+                        "Graph", when (g.dimensions) { 1 -> "Plot on the complex plane"; 2 -> "Graph this"; else -> "Graph this in 3D" }, tonal = true,
+                    ) { onGraph(g) }
+                }
+                action(Icons.AutoMirrored.Filled.KeyboardReturn, "Use", "Use this answer", tonal = item.graph == null) { vm.reuse(shown) }
+                action(Icons.Default.ContentCopy, "Copy", "Copy the answer") { copy(Formatter.plain(shown), "Answer") }
+                Box {
+                    action(Icons.Default.Share, "Share", "Share or delete") { shareMenu = true }
+                    DropdownMenu(expanded = shareMenu, onDismissRequest = { shareMenu = false }) {
+                        DropdownMenuItem(text = { Text("Share as image") }, onClick = {
+                            shareMenu = false
+                            scope.launch { shareImage(context, layer.toImageBitmap().asAndroidBitmap()) }
+                        })
+                        DropdownMenuItem(text = { Text("Share as LaTeX") }, onClick = { shareMenu = false; shareText(context, latex()) })
+                        DropdownMenuItem(text = { Text("Copy LaTeX") }, onClick = { shareMenu = false; copy(latex(), "LaTeX") })
+                        HorizontalDivider()
+                        // Delete, as swiping does (asking first when that's on).
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                            onClick = { shareMenu = false; if (AppSettings.confirmDeleteEntry) confirm = true else vm.deleteHistory(item) },
+                        )
+                    }
+                }
+                if (confirm) AlertDialog(
+                    onDismissRequest = { confirm = false },
+                    title = { Text("Delete this calculation?") },
+                    text = { Text("It will be removed from the history. This can't be undone.") },
+                    confirmButton = { TextButton(onClick = { confirm = false; vm.deleteHistory(item) }) { Text("Delete") } },
+                    dismissButton = { TextButton(onClick = { confirm = false }) { Text("Cancel") } },
+                )
+            }
+        }
     }
 }
 
