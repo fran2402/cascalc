@@ -396,6 +396,7 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier, onUseValue: 
             PointCardAt(
                 sx, sy, color, null, fn?.let { legendSource(it) }?.takeIf { it.isNotBlank() },
                 listOf(CardValue("x", shortNumber(p[0]), onUse = use(p[0])), CardValue("y", shortNumber(p[1]), onUse = use(p[1])), CardValue("z", shortNumber(p[2]), onUse = use(p[2]))),
+                onClose = { picked = null },
             )
         }
     }

@@ -884,7 +884,7 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             onPick = { vm.setColor(f, it?.toArgb()); picking = false },
             onDismiss = { picking = false },
             // 2D lines also get style and thickness (points and lists of points don't).
-            lineStyle = if (vm.plotVars == listOf("x") && f.plot !is Plot2DKind.Point && f.plot !is Plot2DKind.PointList) f.lineStyle else null,
+            lineStyle = if (vm.plotVars == listOf("x") && f.plot !is Plot2DKind.Point && f.plot !is Plot2DKind.PointList && f.plot !is Plot2DKind.VectorField) f.lineStyle else null,
             thickness = f.thickness,
             onStyle = { st, w -> vm.setStyle(f, st, w) },
             extra = lineOptions(vm, f),
@@ -2085,12 +2085,12 @@ class CardAction(val icon: androidx.compose.ui.graphics.vector.ImageVector, val 
  * any actions (the area from here) as tonal buttons. Fills its parent, which should be the plot.
  */
 @Composable
-fun PointCardAt(px: Float, py: Float, color: Color?, kind: String?, name: String?, rows: List<CardValue>, actions: List<CardAction> = emptyList()) {
+fun PointCardAt(px: Float, py: Float, color: Color?, kind: String?, name: String?, rows: List<CardValue>, actions: List<CardAction> = emptyList(), onClose: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val cardColor = colors.surfaceContainerHigh
     val below = py < with(androidx.compose.ui.platform.LocalDensity.current) { (90 + 46 * rows.size + if (actions.isEmpty()) 0 else 56).dp.toPx() }
     androidx.compose.ui.layout.Layout(content = {
-        PointCard(color, kind, name, rows, actions)
+        PointCard(color, kind, name, rows, actions, onClose)
         // The tail pointing at the point.
         androidx.compose.foundation.Canvas(Modifier.size(20.dp, 10.dp)) {
             val w = this.size.width; val h = this.size.height
@@ -2113,32 +2113,50 @@ fun PointCardAt(px: Float, py: Float, color: Color?, kind: String?, name: String
 }
 
 @Composable
-private fun PointCard(color: Color?, kind: String?, name: String?, rows: List<CardValue>, actions: List<CardAction>) {
+private fun PointCard(color: Color?, kind: String?, name: String?, rows: List<CardValue>, actions: List<CardAction>, onClose: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val tap = rememberKeyTap()
+    // As wide as the screen allows (a phone's is narrow): long values get a smaller size, then a
+    // second line, rather than being cut off.
+    val cardMax = minOf(340, androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp - 16).dp
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val valueStyle = TextStyle(fontFamily = CasFonts.Ui, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, fontFeatureSettings = "tnum")
+    // Room for a value: the card less its padding, the letter, the gap and the Use button.
+    val room = with(density) { (cardMax - 28.dp - 32.dp - 12.dp - (if (rows.any { it.onUse != null }) 86.dp else 0.dp)).toPx() }
+    fun fitted(text: String): androidx.compose.ui.unit.TextUnit {
+        var size = 21f
+        while (size > 14f && measurer.measure(text, valueStyle.copy(fontSize = size.sp), maxLines = 1, softWrap = false).size.width > room) size -= 1f
+        return size.sp
+    }
     androidx.compose.material3.Surface(
         shape = RoundedCornerShape(24.dp),
         color = colors.surfaceContainerHigh,
         shadowElevation = 6.dp,
-        modifier = Modifier.widthIn(min = 216.dp, max = 340.dp),
+        modifier = Modifier.widthIn(min = minOf(216.dp, cardMax), max = cardMax),
     ) {
-        Column(Modifier.width(androidx.compose.foundation.layout.IntrinsicSize.Max).padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)) {
-            if (color != null || kind != null || name != null) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (color != null) Box(Modifier.size(12.dp).clip(CircleShape).background(color))
-                    if (kind != null) Text(
-                        kind,
-                        color = colors.onTertiaryContainer,
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.clip(CircleShape).background(colors.tertiaryContainer).padding(horizontal = 10.dp, vertical = 3.dp),
-                    )
-                    Spacer(Modifier.weight(1f))
-                    if (name != null) {
-                        val row = remember(name) { com.example.cas.graph.Legend.row(name) }
-                        Box(Modifier.widthIn(max = 160.dp).horizontalScroll(rememberScrollState())) { MathView(row, 15.sp, colors.onSurfaceVariant) }
-                    }
+        Column(Modifier.width(androidx.compose.foundation.layout.IntrinsicSize.Max).padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 12.dp)) {
+            // The line's color, the kind of point and its name, and × to close the card.
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (color != null) Box(Modifier.size(12.dp).clip(CircleShape).background(color))
+                if (kind != null) Text(
+                    kind,
+                    color = colors.onTertiaryContainer,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    modifier = Modifier.clip(CircleShape).background(colors.tertiaryContainer).padding(horizontal = 10.dp, vertical = 3.dp),
+                )
+                Spacer(Modifier.weight(1f))
+                if (name != null) {
+                    val row = remember(name) { com.example.cas.graph.Legend.row(name) }
+                    Box(Modifier.widthIn(max = 150.dp).horizontalScroll(rememberScrollState())) { MathView(row, 15.sp, colors.onSurfaceVariant) }
                 }
-                Spacer(Modifier.height(4.dp))
+                Box(
+                    Modifier.size(32.dp).clip(CircleShape).clickable(onClickLabel = "Close") { tap(); onClose() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(androidx.compose.material.icons.Icons.Default.Close, contentDescription = "Close", tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                }
             }
             rows.forEach { v ->
                 Row(Modifier.heightIn(min = 42.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -2149,8 +2167,8 @@ private fun PointCard(color: Color?, kind: String?, name: String?, rows: List<Ca
                         Text(
                             v.text,
                             color = colors.onSurface,
-                            style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 21.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, fontFeatureSettings = "tnum"),
-                            maxLines = 1,
+                            style = valueStyle.copy(fontSize = remember(v.text, room) { fitted(v.text) }),
+                            maxLines = 2,
                         )
                         if (v.detail != null) Text(v.detail, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1)
                     }

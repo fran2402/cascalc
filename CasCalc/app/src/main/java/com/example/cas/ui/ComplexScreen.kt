@@ -380,7 +380,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                 CardValue("z", complexText(h.z), polarText(h.z), onUse = use(h.z)),
                 w?.let { CardValue("f(z)", complexText(it), polarText(it), onUse = use(it)) },
             )
-            PointCardAt(o.x, o.y, complexLineColor(h.fn), null, legendSource(h.fn).takeIf { it.isNotBlank() }, rows, planeActions(vm, h, view, size, curves) { hit = null })
+            PointCardAt(o.x, o.y, complexLineColor(h.fn), null, legendSource(h.fn).takeIf { it.isNotBlank() }, rows, planeActions(vm, h, view, size, curves) { hit = null }, onClose = { hit = null })
         }
         // Value readout for the tapped point.
         if (refining) Busy(Modifier.align(Alignment.TopCenter).padding(top = 12.dp))
@@ -396,6 +396,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                     CardValue("z", complexText(z), polarText(z), onUse = use(z)),
                     if (w != null) CardValue("f(z)", complexText(w), polarText(w), onUse = use(w)) else CardValue("f(z)", "undefined"),
                 ),
+                onClose = { probe = null },
             )
         }
     }
