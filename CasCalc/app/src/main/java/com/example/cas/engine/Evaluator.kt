@@ -93,7 +93,8 @@ class Evaluator(
             assigned = name to value
             return Eq(Sym(name), value)
         }
-        return RowParser(items, emptyMap()).parse()
+        // Constants with i in them come out as a + bi: (1 + 2i)(3 − i) = 5 + 5i.
+        return com.example.cas.cas.ComplexArith.normalize(RowParser(items, emptyMap()).parse())
     }
 
     private fun clean(row: MathRow) = row.items.filter { (it as? com.example.cas.editor.Sym)?.text != Formatter.THIN_SPACE }

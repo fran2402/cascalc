@@ -19,7 +19,7 @@ import com.example.cas.editor.Sym
  */
 object ModeGuides {
     /** Something to try: what it is, the math, what happens. */
-    class Example(val label: String, val row: MathRow, val note: String)
+    class Example(val label: String, val row: MathRow, val note: String, val advanced: Boolean = false)
 
     /** A gesture or a tip: a short title and a line about it. */
     class Tip(val icon: String, val title: String, val text: String)
@@ -53,19 +53,20 @@ object ModeGuides {
             Example("Exact roots", m(Sqrt(m("8"))), "Simplified: 2√2, and ≈ 2.828 under it"),
             Example("Fractions", m(Frac(m("1"), m("3")), "+", Frac(m("1"), m("6"))), "Stay exact: 1/2"),
             Example("Trigonometry", m(fn("sin", m(Frac(m("π"), m("6"))))), "Exact values: 1/2 (Rad or Deg above the keys)"),
-            Example("Complex numbers", m(Sqrt(m("−4"))), "Roots of negatives: 2i"),
-            Example("Gamma function", m(fn("gamma", m(Frac(m("1"), m("2"))))), "Exact special values: √π"),
+            Example("Complex numbers", m("(1+2i)(3−i)"), "Worked out exactly: 5 + 5i"),
+            Example("Euler's identity", m("e", Pow(m("iπ")), "+1"), "0, exactly", advanced = true),
+            Example("Gamma function", m(fn("gamma", m(Frac(m("1"), m("2"))))), "Exact special values: √π", advanced = true),
             Example("Factor", m(fn("factor", m("x", sq("4"), "−5x", sq(), "+4"))), "(x − 2)(x − 1)(x + 1)(x + 2)"),
             Example("Integrals", m(Integral(body = m("xe", Pow(m("x"))), variable = m("x"))), "Antiderivatives, and definite integrals with limits"),
             Example("Derivatives", m(Derivative(variable = m("x"), body = m(fn("sin", m("x")), "x", sq()))), "Exact, with the product and chain rules"),
             Example("Limits", m(fn("lim", m(Frac(m(fn("sin", m("x"))), m("x"))), m("x→0"))), "Found from the series: 1"),
             Example("Sums", m(BigOp(BigOpKind.Sum, variable = m("k"), lower = m("1"), upper = m("n"), body = m("k", sq()))), "In closed form: n(n + 1)(2n + 1)/6"),
-            Example("Gaussian integral", m(Integral(lower = m("−∞"), upper = m("∞"), body = m("e", Pow(m("−x", sq()))), variable = m("x"))), "Improper integrals in closed form: √π"),
-            Example("Basel problem", m(BigOp(BigOpKind.Sum, variable = m("n"), lower = m("1"), upper = m("∞"), body = m(Frac(m("1"), m("n", sq()))))), "Infinite series recognized: π²/6"),
-            Example("Alternating series", m(BigOp(BigOpKind.Sum, variable = m("n"), lower = m("1"), upper = m("∞"), body = m(Frac(m("(−1)", Pow(m("n+1"))), m("n"))))), "The η function at 1: ln 2"),
-            Example("Series limit", m(fn("lim", m(Frac(m("x−", fn("sin", m("x"))), m("x", sq("3")))), m("x→0"))), "From the Taylor series: 1/6"),
-            Example("Special integral", m(Integral(body = m(Frac(m(fn("sin", m("x"))), m("x"))), variable = m("x"))), "Answers in special functions: Si(x)"),
-            Example("Dirichlet integral", m(Integral(lower = m("0"), upper = m("∞"), body = m(Frac(m(fn("sin", m("x"))), m("x"))), variable = m("x"))), "π/2"),
+            Example("Gaussian integral", m(Integral(lower = m("−∞"), upper = m("∞"), body = m("e", Pow(m("−x", sq()))), variable = m("x"))), "Improper integrals in closed form: √π", advanced = true),
+            Example("Basel problem", m(BigOp(BigOpKind.Sum, variable = m("n"), lower = m("1"), upper = m("∞"), body = m(Frac(m("1"), m("n", sq()))))), "Infinite series recognized: π²/6", advanced = true),
+            Example("Alternating series", m(BigOp(BigOpKind.Sum, variable = m("n"), lower = m("1"), upper = m("∞"), body = m(Frac(m("(−1)", Pow(m("n+1"))), m("n"))))), "The η function at 1: ln 2", advanced = true),
+            Example("Series limit", m(fn("lim", m(Frac(m("x−", fn("sin", m("x"))), m("x", sq("3")))), m("x→0"))), "From the Taylor series: 1/6", advanced = true),
+            Example("Special integral", m(Integral(body = m(Frac(m(fn("sin", m("x"))), m("x"))), variable = m("x"))), "Answers in special functions: Si(x)", advanced = true),
+            Example("Dirichlet integral", m(Integral(lower = m("0"), upper = m("∞"), body = m(Frac(m(fn("sin", m("x"))), m("x"))), variable = m("x"))), "Classic improper integral: π/2", advanced = true),
             Example("Matrices", m(fn("eigvecs", m(Matrix(2, 2, listOf(m("2"), m("1"), m("1"), m("2")))))), "Eigenvalues and eigenvectors, det, inverse…"),
             Example("Variables", m("a=3"), "Stores a; then 2a gives 6"),
             Example("Functions", m("f(x)=x", sq(), "+1"), "Defines f; then f(2) gives 5"),
@@ -98,6 +99,14 @@ object ModeGuides {
             Example("Restricted", m("y=x", sq(), ",0<x<2"), "Conditions after a comma"),
             Example("Heat map", m("x", sq(), "−y", sq()), "f(x, y) colored with a colormap"),
             Example("Vector field", m("(−y,x)"), "A pair in x and y: arrows"),
+            Example("Rose", m("r=", fn("sin", m("4θ"))), "an eight-petal polar rose", advanced = true),
+            Example("Heart", m("(x", sq(), "+y", sq(), "−1)", Pow(m("3")), "=x", sq(), "y", Pow(m("3"))), "an implicit sextic", advanced = true),
+            Example("Folium", m("x", Pow(m("3")), "+y", Pow(m("3")), "=3xy"), "Descartes' folium, with its loop", advanced = true),
+            Example("Butterfly", m("(", fn("sin", m("t")), "(e", Pow(m(fn("cos", m("t")))), "−2", fn("cos", m("4t")), "),", fn("cos", m("t")), "(e", Pow(m(fn("cos", m("t")))), "−2", fn("cos", m("4t")), "))"), "Fay's butterfly curve", advanced = true),
+            Example("Annulus", m("1<x", sq(), "+y", sq(), "<4"), "a chain of inequalities", advanced = true),
+            Example("Family", m("y=[1,2,3]x", sq()), "a list draws one curve per entry", advanced = true),
+            Example("Ripples", m(fn("sin", m("x", sq(), "+y", sq()))), "a heat map of sin(x² + y²)", advanced = true),
+            Example("Saddle flow", m("(x,−y)"), "a hyperbolic vector field", advanced = true),
         ),
         listOf(
             Tip("drag", "Drag", "Moves the view; pinch to zoom, double-tap to reset"),
@@ -123,6 +132,11 @@ object ModeGuides {
             Example("Space curve", m("(", fn("cos", m("t")), ",", fn("sin", m("t")), ",", Frac(m("t"), m("4")), ")"), "(x(t), y(t), z(t))"),
             Example("Point", m("(1,2,3)"), "A point in space"),
             Example("Sliders", m("z=a", fn("sin", m("x")), "+y", sq()), "Other letters get sliders"),
+            Example("Saddle", m("z=x", sq(), "−y", sq()), "a hyperbolic paraboloid", advanced = true),
+            Example("Ripple", m("z=", fn("sin", m(Sqrt(m("x", sq(), "+y", sq()))))), "circular waves", advanced = true),
+            Example("Torus", m("(", Sqrt(m("x", sq(), "+y", sq())), "−2)", sq(), "+z", sq(), "=1"), "an implicit doughnut", advanced = true),
+            Example("Gyroid", m(fn("sin", m("x")), fn("cos", m("y")), "+", fn("sin", m("y")), fn("cos", m("z")), "+", fn("sin", m("z")), fn("cos", m("x")), "=0"), "a triply periodic minimal surface", advanced = true),
+            Example("Trefoil knot", m("(", fn("sin", m("t")), "+2", fn("sin", m("2t")), ",", fn("cos", m("t")), "−2", fn("cos", m("2t")), ",−", fn("sin", m("3t")), ")"), "a knotted space curve", advanced = true),
         ),
         listOf(
             Tip("drag", "Drag", "Turns the view; pinch to zoom, double-tap to reset"),
@@ -145,6 +159,11 @@ object ModeGuides {
             Example("Curve", m(fn("abs", m("z−1")), "=2"), "Equations in z are drawn as curves"),
             Example("Points", m("[1+i,−2,3i]"), "A number, or a list of them"),
             Example("Path", m("e", Pow(m("it"))), "z(t): an expression in t"),
+            Example("Roots of unity", m("z", Pow(m("5")), "−1"), "five zeros on the unit circle", advanced = true),
+            Example("Gamma function", m(fn("gamma", m("z"))), "poles at 0, −1, −2, …", advanced = true),
+            Example("Riemann zeta", m(fn("zeta", m("z"))), "the pole at 1 and the trivial zeros", advanced = true),
+            Example("Möbius map", m(Frac(m("z−i"), m("z+i"))), "the upper half-plane onto the disc", advanced = true),
+            Example("Branch cut", m(Sqrt(m("z"))), "the jump along the negative axis", advanced = true),
             Example("Loop integral", m(Func("contour", listOf(m(Frac(m("1"), m("z"))), m(fn("abs", m("z")), "=1")))), "∮ around a circle: 2πi here"),
         ),
         listOf(

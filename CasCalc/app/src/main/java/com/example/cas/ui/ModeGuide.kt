@@ -247,19 +247,31 @@ private fun SectionTitle(text: String, trailing: String? = null) {
 /** The examples as cards in [columns]: what it is, the math, what happens, and Try. */
 @Composable
 private fun Examples(mode: Mode, columns: Int, onTry: (Mode, MathRow) -> Unit) {
+    val (advanced, basics) = guideOf(mode).examples.partition { it.advanced }
+    SectionTitle("Try these", "Tap one to type it in")
+    ExampleGrid(mode, basics, columns, onTry)
+    if (advanced.isNotEmpty()) {
+        Spacer(Modifier.height(20.dp))
+        SectionTitle("Go further", "${advanced.size} advanced")
+        ExampleGrid(mode, advanced, columns, onTry, emphasized = true)
+    }
+}
+
+@Composable
+private fun ExampleGrid(mode: Mode, examples: List<ModeGuides.Example>, columns: Int, onTry: (Mode, MathRow) -> Unit, emphasized: Boolean = false) {
     val colors = MaterialTheme.colorScheme
     val tap = rememberKeyTap()
-    SectionTitle("Try these", "Tap one to type it in")
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        guideOf(mode).examples.chunked(columns).forEach { line ->
+        examples.chunked(columns).forEach { line ->
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 line.forEach { e ->
                     Column(
-                        Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(22.dp)).background(colors.surfaceContainerHighest)
+                        Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(22.dp))
+                            .background(if (emphasized) colors.tertiaryContainer.copy(alpha = 0.55f) else colors.surfaceContainerHighest)
                             .clickable(onClickLabel = "Try ${e.label}") { tap(); onTry(mode, e.row) }
                             .padding(start = 14.dp, end = 10.dp, top = 12.dp, bottom = 10.dp),
                     ) {
-                        Text(e.label, style = MaterialTheme.typography.labelLarge, color = colors.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(e.label, style = MaterialTheme.typography.labelLarge, color = if (emphasized) colors.tertiary else colors.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Spacer(Modifier.height(8.dp))
                         Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
                             MathView(e.row, 19.sp, colors.onSurface, modifier = Modifier.semantics { contentDescription = com.example.cas.engine.Formatter.plain(e.row) })

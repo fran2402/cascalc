@@ -24,7 +24,8 @@ class ModeGuidesTest {
         assertEquals("1/2", got["Fractions"])
         assertEquals("1/2", got["Trigonometry"])
         assertEquals("1", got["Limits"])
-        assertEquals("2i", got["Complex numbers"])
+        assertEquals("5+5i", got["Complex numbers"])
+        assertEquals("0", got["Euler's identity"])
         assertEquals("√π", got["Gamma function"])
         assertEquals("√π", got["Gaussian integral"])
         assertEquals("π^2/6", got["Basel problem"])
@@ -33,6 +34,25 @@ class ModeGuidesTest {
         assertEquals("π/2", got["Dirichlet integral"])
         assertTrue(got.getValue("Sums"), got.getValue("Sums").contains("n"))
         println(got)
+    }
+
+    /** Every graph example is read as the kind of line it says, and can be drawn somewhere. */
+    @Test fun graphExamplesWork() {
+        // (Pairs and lists are split up by the graph before they're read, so only single lines here.)
+        val kinds = ModeGuides.graph2D.examples.filter { it.label in setOf("Rose", "Heart", "Folium", "Annulus", "Ripples") }.associate { e ->
+            val v = Evaluator().evaluate(MathCodec.copy(e.row))
+            e.label to com.example.cas.graph.PlotSpec.classify(listOf(v))::class.simpleName
+        }
+        assertEquals("Polar", kinds["Rose"])
+        assertEquals("Implicit", kinds["Heart"])
+        assertEquals("Implicit", kinds["Folium"])
+        assertEquals("Region", kinds["Annulus"])
+        assertEquals("Field", kinds["Ripples"])
+        val kinds3 = ModeGuides.graph3D.examples.filter { it.label in setOf("Saddle", "Ripple", "Torus", "Gyroid") }.associate { e ->
+            e.label to com.example.cas.graph.PlotSpec3D.classify(Evaluator().evaluate(MathCodec.copy(e.row)))::class.simpleName
+        }
+        assertEquals(mapOf("Saddle" to "Explicit", "Ripple" to "Explicit", "Torus" to "Implicit", "Gyroid" to "Implicit"), kinds3)
+        for (e in ModeGuides.complex.examples.filter { it.label != "Points" }) Evaluator().evaluate(MathCodec.copy(e.row))
     }
 
     @Test fun everyGuideHasContent() {
