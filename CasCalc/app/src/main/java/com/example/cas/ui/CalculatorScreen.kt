@@ -1129,6 +1129,8 @@ private fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit)
     SwipeToDismissBox(
         state = state,
         backgroundContent = {
+            // Only while swiping: at rest nothing is behind the card, so no red shows round its corners.
+            if (state.dismissDirection == SwipeToDismissBoxValue.Settled) return@SwipeToDismissBox
             val end = state.dismissDirection == SwipeToDismissBoxValue.EndToStart
             Box(
                 Modifier.fillMaxSize().padding(horizontal = 12.dp).clip(RoundedCornerShape(24.dp)).background(colors.errorContainer)
