@@ -60,6 +60,9 @@ object AppSettings {
     /** The answer shown under the input while typing. */
     var livePreview by mutableStateOf(true)
         private set
+    /** Beta: worked steps for integrals and ∮ loop integrals, from the history. */
+    var showSteps by mutableStateOf(false)
+        private set
     /** How many calculations the history keeps: 50, 100, 500, or 0 for all. */
     var historyLimit by mutableStateOf(100)
         private set
@@ -125,6 +128,7 @@ object AppSettings {
         sciDecimals = p.getInt("sciDecimals", 6).coerceIn(1, 12)
         polarComplex = p.getBoolean("polarComplex", false)
         livePreview = p.getBoolean("livePreview", true)
+        showSteps = p.getBoolean("showSteps", false)
         historyLimit = p.getInt("historyLimit", 100)
         confirmClearHistory = p.getBoolean("confirmClearHistory", true)
         confirmDeleteEntry = p.getBoolean("confirmDeleteEntry", false)
@@ -170,6 +174,7 @@ object AppSettings {
     fun changeNumberFormat(v: Int) { numberFormat = v; com.example.cas.engine.Formatter.numberFormat = v; save("numberFormat", v) }
     fun changePolarComplex(v: Boolean) { polarComplex = v; com.example.cas.engine.Formatter.polarComplex = v; save("polarComplex", v) }
     fun changeLivePreview(v: Boolean) { livePreview = v; save("livePreview", v) }
+    fun changeShowSteps(v: Boolean) { showSteps = v; save("showSteps", v) }
     fun changeHistoryLimit(v: Int) { historyLimit = v; save("historyLimit", v) }
     fun changeConfirmClearHistory(v: Boolean) { confirmClearHistory = v; save("confirmClearHistory", v) }
     fun changeConfirmDeleteEntry(v: Boolean) { confirmDeleteEntry = v; save("confirmDeleteEntry", v) }

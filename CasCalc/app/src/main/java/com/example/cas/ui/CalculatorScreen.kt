@@ -15,6 +15,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import com.example.cas.engine.LatexParser
 import androidx.compose.ui.window.DialogProperties
@@ -186,6 +187,7 @@ import com.example.cas.cas.CoordinateKind
 import androidx.compose.material.icons.filled.Edit
 import com.example.cas.engine.Constant
 import com.example.cas.engine.Formatter
+import com.example.cas.engine.Steps
 import com.example.cas.ui.theme.CasFonts
 import com.example.cas.ui.theme.LocalGlyphFallback
 import com.example.cas.ui.theme.equalsKey
@@ -498,6 +500,8 @@ private fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (Gr
     val layer = rememberGraphicsLayer()
     var shareMenu by remember { mutableStateOf(false) }
     var confirm by remember { mutableStateOf(false) }
+    var showingSteps by remember { mutableStateOf(false) }
+    if (showingSteps) StepsView(item.expression, vm.angleUnit, onDismiss = { showingSteps = false })
     val latex = { Latex.of(item.expression) + (if (item.answer.isStatement) "\\quad " else " = ") + Latex.of(shown) }
     val copy = { text: String, what: String ->
         clipboard.setText(AnnotatedString(text))
@@ -601,6 +605,10 @@ private fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (Gr
                         if (g.dimensions == 1) TabIcons.Complex else Icons.AutoMirrored.Filled.ShowChart,
                         "Graph", when (g.dimensions) { 1 -> "Plot on the complex plane"; 2 -> "Graph this"; else -> "Graph this in 3D" }, tonal = true,
                     ) { onGraph(g) }
+                }
+                // Beta: the working, for an integral or a loop integral.
+                if (AppSettings.showSteps && remember(item) { Steps.supports(item.expression) }) {
+                    action(Icons.AutoMirrored.Filled.FormatListBulleted, "Steps", "Show the steps") { showingSteps = true }
                 }
                 action(Icons.AutoMirrored.Filled.KeyboardReturn, "Use", "Use this answer", tonal = item.graph == null) { vm.reuse(shown) }
                 action(Icons.Default.ContentCopy, "Copy", "Copy the answer") { copy(Formatter.plain(shown), "Answer") }
@@ -1410,11 +1418,17 @@ internal fun SettingsSection(title: String) =
     Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
 
 @Composable
-private fun SettingsToggle(title: String, detail: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun SettingsToggle(title: String, detail: String?, checked: Boolean, onChange: (Boolean) -> Unit, badge: String? = null) {
     val colors = MaterialTheme.colorScheme
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(title, color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
+                if (badge != null) {
+                    Spacer(Modifier.width(8.dp))
+                    BetaBadge(badge)
+                }
+            }
             if (detail != null) Text(detail, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
         Switch(checked = checked, onCheckedChange = onChange)
@@ -1537,6 +1551,10 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsToggle("Live answer", "The result under what you're typing", AppSettings.livePreview, AppSettings::changeLivePreview)
             SettingsToggle("Continue from the answer", "An operator after = starts with Ans", AppSettings.continueFromAnswer, AppSettings::changeContinueFromAnswer)
             SettingsToggle("Explanations on long-press", "Formula, theory and how to use each key", AppSettings.keyHelp, AppSettings::changeKeyHelp)
+            SettingsToggle(
+                "Show steps", "Worked steps for integrals and ∮ loop integrals: Steps on a history card. Still in beta, so steps may skip some algebra",
+                AppSettings.showSteps, AppSettings::changeShowSteps, badge = "Beta",
+            )
         },
         PageSection("History", Icons.Outlined.History) {
             SettingsChoice("History keeps", listOf("50", "100", "500", "All"), when (AppSettings.historyLimit) { 50 -> 0; 100 -> 1; 500 -> 2; else -> 3 }) {

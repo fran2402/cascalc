@@ -1,0 +1,169 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1700px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--c1:#1B1C14;--c2:#1F2018;--c3:#292A22;--c4:#34352C;--outv:#47473B;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sec:#3D3F28;--onsec:#E0E1C4;--tc:#244D44;--otc:#BDECDE;--err:#FFB4AB;--tert:#A2D0C3;--grid:#47473B;--axis:#C8C7B5;--shadow:rgba(0,0,0,.55)}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--c1:#F6F4E8;--c2:#F1EEE2;--c3:#EBE9DC;--c4:#E5E3D6;--outv:#C8C7B5;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sec:#E2E4C4;--onsec:#1B1D0A;--tc:#BDECDE;--otc:#00201A;--err:#BA1A1A;--tert:#3B665C;--grid:#C8C7B5;--axis:#47473B;--shadow:rgba(40,40,20,.28)}
+.phone{position:relative;width:412px;height:880px;border-radius:44px;overflow:hidden;background:var(--bg);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35);display:flex;flex-direction:column}
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font:500 14px GSF}
+.bar{height:56px;display:flex;align-items:center;padding:0 8px 0 18px;gap:6px;font:500 20px GSF}
+.bar .sp{flex:1}.ib{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--onv)}
+.graph{position:relative;flex:1;overflow:hidden}
+.graph>svg{position:absolute;inset:0}
+.m{font-family:CMI}.r{font-family:CMR}
+
+.top{height:60px;display:flex;align-items:center;padding:0 8px;gap:4px}
+.top .ib{width:44px;height:44px}
+.modes{flex:1;display:flex;justify-content:center;gap:4px}
+.mode{height:40px;min-width:44px;border-radius:20px;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--c3);color:var(--onv);font:600 14px GSF;padding:0 12px}
+.mode.on{background:var(--pri);color:var(--onpri)}
+.hist{flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;padding:0 12px 8px;overflow:hidden}
+.card{background:var(--c2);border-radius:24px;padding:12px 10px 14px 20px;position:relative}
+.ex{font:19px CMR;color:var(--onv)}
+.ans{font:26px CMR;text-align:right;padding-right:10px;margin-top:8px}
+.ans .eq{color:var(--pri);margin-right:10px}
+.icons{position:absolute;right:8px;top:8px;display:flex;gap:2px;color:var(--onv);font-size:18px}
+.icons span{width:36px;height:36px;display:flex;align-items:center;justify-content:center}
+.chip{display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:8px;border:1px solid var(--outv);font:600 12.5px GSF;color:var(--onv);gap:4px}
+.chip.t{background:var(--sec);color:var(--onsec);border:none}
+.chips{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.input{background:var(--c1);padding:14px 22px 6px;text-align:right;font:30px CMR}
+.prev{text-align:right;font:500 16px GSF;color:var(--onv);padding:0 22px 8px;background:var(--c1)}
+.prev b{color:var(--pri);font-weight:600}
+.ctrl{display:flex;align-items:center;gap:6px;padding:4px 12px;background:var(--c1)}
+.seg{display:flex;border:1px solid var(--outv);border-radius:99px;overflow:hidden;height:34px}
+.seg div{padding:0 14px;display:flex;align-items:center;font:600 13px GSF}.seg .on{background:var(--sec);color:var(--onsec)}
+.sq{width:40px;height:40px;border-radius:14px;background:var(--c3);display:flex;align-items:center;justify-content:center;font-size:18px}
+.groups{display:flex;gap:2px;padding:4px 10px;background:var(--c1)}
+.g{flex:1;height:38px;border-radius:8px;background:var(--c3);display:flex;align-items:center;justify-content:center;font:16px CMR;color:var(--onv)}
+.g.on{border-radius:20px;background:var(--pri);color:var(--onpri)}
+.g.lab{flex:3.4;gap:6px;font:600 13px GSF}
+.g:first-child{border-radius:20px 8px 8px 20px}.g:last-child{border-radius:8px 20px 20px 8px}
+.fpanel{margin:4px 8px;background:var(--c2);border-radius:28px;padding:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.fk{height:38px;border-radius:19px;background:var(--c4);display:flex;align-items:center;justify-content:center;font:17px CMR}
+.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px 12px 14px;background:var(--c1)}
+.k{height:50px;border-radius:25px;background:var(--c3);display:flex;align-items:center;justify-content:center;font:500 22px GSF}
+.k.op{background:var(--sec);color:var(--onsec)}.k.ac{background:var(--pc);color:var(--onpc)}.k.en{background:#FFDDB3;color:#2A1800}
+.tag{position:absolute;background:#E8453C;color:#fff;font:700 13px GSF;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.4);z-index:5}
+.gr{position:relative;flex:1}
+.empty{position:absolute;left:16px;right:16px;bottom:16px;background:var(--c2);border-radius:24px;padding:16px}
+.empty h4{margin:0 0 4px;font:600 17px GSF}.empty p{margin:0 0 12px;font:14px GSF;color:var(--onv)}
+.ex2{display:flex;flex-wrap:wrap;gap:8px}
+.ex2 div{background:var(--c4);border-radius:12px;padding:8px 12px;font:17px CMR;display:flex;flex-direction:column;gap:2px}
+.ex2 small{font:600 11px GSF;color:var(--onv)}
+.fab{position:absolute;right:16px;bottom:16px;height:56px;border-radius:18px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;gap:8px;padding:0 20px;font:600 16px GSF;box-shadow:0 4px 12px var(--shadow)}
+ol.why{font:15px/1.5 GSF;color:#2a2a22;max-width:1700px;margin:0 0 26px;padding-left:22px}
+ol.why li{margin-bottom:4px}
+
+.scrim2{position:absolute;inset:0;background:rgba(0,0,0,.4)}
+.sheet2{position:absolute;left:0;right:0;bottom:0;top:96px;background:var(--c1);border-radius:28px 28px 0 0;padding:10px 20px 0;overflow:hidden}
+.handle{width:32px;height:4px;border-radius:2px;background:var(--onv);opacity:.5;margin:4px auto 14px}
+.mchips{display:flex;gap:8px;overflow:hidden;margin-bottom:16px}
+.mc{height:40px;border-radius:20px;background:var(--c3);display:flex;align-items:center;gap:6px;padding:0 16px 0 12px;font:600 14px GSF;white-space:nowrap;color:var(--on)}
+.mc.on{background:var(--pri);color:var(--onpri)}
+.hero{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.cookie{width:72px;height:72px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;justify-content:center;font-size:32px;flex:none}
+.hero h3{margin:0;font:500 25px GSF}.hero p{margin:4px 0 0;font:14px/1.4 GSF;color:var(--onv)}
+.sec{display:flex;align-items:flex-end;margin:0 0 10px}.sec b{flex:1;font:600 16px GSF;color:var(--pri)}.sec span{font:600 12px GSF;color:var(--onv)}
+.exg{display:grid;gap:10px}
+.exc{background:var(--c4);border-radius:22px;padding:12px 10px 10px 14px;display:flex;flex-direction:column}
+.exc .lb{font:600 14px GSF;color:var(--pri)}.exc .mt{font:19px CMR;margin:8px 0 6px;white-space:nowrap}.exc .nt{font:12.5px/1.35 GSF;color:var(--onv);flex:1}
+.try{align-self:flex-end;margin-top:8px;height:30px;border-radius:15px;background:var(--pc);color:var(--onpc);font:600 12.5px GSF;display:flex;align-items:center;gap:4px;padding:0 10px 0 12px}
+.tips{background:var(--c2);border-radius:24px;padding:6px 0}
+.tp{display:flex;align-items:center;gap:14px;padding:8px 14px}
+.tp .ic{width:40px;height:40px;border-radius:50%;background:var(--sec);color:var(--onsec);display:flex;align-items:center;justify-content:center;font-size:18px;flex:none}
+.tp .ic.t{background:var(--tc);color:var(--otc)}
+.tp b{display:block;font:600 14px GSF}.tp span{font:12.5px GSF;color:var(--onv)}
+.tablet{color:var(--on);position:relative;width:1280px;height:820px;border-radius:40px;overflow:hidden;background:var(--bg);box-shadow:0 0 0 12px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.dlg2{position:absolute;left:150px;top:50px;width:980px;height:720px;border-radius:36px;background:var(--c1);display:flex;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+.rail{width:260px;background:var(--c2);padding:16px;display:flex;flex-direction:column;gap:8px}
+.rail h4{margin:8px 8px 8px;font:500 22px GSF}
+.ri{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px}
+.ri.on{background:var(--sec);color:var(--onsec);border-radius:28px}
+.ri b{display:block;font:600 14px GSF}.ri span{font:12px GSF;color:var(--onv)}
+.pane{flex:1;padding:28px;overflow:hidden;position:relative}
+.x{position:absolute;right:22px;top:22px;font-size:20px;color:var(--onv)}
+.frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-size:.8em;line-height:1.05;margin:0 2px}
+.frac>span:first-child{border-bottom:1px solid currentColor;padding:0 2px}
+
+.beta{display:inline-block;font:700 10.5px GSF;letter-spacing:.6px;padding:2px 8px;border-radius:99px;background:var(--tc);color:var(--otc);vertical-align:middle;margin-left:8px}
+.shd{display:flex;align-items:center;gap:10px}.shd h3{margin:0;font:500 24px GSF}
+.meth{margin-left:auto;font:600 13px GSF;background:var(--sec);color:var(--onsec);padding:6px 12px;border-radius:10px}
+.qbox{background:var(--c3);border-radius:20px;padding:14px 16px;font:22px CMR;margin-top:12px}
+.st{display:flex;gap:14px}.st .rail{width:40px;display:flex;flex-direction:column;align-items:center;background:none;padding:0}
+.node{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:600 14px GSF;background:var(--sec);color:var(--onsec);flex:none}
+.node.res{border-radius:12px;background:var(--pri);color:var(--onpri)}.node.chk{background:var(--tc);color:var(--otc)}
+.conn{width:2px;flex:1;background:var(--outv);border-radius:1px;margin:4px 0}
+.sb{flex:1;padding:6px 0 20px}.sb b{display:block;font:600 15px GSF}.sb p{margin:2px 0 0;font:14px/1.4 GSF;color:var(--onv)}
+.mbox{margin-top:8px;background:var(--c4);border-radius:16px;padding:10px 12px;font:19px CMR;white-space:nowrap;overflow:hidden}
+.mbox.res{background:var(--pc);color:var(--onpc)}
+.subs{margin-top:10px;background:var(--c2);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.sub{display:flex;gap:6px}.sub .l{width:20px;font:600 14px GSF;color:var(--pri)}.sub b{font:600 13.5px GSF}.sub p{margin:0;font:12.5px GSF;color:var(--onv)}
+.sub .mbox{font-size:16px;padding:8px 12px;background:var(--c3);border-radius:12px}
+.ctl{display:flex;align-items:center;gap:10px;padding:12px 20px 18px}.ctl .n{flex:1;font:600 14px GSF;color:var(--onv)}
+.tbtn{font:600 14px GSF;color:var(--pri);padding:10px 12px}
+.nxt{height:52px;border-radius:26px;background:var(--pri);color:var(--onpri);display:flex;align-items:center;gap:8px;padding:0 22px 0 18px;font:600 15px GSF}
+.note2{background:var(--c2);border-radius:16px;padding:8px 6px 8px 14px;display:flex;align-items:center;font:12.5px GSF;color:var(--onv)}.note2 span{flex:1}
+.setrow{display:flex;align-items:center;gap:12px;padding:12px 0}.setrow .t{flex:1}.setrow b{font:400 16px GSF}.setrow p{margin:2px 0 0;font:12.5px/1.35 GSF;color:var(--onv)}
+.sw2{width:52px;height:32px;border-radius:16px;background:var(--pri);position:relative}.sw2:after{content:"";position:absolute;right:4px;top:4px;width:24px;height:24px;border-radius:50%;background:var(--onpri)}
+.sw2.off{background:var(--c4);outline:2px solid var(--outv)}.sw2.off:after{left:6px;right:auto;top:8px;width:16px;height:16px;background:var(--outv)}
+.frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-size:.8em;line-height:1.05;margin:0 2px}
+.frac>span:first-child{border-bottom:1px solid currentColor;padding:0 2px}
+.hc2{background:var(--c3);border-radius:28px;padding:14px 16px 12px 20px;margin:0 12px}
+.b2{height:36px;border-radius:12px;border:1px solid var(--outv);display:inline-flex;align-items:center;gap:6px;padding:0 13px 0 9px;font:600 13px GSF;color:var(--onv)}
+.b2.t{background:var(--sec);color:var(--onsec);border:none}
+.ol{display:flex;gap:10px;padding:8px;border-radius:14px;font:14px GSF}.ol i{font-style:normal;width:16px;color:var(--pri);font-weight:600}.ol.dim{color:var(--outline,#77776a)}.ol.dim i{color:inherit}
+</style></head><body>
+<h2>Steps <span class="beta" style="font-size:13px">BETA</span></h2>
+<p class="note">Settings › Calculator › Show steps (marked Beta, off by default). Then an integral or ∮ in the history gets a Steps button; it opens the working: a vertical stepper where each step is a numbered node on a line, with the rule, one sentence and the math, and lettered smaller steps inside. Next step reveals one at a time (or Show all); the check by differentiation and the answer close it. Phone: a full-height sheet. Tablet: a two-pane dialog, question, answer and an outline on the left. Every step comes from the method the integrator actually used.</p>
+<div class="row" id="phones"></div>
+<div class="row"><div><div class="tablet dark" id="t"></div><div class="cap" style="width:900px">Tablet: question, answer and outline on the left (tap a step to jump to it), the stepper on the right.</div></div></div>
+<script>
+const I=t=>`<i class="m">${t}</i>`, F=(a,b)=>`<span class="frac"><span>${a}</span><span>${b}</span></span>`;
+const intx=(b)=>`∫ ${b} d${I('x')}`;
+function node(n,kind,title,text,math,subs,last){const cls=kind=='res'?'res':kind=='chk'?'chk':'';const lab=kind=='res'?'⚑':kind=='chk'?'✓':n;
+ return `<div class="st"><div class="rail"><div class="node ${cls}">${lab}</div>${last?'':'<div class="conn"></div>'}</div><div class="sb"><b>${title}</b>${text?`<p>${text}</p>`:''}${math?`<div class="mbox ${kind=='res'?'res':''}">${math}</div>`:''}
+ ${subs?`<div class="subs">${subs.map(([l,t,p,m])=>`<div class="sub"><div class="l">${l}</div><div style="flex:1"><b>${t}</b>${p?`<p>${p}</p>`:''}${m?`<div class="mbox">${m}</div>`:''}</div></div>`).join('')}</div>`:''}</div></div>`}
+const parts=[
+ node(1,'','Integration by parts','∫ u dv = uv − ∫ v du',`${intx(I('xe<sup>x</sup>'))} = ${I('xe<sup>x</sup>')} − ${intx(I('e<sup>x</sup>'))}`,[['a','Choose u and dv','u = x (simpler when differentiated), dv = eˣ dx.',`${I('u')} = ${I('x')},&nbsp; ${I('v')} = ${I('e<sup>x</sup>')}`],['b','Exponential','∫ eᵘ du = eᵘ.',`${intx(I('e<sup>x</sup>'))} = ${I('e<sup>x</sup>')}`]]),
+ node(2,'chk','Check','Differentiating the answer gives the integrand back.',`${F('d','d'+I('x'))}(${I('xe<sup>x</sup>')} − ${I('e<sup>x</sup>')}) = ${I('xe<sup>x</sup>')}`),
+ node(3,'res','Answer','Add a constant C: every antiderivative differs by one.',`${intx(I('xe<sup>x</sup>'))} = ${I('xe<sup>x</sup>')} − ${I('e<sup>x</sup>')} + ${I('C')}`,null,true)];
+const loopQ=`∮<sub style="font-size:.55em">|${I('z')}−${I('i')}|=1</sub> ${F(1,I('z')+'² + 1')} d${I('z')}`;
+const loop=[
+ node(1,'','The circle','Center i, radius 1, run counterclockwise.',`|${I('z')} − ${I('i')}| = 1`),
+ node(2,'','Singularities','Where the denominator is 0.',`${I('z')} = −${I('i')},&nbsp; ${I('z')} = ${I('i')}`),
+ node(3,'','Inside the circle','Only poles inside count; −i is outside.',`${I('z')} = ${I('i')}`),
+ node(4,'','Residue at z = i','Simple pole: Res = lim (z − a) f(z) as z → a.',`Res(${I('z')} = ${I('i')}) = −${F(I('i'),2)}`),
+ node(5,'res','Residue theorem','∮ f dz = 2πi × the sum of the residues inside.',`${loopQ} = 2π${I('i')} · (−${F(I('i'),2)}) = π`,null,true)];
+function sheet(theme,q,meth,steps,shown,total,cap,top){return `<div><div class="phone ${theme}"><div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div><div style="height:800px;background:var(--bg)"></div><div class="scrim2"></div>
+<div class="sheet2" style="top:${top}px;display:flex;flex-direction:column;padding:10px 0 0"><div class="handle"></div><div style="padding:0 20px"><div class="shd"><h3>Steps</h3><span class="beta" style="margin:0">BETA</span><span class="meth">${meth}</span></div><div class="qbox">${q}</div></div>
+<div style="flex:1;overflow:hidden;padding:16px 20px 0">${steps.slice(0,shown).join('')}${shown>=total?'<div class="note2"><span>Steps are in beta and may skip some algebra.</span><span class="tbtn" style="flex:none">Report</span></div>':''}</div>
+<div class="ctl">${shown<total?`<span class="n">${shown} of ${total}</span><span class="tbtn">Show all</span><div class="nxt">⏭ Next step</div>`:`<span style="color:var(--pri)">✓✓</span><span class="n">All ${total} steps</span>`}</div></div></div><div class="cap">${cap}</div></div>`}
+const settings=`<div><div class="phone light"><div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div><div class="bar">‹&nbsp; Settings</div>
+<div style="padding:8px 20px"><div style="font:600 14px GSF;color:var(--pri);margin:6px 0">Calculator</div>
+<div class="setrow"><div class="t"><b>Live answer</b><p>The result under what you're typing</p></div><div class="sw2"></div></div>
+<div class="setrow"><div class="t"><b>Continue from the answer</b><p>An operator after = starts with Ans</p></div><div class="sw2 off"></div></div>
+<div class="setrow"><div class="t"><b>Explanations on long-press</b><p>Formula, theory and how to use each key</p></div><div class="sw2"></div></div>
+<div class="setrow"><div class="t"><b>Show steps</b><span class="beta">BETA</span><p>Worked steps for integrals and ∮ loop integrals: Steps on a history card. Still in beta, so steps may skip some algebra</p></div><div class="sw2"></div></div></div>
+<div style="height:60px"></div><div style="font:600 14px GSF;color:var(--onv);padding:0 20px 8px">In the history:</div>
+<div class="hc2"><div style="font:19px CMR;color:var(--onv)">${intx(I('xe<sup>x</sup>'))}</div><div style="font:27px CMR;text-align:right;margin-top:6px"><span style="color:var(--pri);margin-right:12px">=</span>${I('xe<sup>x</sup>')} − ${I('e<sup>x</sup>')}</div>
+<div style="display:flex;justify-content:flex-end;gap:7px;margin-top:10px;flex-wrap:wrap"><span class="b2">⟋ Graph</span><span class="b2 t">☰ Steps</span><span class="b2">↵ Use</span><span class="b2">⧉ Copy</span><span class="b2">⇪</span></div></div></div>
+<div class="cap">The toggle (marked Beta), and the Steps button it adds to a history card.</div></div>`;
+document.getElementById('phones').innerHTML=settings+sheet('dark',intx(I('xe<sup>x</sup>')),'Integration by parts',parts,1,3,'Phone: one step at a time with Next step.',96)+sheet('dark',intx(I('xe<sup>x</sup>')),'Integration by parts',parts,3,3,'…all three: the check and the answer close it.',96)+sheet('light',loopQ,'Residue theorem',loop,5,5,'A loop integral by residues (light theme).',60);
+document.getElementById('t').innerHTML=`<div class="status" style="padding:0 34px"><span>12:30</span><span>▾ ◢ ▮</span></div><div style="position:absolute;inset:40px 0 0;background:var(--bg)"></div><div class="scrim2"></div>
+<div class="dlg2" style="left:140px;top:40px;width:1000px;height:740px"><div style="width:340px;background:var(--c2);padding:24px;overflow:hidden">
+<div class="shd"><h3>Steps</h3><span class="beta" style="margin:0">BETA</span><span class="meth">Residue theorem</span></div><div class="qbox" style="margin-top:16px">${loopQ}</div>
+<div style="margin-top:12px;background:var(--pc);color:var(--onpc);border-radius:20px;padding:16px"><div style="font:600 13px GSF">Answer</div><div style="font:20px CMR;margin-top:6px">${loopQ} = π</div></div>
+<div style="font:600 14px GSF;color:var(--pri);margin:20px 0 8px">Outline</div>
+${['The circle','Singularities','Inside the circle','Residue at z = i','Residue theorem'].map((t,k)=>`<div class="ol ${k>3?'dim':''}"><i>${k+1}</i>${t}</div>`).join('')}</div>
+<div style="flex:1;display:flex;flex-direction:column"><div style="display:flex;align-items:center;padding:16px 12px 0 28px"><span style="flex:1;font:500 22px GSF">Steps</span><span style="font-size:20px;color:var(--onv);padding:10px">✕</span></div>
+<div style="flex:1;overflow:hidden;padding:12px 28px 0">${loop.slice(0,4).join('')}</div>
+<div class="ctl" style="padding:16px 28px"><span class="n">4 of 5</span><span class="tbtn">Show all</span><div class="nxt">⏭ Next step</div></div></div></div>`;
+document.title='ready';
+</script></body></html>
