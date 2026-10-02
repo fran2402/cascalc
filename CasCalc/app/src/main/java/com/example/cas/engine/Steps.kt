@@ -232,7 +232,7 @@ object Steps {
 
     /** The steps to ∫ [e] d[x], following the integrator's methods; null if it can't follow them. */
     private fun trace(e: Expr, x: Sym, depth: Int): Traced? {
-        if (depth > 5) return blackBox(e, x, depth)
+        if (depth > 9) return blackBox(e, x, depth)
         if (e.freeOf(x)) return Traced(mul(e, x), listOf(Step("Constant", "The integral of a constant c is c·${x.name}.", eq(int(e, x), mul(e, x)))))
         if (e is Add) {
             val parts = e.terms.map { trace(it, x, depth + 1) ?: return null }
@@ -249,9 +249,10 @@ object Steps {
             }
         }
         standard(e, x)?.let { return it }
-        if (depth < 5) {
+        if (depth < 9) {
             runCatching { quadraticPiece(e, x, depth) }.getOrNull()?.let { return it }
             runCatching { partsTwice(e, x) }.getOrNull()?.let { return it }
+            runCatching { quarticFull(e, x) }.getOrNull()?.let { return it }
         }
         partialFractions(e, x, depth)?.let { return it }
         runCatching { gaussianSteps(e, x) }.getOrNull()?.let { return it }
@@ -262,7 +263,7 @@ object Steps {
         byParts(e, x, depth)?.let { return it }
         substitution(e, x, depth)?.let { return it }
         multiplyOut(e, x, depth)?.let { return it }
-        if (depth < 5) {
+        if (depth < 9) {
             runCatching { inverseByParts(e, x, depth) }.getOrNull()?.let { return it }
             runCatching { gaussianSteps(e, x) }.getOrNull()?.let { return it }
             runCatching { trigRewrite(e, x, depth) }.getOrNull()?.let { return it }
@@ -284,7 +285,7 @@ object Steps {
     private fun blackBox(e: Expr, x: Sym, depth: Int = 0): Traced? {
         val found = runCatching { com.example.cas.cas.Integrals.identify(e, x) }.getOrNull()
         // A substitution, carried out step by step when it can be.
-        if (found != null && depth < 4) runCatching { substitutionFor(found.first, e, x) }.getOrNull()?.let { sub ->
+        if (found != null && depth < 8) runCatching { substitutionFor(found.first, e, x) }.getOrNull()?.let { sub ->
             runCatching { substitutionSteps(e, x, sub, depth) }.getOrNull()?.let { return it }
         }
         val f = found?.second ?: Calculus.integrate(e, x) ?: return null
@@ -310,29 +311,71 @@ object Steps {
         if (qd.degree != 2 || qn.degree > 1) return null
         val lead = qd.lead
         val pq = qd.scale(lead.reciprocal())
-        val pp = pq[1]; val qq = pq[0]
-        val disc = qq - pp * pp / com.example.cas.math.Rational.of(4)
-        if (disc.signum <= 0) return null
-        val bq = qn[1] / lead; val cq = qn[0] / lead
-        val quad = pq.toExpr(x)
-        val logCoef = Num(bq / com.example.cas.math.Rational.of(2))
-        val atanCoef = Num(cq - bq * pp / com.example.cas.math.Rational.of(2))
-        val h = Num(pp / com.example.cas.math.Rational.of(2))
-        val k = Num(disc)
-        val rk = Algebra.simplify(com.example.cas.cas.sqrt(k))
-        val logPart = mul(logCoef, f1("ln", quad))
-        val atanPart = mul(atanCoef, div(one, rk), f1("atan", div(add(x, h), rk)))
-        val result = add(logPart, atanPart)
-        val steps = ArrayList<Step>()
-        if (bq.signum != 0) steps += Step("Split the numerator", "Write the top as a multiple of the bottom's derivative (2${x.name} + ${Printer.plain(Num(pp))}) plus a constant.",
-            eq(ex(e), line(paren(logCoef), MathRow(mutableListOf(com.example.cas.editor.Frac(ex(add(mul(two, x), Num(pp))), ex(quad)))), "+", paren(atanCoef), MathRow(mutableListOf(com.example.cas.editor.Frac(MathRow(mutableListOf(sym("1"))), ex(quad)))))))
-        if (bq.signum != 0) steps += Step("Logarithm part", "The top is the derivative of the bottom: ∫ u′/u = ln u.", eq(int(div(add(mul(two, x), Num(pp)), quad), x), f1("ln", quad)))
-        if (atanCoef != ZERO) {
-            steps += Step("Complete the square", "${Printer.plain(quad)} = (${x.name} + ${Printer.plain(h)})² + ${Printer.plain(k)}.", eq(ex(quad), line("(", add(x, h), ")", com.example.cas.editor.Pow(MathRow(mutableListOf(sym("2")))), "+", k)))
-            steps += Step("Arctangent", "∫ 1/(u² + a²) du = (1/a) atan(u/a), with u = ${x.name} + ${Printer.plain(h)}, a = ${Printer.plain(rk)}.", eq(int(div(one, quad), x), mul(div(one, rk), f1("atan", div(add(x, h), rk)))))
-        }
+        if (pq[0] - pq[1] * pq[1] / com.example.cas.math.Rational.of(4) <= com.example.cas.math.Rational.ZERO) return null
+        val (result, steps) = quadParts(Num(qn[1] / lead), Num(qn[0] / lead), Num(pq[1]), Num(pq[0]), x)
         if (!agrees(Algebra.simplify(Calculus.diff(result, x)), e, x)) return null
         return Traced(result, listOf(Step("Quadratic denominator", "It doesn't factor over the reals, so integrate it as a logarithm plus an arctangent.", eq(int(e, x), result), substeps = steps)))
+    }
+
+    /** ∫ (Bx + C)/(x² + px + q) dx with any (exact) coefficients: B/2 · ln Q, and the rest by completing the square. */
+    private fun quadParts(bC: Expr, cC: Expr, pE: Expr, qE: Expr, x: Sym): Pair<Expr, List<Step>> {
+        val quad = add(p(x, two), mul(pE, x), qE)
+        val h = Algebra.simplify(div(pE, two))
+        val k = Algebra.simplify(sub(qE, div(mul(pE, pE), Num(4))))
+        val rk = Algebra.simplify(com.example.cas.cas.sqrt(k))
+        val logCoef = Algebra.simplify(div(bC, two))
+        val atanCoef = Algebra.simplify(sub(cC, div(mul(bC, pE), two)))
+        val logPart = mul(logCoef, f1("ln", quad))
+        val atanPart = mul(atanCoef, div(one, rk), f1("atan", div(add(x, h), rk)))
+        val steps = ArrayList<Step>()
+        val deriv = add(mul(two, x), pE)
+        if (bC != ZERO) {
+            steps += Step("Split the numerator", "Write the top as a multiple of the bottom's derivative (${Printer.plain(deriv).replace("-", "−")}) plus a constant.",
+                eq(ex(div(add(mul(bC, x), cC), quad)), line(paren(logCoef), MathRow(mutableListOf(com.example.cas.editor.Frac(ex(deriv), ex(quad)))), "+", paren(atanCoef), MathRow(mutableListOf(com.example.cas.editor.Frac(MathRow(mutableListOf(sym("1"))), ex(quad)))))))
+            steps += Step("Logarithm part", "The top is the derivative of the bottom: ∫ u′/u = ln u.", eq(int(div(deriv, quad), x), f1("ln", quad)))
+        }
+        if (atanCoef != ZERO) {
+            steps += Step("Complete the square", null, eq(ex(quad), line("(", add(x, h), ")", com.example.cas.editor.Pow(MathRow(mutableListOf(sym("2")))), "+", paren(k))))
+            steps += Step("Arctangent", "∫ 1/(u² + a²) du = (1/a) atan(u/a), with u = ${Printer.plain(add(x, h)).replace("-", "−")}, a = ${Printer.plain(rk)}.", eq(int(div(one, quad), x), mul(div(one, rk), f1("atan", div(add(x, h), rk)))))
+        }
+        return add(logPart, atanPart) to steps
+    }
+
+    /** N/(x⁴ + px² + q): factor into two real quadratics, solve for the partial fractions, then each piece. */
+    private fun quarticFull(e: Expr, x: Sym): Traced? {
+        val (n, d) = Algebra.together(e)
+        val qd = Algebra.qpoly(d, x) ?: return null; val qn = Algebra.qpoly(n, x) ?: return null
+        if (qd.degree != 4 || qn.degree > 3) return null
+        val m = qd.scale(qd.lead.reciprocal())
+        if (m[1].signum != 0 || m[3].signum != 0) return null
+        // Already splits over the rationals: ordinary partial fractions do it.
+        if (Algebra.rationalRoots(m).isNotEmpty()) return null
+        val pp = Num(m[2]); val qq = Num(m[0])
+        if (m[0].signum <= 0) return null
+        val r = Algebra.simplify(com.example.cas.cas.sqrt(qq))
+        val two2r = Algebra.simplify(sub(mul(two, r), pp))
+        if (Numeric.real(two2r) <= 0) return null
+        val sv = Algebra.simplify(com.example.cas.cas.sqrt(two2r))
+        val c = (0..3).map { Num(qn[it] / qd.lead) }
+        // (Ax + B)(x² − sx + r) + (Cx + D)(x² + sx + r) = N, matched power by power.
+        val n0r = div(c[0], r)
+        val cMinusA = Algebra.simplify(div(sub(c[2], n0r), sv))
+        val dMinusB = Algebra.simplify(div(sub(c[1], mul(r, c[3])), sv))
+        val A = Algebra.simplify(div(sub(c[3], cMinusA), two)); val C = Algebra.simplify(div(add(c[3], cMinusA), two))
+        val B = Algebra.simplify(div(sub(n0r, dMinusB), two)); val D = Algebra.simplify(div(add(n0r, dMinusB), two))
+        val q1 = add(p(x, two), mul(sv, x), r); val q2 = add(p(x, two), neg(mul(sv, x)), r)
+        val (r1, s1) = quadParts(A, B, sv, r, x)
+        val (r2, s2) = quadParts(C, D, neg(sv), r, x)
+        val result = add(r1, r2)
+        if (!agrees(Algebra.simplify(Calculus.diff(result, x)), e, x)) return null
+        val pieces = line(MathRow(mutableListOf(com.example.cas.editor.Frac(ex(add(mul(A, x), B)), ex(q1)))), "+", MathRow(mutableListOf(com.example.cas.editor.Frac(ex(add(mul(C, x), D)), ex(q2)))))
+        val steps = listOf(
+            Step("Factor the quartic", "x⁴ + px² + q = (x² + r)² − (2r − p)x², a difference of squares: r = √q = ${Printer.plain(r)}, s = √(2r − p) = ${Printer.plain(sv)}.", eq(ex(m.toExpr(x)), line("(", q1, ")", "(", q2, ")"))),
+            Step("Partial fractions", "Write it as (Ax + B)/(first) + (Cx + D)/(second) and match the powers of ${x.name}: A + C, B + D, s(C − A) + B + D and r(A + C) + s(D − B) give the coefficients.", eq(ex(e), pieces)),
+            Step("First piece", null, eq(int(div(add(mul(A, x), B), q1), x), r1), substeps = s1),
+            Step("Second piece", null, eq(int(div(add(mul(C, x), D), q2), x), r2), substeps = s2),
+        )
+        return Traced(result, listOf(Step("Quartic denominator", "It has no real roots, but it splits into two real quadratics.", eq(int(e, x), result), substeps = steps)))
     }
 
     /** e^(ax) sin(bx) or cos(bx): by parts twice, then solve for the integral that comes back. */
@@ -353,7 +396,10 @@ object Steps {
         val steps = listOf(
             Step("By parts", "u = ${tr.name}(${Printer.plain(tr.args[0])}), dv = ${Printer.plain(ex0)} d${x.name}.", first),
             Step("By parts again", "Now u = $other(${Printer.plain(tr.args[0])}): the original integral I comes back.", second),
-            Step("Solve for I", "Put the second line into the first and move the I terms together: I·(a² + b²)/a² = …, with a² + b² = ${Printer.plain(norm)}.", line(i, "=", f)),
+            Step("Substitute back", "Put the second line into the first.", line(i, "=", mul(div(one, a), e), sign, paren(div(b, a)), "[", mul(div(one, a), eOther), if (tr.name == "sin") "+" else "−", paren(div(b, a)), i, "]")),
+            Step("Collect the I terms", "Move ${Printer.plain(Algebra.simplify(div(mul(b, b), mul(a, a))))}·I to the left: I(1 + b²/a²) = I(a² + b²)/a², with a² + b² = ${Printer.plain(norm)}.",
+                line(paren(Algebra.simplify(div(norm, mul(a, a)))), i, "=", Algebra.simplify(add(mul(div(one, a), e), mul(if (tr.name == "sin") neg(div(b, mul(a, a))) else div(b, mul(a, a)), eOther))))),
+            Step("Solve for I", "Divide by ${Printer.plain(Algebra.simplify(div(norm, mul(a, a))))}.", line(i, "=", f)),
         )
         return Traced(f, listOf(Step("By parts twice", "Call the integral I; integrating by parts twice brings I back, so it can be solved for.", eq(int(e, x), f), substeps = steps)))
     }
@@ -854,7 +900,12 @@ object Steps {
         val split = runCatching { Algebra.apart(e, x) }.getOrNull() ?: return null
         if (split !is Add || same(split, e)) return null
         val inner = trace(split, x, depth + 1) ?: return null
-        return Traced(inner.result, listOf(Step("Partial fractions", "Split the fraction into simpler ones.", eq(ex(e), ex(split)))) + inner.steps)
+        val divide = Algebra.qpoly(n, x)!!.degree >= Algebra.qpoly(d, x)!!.degree
+        return Traced(inner.result, listOf(Step(
+            if (divide) "Divide, then split" else "Partial fractions",
+            if (divide) "The top's degree isn't below the bottom's: divide first (polynomial long division), then split what's left into simpler fractions." else "Split the fraction into simpler ones.",
+            eq(ex(e), ex(split)),
+        )) + inner.steps)
     }
 
     /** By parts, as the integrator: u a polynomial with eˣ, sin, cos…; or u = ln, atan, asin. */
@@ -1024,7 +1075,7 @@ object Steps {
     private fun dtrace(e: Expr, x: Sym, depth: Int): Traced {
         val result = Calculus.diff(e, x)
         fun leaf(title: String, text: String) = Traced(result, listOf(Step(title, text, eq(d(e, x), result))))
-        if (depth > 4) return leaf("Differentiate", "Rule by rule, as above.")
+        if (depth > 8) return leaf("Differentiate", "Rule by rule, as above.")
         if (e.freeOf(x)) return leaf("Constant rule", "The derivative of a constant is 0.")
         if (e == x) return leaf("Power rule", "d/d${x.name} ${x.name} = 1.")
         if (e is Add) {
@@ -1069,7 +1120,17 @@ object Steps {
                 val rule = if (b == E) "(eᵘ)′ = eᵘ · u′" else "(aᵘ)′ = aᵘ ln a · u′"
                 return if (k == x) leaf("Exponential", rule.replace(" · u′", "").replace("u", x.name)) else chain("Exponential", rule, e, k, x, depth, result)
             }
-            return leaf("Logarithmic differentiation", "For f^g write e^(g ln f): (f^g)′ = f^g (g′ ln f + g f′/f).")
+            val y = sym("y")
+            val lnRhs = mul(k, f1("ln", b))
+            val dln = Algebra.simplify(Calculus.diff(lnRhs, x))
+            return Traced(result, listOf(Step(
+                "Logarithmic differentiation", "A variable to a variable power: take logarithms first.", eq(d(e, x), result),
+                substeps = listOf(
+                    Step("Take logarithms", "y = ${Printer.plain(e)}, so ln y = ${Printer.plain(k)} · ln(${Printer.plain(b)}).", line("ln", " ", y, "=", lnRhs)),
+                    Step("Differentiate both sides", "The left side by the chain rule: (ln y)′ = y′/y.", line(MathRow(mutableListOf(com.example.cas.editor.Frac(MathRow(mutableListOf(sym("y"), sym("′"))), MathRow(mutableListOf(sym("y")))))), "=", dln)),
+                    Step("Multiply by y", "y′ = y · (the right side).", line(sym("y"), "′", "=", paren(e), "·", paren(dln))),
+                ),
+            )))
         }
         if (e is Fn && e.args.size == 1 && e.name in DTABLE) {
             val u = e.args[0]
@@ -1213,8 +1274,9 @@ object Steps {
         // Infinite series of known kinds.
         if (Calculus.isPlusInfinity(hi)) {
             geometric(body, k)?.let { r ->
-                steps += Step("Geometric series", "Each term is the last times r = ${Printer.plain(r)}.", ex(r))
-                steps += Step("Converges", "|r| < 1, so Σ a rᵏ = (first term)/(1 − r).", null, Kind.Check)
+                val first = Algebra.simplify(body.subst(k, lo))
+                steps += Step("Geometric series", "Each term is the last times r = ${Printer.plain(r)}; the first term is a = ${Printer.plain(first)}.", line("a", "=", first, ",", "  ", "r", "=", r))
+                steps += Step("Converges", "|r| < 1, so the sum is a/(1 − r).", line(MathRow(mutableListOf(com.example.cas.editor.Frac(ex(first), ex(sub(com.example.cas.cas.ONE, r))))), "=", value), Kind.Check)
                 steps += Step("Answer", null, answer, Kind.Result)
                 return Solution("Geometric series", steps, answer)
             }
@@ -1239,7 +1301,12 @@ object Steps {
             steps += Step("Linearity", "Split the sum and take constants out.",
                 line(sigma(body, k, lo, hi), "=", *pieces.flatMapIndexed { j, (p, c, _) -> (if (j > 0) listOf<Any>("+") else emptyList()) + listOf<Any>(paren(c), sigma(com.example.cas.cas.pow(k, p.toLong()), k, lo, hi)) }.toTypedArray()))
             if (lo != com.example.cas.cas.ONE) steps += Step("Shift", "The formulas below start at ${k.name} = 1: subtract the terms before ${Printer.plain(lo)}.", null, Kind.Note)
-            pieces.forEach { (p, _, formula) -> steps += Step("Sum of ${if (p == 0) "a constant" else k.name + if (p > 1) "^$p" else ""}", formula, null) }
+            pieces.forEach { (p, c, formula) ->
+                val term = com.example.cas.cas.pow(k, p.toLong())
+                val v = runCatching { Algebra.simplify(Calculus.sum(term, k, lo, hi, false)) }.getOrNull()
+                steps += Step("Sum of ${if (p == 0) "a constant" else k.name + if (p > 1) "^$p" else ""}", formula + if (lo != com.example.cas.cas.ONE) " (shifted to start at ${Printer.plain(lo)})." else ".",
+                    v?.let { line(paren(c), sigma(term, k, lo, hi), "=", paren(c), paren(it)) })
+            }
             steps += Step("Simplify", "Put the pieces together and factor.", answer, Kind.Result)
             return Solution("Power sums", steps, answer)
         }
@@ -1398,7 +1465,7 @@ object Steps {
 
     private fun determinant(n: Func, angle: AngleUnit): Solution? {
         val mat = Evaluator(angle).evaluate(n.args.firstOrNull() ?: return null) as? com.example.cas.cas.Mat ?: return null
-        if (mat.rows != mat.cols || mat.rows !in 2..3) return null
+        if (mat.rows != mat.cols || mat.rows !in 2..4) return null
         val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
         val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
         val answer = line(question, "=", value)
@@ -1409,14 +1476,17 @@ object Steps {
             steps += Step("Answer", null, answer, Kind.Result)
             return Solution("ad − bc", steps, answer)
         }
-        val minors = (0 until 3).map { j ->
+        val size = mat.rows
+        val minors = (0 until size).map { j ->
             val cells = ArrayList<Expr>()
-            for (r in 1 until 3) for (k in 0 until 3) if (k != j) cells += c[r * 3 + k]
-            val d = Algebra.simplify(sub(mul(cells[0], cells[3]), mul(cells[1], cells[2])))
-            Step("Minor of ${Printer.plain(c[j])}", "Cross out row 1 and column ${j + 1}; its 2 × 2 determinant.", line(ex(com.example.cas.cas.Mat(2, 2, cells)), "→", d)) to d
+            for (r in 1 until size) for (k in 0 until size) if (k != j) cells += c[r * size + k]
+            val minor = com.example.cas.cas.Mat(size - 1, size - 1, cells)
+            val d = Algebra.simplify(com.example.cas.cas.Matrices.det(minor))
+            Step("Minor of ${Printer.plain(c[j])}", "Cross out row 1 and column ${j + 1}; its ${size - 1} × ${size - 1} determinant${if (size == 4) ", by the same expansion" else ""}.", line(ex(minor), "→", d)) to d
         }
-        steps += Step("Cofactor expansion", "Along the first row, with signs + − +.",
-            line(paren(c[0]), "·", paren(minors[0].second), "−", paren(c[1]), "·", paren(minors[1].second), "+", paren(c[2]), "·", paren(minors[2].second)),
+        val signs = (0 until size).map { if (it % 2 == 0) "+" else "−" }
+        steps += Step("Cofactor expansion", "Along the first row, with signs ${signs.joinToString(" ")}.",
+            line(*minors.flatMapIndexed { j, (_, d) -> (if (j == 0) emptyList() else listOf<Any>(signs[j])) + listOf<Any>(paren(c[j]), "·", paren(d)) }.toTypedArray()),
             substeps = minors.map { it.first })
         steps += Step("Answer", null, answer, Kind.Result)
         return Solution("Cofactor expansion", steps, answer)
@@ -1447,6 +1517,39 @@ object Steps {
             steps += Step("Euler's formula", "e^(iθ) = cos θ + i sin θ, and eˣ⁺ⁱʸ = eˣ (cos y + i sin y).", null)
             steps += Step("Exact values", "Use the exact cosine and sine of the angle, then collect real and imaginary parts.", answer, Kind.Result)
             return Solution("Euler's formula", steps, answer)
+        }
+        // The parts as typed (before a + bi), for writing the products and powers out.
+        val raw = runCatching { Evaluator(angle).also { it.autoSimplify = false }.evaluate(com.example.cas.editor.MathCodec.copy(row)) }.getOrNull()
+        val ii = com.example.cas.cas.I
+        fun z(a: Expr, b: Expr) = add(a, mul(b, ii))
+        if (raw is Mul && raw.factors.size == 2) {
+            val p1 = com.example.cas.cas.ComplexArith.split(raw.factors[0]); val p2 = com.example.cas.cas.ComplexArith.split(raw.factors[1])
+            if (p1 != null && p2 != null) {
+                val (a, b) = p1; val (c, d) = p2
+                steps += Step("Multiply out", "Each part of the first times each part of the second (FOIL).",
+                    line(paren(mul(a, c)), "+", paren(mul(a, d)), "i", "+", paren(mul(b, c)), "i", "+", paren(mul(b, d)), "i", com.example.cas.editor.Pow(MathRow(mutableListOf(sym("2"))))))
+                steps += Step("Use i² = −1", "So the last term changes sign and joins the real part.", ex(z(Algebra.simplify(sub(mul(a, c), mul(b, d))), Algebra.simplify(add(mul(a, d), mul(b, c))))))
+                steps += Step("Answer", null, answer, Kind.Result)
+                return Solution("Complex multiplication", steps, answer)
+            }
+        }
+        if (raw is Pow && raw.exp is Num && (raw.exp as Num).q.isInteger && (raw.exp as Num).q.num.toInt() in 2..16) {
+            val base = com.example.cas.cas.ComplexArith.split(raw.base)
+            if (base != null) {
+                val n = (raw.exp as Num).q.num.toInt()
+                val (a, b) = base
+                steps += Step("Square", "(a + bi)² = a² − b² + 2abi, as i² = −1.", line("(", z(a, b), ")", com.example.cas.editor.Pow(MathRow(mutableListOf(sym("2")))), "=", com.example.cas.cas.ComplexArith.normalize(com.example.cas.cas.pow(z(a, b), two))))
+                // Higher powers by squaring again (and one more factor for odd steps).
+                var k = 2
+                var current = com.example.cas.cas.ComplexArith.normalize(com.example.cas.cas.pow(z(a, b), two))
+                while (k * 2 <= n) {
+                    current = com.example.cas.cas.ComplexArith.normalize(com.example.cas.cas.pow(current, two)); k *= 2
+                    steps += Step("Square again", "The ${k}th power is the square of the ${k / 2}th.", line("z", com.example.cas.editor.Pow(MathRow(mutableListOf(sym("$k")))), "=", current))
+                }
+                if (k < n) steps += Step("Remaining factors", "Multiply by z for the ${n - k} power${if (n - k > 1) "s" else ""} left.", answer)
+                steps += Step("Answer", null, answer, Kind.Result)
+                return Solution("Complex powers", steps, answer)
+            }
         }
         steps += Step("Multiply out", "Expand the products and powers like ordinary algebra.", null)
         steps += Step("Use i² = −1", "Every i² becomes −1 (and i³ = −i, i⁴ = 1).", null)

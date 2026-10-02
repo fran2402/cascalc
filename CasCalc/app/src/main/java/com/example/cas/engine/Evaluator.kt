@@ -98,7 +98,9 @@ class Evaluator(
         }
         // Constants with i in them come out as a + bi: (1 + 2i)(3 − i) = 5 + 5i; anything with letters
         // in its simplest form: (x² − 1)/(x − 1) = x + 1.
-        val value = com.example.cas.cas.ComplexArith.normalize(RowParser(items, emptyMap()).parse())
+        val parsed = RowParser(items, emptyMap()).parse()
+        // (With automatic simplification off, for the steps, complex numbers stay as typed too.)
+        val value = if (autoSimplify) com.example.cas.cas.ComplexArith.normalize(parsed) else parsed
         return if (autoSimplify && !asksForAForm(items)) com.example.cas.cas.AutoSimplify.simplify(value) else value
     }
 

@@ -197,7 +197,7 @@ class EvenMoreStepsTest {
         assertEquals("Complex division", s.method)
         assertTrue(text(s.answer).endsWith("=1+i"))
     }
-    @Test fun complexProduct() = assertEquals("Complex arithmetic", of(m("(1+2i)(3−i)")).method)
+    @Test fun complexProduct() = assertEquals("Complex multiplication", of(m("(1+2i)(3−i)")).method)
     @Test fun euler() = assertEquals("Euler's formula", of(m("e", Pow(m("iπ")), "+1")).method)
     @Test fun notForPlainArithmetic() = assertFalse(Steps.supports(m("2+3")))
     @Test fun notForVariables() = assertFalse(Steps.supports(m("(x+i)", Pow(m("2")))))
@@ -289,4 +289,55 @@ class RemainingMethodsTest {
     @Test fun inverseParts() = assertTrue(titles(of(integral(m("x", fn("atan", m("x")))))).any { it.contains("parts") })
     @Test fun hyperbolicForm() = assertTrue(titles(of(integral(m("x", fn("sinh", m("x")))))).isNotEmpty())
     @Test fun quarticDenominator() = assertTrue(titles(of(integral(m(Frac(m("1"), m("x", Pow(m("4")), "+1")))))).isNotEmpty())
+}
+
+class FullStepsTest {
+    private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
+    private fun fn(name: String, vararg a: MathRow) = Func(name, a.toList())
+    private fun integral(body: MathRow) = m(Integral(m(""), m(""), body, m("x")))
+    private fun deep(ss: List<Steps.Step>, pre: String): List<String> = ss.flatMap { listOf(pre + it.title) + deep(it.substeps, "  ") }
+    private fun titles(s: Steps.Solution) = deep(s.steps, "").also { println(it) }
+
+    @Test fun quarticWrittenOut() {
+        val t = titles(Steps.of(integral(m(Frac(m("1"), m("x", Pow(m("4")), "+1")))))!!)
+        assertTrue(t.contains("  First piece") && t.contains("  Second piece"))
+    }
+    @Test fun atanByPartsHasNoBlackBox() {
+        val t = titles(Steps.of(integral(m("x", fn("atan", m("x")))))!!)
+        assertFalse(t.any { it.contains("Rewrite and integrate") })
+    }
+    @Test fun solveForIWrittenOut() {
+        val t = titles(Steps.of(integral(m("e", Pow(m("2x")), fn("cos", m("3x")))))!!)
+        assertTrue(t.any { it.contains("Collect the I terms") })
+    }
+    @Test fun logarithmicDifferentiation() {
+        val t = titles(Steps.of(m(com.example.cas.editor.Derivative(m("x"), m("x", Pow(m("x"))), m(""), m(""))))!!)
+        assertTrue(t.any { it.contains("Take logarithms") })
+    }
+    @Test fun divideFirst() {
+        val t = titles(Steps.of(integral(m(Frac(m("x", Pow(m("3"))), m("x", Pow(m("2")), "−1")))))!!)
+        assertTrue(t.any { it.contains("Divide, then split") })
+    }
+}
+
+class MoreFullStepsTest {
+    private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
+    private fun fn(name: String, vararg a: MathRow) = Func(name, a.toList())
+    private fun of(r: MathRow) = Steps.of(r)!!.also { s -> println(s.method + ": " + s.steps.map { st -> st.title + " | " + (st.math?.let { Formatter.plain(it) } ?: "") }) }
+
+    @Test fun complexProduct() = assertEquals("Complex multiplication", of(m("(1+2i)(3−i)")).method)
+    @Test fun complexPower() = assertEquals("Complex powers", of(m("(1+i)", Pow(m("8")))).method)
+    @Test fun det4() {
+        val cells = listOf("1", "0", "2", "1", "0", "1", "0", "3", "2", "0", "1", "0", "1", "1", "0", "1").map { m(it) }
+        val s = of(m(fn("det", m(com.example.cas.editor.Matrix(4, 4, cells)))))
+        assertEquals(4, s.steps[0].substeps.size)
+    }
+    @Test fun powerSumValues() {
+        val s = of(m(com.example.cas.editor.BigOp(com.example.cas.editor.BigOpKind.Sum, m("k"), m("1"), m("n"), m("2k+1"))))
+        assertTrue(s.steps.any { it.math != null && it.title.startsWith("Sum of") })
+    }
+    @Test fun geometricValues() {
+        val s = of(m(com.example.cas.editor.BigOp(com.example.cas.editor.BigOpKind.Sum, m("k"), m("0"), m("∞"), m(Frac(m("1"), m("3", Pow(m("k"))))))))
+        assertTrue(s.steps.first().math != null)
+    }
 }
