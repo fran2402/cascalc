@@ -341,3 +341,20 @@ class MoreFullStepsTest {
         assertTrue(s.steps.first().math != null)
     }
 }
+
+class LastStepsTest {
+    private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
+    private fun fn(name: String, vararg a: MathRow) = Func(name, a.toList())
+    private fun integral(body: MathRow) = m(Integral(m(""), m(""), body, m("x")))
+    private fun deep(ss: List<Steps.Step>, pre: String): List<String> = ss.flatMap { listOf(pre + it.title) + deep(it.substeps, "  ") }
+    private fun of(r: MathRow) = Steps.of(r)!!.also { s -> println(s.method + ": " + deep(s.steps, "")) }
+
+    @Test fun multipleAngles() = assertTrue(deep(of(integral(m(Frac(m(fn("sin", m("2x"))), m(fn("cos", m("x"))))))).steps, "").contains("Multiple angles"))
+    @Test fun oddComplexPower() = assertTrue(of(m("(1+i)", Pow(m("5")))).steps.any { it.title == "Times z" })
+    @Test fun det5() {
+        val cells = listOf("2", "1", "0", "0", "0", "1", "2", "1", "0", "0", "0", "1", "2", "1", "0", "0", "0", "1", "2", "1", "0", "0", "0", "1", "2").map { m(it) }
+        val s = of(m(fn("det", m(com.example.cas.editor.Matrix(5, 5, cells)))))
+        assertEquals("Row reduction", s.method)
+        assertTrue(Formatter.plain(s.answer).endsWith("=6"))
+    }
+}

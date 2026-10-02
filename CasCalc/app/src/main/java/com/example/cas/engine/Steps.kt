@@ -158,7 +158,9 @@ object Steps {
         if (name.length != 1) return null
         val x = Sym(name)
         val ev = { r: MathRow -> Evaluator(angle).evaluate(r) }
-        val body = ev(n.body)
+        // The integrand as typed (not simplified first), so any simplifying shows up as a step.
+        val body = runCatching { Evaluator(angle).also { it.autoSimplify = false }.evaluate(com.example.cas.editor.MathCodec.copy(n.body)) }.getOrNull()
+            ?.let { com.example.cas.cas.ComplexArith.normalize(it) } ?: ev(n.body)
         val definite = !n.lower.isEmpty || !n.upper.isEmpty
         val f = Calculus.antiderivative(body, x)
         val steps = ArrayList<Step>()
@@ -266,6 +268,7 @@ object Steps {
         if (depth < 9) {
             runCatching { inverseByParts(e, x, depth) }.getOrNull()?.let { return it }
             runCatching { gaussianSteps(e, x) }.getOrNull()?.let { return it }
+            runCatching { multipleAngles(e, x, depth) }.getOrNull()?.let { return it }
             runCatching { trigRewrite(e, x, depth) }.getOrNull()?.let { return it }
             runCatching { exponentialForm(e, x, depth) }.getOrNull()?.let { return it }
         }
@@ -446,6 +449,39 @@ object Steps {
         steps += Step("Substitute", "u = ${Printer.plain(uExpr)}, so d${x.name} = du/${Printer.plain(ra)}.", eq(int(e, x), line(paren(div(p(E, Num(k)), ra)), int(p(E, neg(p(Sym("u"), two))), Sym("u")))))
         steps += Step("Gaussian integral", "∫ e^(−u²) du = (√π/2) erf u: erf is defined by this integral.", eq(int(e, x), f))
         return Traced(f, listOf(Step("Complete the square", "A quadratic exponent: complete the square, then the Gaussian integral.", eq(int(e, x), f), substeps = steps)))
+    }
+
+    /** sin ku, cos ku (k = 2, 3) beside sin u or cos u: written in sin u and cos u, simplified, then integrated. */
+    private fun multipleAngles(e: Expr, x: Sym, depth: Int): Traced? {
+        val singles = HashSet<Expr>()
+        fun collect(z: Expr) { if (z is Fn && z.name in setOf("sin", "cos", "tan")) singles += z.args[0]; z.children.forEach { collect(it) } }
+        collect(e)
+        val hasSin = e.contains { it is Fn && it.name == "sin" }
+        var used = false
+        val r0 = replace(e, { z ->
+            z is Fn && z.name in setOf("sin", "cos") && z.args[0] is Mul && (z.args[0] as Mul).factors.first().let { it == two || it == Num(3) } &&
+                mul((z.args[0] as Mul).factors.drop(1)) in singles
+        }) { z ->
+            used = true
+            val f = z as Fn
+            val k = (f.args[0] as Mul).factors.first()
+            val u = mul((f.args[0] as Mul).factors.drop(1))
+            val su = f1("sin", u); val cu = f1("cos", u)
+            when {
+                f.name == "sin" && k == two -> mul(two, su, cu)
+                f.name == "cos" && k == two -> if (hasSin) sub(one, mul(two, p(su, two))) else sub(mul(two, p(cu, two)), one)
+                f.name == "sin" -> sub(mul(Num(3), su), mul(Num(4), p(su, Num(3))))
+                else -> sub(mul(Num(4), p(cu, Num(3))), mul(Num(3), cu))
+            }
+        }
+        if (!used) return null
+        val r = Algebra.simplify(r0)
+        if (same(r, e)) return null
+        val inner = trace(r, x, depth + 1) ?: return null
+        return Traced(inner.result, listOf(Step(
+            "Multiple angles", "sin 2u = 2 sin u cos u, cos 2u = 1 − 2 sin²u = 2 cos²u − 1, sin 3u = 3 sin u − 4 sin³u, cos 3u = 4 cos³u − 3 cos u; then simplify.",
+            eq(ex(e), ex(r)),
+        )) + inner.steps)
     }
 
     /** sin·cos products and even powers rewritten as single sines and cosines, then term by term. */
@@ -1465,7 +1501,8 @@ object Steps {
 
     private fun determinant(n: Func, angle: AngleUnit): Solution? {
         val mat = Evaluator(angle).evaluate(n.args.firstOrNull() ?: return null) as? com.example.cas.cas.Mat ?: return null
-        if (mat.rows != mat.cols || mat.rows !in 2..4) return null
+        if (mat.rows != mat.cols || mat.rows !in 2..8) return null
+        if (mat.rows >= 5) return rowReduction(n, mat, angle)
         val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
         val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
         val answer = line(question, "=", value)
@@ -1490,6 +1527,44 @@ object Steps {
             substeps = minors.map { it.first })
         steps += Step("Answer", null, answer, Kind.Result)
         return Solution("Cofactor expansion", steps, answer)
+    }
+
+    /** Larger determinants by row reduction: eliminate below each pivot, then multiply the diagonal. */
+    private fun rowReduction(n: Func, mat: com.example.cas.cas.Mat, angle: AngleUnit): Solution? {
+        val size = mat.rows
+        val a = Array(size) { r -> Array(size) { c -> mat.cells[r * size + c] } }
+        val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
+        val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
+        val answer = line(question, "=", value)
+        val steps = ArrayList<Step>()
+        var sign = 1
+        fun current() = com.example.cas.cas.Mat(size, size, a.flatMap { it.toList() })
+        for (col in 0 until size) {
+            // A nonzero pivot, swapping rows if needed (each swap flips the sign).
+            val pivotRow = (col until size).firstOrNull { r -> runCatching { Numeric.eval(a[r][col]).abs() > 1e-12 }.getOrDefault(a[r][col] != ZERO) }
+            if (pivotRow == null) {
+                steps += Step("Zero column", "Column ${col + 1} has no nonzero entry from the diagonal down, so the determinant is 0.", answer, Kind.Result)
+                return Solution("Row reduction", steps, answer)
+            }
+            if (pivotRow != col) {
+                val t = a[col]; a[col] = a[pivotRow]; a[pivotRow] = t
+                sign = -sign
+                steps += Step("Swap rows ${col + 1} and ${pivotRow + 1}", "A swap changes the determinant's sign.", ex(current()))
+            }
+            var changed = false
+            for (r in col + 1 until size) {
+                if (a[r][col] == ZERO) continue
+                val factor = Algebra.simplify(div(a[r][col], a[col][col]))
+                for (c in col until size) a[r][c] = Algebra.simplify(sub(a[r][c], mul(factor, a[col][c])))
+                changed = true
+            }
+            if (changed) steps += Step("Clear column ${col + 1}", "Subtract multiples of row ${col + 1} from the rows below (R ← R − m·R${col + 1}); this doesn't change the determinant.", ex(current()))
+        }
+        val diagonal = (0 until size).map { a[it][it] }
+        steps += Step("Multiply the diagonal", "The matrix is now triangular: its determinant is the product of the diagonal" + if (sign < 0) ", times −1 for the odd number of swaps." else ".",
+            line(*(if (sign < 0) listOf<Any>("−") else emptyList<Any>()).toTypedArray(), *diagonal.flatMapIndexed { k, d -> (if (k > 0) listOf<Any>("·") else emptyList()) + listOf<Any>(paren(d)) }.toTypedArray(), "=", value))
+        steps += Step("Answer", null, answer, Kind.Result)
+        return Solution("Row reduction", steps, answer)
     }
 
     // ---- Complex arithmetic -----------------------------------------------------------------------------
@@ -1546,7 +1621,17 @@ object Steps {
                     current = com.example.cas.cas.ComplexArith.normalize(com.example.cas.cas.pow(current, two)); k *= 2
                     steps += Step("Square again", "The ${k}th power is the square of the ${k / 2}th.", line("z", com.example.cas.editor.Pow(MathRow(mutableListOf(sym("$k")))), "=", current))
                 }
-                if (k < n) steps += Step("Remaining factors", "Multiply by z for the ${n - k} power${if (n - k > 1) "s" else ""} left.", answer)
+                // The powers left over, one factor of z at a time.
+                val zz = z(a, b)
+                while (k < n) {
+                    val (c, d) = com.example.cas.cas.ComplexArith.split(current) ?: break
+                    val next = com.example.cas.cas.ComplexArith.normalize(mul(current, zz))
+                    k++
+                    steps += Step("Times z", "z^$k = z^${k - 1} · z: multiply out (FOIL), then i² = −1.",
+                        line("(", z(c, d), ")", "(", zz, ")", "=", paren(mul(c, a)), "+", paren(mul(c, b)), "i", "+", paren(mul(d, a)), "i", "+", paren(mul(d, b)), "i",
+                            com.example.cas.editor.Pow(MathRow(mutableListOf(sym("2")))), "=", next))
+                    current = next
+                }
                 steps += Step("Answer", null, answer, Kind.Result)
                 return Solution("Complex powers", steps, answer)
             }
