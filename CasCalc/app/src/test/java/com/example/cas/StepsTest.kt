@@ -155,3 +155,56 @@ class MoreStepsTest {
 
     @Test fun geometric() = assertEquals("Geometric series", Steps.of(sum(m(Frac(m("1"), m("2", Pow(m("k"))))), "0", "∞"))!!.method)
 }
+
+class EvenMoreStepsTest {
+    private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
+    private fun fn(name: String, vararg a: MathRow) = Func(name, a.toList())
+    private fun prod(body: MathRow, lo: String, hi: String) = m(com.example.cas.editor.BigOp(com.example.cas.editor.BigOpKind.Product, m("k"), m(lo), m(hi), body))
+    private fun text(r: MathRow) = Formatter.plain(r)
+    private fun of(r: MathRow) = Steps.of(r)!!.also { println(it.method + ": " + it.steps.map { s -> s.title } + " → " + text(it.answer)) }
+
+    @Test fun productWrittenOut() = assertEquals("Multiplying the factors", of(prod(m("k+1"), "1", "4")).method)
+    @Test fun factorial() = assertEquals("Factorial", of(prod(m("k"), "1", "n")).method)
+    @Test fun constantFactor() = assertEquals("Powers", of(prod(m("3"), "1", "n")).method)
+    @Test fun telescoping() = assertEquals("Telescoping product", of(prod(m(Frac(m("k+1"), m("k"))), "1", "n")).method)
+
+    @Test fun simplePoleResidue() {
+        val s = of(m(fn("residue", m(Frac(m("1"), m("z", Pow(m("2")), "+1"))), m("z=i"))))
+        assertEquals("Simple pole", s.method)
+    }
+    @Test fun doublePoleResidue() {
+        val s = of(m(fn("residue", m(Frac(m("e", Pow(m("z"))), m("z", Pow(m("2"))))), m("z=0"))))
+        assertEquals("Pole of order 2", s.method)
+        assertTrue(text(s.answer).endsWith("=1"))
+    }
+    @Test fun taylorSeries() {
+        val s = of(m(fn("taylor", m("e", Pow(m("x"))), m("x→0"), m("3"))))
+        assertEquals("Taylor series", s.method)
+        assertEquals(4, s.steps[0].substeps.size)
+    }
+    @Test fun det2() {
+        val s = of(m(fn("det", m(com.example.cas.editor.Matrix(2, 2, listOf(m("1"), m("2"), m("3"), m("4")))))))
+        assertTrue(text(s.answer).endsWith("=-2") || text(s.answer).endsWith("=−2"))
+    }
+    @Test fun det3() {
+        val s = of(m(fn("det", m(com.example.cas.editor.Matrix(3, 3, listOf(m("2"), m("0"), m("1"), m("1"), m("3"), m("2"), m("1"), m("1"), m("1")))))))
+        assertEquals("Cofactor expansion", s.method)
+        assertEquals(3, s.steps[0].substeps.size)
+    }
+    @Test fun complexDivision() {
+        assertTrue(Steps.supports(m(Frac(m("3+i"), m("2−i")))))
+        val s = of(m(Frac(m("3+i"), m("2−i"))))
+        assertEquals("Complex division", s.method)
+        assertTrue(text(s.answer).endsWith("=1+i"))
+    }
+    @Test fun complexProduct() = assertEquals("Complex arithmetic", of(m("(1+2i)(3−i)")).method)
+    @Test fun euler() = assertEquals("Euler's formula", of(m("e", Pow(m("iπ")), "+1")).method)
+    @Test fun notForPlainArithmetic() = assertFalse(Steps.supports(m("2+3")))
+    @Test fun notForVariables() = assertFalse(Steps.supports(m("(x+i)", Pow(m("2")))))
+    @Test fun copyText() {
+        val q = m(Frac(m("3+i"), m("2−i")))
+        val t = Steps.text(q, Steps.of(q)!!)
+        println(t)
+        assertTrue(t.contains("1. Multiply by the conjugate"))
+    }
+}

@@ -34,6 +34,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Info
@@ -106,7 +107,7 @@ private fun PhoneSteps(expression: MathRow, solution: Steps.Solution?, ready: Bo
         val list = rememberLazyListState()
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f).navigationBarsPadding()) {
             Column(Modifier.padding(horizontal = 20.dp)) {
-                Header(solution)
+                Header(solution, expression)
                 Spacer(Modifier.height(12.dp))
                 Question(expression)
             }
@@ -131,7 +132,7 @@ private fun TabletSteps(expression: MathRow, solution: Steps.Solution?, ready: B
             Row(Modifier.fillMaxSize()) {
                 // The question, the answer and an outline of the steps.
                 Column(Modifier.width(340.dp).fillMaxHeight().background(colors.surfaceContainer).verticalScroll(rememberScrollState()).padding(24.dp)) {
-                    Header(solution)
+                    Header(solution, expression)
                     Spacer(Modifier.height(16.dp))
                     Question(expression)
                     solution?.let { s ->
@@ -169,13 +170,22 @@ private fun TabletSteps(expression: MathRow, solution: Steps.Solution?, ready: B
 
 /** "Steps", the Beta badge and the method as a chip. */
 @Composable
-private fun Header(solution: Steps.Solution?) {
+private fun Header(solution: Steps.Solution?, question: MathRow) {
     val colors = MaterialTheme.colorScheme
+    val context = LocalContext.current
+    @Suppress("DEPRECATION") val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("Steps", style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.semantics { heading() })
         Spacer(Modifier.width(10.dp))
         BetaBadge()
         Spacer(Modifier.weight(1f))
+        solution?.let { s ->
+            // Copy the whole working as text.
+            IconButton(onClick = {
+                clipboard.setText(androidx.compose.ui.text.AnnotatedString(Steps.text(question, s)))
+                android.widget.Toast.makeText(context, "Steps copied", android.widget.Toast.LENGTH_SHORT).show()
+            }) { Icon(Icons.Default.ContentCopy, contentDescription = "Copy the steps", tint = colors.onSurfaceVariant) }
+        }
         solution?.let {
             Text(
                 it.method, style = MaterialTheme.typography.labelLarge, color = colors.onSecondaryContainer, maxLines = 1,
@@ -213,7 +223,7 @@ private fun Body(solution: Steps.Solution?, ready: Boolean, state: StepsState, l
             Icon(Icons.Default.Info, contentDescription = null, tint = colors.outline, modifier = Modifier.size(36.dp))
             Spacer(Modifier.height(8.dp))
             Text("No steps for this one yet", style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
-            Text("Steps are in beta: integrals, derivatives, limits, sums and ∮ loop integrals for now.", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+            Text("Steps are in beta: integrals, derivatives, limits, sums, products, residues, Taylor series, determinants, complex arithmetic and ∮ loop integrals for now.", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
         }
         else -> LazyColumn(state = list, modifier = modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)) {
             itemsIndexed(solution.steps) { k, step ->
