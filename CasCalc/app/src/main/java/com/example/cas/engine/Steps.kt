@@ -55,7 +55,34 @@ object Steps {
     class Solution(val method: String, val steps: List<Step>, val answer: MathRow)
 
     /** Whether there are steps for [row]: a lone integral or ∮ (steps are worked out only when asked for). */
-    fun supports(row: MathRow): Boolean = target(row) != null || isComplexArithmetic(row)
+    fun supports(row: MathRow): Boolean = target(row) != null || isComplexArithmetic(row) || simplificationMoves(row, AngleUnit.Radians).isNotEmpty()
+
+    /** The rewrites that simplify a plain algebraic expression (empty if there are none, or it isn't one). */
+    private fun simplificationMoves(row: MathRow, angle: AngleUnit): List<com.example.cas.cas.AutoSimplify.Move> {
+        fun plain(r: MathRow): Boolean = r.items.all { n ->
+            !(n is SymNode && n.text in setOf("=", "<", ">", "≤", "≥", ":=")) && n !is Integral && n !is com.example.cas.editor.Derivative &&
+                n !is com.example.cas.editor.BigOp && n !is com.example.cas.editor.Matrix && n.slots.all { plain(it) }
+        }
+        if (!plain(row)) return emptyList()
+        val raw = runCatching { Evaluator(angle).also { it.autoSimplify = false }.evaluate(com.example.cas.editor.MathCodec.copy(row)) }.getOrNull() ?: return emptyList()
+        return runCatching { com.example.cas.cas.AutoSimplify.moves(raw) }.getOrDefault(emptyList())
+    }
+
+    private fun simplification(row: MathRow, angle: AngleUnit): Solution? {
+        val moves = simplificationMoves(row, angle)
+        if (moves.isEmpty()) return null
+        val raw = Evaluator(angle).also { it.autoSimplify = false }.evaluate(com.example.cas.editor.MathCodec.copy(row))
+        val steps = ArrayList<Step>()
+        steps += Step("Start", "The expression as typed.", ex(raw))
+        var before = raw
+        for (mv in moves) {
+            steps += Step(mv.rule, mv.text, eq(before, mv.result))
+            before = mv.result
+        }
+        val answer = line(row, "=", before)
+        steps += Step("Simplest form", "Nothing makes it any shorter now.", answer, Kind.Result)
+        return Solution(moves.first().rule.let { if (moves.size > 1) "Simplification" else it }, steps, answer)
+    }
 
     /** Arithmetic with i in it that's worth spelling out: a quotient, product or power, or e^(iθ). */
     private fun isComplexArithmetic(row: MathRow): Boolean {
@@ -92,7 +119,7 @@ object Steps {
                 "det" -> determinant(n, angle)
                 else -> contour(n, angle)
             }
-            else -> if (isComplexArithmetic(row)) complex(row, angle) else null
+            else -> if (isComplexArithmetic(row)) complex(row, angle) else simplification(row, angle)
         }
     }.getOrNull()
 

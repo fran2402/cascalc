@@ -174,7 +174,7 @@ class EngineTest {
 
     // ---- More CAS behavior
     @Test fun differenceOfSquares() = assertEquals("x^2-1", cas(row(f("expand", type("(x+1)(x−1)")))))
-    @Test fun partialFractions() = assertEquals("ln(|x-1|)/2-ln(|x+1|)/2", cas(row(Integral(MathRow(), MathRow(), row(Frac(row("1"), row(Sym("x"), Pow(row("2")), Sym("−"), Sym("1")))), row("x")))))
+    @Test fun partialFractions() = assertEquals("(ln(|x-1|)-ln(|x+1|))/2", cas(row(Integral(MathRow(), MathRow(), row(Frac(row("1"), row(Sym("x"), Pow(row("2")), Sym("−"), Sym("1")))), row("x")))))
     @Test fun trigSubstitution() = assertEquals("sin(x)^2/2", cas(row(Integral(MathRow(), MathRow(), row(f("sin", row("x")), f("cos", row("x"))), row("x")))))
     @Test fun lnSquared() = assertEquals("ln(x)^2/2", cas(row(Integral(MathRow(), MathRow(), row(Frac(row(f("ln", row("x"))), row("x"))), row("x")))))
     @Test fun solveBiquadratic() = assertEquals("x=-2, x=-1, x=1, x=2", solve(row(Sym("x"), Pow(row("4")), Sym("−"), Sym("5"), Sym("x"), Pow(row("2")), Sym("+"), Sym("4"), Sym("="), Sym("0"))))

@@ -67,6 +67,9 @@ class Evaluator(
     var assigned: Pair<String, Expr>? = null
         private set
 
+    /** Put answers with letters in their simplest form (off for the steps, which show how). */
+    var autoSimplify = true
+
     /** Set when the input defined a function, like f(x) := x². */
     var definedFunction: Pair<String, UserFunction>? = null
         private set
@@ -93,9 +96,18 @@ class Evaluator(
             assigned = name to value
             return Eq(Sym(name), value)
         }
-        // Constants with i in them come out as a + bi: (1 + 2i)(3 − i) = 5 + 5i.
-        return com.example.cas.cas.ComplexArith.normalize(RowParser(items, emptyMap()).parse())
+        // Constants with i in them come out as a + bi: (1 + 2i)(3 − i) = 5 + 5i; anything with letters
+        // in its simplest form: (x² − 1)/(x − 1) = x + 1.
+        val value = com.example.cas.cas.ComplexArith.normalize(RowParser(items, emptyMap()).parse())
+        return if (autoSimplify && !asksForAForm(items)) com.example.cas.cas.AutoSimplify.simplify(value) else value
     }
+
+    /** factor, expand, apart…: the form was asked for, so it's kept as it is. */
+    private fun asksForAForm(items: List<Node>): Boolean = items.any { n ->
+        (n is com.example.cas.editor.Func && n.name in FORMS) || n.slots.any { asksForAForm(it.items) }
+    }
+
+    private val FORMS = setOf("factor", "expand", "apart", "together", "simplify", "cancel", "collect", "taylor", "series")
 
     private fun clean(row: MathRow) = row.items.filter { (it as? com.example.cas.editor.Sym)?.text != Formatter.THIN_SPACE }
 

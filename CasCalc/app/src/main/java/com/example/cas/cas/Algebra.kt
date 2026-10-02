@@ -185,7 +185,7 @@ object Algebra {
         return candidates.minBy { Printer.plain(it).length }
     }
 
-    private fun cancel(n: Expr, d: Expr): Expr {
+    fun cancel(n: Expr, d: Expr): Expr {
         if (d == ONE) return n
         val vars = n.freeVars() + d.freeVars()
         if (vars.size == 1) {
