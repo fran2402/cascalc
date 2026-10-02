@@ -19,25 +19,35 @@ class DataTable(
 
     fun cell(column: Int?, row: Int): String = column?.let { columns.getOrNull(it)?.getOrNull(row) } ?: ""
 
+    /** The cells worked out, for formulas ("=A1*2", see [Sheet]). */
+    val sheet by lazy { Sheet.Book(columns) }
+
+    /** A cell's number: as typed, or what its formula works out to. */
+    fun value(column: Int?, row: Int): Double? {
+        val c = column ?: return null
+        val t = cell(c, row)
+        return if (Sheet.isFormula(t)) sheet.value(c, row).number?.takeIf { it.isFinite() } else number(t)
+    }
+
     /** The rows that are plotted: x and y both numbers (x is the row number without an x column). */
     private fun plottedRows(): List<Int> {
         val yc = y ?: return emptyList()
-        return (0 until rowCount).filter { r -> (x == null || number(cell(x, r)) != null) && number(cell(yc, r)) != null }
+        return (0 until rowCount).filter { r -> (x == null || value(x, r) != null) && value(yc, r) != null }
     }
 
     fun points(): List<Pair<Double, Double>> =
-        plottedRows().map { r -> (if (x == null) r + 1.0 else number(cell(x, r))!!) to number(cell(y, r))!! }
+        plottedRows().map { r -> (if (x == null) r + 1.0 else value(x, r)!!) to value(y, r)!! }
 
     /** σ(x) and σ(y) for each plotted point (NaN where a cell is empty), or null without that column. */
     fun errors(): Pair<DoubleArray?, DoubleArray?> {
         val rows = plottedRows()
-        fun column(c: Int?) = c?.let { col -> DoubleArray(rows.size) { k -> number(cell(col, rows[k]))?.let { kotlin.math.abs(it) } ?: Double.NaN } }
+        fun column(c: Int?) = c?.let { col -> DoubleArray(rows.size) { k -> value(col, rows[k])?.let { kotlin.math.abs(it) } ?: Double.NaN } }
         return column(sigmaX) to column(sigmaY)
     }
 
     /** Cells with something in them that isn't a number, in the columns that are used. */
     fun badCells(): Int = listOfNotNull(x, y, sigmaX, sigmaY).distinct().sumOf { c ->
-        columns.getOrNull(c)?.count { it.isNotBlank() && number(it) == null } ?: 0
+        columns.getOrNull(c)?.indices?.count { r -> cell(c, r).isNotBlank() && value(c, r) == null } ?: 0
     }
 
     fun withRoles(x: Int?, y: Int?, sigmaX: Int?, sigmaY: Int?) = DataTable(names, columns, x, y, sigmaX, sigmaY)

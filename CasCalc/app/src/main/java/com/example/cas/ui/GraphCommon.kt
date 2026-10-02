@@ -1829,6 +1829,10 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     var roleSy by remember(f) { mutableStateOf(start.sigmaY) }
     var preview by remember { mutableStateOf(false) }
     var fitting by remember { mutableStateOf(false) }
+    // Beta: Excel-style formulas, with the cell last typed in (for the ƒx list) and that list.
+    val formulas = AppSettings.sheetFormulas
+    var lastCell by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var functionList by remember { mutableStateOf(false) }
     val rows = cells.maxOfOrNull { it.size } ?: 0
     fun table() = com.example.cas.graph.DataTable(names.toList(), cells.map { it.toList() }, roleX, roleY, roleSx, roleSy)
     val current = table()
@@ -1857,7 +1861,13 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         col.clear(); col.addAll(copy.ifEmpty { listOf("") })
     }
     /** Rows by column [c]'s numbers, smallest first (text and empty cells last). */
-    fun sortBy(c: Int) = reorder((0 until rows).sortedWith(compareBy(nullsLast()) { r: Int -> com.example.cas.graph.DataTable.number(cells[c].getOrElse(r) { "" }) }))
+    fun sortBy(c: Int) { val t = table(); reorder((0 until rows).sortedWith(compareBy(nullsLast()) { r: Int -> t.value(c, r) })) }
+    /** The column's first formula copied down to the last row, its references moving with it. */
+    fun fillFormulaDown(c: Int) {
+        val col = cells[c]
+        val top = col.indexOfFirst { com.example.cas.graph.Sheet.isFormula(it) }.takeIf { it >= 0 } ?: return
+        for (r in top + 1 until col.size) col[r] = com.example.cas.graph.Sheet.shift(col[top], r - top)
+    }
     fun removeEmptyRows() = reorder((0 until rows).filter { r -> cells.any { it.getOrElse(r) { "" }.isNotBlank() } })
     /** A table copied from a spreadsheet or a CSV file, added below the rows already filled. */
     fun paste() {
@@ -1886,6 +1896,18 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         android.widget.Toast.makeText(context, "Fitted curve added to the graph", android.widget.Toast.LENGTH_SHORT).show()
         fitting = false
     }, onDismiss = { fitting = false })
+    if (functionList) FunctionListDialog(
+        onPick = { name ->
+            functionList = false
+            val (c, r) = lastCell ?: (0 to 0)
+            if (c < cells.size && r < cells[c].size) {
+                val t = cells[c][r]
+                cells[c][r] = if (com.example.cas.graph.Sheet.isFormula(t) || t.trim() == "=") "$t$name(" else "=$name("
+                lastCell = c to r
+            }
+        },
+        onDismiss = { functionList = false },
+    )
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
@@ -1897,7 +1919,13 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                     // Top bar: close, the title and its counts as pills, Done.
                     Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 6.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close without saving") }
-                        Text("Data table", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 4.dp))
+                        Row(Modifier.weight(1f).padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("Data table", style = MaterialTheme.typography.titleLarge)
+                            if (formulas) Text(
+                                "Formulas · Beta", style = MaterialTheme.typography.labelMedium, color = colors.onTertiaryContainer,
+                                modifier = Modifier.padding(start = 10.dp).clip(CircleShape).background(colors.tertiaryContainer).padding(horizontal = 10.dp, vertical = 4.dp),
+                            )
+                        }
                         Button(
                             enabled = roleY != null && points > 0,
                             onClick = { vm.setTable(f, table()); onDismiss() },
@@ -1922,6 +1950,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                             cells.indices.forEach { c ->
                                                 ColumnCard(
                                                     role = roleOf(c), name = names[c], index = c, width = cellWidth,
+                                                    letter = if (formulas) com.example.cas.graph.Sheet.columnName(c) else null,
+                                                    onFillDown = if (formulas && cells[c].any { com.example.cas.graph.Sheet.isFormula(it) }) ({ fillFormulaDown(c) }) else null,
                                                     onName = { names[c] = it }, onRole = { assign(c, it) },
                                                     onSort = { sortBy(c) },
                                                     onFill = { cells[c].indices.forEach { r -> cells[c][r] = (r + 1).toString() } },
@@ -1943,7 +1973,13 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                                     cells.forEachIndexed { c, col ->
                                                         val t = col.getOrElse(r) { "" }
                                                         val role = roleOf(c)
-                                                        TableCell(t, role != null && t.isNotBlank() && com.example.cas.graph.DataTable.number(t) == null, Modifier.width(cellWidth), role = role) { col[r] = it }
+                                                        // A formula shows what it works out to until it's tapped.
+                                                        val worked = if (formulas && com.example.cas.graph.Sheet.isFormula(t)) current.sheet.value(c, r) else null
+                                                        val error = worked?.error != null || (role != null && t.isNotBlank() && current.value(c, r) == null)
+                                                        TableCell(
+                                                            t, error, Modifier.width(cellWidth), role = role, shown = worked?.toString(), formulas = formulas,
+                                                            onFocus = { lastCell = c to r },
+                                                        ) { col[r] = it }
                                                     }
                                                     Spacer(Modifier.width(12.dp))
                                                 }
@@ -1965,6 +2001,9 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     IconButton(onClick = { paste() }) { Icon(Icons.Default.ContentPaste, contentDescription = "Paste a table from the clipboard") }
                                     IconButton(onClick = { addColumn(); scope.launch { across.animateScrollTo(across.maxValue + 10_000) } }) { Icon(Icons.Default.ViewColumn, contentDescription = "Add a column") }
                                     IconButton(onClick = { removeEmptyRows() }) { Icon(Icons.Default.CleaningServices, contentDescription = "Remove empty rows") }
+                                    if (formulas) IconButton(onClick = { functionList = true }) {
+                                        Text("ƒx", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 20.sp, color = colors.onSurfaceVariant))
+                                    }
                                     IconButton(onClick = { fitting = true }, enabled = points >= 2) { Icon(Icons.AutoMirrored.Filled.ShowChart, contentDescription = "Fit a curve to the points") }
                                     if (!wide) androidx.compose.material3.IconToggleButton(checked = preview, onCheckedChange = { preview = it }) {
                                         Icon(Icons.Default.ScatterPlot, contentDescription = if (preview) "Hide the preview" else "Preview the points", tint = if (preview) colors.primary else colors.onSurfaceVariant)
@@ -1987,6 +2026,40 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
             }
         }
     }
+}
+
+/**
+ * The spreadsheet functions (beta), each with how it's written; picking one starts it in the
+ * cell last typed in.
+ */
+@Composable
+private fun FunctionListDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Text("ƒx", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 24.sp, color = colors.secondary)) },
+        title = { Text("Functions") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    "Start a cell with =. Cells are A1, B2…; ranges A1:A10 or whole columns A:A; \$A\$1 stays put when filled down. Operators + − * / ^ % & and comparisons = <> < > <= >=.",
+                    style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp),
+                )
+                com.example.cas.graph.Sheet.FUNCTIONS.forEach { (names, example, what) ->
+                    Column(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainerHigh)
+                            .clickable(onClickLabel = "Use ${example.substringBefore('(')}") { onPick(example.substringBefore('(')) }
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                    ) {
+                        Text(names, style = MaterialTheme.typography.titleSmall, color = colors.onSurface)
+                        Text("=$example", style = TextStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 13.sp, color = colors.primary))
+                        Text(what, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
 }
 
 /** The role's colors: x primary, y tertiary, the uncertainties secondary, unused neutral. */
@@ -2098,6 +2171,7 @@ private fun RoleBadge(role: String?, modifier: Modifier = Modifier) {
 private fun ColumnCard(
     role: String?, name: String, index: Int, width: androidx.compose.ui.unit.Dp,
     onName: (String) -> Unit, onRole: (String?) -> Unit, onSort: () -> Unit, onFill: () -> Unit, onClear: () -> Unit, onRemove: (() -> Unit)?,
+    letter: String? = null, onFillDown: (() -> Unit)? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     var open by remember { mutableStateOf(false) }
@@ -2111,6 +2185,8 @@ private fun ColumnCard(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RoleBadge(role)
+                // The column's letter, for formulas.
+                if (letter != null) Text(letter, style = MaterialTheme.typography.titleSmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp))
                 Spacer(Modifier.weight(1f))
                 Icon(Icons.Default.MoreVert, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp))
             }
@@ -2134,6 +2210,9 @@ private fun ColumnCard(
             androidx.compose.material3.HorizontalDivider()
             DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, null) }, text = { Text("Sort rows by this column") }, onClick = { open = false; onSort() })
             DropdownMenuItem(leadingIcon = { Icon(Icons.Default.FormatListNumbered, null) }, text = { Text("Fill with 1, 2, 3…") }, onClick = { open = false; onFill() })
+            if (onFillDown != null) DropdownMenuItem(
+                leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) }, text = { Text("Fill the formula down") }, onClick = { open = false; onFillDown() },
+            )
             DropdownMenuItem(leadingIcon = { Icon(Icons.Default.CleaningServices, null) }, text = { Text("Clear the column") }, onClick = { open = false; onClear() })
             if (onRemove != null) DropdownMenuItem(
                 leadingIcon = { Icon(Icons.Default.Delete, null, tint = colors.error) },
@@ -2169,9 +2248,13 @@ private fun RowNumber(r: Int, onInsertAbove: () -> Unit, onInsertBelow: () -> Un
  * it's being typed in and red-edged when it isn't a number. Next moves on to the next cell.
  */
 @Composable
-private fun TableCell(text: String, error: Boolean, modifier: Modifier, role: String? = null, onChange: (String) -> Unit) {
+private fun TableCell(
+    text: String, error: Boolean, modifier: Modifier, role: String? = null,
+    shown: String? = null, formulas: Boolean = false, onFocus: () -> Unit = {}, onChange: (String) -> Unit,
+) {
     val colors = MaterialTheme.colorScheme
     var focused by remember { mutableStateOf(false) }
+    val formula = shown != null
     val tint = roleColors(role).first
     val shape = RoundedCornerShape(if (focused) 14.dp else 10.dp)
     androidx.compose.foundation.text.BasicTextField(
@@ -2180,12 +2263,31 @@ private fun TableCell(text: String, error: Boolean, modifier: Modifier, role: St
         singleLine = true,
         textStyle = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = if (role == null) colors.onSurfaceVariant else colors.onSurface),
         cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.primary),
-        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal, imeAction = androidx.compose.ui.text.input.ImeAction.Next),
+        // With formulas, a keyboard with letters, = and brackets.
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+            keyboardType = if (formulas) androidx.compose.ui.text.input.KeyboardType.Ascii else androidx.compose.ui.text.input.KeyboardType.Decimal,
+            capitalization = if (formulas) androidx.compose.ui.text.input.KeyboardCapitalization.Characters else androidx.compose.ui.text.input.KeyboardCapitalization.None,
+            imeAction = androidx.compose.ui.text.input.ImeAction.Next,
+        ),
+        // Not being typed in, a formula shows its value (or error) with a small ƒx mark.
+        decorationBox = { inner ->
+            if (formula && !focused) Box(contentAlignment = Alignment.CenterStart) {
+                Box(Modifier.graphicsLayer { alpha = 0f }) { inner() }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        shown!!, maxLines = 1, modifier = Modifier.weight(1f, fill = false),
+                        style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = if (error) colors.error else if (role == null) colors.onSurfaceVariant else colors.onSurface),
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Text("ƒx", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 12.sp, color = colors.tertiary))
+                }
+            } else inner()
+        },
         modifier = modifier
             .height(44.dp)
-            .onFocusChanged { focused = it.isFocused }
+            .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocus() }
             .clip(shape)
-            .background(if (role == null) colors.surfaceContainerHigh else tint.copy(alpha = 0.08f).compositeOver(colors.surfaceContainerHighest))
+            .background(if (formula && !focused) colors.tertiaryContainer.copy(alpha = 0.35f).compositeOver(colors.surfaceContainerHigh) else if (role == null) colors.surfaceContainerHigh else tint.copy(alpha = 0.08f).compositeOver(colors.surfaceContainerHighest))
             .border(if (focused || error) 2.dp else 0.dp, when { error -> colors.error; focused -> colors.primary; else -> Color.Transparent }, shape)
             .padding(horizontal = 12.dp, vertical = 11.dp),
     )

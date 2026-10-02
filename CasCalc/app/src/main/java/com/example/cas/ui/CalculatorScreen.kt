@@ -1554,6 +1554,10 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 "Unit converter", "In the \$\\vdots\$ menu: convert any units, like km/s/Mpc to \$\\mathrm{s}^{-1}\$ or erg to SI, with c, h and \$k_B\$ bridging energy, mass, frequency and temperature. Still in beta",
                 AppSettings.unitConverter, AppSettings::changeUnitConverter, badge = "Beta",
             )
+            SettingsToggle(
+                "Spreadsheet formulas", "In the data table: columns lettered A, B, C… and cells like =B1*2, =SUM(A:A), =SLOPE(B:B, A:A) or =IF(A1>0, A1, 0), worked out as Excel does, with fill down and a list of functions. Still in beta",
+                AppSettings.sheetFormulas, AppSettings::changeSheetFormulas, badge = "Beta",
+            )
         },
         PageSection("History", Icons.Outlined.History) {
             SettingsChoice("History keeps", listOf("50", "100", "500", "All"), when (AppSettings.historyLimit) { 50 -> 0; 100 -> 1; 500 -> 2; else -> 3 }) {

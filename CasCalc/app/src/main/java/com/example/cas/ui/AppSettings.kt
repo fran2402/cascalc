@@ -66,6 +66,9 @@ object AppSettings {
     /** Beta: the unit converter in the ⋮ menu. */
     var unitConverter by mutableStateOf(false)
         private set
+    /** Beta: Excel-style formulas (=SUM(A:A), =B1*2…) in the data table. */
+    var sheetFormulas by mutableStateOf(false)
+        private set
     /** The converter's last value, from and to units, so it opens where it was left. */
     var converterState by mutableStateOf("1\nkm/s/Mpc\n1/s")
         private set
@@ -136,6 +139,7 @@ object AppSettings {
         livePreview = p.getBoolean("livePreview", true)
         showSteps = p.getBoolean("showSteps", false)
         unitConverter = p.getBoolean("unitConverter", false)
+        sheetFormulas = p.getBoolean("sheetFormulas", false)
         converterState = p.getString("converterState", null) ?: converterState
         historyLimit = p.getInt("historyLimit", 100)
         confirmClearHistory = p.getBoolean("confirmClearHistory", true)
@@ -184,6 +188,7 @@ object AppSettings {
     fun changeLivePreview(v: Boolean) { livePreview = v; save("livePreview", v) }
     fun changeShowSteps(v: Boolean) { showSteps = v; save("showSteps", v) }
     fun changeUnitConverter(v: Boolean) { unitConverter = v; save("unitConverter", v) }
+    fun changeSheetFormulas(v: Boolean) { sheetFormulas = v; save("sheetFormulas", v) }
     fun changeConverterState(value: String, from: String, to: String) { converterState = "$value\n$from\n$to"; save("converterState", converterState) }
     fun changeHistoryLimit(v: Int) { historyLimit = v; save("historyLimit", v) }
     fun changeConfirmClearHistory(v: Boolean) { confirmClearHistory = v; save("confirmClearHistory", v) }
