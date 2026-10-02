@@ -2035,25 +2035,53 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
 @Composable
 private fun FunctionListDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) {
     val colors = MaterialTheme.colorScheme
+    var query by remember { mutableStateOf("") }
+    var group by remember { mutableStateOf<String?>(null) }
+    val all = com.example.cas.graph.Sheet.FUNCTIONS
+    val shown = all.filter { h ->
+        (group == null || h.category == group) &&
+            (query.isBlank() || listOf(h.names, h.example, h.what).any { it.contains(query.trim(), ignoreCase = true) })
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Text("ƒx", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 24.sp, color = colors.secondary)) },
         title = { Text("Functions") },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    "Start a cell with =. Cells are A1, B2…; ranges A1:A10 or whole columns A:A; \$A\$1 stays put when filled down. Operators + − * / ^ % & and comparisons = <> < > <= >=.",
-                    style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp),
+            Column {
+                OutlinedTextField(
+                    value = query, onValueChange = { query = it }, singleLine = true,
+                    placeholder = { Text("Search, e.g. lookup, NORM, date") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    shape = RoundedCornerShape(28.dp),
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                com.example.cas.graph.Sheet.FUNCTIONS.forEach { (names, example, what) ->
-                    Column(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainerHigh)
-                            .clickable(onClickLabel = "Use ${example.substringBefore('(')}") { onPick(example.substringBefore('(')) }
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                    ) {
-                        Text(names, style = MaterialTheme.typography.titleSmall, color = colors.onSurface)
-                        Text("=$example", style = TextStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 13.sp, color = colors.primary))
-                        Text(what, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                // The groups as chips; the chosen one is filled, so no check mark is needed.
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    (listOf<String?>(null) + com.example.cas.graph.Sheet.CATEGORIES).forEach { c ->
+                        androidx.compose.material3.FilterChip(selected = group == c, onClick = { group = c }, label = { Text(c ?: "All") })
+                    }
+                }
+                Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (group == null && query.isBlank()) Text(
+                        "Start a cell with =. Cells are A1, B2…; ranges A1:A10 or whole columns A:A; \$A\$1 stays put when filled down. Operators + − * / ^ % & and comparisons = <> < > <= >=. Text goes in \"quotes\".",
+                        style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp),
+                    )
+                    if (shown.isEmpty()) Text("No functions match", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(vertical = 16.dp))
+                    shown.forEachIndexed { k, h ->
+                        if (group == null && (k == 0 || shown[k - 1].category != h.category)) Text(
+                            h.category, style = MaterialTheme.typography.labelLarge, color = colors.primary,
+                            modifier = Modifier.padding(top = if (k == 0) 0.dp else 10.dp, bottom = 2.dp, start = 4.dp),
+                        )
+                        val name = h.example.substringBefore('(')
+                        Column(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainerHigh)
+                                .clickable(onClickLabel = "Use $name") { onPick(name) }
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                        ) {
+                            Text(h.names, style = MaterialTheme.typography.titleSmall, color = colors.onSurface)
+                            Text("=${h.example}", style = TextStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 13.sp, color = colors.primary))
+                            Text(h.what, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                        }
                     }
                 }
             }

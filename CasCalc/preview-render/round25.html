@@ -1,0 +1,89 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:NCMR;src:url(../app/src/main/res/font/ncm_roman.otf)}
+@font-face{font-family:NCMI;src:url(../app/src/main/res/font/ncm_latin_italic.otf)}
+@font-face{font-family:NCMM;src:url(../app/src/main/res/font/ncm_math.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px;width:1900px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1600px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px;line-height:1.4}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--lowest:#fff;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sec:#5E6045;--onsec:#fff;--sc:#E2E4C4;--onsc:#1B1D0A;--ter:#3C6A5A;--onter:#fff;--tc:#BEECDB;--ontc:#002019;--outv:#C8C7B5;--out:#77786A;--err:#BA1A1A;--ec:#FFDAD6;--onec:#410002}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--lowest:#0D0F08;--c:#1F2018;--ch:#292A22;--chh:#34352C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sec:#C6C8A9;--onsec:#2F321B;--sc:#45483A;--onsc:#E2E4C4;--ter:#A2D0BF;--onter:#05372B;--tc:#214E41;--ontc:#BEECDB;--outv:#47473B;--out:#919283;--err:#FFB4AB;--ec:#93000A;--onec:#FFDAD6}
+.phone{position:relative;width:412px;height:900px;border-radius:44px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.tablet{position:relative;width:1280px;height:800px;border-radius:36px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 12px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font:500 14px GSF}
+.top{display:flex;align-items:center;padding:6px 12px 4px 4px;gap:4px}
+.ib{width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--onv)}
+.done{height:48px;border-radius:16px;background:var(--pri);color:var(--onpri);display:flex;align-items:center;gap:8px;padding:0 20px 0 16px;font:600 15px GSF}
+.pill{font:600 14px GSF;border-radius:20px;padding:6px 12px;background:var(--sc);color:var(--onsc)}
+.pill.e{background:var(--ec);color:var(--onec)}
+.sheet{border-radius:28px;background:var(--bg);overflow:hidden;position:relative}
+.cc{border-radius:18px;padding:8px 2px 6px 8px;display:flex;flex-direction:column;gap:6px;flex:none}
+.badge{height:30px;min-width:30px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;font:italic 17px CMI}
+.cell{flex:none;height:44px;border-radius:10px;display:flex;align-items:center;padding:0 12px;font:17px CMR}
+.rn{width:52px;flex:none;text-align:center;font:600 14px GSF;color:var(--onv)}
+.tb{position:absolute;bottom:16px;left:0;right:0;display:flex;justify-content:center;gap:10px;align-items:center}
+.tools{border-radius:28px;background:var(--chh);display:flex;padding:4px 6px;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.tools span{width:48px;height:48px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--onv)}
+.fab{height:56px;border-radius:18px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;gap:8px;padding:0 20px 0 16px;font:600 17px GSF;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.menu{position:absolute;background:var(--c);border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:8px 0;width:270px;z-index:5}
+.menu div{display:flex;align-items:center;gap:12px;padding:10px 16px;font:15px GSF}
+.menu hr{border:none;border-top:1px solid var(--outv);margin:6px 0}
+.mi{display:inline-block;vertical-align:middle}
+.step{display:flex;gap:14px}
+.node{width:30px;height:30px;border-radius:15px;background:var(--pri);color:var(--onpri);font:600 13px GSF;display:flex;align-items:center;justify-content:center;flex:none}
+.mbox{margin-top:8px;border-radius:16px;background:var(--c);padding:10px 12px;overflow:hidden}
+.tools span{width:42px !important}.fab{white-space:nowrap}</style></head><body>
+<h2>Many more spreadsheet functions (beta)</h2>
+<p class="note">The data table's formulas now cover about 375 Excel function names. They include statistics and tests (T.TEST, CHISQ.TEST, PERCENTILE, RANK, SKEW, KURT…), distributions and their inverses (NORM, T, χ², F, binomial, Poisson, gamma, beta, Weibull…), lookups (VLOOKUP, HLOOKUP, XLOOKUP, INDEX/MATCH, OFFSET, INDIRECT), logic (IFS, SWITCH, IFNA), text (TEXT, TEXTJOIN, SUBSTITUTE, LEFT/MID/RIGHT…), dates (DATE, DATEDIF, NETWORKDAYS, EOMONTH…), finance (PMT, NPV, IRR, XIRR, depreciation) and engineering (CONVERT with the app's units, base conversions, bits, Bessel, complex numbers). Formulas can now return text as well as numbers. The ƒx list has a search box and a chip for each group.</p>
+<div class="row" id="main"></div>
+<script>
+function roleCol(r){return {x:['var(--pri)','var(--onpri)'],y:['var(--ter)','var(--onter)'],'σx':['var(--sec)','var(--onsec)'],'σy':['var(--sec)','var(--onsec)']}[r]||['var(--chh)','var(--onv)']}
+function badge(r){const [b,f]=roleCol(r);const t=r==null?'–':r;return `<span class="badge" style="background:${b};color:${f};border-radius:${r=='x'||r=='y'?'15px':'9px'}">${t}</span>`}
+const tint=(r,a)=>`color-mix(in srgb, ${roleCol(r)[0]} ${a}%, var(--chh))`;
+
+const ROLES=['x','y',null,null], NAMES=['Trial','Score','Result','Summary'];
+const fmtOld=v=>(Math.round(v*1000)/1000).toString();
+function cellsFor(){
+ const S=[72,48,91,55,38,66,80,59,44,87];
+ const sum=[['=AVERAGE(B:B)','64'],['=STDEV(B:B)','18.282'],['=T.TEST(B1:B5, B6:B10, 2, 3)','0.6851'],['=COUNTIF(C:C, "pass")','7'],['=XLOOKUP(MAX(B:B), B:B, A:A)','3'],['=TEXT(TODAY(), "d mmm yyyy")','2 Oct 2026']];
+ return S.map((s,i)=>[[String(i+1),null],[String(s),null],[`=IF(B${i+1}>=50, "pass", "fail")`,s>=50?'pass':'fail'],sum[i]||['','']]);
+}
+function grid(rows,focus){
+ const cw=112,C=cellsFor();
+ let h=`<div style="display:flex;padding:10px 0 6px"><div style="width:52px;flex:none"></div><div style="display:flex;gap:6px">${ROLES.map((r,c)=>`<div class="cc" style="width:${cw}px;background:${r?`color-mix(in srgb, ${roleCol(r)[0]} 16%, var(--bg))`:'var(--c)'}"><div style="display:flex;align-items:center">${badge(r)}<span style="font:600 14px GSF;color:var(--onv);padding-left:8px">${'ABCD'[c]}</span><span style="flex:1"></span><span style="color:var(--onv);padding-right:6px">⋮</span></div><div style="font:13px GSF;color:var(--on)">${NAMES[c]}</div></div>`).join('')}</div></div>`;
+ C.slice(0,rows).forEach((d,r)=>{h+=`<div style="display:flex;align-items:center;padding:3px 0;background:${r%2?'color-mix(in srgb, var(--lowest) 60%, transparent)':'transparent'}"><div class="rn">${r+1}</div><div style="display:flex;gap:6px">${d.map(([t,v],c)=>{
+  const f=focus&&focus[0]==r&&focus[1]==c, formula=v!=null&&t.startsWith('='), err=formula&&v.startsWith('#');
+  const bg=formula&&!f?'color-mix(in srgb, var(--tc) 35%, var(--ch))':ROLES[c]?tint(ROLES[c],8):'var(--ch)';
+  const inner=formula&&!f?`<span style="flex:1;color:${err?'var(--err)':'inherit'}">${v}</span><span style="font:italic 12px CMI;color:var(--ter)">ƒx</span>`:`<span style="${formula?'font:15px monospace':''}">${t}</span>${f?'<span style="display:inline-block;width:2px;height:20px;background:var(--pri);margin-left:1px"></span>':''}`;
+  return `<div class="cell" style="width:${cw}px;background:${bg};color:${ROLES[c]?'var(--on)':'var(--onv)'};border:${err||f?'2px solid '+(err?'var(--err)':'var(--pri)'):'none'};border-radius:${f?14:10}px">${inner}</div>`}).join('')}</div></div>`});
+ return h;
+}
+const topBar=()=>`<div class="top"><span class="ib">✕</span><span style="flex:1;display:flex;align-items:center;padding-left:4px"><span style="font:400 22px GSF">Data table</span><span style="margin-left:10px;border-radius:20px;background:var(--tc);color:var(--ontc);font:600 12px GSF;padding:4px 10px">Formulas · Beta</span></span><span class="done">✓ Done</span></div>`;
+const pills=()=>`<div style="padding:4px 16px 8px;display:flex;gap:6px"><span class="pill">10 points</span><span class="pill">4 columns</span></div>`;
+const toolbar=()=>`<div class="tb"><div class="tools" style="padding:4px 2px"><span>📋</span><span>▥</span><span>🧹</span><span style="font:italic 20px CMI">ƒx</span><span>📈</span><span>⁘</span></div><div class="fab">＋ Row</div></div>`;
+function phone(body,cap,extra=''){return `<div><div class="phone light"><div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div>${topBar()}${pills()}<div style="padding:0 8px"><div class="sheet" style="height:740px">${body}${toolbar()}</div></div>${extra}</div><div class="cap">${cap}</div></div>`}
+const menu=`<div class="menu" style="left:150px;top:200px">${['x','y','σx','σy',null].map(r=>`<div>${badge(r)}<span style="flex:1">${{x:'Across',y:'Up','σx':'Error bars across','σy':'Error bars up'}[r]||'Not used'}</span>${r=='y'?'✓':''}</div>`).join('')}<hr><div>⇅ Sort rows by this column</div><div>№ Fill with 1, 2, 3…</div><div style="color:var(--pri);font-weight:600">⌄ Fill the formula down</div><div>🧹 Clear the column</div><div style="color:var(--err)">🗑 Remove the column</div></div>`;
+const G=['All','Math','Statistics','Distributions','Lookup','Logic','Text','Date & time','Financial','Engineering'];
+const F=[['T.TEST · Z.TEST · F.TEST · CHISQ.TEST','T.TEST(A:A, B:B, 2, 3)','p-values of tests'],['PERCENTILE · QUARTILE (.INC, .EXC)','QUARTILE(A:A, 3)','Percentiles and quartiles'],['SLOPE · INTERCEPT · STEYX','SLOPE(B:B, A:A)',"Least-squares line (y's first)"],['FORECAST · TREND · GROWTH','FORECAST(10, B:B, A:A)','Predict from a line or an exponential'],['SKEW · SKEW.P · KURT','SKEW(A:A)','Shape of the distribution'],['CONFIDENCE.NORM · CONFIDENCE.T','CONFIDENCE.T(0.05, 2.1, 30)','Half-width of a confidence interval']];
+const esc=t=>t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const dialog=`<div style="position:absolute;inset:0;background:rgba(0,0,0,.32)"></div><div style="position:absolute;left:20px;right:20px;top:90px;border-radius:28px;background:var(--chh);padding:22px 20px;z-index:6;overflow:hidden"><div style="text-align:center;font:italic 24px CMI;color:var(--sec)">ƒx</div><div style="text-align:center;font:400 24px GSF;margin:8px 0 12px">Functions</div>
+<div style="height:52px;border-radius:28px;border:1px solid var(--out);display:flex;align-items:center;gap:10px;padding:0 16px;font:16px GSF;color:var(--on)"><span style="color:var(--onv)">⌕</span>test</div>
+<div style="display:flex;gap:6px;margin:10px 0;overflow:hidden;white-space:nowrap">${G.map(g=>`<span style="flex:none;height:32px;border-radius:8px;padding:0 12px;display:flex;align-items:center;font:500 14px GSF;${g=='Statistics'?'background:var(--sc);color:var(--onsc)':'border:1px solid var(--outv);color:var(--onv)'}">${g}</span>`).join('')}</div>
+${F.slice(0,1).map(([n,e,w])=>`<div style="border-radius:16px;background:var(--ch);padding:10px 14px;margin-bottom:4px"><div style="font:600 14px GSF">${n}</div><div style="font:13px monospace;color:var(--pri)">=${esc(e)}</div><div style="font:12px GSF;color:var(--onv)">${w}</div></div>`).join('')}
+<div style="text-align:right;font:600 14px GSF;color:var(--pri);padding-top:6px">Close</div></div>`;
+const groups=`<div style="position:absolute;inset:0;background:rgba(0,0,0,.32)"></div><div style="position:absolute;left:20px;right:20px;top:90px;bottom:60px;border-radius:28px;background:var(--chh);padding:22px 20px;z-index:6;overflow:hidden"><div style="text-align:center;font:italic 24px CMI;color:var(--sec)">ƒx</div><div style="text-align:center;font:400 24px GSF;margin:8px 0 12px">Functions</div>
+<div style="height:52px;border-radius:28px;border:1px solid var(--out);display:flex;align-items:center;gap:10px;padding:0 16px;font:16px GSF;color:var(--onv)"><span>⌕</span>Search, e.g. lookup, NORM, date</div>
+<div style="display:flex;gap:6px;margin:10px 0;overflow:hidden;white-space:nowrap">${G.map(g=>`<span style="flex:none;height:32px;border-radius:8px;padding:0 12px;display:flex;align-items:center;font:500 14px GSF;${g=='All'?'background:var(--sc);color:var(--onsc)':'border:1px solid var(--outv);color:var(--onv)'}">${g}</span>`).join('')}</div>
+${[['Lookup',[['VLOOKUP · HLOOKUP','VLOOKUP(5, A:C, 3, FALSE)','Find a row (or column), return a cell from it'],['XLOOKUP · XMATCH','XLOOKUP("b", A:A, B:B, "none")','Find with fallbacks, from either end'],['INDEX · MATCH','INDEX(B:B, MATCH(MAX(A:A), A:A, 0))',"A cell by position; a value's position"]]],['Text',[['CONCAT · TEXTJOIN · &','TEXTJOIN(", ", TRUE, A1:A5)','Join text'],['TEXT · FIXED · DOLLAR · VALUE','TEXT(A1, "0.00E+00")','Numbers to text and back']]],['Financial',[['PMT · PV · FV · NPER · RATE','PMT(5%/12, 360, 200000)','Loans and savings']]]].map(([g,L])=>`<div style="font:600 14px GSF;color:var(--pri);margin:10px 4px 4px">${g}</div>`+L.map(([n,e,w])=>`<div style="border-radius:16px;background:var(--ch);padding:10px 14px;margin-bottom:4px"><div style="font:600 14px GSF">${n}</div><div style="font:13px monospace;color:var(--pri)">=${esc(e)}</div><div style="font:12px GSF;color:var(--onv)">${w}</div></div>`).join('')).join('')}
+</div>`;
+document.getElementById('main').innerHTML=
+ phone(grid(10,null),'Formulas can return text. Column C is =IF(B1>=50, "pass", "fail"), filled down. Column D, off to the right, uses T.TEST, COUNTIF on text, XLOOKUP and TEXT(TODAY(), "d mmm yyyy").')+
+ phone(grid(10,null),'The ƒx list grouped (scrolled to Lookup): search, a chip for each group, and the functions under group headings. Tap one to start it in the last cell you typed in.',groups)+
+ phone(grid(10,null),'Searching "test" with the Statistics chip finds T.TEST, Z.TEST, F.TEST and CHISQ.TEST.',dialog);
+document.title='ready';
+</script></body></html>

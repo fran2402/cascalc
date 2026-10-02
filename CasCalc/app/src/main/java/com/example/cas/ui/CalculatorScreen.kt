@@ -1555,7 +1555,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 AppSettings.unitConverter, AppSettings::changeUnitConverter, badge = "Beta",
             )
             SettingsToggle(
-                "Spreadsheet formulas", "In the data table: columns lettered A, B, C… and cells like =B1*2, =SUM(A:A), =SLOPE(B:B, A:A) or =IF(A1>0, A1, 0), worked out as Excel does, with fill down and a list of functions. Still in beta",
+                "Spreadsheet formulas", "In the data table: columns lettered A, B, C… and cells like =B1*2, =SUM(A:A), =SLOPE(B:B, A:A) or =IF(A1>0, A1, 0), worked out as Excel does: over 370 of its functions (statistics and distributions, lookups like VLOOKUP and XLOOKUP, text, dates, finance, engineering), with fill down and a searchable list. Still in beta",
                 AppSettings.sheetFormulas, AppSettings::changeSheetFormulas, badge = "Beta",
             )
         },
