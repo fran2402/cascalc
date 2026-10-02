@@ -89,3 +89,69 @@ class StepsTest {
         assertTrue(s.steps.any { it.text?.contains("order 2") == true })
     }
 }
+
+class MoreStepsTest {
+    private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
+    private fun fn(name: String, vararg a: MathRow) = Func(name, a.toList())
+    private fun d(body: MathRow, order: String = "", at: String = "") = m(com.example.cas.editor.Derivative(m("x"), body, m(at), m(order)))
+    private fun titles(s: Steps.Solution): List<String> = s.steps.flatMap { listOf(it.title) + it.substeps.map { t -> "  " + t.title } }
+    private fun text(r: MathRow) = Formatter.plain(r)
+    private fun lim(body: MathRow, to: String) = m(fn("lim", body, m("x→$to")))
+    private fun sum(body: MathRow, lo: String, hi: String) = m(com.example.cas.editor.BigOp(com.example.cas.editor.BigOpKind.Sum, m("k"), m(lo), m(hi), body))
+
+    @Test fun productAndChain() {
+        val s = Steps.of(d(m("x", Pow(m("2")), fn("sin", m("3x")))))!!
+        println(titles(s))
+        assertEquals("Product rule", s.steps.first().title)
+        assertTrue(titles(s).any { it.contains("chain rule") })
+    }
+
+    @Test fun quotient() {
+        val s = Steps.of(d(m(Frac(m(fn("sin", m("x"))), m("x")))))!!
+        println(titles(s))
+        assertTrue(titles(s).contains("Quotient rule"))
+    }
+
+    @Test fun higherOrderAtAPoint() {
+        val s = Steps.of(d(m("x", Pow(m("3"))), order = "2", at = "2"))!!
+        println(titles(s)); println(text(s.answer))
+        assertTrue(titles(s).contains("Differentiate again"))
+        assertTrue(text(s.answer).endsWith("=12"))
+    }
+
+    @Test fun limitDirect() = assertEquals("Direct substitution", Steps.of(lim(m("x", Pow(m("2")), "+1"), "2"))!!.method)
+
+    @Test fun limitLHopital() {
+        val s = Steps.of(lim(m(Frac(m(fn("sin", m("x"))), m("x"))), "0"))!!
+        println(titles(s)); println(s.steps.map { it.math?.let { r -> text(r) } })
+        assertEquals("L'Hôpital's rule", s.method)
+        assertTrue(text(s.answer).endsWith("=1"))
+    }
+
+    @Test fun limitTwiceLHopital() {
+        val s = Steps.of(lim(m(Frac(m("1−", fn("cos", m("x"))), m("x", Pow(m("2"))))), "0"))!!
+        println(titles(s))
+        assertEquals("L'Hôpital's rule", s.method)
+        assertTrue(titles(s).contains("L'Hôpital's rule again"))
+    }
+
+    @Test fun limitAtInfinity() {
+        val s = Steps.of(lim(m(Frac(m("3x", Pow(m("2")), "+1"), m("x", Pow(m("2")), "−5"))), "∞"))!!
+        println(titles(s)); println(text(s.answer))
+        assertTrue(text(s.answer).endsWith("=3"))
+    }
+
+    @Test fun finiteSumWrittenOut() = assertEquals("Adding the terms", Steps.of(sum(m("k", Pow(m("2"))), "1", "4"))!!.method)
+
+    @Test fun powerSums() {
+        val s = Steps.of(sum(m("k", Pow(m("2"))), "1", "n"))!!
+        println(titles(s)); println(s.steps.map { it.text })
+        assertEquals("Power sums", s.method)
+    }
+
+    @Test fun basel() = assertEquals("Zeta function", Steps.of(sum(m(Frac(m("1"), m("k", Pow(m("2"))))), "1", "∞"))!!.method)
+
+    @Test fun alternating() = assertEquals("Eta function", Steps.of(sum(m(Frac(m("(−1)", Pow(m("k+1"))), m("k"))), "1", "∞"))!!.method)
+
+    @Test fun geometric() = assertEquals("Geometric series", Steps.of(sum(m(Frac(m("1"), m("2", Pow(m("k"))))), "0", "∞"))!!.method)
+}

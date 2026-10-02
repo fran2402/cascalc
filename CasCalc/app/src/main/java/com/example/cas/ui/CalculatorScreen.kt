@@ -1552,7 +1552,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsToggle("Continue from the answer", "An operator after = starts with Ans", AppSettings.continueFromAnswer, AppSettings::changeContinueFromAnswer)
             SettingsToggle("Explanations on long-press", "Formula, theory and how to use each key", AppSettings.keyHelp, AppSettings::changeKeyHelp)
             SettingsToggle(
-                "Show steps", "Worked steps for integrals and ∮ loop integrals: Steps on a history card. Still in beta, so steps may skip some algebra",
+                "Show steps", "Worked steps for integrals, derivatives, limits, sums and ∮ loop integrals: Steps on a history card. Still in beta, so steps may skip some algebra",
                 AppSettings.showSteps, AppSettings::changeShowSteps, badge = "Beta",
             )
         },

@@ -32,7 +32,8 @@ import com.example.cas.editor.Sym as SymNode
 import com.example.cas.cas.Sym
 
 /**
- * Worked steps for a calculation (beta): an integral, definite or not, or a ∮ loop integral.
+ * Worked steps for a calculation (beta): an integral (definite or not), a ∮ loop integral, a
+ * derivative, a limit or a sum.
  * The steps follow the methods the integrator itself uses (sum rule, constant multiple, the
  * standard integrals, partial fractions, by parts, substitution), so they lead to the answer the
  * calculator gave; an indefinite integral ends with its check by differentiation, a loop
@@ -57,13 +58,18 @@ object Steps {
     fun supports(row: MathRow): Boolean = target(row) != null
 
     private fun target(row: MathRow): Node? =
-        row.items.filter { !(it is SymNode && it.text.isBlank()) }.singleOrNull()?.takeIf { it is Integral || (it is Func && it.name == "contour") }
+        row.items.filter { !(it is SymNode && it.text.isBlank()) }.singleOrNull()?.takeIf {
+            it is Integral || it is com.example.cas.editor.Derivative || (it is com.example.cas.editor.BigOp && it.kind == com.example.cas.editor.BigOpKind.Sum) ||
+                (it is Func && (it.name == "contour" || it.name == "lim"))
+        }
 
     /** The working for [row], or null if there is none (or it couldn't be found). */
     fun of(row: MathRow, angle: AngleUnit = AngleUnit.Radians): Solution? = runCatching {
         when (val n = target(row)) {
             is Integral -> integral(n, angle)
-            is Func -> contour(n, angle)
+            is com.example.cas.editor.Derivative -> derivative(n, angle)
+            is com.example.cas.editor.BigOp -> sum(n, angle)
+            is Func -> if (n.name == "lim") limit(n, angle) else contour(n, angle)
             else -> null
         }
     }.getOrNull()
@@ -383,4 +389,296 @@ object Steps {
     }
 
     private fun ordinal(k: Int) = when (k) { 1 -> "first"; 2 -> "second"; 3 -> "third"; else -> "${k}th" }
+
+    // ---- Derivatives -------------------------------------------------------------------------------
+
+    /** d/d[x] of [body] as the editor writes it. */
+    private fun d(body: Expr, x: Sym): MathRow =
+        MathRow(mutableListOf(com.example.cas.editor.Derivative(MathRow(mutableListOf(sym(x.name))), ex(body))))
+
+    private fun derivative(n: com.example.cas.editor.Derivative, angle: AngleUnit): Solution? {
+        val name = n.variable.items.joinToString("") { (it as? SymNode)?.text ?: "" }
+        if (name.length != 1) return null
+        val x = Sym(name)
+        val ev = { r: MathRow -> Evaluator(angle).evaluate(r) }
+        val body = ev(n.body)
+        val order = if (n.order.isEmpty) 1 else ((ev(n.order) as? Num)?.q?.num?.toInt() ?: return null)
+        if (order !in 1..6) return null
+        val question = MathRow(mutableListOf(n)).let { com.example.cas.editor.MathCodec.copy(it) }
+        val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
+        val steps = ArrayList<Step>()
+        val traced = dtrace(body, x, 0)
+        steps += traced.steps
+        var current = Algebra.simplify(Calculus.diff(body, x))
+        if (!same(traced.result, current)) steps += Step("Simplify", null, eq(traced.result, current))
+        for (k in 2..order) {
+            val next = Algebra.simplify(Calculus.diff(current, x))
+            steps += Step("Differentiate again", "The ${ordinal(k)} derivative is the derivative of the ${ordinal(k - 1)}.", eq(d(current, x), next))
+            current = next
+        }
+        if (!n.at.isEmpty) {
+            val a = ev(n.at)
+            steps += Step("Evaluate", "Put ${x.name} = ${Printer.plain(a)} into the derivative.", line(current, ",", " ", x.name, "=", a, "  ", "⇒", " ", value))
+        }
+        val answer = line(question, "=", value)
+        steps += Step("Answer", null, answer, Kind.Result)
+        return Solution(methodOf(steps), steps, answer)
+    }
+
+    /** The steps to d/d[x] of [e], rule by rule. */
+    private fun dtrace(e: Expr, x: Sym, depth: Int): Traced {
+        val result = Calculus.diff(e, x)
+        fun leaf(title: String, text: String) = Traced(result, listOf(Step(title, text, eq(d(e, x), result))))
+        if (depth > 4) return leaf("Differentiate", "Rule by rule, as above.")
+        if (e.freeOf(x)) return leaf("Constant rule", "The derivative of a constant is 0.")
+        if (e == x) return leaf("Power rule", "d/d${x.name} ${x.name} = 1.")
+        if (e is Add) {
+            val parts = e.terms.map { dtrace(it, x, depth + 1) }
+            val split = line(*e.terms.flatMapIndexed { k, t -> (if (k == 0) emptyList() else listOf<Any>("+")) + listOf<Any>(d(t, x)) }.toTypedArray())
+            return Traced(result, listOf(Step("Sum rule", "Differentiate term by term.", eq(d(e, x), split), substeps = parts.flatMap { it.steps })))
+        }
+        if (e is Mul) {
+            val (consts, rest) = e.factors.partition { it.freeOf(x) }
+            if (consts.isNotEmpty()) {
+                val c = mul(consts); val r = mul(rest)
+                val inner = dtrace(r, x, depth + 1)
+                return Traced(result, listOf(Step("Constant multiple", "Keep ${Printer.plain(c)} in front.", eq(d(e, x), line(paren(c), d(r, x))), substeps = inner.steps)))
+            }
+            // A quotient u/v: a factor with a negative power.
+            val den = rest.filter { it is Pow && it.exp is Num && (it.exp as Num).q.signum < 0 }
+            if (den.isNotEmpty() && den.size < rest.size) {
+                val u = mul(rest - den.toSet())
+                val v = mul(den.map { com.example.cas.cas.pow((it as Pow).base, neg(it.exp)) })
+                val du = dtrace(u, x, depth + 1); val dv = dtrace(v, x, depth + 1)
+                return Traced(result, listOf(Step(
+                    "Quotient rule", "(u/v)′ = (u′v − uv′)/v², with u = ${Printer.plain(u)} and v = ${Printer.plain(v)}.",
+                    eq(d(e, x), ex(div(sub(mul(du.result, v), mul(u, dv.result)), com.example.cas.cas.pow(v, com.example.cas.cas.TWO)))),
+                    substeps = du.steps + dv.steps,
+                )))
+            }
+            val u = rest.first(); val v = mul(rest.drop(1))
+            val du = dtrace(u, x, depth + 1); val dv = dtrace(v, x, depth + 1)
+            return Traced(result, listOf(Step(
+                "Product rule", "(uv)′ = u′v + uv′, with u = ${Printer.plain(u)} and v = ${Printer.plain(v)}.",
+                eq(d(e, x), ex(add(mul(du.result, v), mul(u, dv.result)))),
+                substeps = du.steps + dv.steps,
+            )))
+        }
+        if (e is Pow) {
+            val (b, k) = e.base to e.exp
+            if (k.freeOf(x)) {
+                if (b == x) return leaf("Power rule", "d/d${x.name} ${x.name}ⁿ = n ${x.name}ⁿ⁻¹, with n = ${Printer.plain(k)}.")
+                return chain("Power rule", "(uⁿ)′ = n uⁿ⁻¹ · u′, with n = ${Printer.plain(k)}", e, b, x, depth, result)
+            }
+            if (b.freeOf(x)) {
+                val rule = if (b == E) "(eᵘ)′ = eᵘ · u′" else "(aᵘ)′ = aᵘ ln a · u′"
+                return if (k == x) leaf("Exponential", rule.replace(" · u′", "").replace("u", x.name)) else chain("Exponential", rule, e, k, x, depth, result)
+            }
+            return leaf("Logarithmic differentiation", "For f^g write e^(g ln f): (f^g)′ = f^g (g′ ln f + g f′/f).")
+        }
+        if (e is Fn && e.args.size == 1 && e.name in DTABLE) {
+            val u = e.args[0]
+            return if (u == x) leaf("Standard derivative", DTABLE.getValue(e.name).replace("u", x.name).replace(" · ${x.name}′", ""))
+            else chain("Standard derivative", DTABLE.getValue(e.name), e, u, x, depth, result)
+        }
+        return leaf("Differentiate", "Using the derivative of each function involved.")
+    }
+
+    /** f(u(x)) by the chain rule, with u′ worked out as a smaller step. */
+    private fun chain(title: String, rule: String, e: Expr, u: Expr, x: Sym, depth: Int, result: Expr): Traced {
+        val du = dtrace(u, x, depth + 1)
+        return Traced(result, listOf(Step(
+            "$title and chain rule", "$rule, with u = ${Printer.plain(u)}.", eq(d(e, x), result),
+            substeps = du.steps,
+        )))
+    }
+
+    private val DTABLE = mapOf(
+        "sin" to "(sin u)′ = cos u · u′", "cos" to "(cos u)′ = −sin u · u′", "tan" to "(tan u)′ = (1 + tan²u) · u′",
+        "ln" to "(ln u)′ = u′/u", "sinh" to "(sinh u)′ = cosh u · u′", "cosh" to "(cosh u)′ = sinh u · u′",
+        "asin" to "(asin u)′ = u′/√(1 − u²)", "acos" to "(acos u)′ = −u′/√(1 − u²)", "atan" to "(atan u)′ = u′/(1 + u²)",
+        "tanh" to "(tanh u)′ = (1 − tanh²u) · u′", "abs" to "|u|′ = (u/|u|) · u′", "erf" to "(erf u)′ = (2/√π) e^(−u²) · u′",
+    )
+
+    // ---- Limits ---------------------------------------------------------------------------------------
+
+    private fun lim(body: Expr, x: Sym, a: Expr, side: Int): MathRow {
+        val spec = line(x.name, "→", a).also { if (side != 0) it.add(com.example.cas.editor.Pow(MathRow(mutableListOf(sym(if (side > 0) "+" else "−"))))) }
+        return MathRow(mutableListOf(Func("lim", listOf(ex(body), spec))))
+    }
+
+    private fun limit(n: Func, angle: AngleUnit): Solution? {
+        if (n.args.size != 2) return null
+        val spec = n.args[1].items
+        val last = spec.lastOrNull()
+        val raised = (last as? com.example.cas.editor.Pow)?.exp?.items?.singleOrNull()
+        val lastSym = ((raised ?: last) as? SymNode)?.text
+        val side = when { spec.size > 3 && lastSym == "+" -> 1; spec.size > 3 && lastSym == "−" -> -1; else -> 0 }
+        val bare = if (side != 0 || (last is com.example.cas.editor.Pow && last.exp.isEmpty)) spec.dropLast(1) else spec
+        val arrow = bare.indexOfFirst { (it as? SymNode)?.text == "→" }
+        if (arrow != 1) return null
+        val x = Sym((bare[0] as? SymNode)?.text ?: return null)
+        val a = Evaluator(angle).evaluate(MathRow(bare.drop(2).toMutableList()))
+        val body = Evaluator(angle).evaluate(n.args[0])
+        val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
+        val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
+        val answer = line(question, "=", value)
+        val steps = ArrayList<Step>()
+        val infinite = Calculus.isInfinite(a)
+        // Straight substitution, when it gives a number.
+        if (!infinite) {
+            val direct = runCatching { Algebra.simplify(body.subst(x, a)) }.getOrNull()
+            if (direct != null && finiteValue(direct)) {
+                steps += Step("Direct substitution", "f is continuous at ${x.name} = ${Printer.plain(a)}: put it in.", eq(lim(body, x, a, side), direct))
+                steps += Step("Answer", null, answer, Kind.Result)
+                return Solution("Direct substitution", steps, answer)
+            }
+        }
+        val (num, den) = Algebra.together(body)
+        val ln = runCatching { Calculus.limit(num, x, a, side) }.getOrNull()
+        val ld = runCatching { Calculus.limit(den, x, a, side) }.getOrNull()
+        val form = when {
+            ln == null || ld == null || den.freeOf(x) -> null
+            ln == ZERO && ld == ZERO -> "0/0"
+            Calculus.isInfinite(ln) && Calculus.isInfinite(ld) -> "∞/∞"
+            else -> null
+        }
+        // Rational function at ∞: the highest powers decide.
+        if (infinite && form != null && Algebra.qpoly(num, x) != null && Algebra.qpoly(den, x) != null) {
+            val p = Algebra.qpoly(num, x)!!; val q = Algebra.qpoly(den, x)!!
+            steps += Step("Highest powers", "Divide the numerator and the denominator by ${x.name}^${q.degree}: only the leading terms survive.",
+                line(ex(com.example.cas.cas.mul(Num(p.lead), com.example.cas.cas.pow(x, p.degree.toLong()))), "/", ex(com.example.cas.cas.mul(Num(q.lead), com.example.cas.cas.pow(x, q.degree.toLong())))))
+            steps += Step("Answer", null, answer, Kind.Result)
+            return Solution("Highest powers", steps, answer)
+        }
+        if (form != null) {
+            steps += Step("Indeterminate form", "Substituting gives $form, which could be anything: work further.", ex(div(num, den)), Kind.Note)
+            // L'Hôpital: differentiate top and bottom, up to three times.
+            var p = num; var q = den
+            for (round in 1..3) {
+                p = Algebra.simplify(Calculus.diff(p, x)); q = Algebra.simplify(Calculus.diff(q, x))
+                val quotient = Algebra.simplify(div(p, q))
+                val got = runCatching { if (infinite) Calculus.limit(quotient, x, a, side) else Algebra.simplify(quotient.subst(x, a)) }.getOrNull()
+                steps += Step(
+                    "L'Hôpital's rule" + if (round > 1) " again" else "",
+                    "Differentiate the numerator and the denominator separately.",
+                    if (round == 1) line(lim(body, x, a, side), "=", lim(div(p, q), x, a, side)) else line("=", lim(div(p, q), x, a, side)),
+                )
+                if (got != null && finiteOrInfinite(got) && sameValue(got, value)) {
+                    steps += Step("Substitute", "Now substitution works.", line(lim(div(p, q), x, a, side), "=", got))
+                    steps += Step("Answer", null, answer, Kind.Result)
+                    return Solution("L'Hôpital's rule", steps, answer)
+                }
+            }
+            steps.removeAll { it.title.startsWith("L'Hôpital") }
+        }
+        // Otherwise the series around the point (as the calculator does).
+        if (!infinite) runCatching { Calculus.taylor(body, x, a, 4) }.getOrNull()?.let { t ->
+            steps += Step("Series expansion", "Expand around ${x.name} = ${Printer.plain(a)}; the leading term gives the limit.", eq(ex(body), line(t, "+", "…")))
+            steps += Step("Answer", null, answer, Kind.Result)
+            return Solution("Series expansion", steps, answer)
+        }
+        steps += Step("Limit", "From the leading behavior of each part as ${x.name} → ${Printer.plain(a)}.", answer, Kind.Result)
+        return Solution("Leading behavior", steps, answer)
+    }
+
+    private fun finiteValue(e: Expr) = runCatching { Numeric.eval(e) }.getOrNull()?.let { it.re.isFinite() && it.im.isFinite() } == true
+    private fun finiteOrInfinite(e: Expr) = Calculus.isInfinite(e) || finiteValue(e)
+    private fun sameValue(a: Expr, b: Expr): Boolean {
+        if (Calculus.isInfinite(a) || Calculus.isInfinite(b)) return same(a, b)
+        val u = runCatching { Numeric.eval(a) }.getOrNull() ?: return false
+        val v = runCatching { Numeric.eval(b) }.getOrNull() ?: return false
+        return (u - v).abs() < 1e-9 * maxOf(1.0, v.abs())
+    }
+
+    // ---- Sums -------------------------------------------------------------------------------------------
+
+    private fun sigma(body: Expr, k: Sym, lo: Expr, hi: Expr): MathRow = MathRow(mutableListOf(
+        com.example.cas.editor.BigOp(com.example.cas.editor.BigOpKind.Sum, MathRow(mutableListOf(sym(k.name))), ex(lo), ex(hi), ex(body)),
+    ))
+
+    private fun sum(n: com.example.cas.editor.BigOp, angle: AngleUnit): Solution? {
+        val name = n.variable.items.joinToString("") { (it as? SymNode)?.text ?: "" }
+        if (name.length != 1) return null
+        val k = Sym(name)
+        val ev = { r: MathRow -> Evaluator(angle).evaluate(r) }
+        val body = ev(n.body); val lo = ev(n.lower); val hi = ev(n.upper)
+        val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
+        val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
+        val answer = line(question, "=", value)
+        val steps = ArrayList<Step>()
+        val count = (hi as? Num)?.q?.takeIf { it.isInteger }?.let { h -> (lo as? Num)?.q?.takeIf { it.isInteger }?.let { l -> (h - l).num.toLong() + 1 } }
+        // A few terms: write them out.
+        if (count != null && count in 1..8) {
+            val terms = (0 until count).map { j -> Algebra.simplify(body.subst(k, add(lo, Num(j)))) }
+            steps += Step("Write out the terms", "${k.name} = ${Printer.plain(lo)}, …, ${Printer.plain(hi)}.", line(*terms.flatMapIndexed { j, t -> (if (j > 0) listOf<Any>("+") else emptyList()) + listOf<Any>(paren(t)) }.toTypedArray()))
+            steps += Step("Add them up", null, answer, Kind.Result)
+            return Solution("Adding the terms", steps, answer)
+        }
+        // Infinite series of known kinds.
+        if (Calculus.isPlusInfinity(hi)) {
+            geometric(body, k)?.let { r ->
+                steps += Step("Geometric series", "Each term is the last times r = ${Printer.plain(r)}.", ex(r))
+                steps += Step("Converges", "|r| < 1, so Σ a rᵏ = (first term)/(1 − r).", null, Kind.Check)
+                steps += Step("Answer", null, answer, Kind.Result)
+                return Solution("Geometric series", steps, answer)
+            }
+            pSeries(body, k)?.let { (p, alternating) ->
+                val pText = Printer.plain(p)
+                steps += Step(if (alternating) "Alternating p-series" else "p-series", "The term is ${if (alternating) "±" else ""}1/${k.name}^$pText.", ex(body))
+                steps += Step("Converges", if (alternating) "The terms shrink to 0 and alternate in sign." else "p = $pText > 1, so the series converges.", null, Kind.Check)
+                steps += Step(
+                    if (alternating) "Dirichlet eta function" else "Riemann zeta function",
+                    if (alternating) "Σ (−1)^(${k.name}+1)/${k.name}^p = η(p), and η(1) = ln 2, η(p) = (1 − 2^(1−p)) ζ(p)." else "Σ 1/${k.name}^p from 1 is ζ(p); ζ(2) = π²/6, ζ(4) = π⁴/90.",
+                    answer, Kind.Result,
+                )
+                return Solution(if (alternating) "Eta function" else "Zeta function", steps, answer)
+            }
+            steps += Step("Closed form", "Recognized from the form of the term.", answer, Kind.Result)
+            return Solution("Known series", steps, answer)
+        }
+        // A polynomial in k up to n: linearity and the power sums.
+        val cs = Algebra.coefficients(Algebra.expand(body), k)
+        if (cs != null && cs.size <= 4) {
+            val pieces = cs.mapIndexedNotNull { p, c -> if (c == ZERO) null else Triple(p, c, POWER_SUMS[p]) }
+            steps += Step("Linearity", "Split the sum and take constants out.",
+                line(sigma(body, k, lo, hi), "=", *pieces.flatMapIndexed { j, (p, c, _) -> (if (j > 0) listOf<Any>("+") else emptyList()) + listOf<Any>(paren(c), sigma(com.example.cas.cas.pow(k, p.toLong()), k, lo, hi)) }.toTypedArray()))
+            if (lo != com.example.cas.cas.ONE) steps += Step("Shift", "The formulas below start at ${k.name} = 1: subtract the terms before ${Printer.plain(lo)}.", null, Kind.Note)
+            pieces.forEach { (p, _, formula) -> steps += Step("Sum of ${if (p == 0) "a constant" else k.name + if (p > 1) "^$p" else ""}", formula, null) }
+            steps += Step("Simplify", "Put the pieces together and factor.", answer, Kind.Result)
+            return Solution("Power sums", steps, answer)
+        }
+        geometric(body, k)?.let { r ->
+            steps += Step("Geometric sum", "Ratio r = ${Printer.plain(r)}: Σ a rᵏ = a (r^(n+1) − 1)/(r − 1) from 0 to n.", ex(r))
+            steps += Step("Answer", null, answer, Kind.Result)
+            return Solution("Geometric sum", steps, answer)
+        }
+        steps += Step("Closed form", "Found from the form of the term.", answer, Kind.Result)
+        return Solution("Closed form", steps, answer)
+    }
+
+    private val POWER_SUMS = listOf(
+        "Σ 1 from 1 to n = n", "Σ k from 1 to n = n(n + 1)/2", "Σ k² from 1 to n = n(n + 1)(2n + 1)/6", "Σ k³ from 1 to n = (n(n + 1)/2)²",
+    )
+
+    /** r when the term is a·rᵏ (r constant), else null. */
+    private fun geometric(body: Expr, k: Sym): Expr? {
+        val r = runCatching { Algebra.simplify(div(body.subst(k, add(k, com.example.cas.cas.ONE)), body)) }.getOrNull() ?: return null
+        if (!r.freeOf(k) || r == com.example.cas.cas.ONE) return null
+        val v = runCatching { Numeric.eval(r) }.getOrNull() ?: return null
+        return r.takeIf { v.abs() < 1 || !body.freeOf(k) }
+    }
+
+    /** (p, alternating) when the term is 1/kᵖ or (−1)^(k±1)/kᵖ. */
+    private fun pSeries(body: Expr, k: Sym): Pair<Expr, Boolean>? {
+        val fs = if (body is Mul) body.factors else listOf(body)
+        var p: Expr? = null; var alternating = false
+        for (f in fs) when {
+            f is Pow && f.base == k && f.exp.freeOf(k) -> p = neg(f.exp)
+            f is Pow && f.base == MINUS_ONE -> alternating = true
+            f is Num -> {}
+            else -> return null
+        }
+        return p?.let { it to alternating }
+    }
 }

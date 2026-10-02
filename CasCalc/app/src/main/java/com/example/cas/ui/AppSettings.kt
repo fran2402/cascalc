@@ -60,7 +60,7 @@ object AppSettings {
     /** The answer shown under the input while typing. */
     var livePreview by mutableStateOf(true)
         private set
-    /** Beta: worked steps for integrals and ∮ loop integrals, from the history. */
+    /** Beta: worked steps for integrals, derivatives, limits, sums and ∮ loop integrals, from the history. */
     var showSteps by mutableStateOf(false)
         private set
     /** How many calculations the history keeps: 50, 100, 500, or 0 for all. */
