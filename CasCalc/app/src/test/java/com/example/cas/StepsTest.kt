@@ -373,3 +373,28 @@ class LargeDeterminantStepsTest {
         println(s.steps.first().substeps.map { it.title })
     }
 }
+
+class SolverStepsTest {
+    private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
+    private fun fn(name: String, vararg a: MathRow) = Func(name, a.toList())
+    private fun mat(n: Int, vararg v: String) = com.example.cas.editor.Matrix(n, n, v.map { m(it) })
+    private fun deep(ss: List<Steps.Step>, pre: String): List<String> = ss.flatMap { listOf(pre + it.title) + deep(it.substeps, "  ") }
+    private fun of(r: MathRow) = Steps.of(r)!!.also { s -> println(s.method + ": " + deep(s.steps, "") + " → " + Formatter.plain(s.answer)) }
+
+    @Test fun eigenvalues() = assertEquals("Eigenvalues", of(m(fn("eigvals", m(mat(2, "2", "1", "1", "2"))))).method)
+    @Test fun eigenvectors() = assertTrue(of(m(fn("eigvecs", m(mat(2, "2", "1", "1", "2"))))).steps.count { it.title.startsWith("Eigenvector for") } == 2)
+    @Test fun charpoly() = assertEquals("Characteristic polynomial", of(m(fn("charpoly", m(mat(2, "1", "2", "3", "4"))))).method)
+    @Test fun rref() = assertEquals("Gauss–Jordan elimination", of(m(fn("rref", m(mat(2, "1", "2", "3", "4"))))).method)
+    @Test fun inverse() {
+        val s = of(m(mat(2, "1", "2", "3", "4"), Pow(m("−1"))))
+        assertTrue(s.steps.first().title == "Augment with I")
+    }
+    @Test fun odeSecondOrder() = assertEquals("Characteristic equation", of(m(fn("dsolve", m("y′′+3y′+2y=0")))).method)
+    @Test fun odeLinear() = assertTrue(deep(of(m(fn("dsolve", m("y′=2y+x")))).steps, "").contains("Integrating factor"))
+    @Test fun odeSeparable() = assertTrue(deep(of(m(fn("dsolve", m("y′=xy", Pow(m("2")))))).steps, "").contains("Separable"))
+    @Test fun mean() = assertEquals("Mean", of(m(fn("mean", m("2,4,4,5")))).method)
+    @Test fun sd() = assertTrue(deep(of(m(fn("sd", m("2,4,4,5")))).steps, "").contains("Sample variance"))
+    @Test fun median() = assertEquals("Median", of(m(fn("median", m("5,1,3,2")))).method)
+    @Test fun gradient() = assertEquals("Gradient", of(m(fn("grad", m("x", Pow(m("2")), "y"), m("")))).method)
+    @Test fun curl() = assertEquals("Curl", of(m(fn("curl", m(com.example.cas.editor.Matrix(3, 1, listOf(m("−y"), m("x"), m("0"))))))).method)
+}

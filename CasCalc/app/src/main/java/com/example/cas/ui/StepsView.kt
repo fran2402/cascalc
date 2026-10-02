@@ -223,7 +223,7 @@ private fun Body(solution: Steps.Solution?, ready: Boolean, state: StepsState, l
             Icon(Icons.Default.Info, contentDescription = null, tint = colors.outline, modifier = Modifier.size(36.dp))
             Spacer(Modifier.height(8.dp))
             Text("No steps for this one yet", style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
-            Text("Steps are in beta: integrals, derivatives, limits, sums, products, residues, Taylor series, determinants, complex arithmetic, simplification and ∮ loop integrals for now.", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+            Text("Steps are in beta: calculus, algebra, complex numbers, matrices, differential equations, statistics and vector calculus for now.", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
         }
         else -> LazyColumn(state = list, modifier = modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)) {
             itemsIndexed(solution.steps) { k, step ->

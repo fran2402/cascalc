@@ -56,7 +56,21 @@ object Steps {
     class Solution(val method: String, val steps: List<Step>, val answer: MathRow)
 
     /** Whether there are steps for [row]: a lone integral or ∮ (steps are worked out only when asked for). */
-    fun supports(row: MathRow): Boolean = target(row) != null || isComplexArithmetic(row) || simplificationMoves(row, AngleUnit.Radians).isNotEmpty()
+    private val FUNCS = setOf(
+        "contour", "lim", "residue", "taylor", "det", "eigvals", "eigvecs", "charpoly", "rref", "dsolve",
+        "mean", "median", "sd", "psd", "var", "grad", "div", "curl", "jacobian", "hessian",
+    )
+
+    /** A matrix raised to −1. */
+    private fun inverseOf(row: MathRow): com.example.cas.editor.Matrix? {
+        val items = row.items.filter { !(it is SymNode && it.text.isBlank()) }
+        if (items.size != 2) return null
+        val m = items[0] as? com.example.cas.editor.Matrix ?: return null
+        val pw = items[1] as? com.example.cas.editor.Pow ?: return null
+        return m.takeIf { pw.exp.items.joinToString("") { n -> (n as? SymNode)?.text ?: "?" } == "−1" }
+    }
+
+    fun supports(row: MathRow): Boolean = target(row) != null || inverseOf(row) != null || isComplexArithmetic(row) || simplificationMoves(row, AngleUnit.Radians).isNotEmpty()
 
     /** The rewrites that simplify a plain algebraic expression (empty if there are none, or it isn't one). */
     private fun simplificationMoves(row: MathRow, angle: AngleUnit): List<com.example.cas.cas.AutoSimplify.Move> {
@@ -104,11 +118,12 @@ object Steps {
     private fun target(row: MathRow): Node? =
         row.items.filter { !(it is SymNode && it.text.isBlank()) }.singleOrNull()?.takeIf {
             it is Integral || it is com.example.cas.editor.Derivative || it is com.example.cas.editor.BigOp ||
-                (it is Func && it.name in setOf("contour", "lim", "residue", "taylor", "det"))
+                (it is Func && it.name in FUNCS)
         }
 
     /** The working for [row], or null if there is none (or it couldn't be found). */
     fun of(row: MathRow, angle: AngleUnit = AngleUnit.Radians): Solution? = runCatching {
+        inverseOf(row)?.let { return@runCatching inverse(row, angle) }
         when (val n = target(row)) {
             is Integral -> integral(n, angle)
             is com.example.cas.editor.Derivative -> derivative(n, angle)
@@ -118,6 +133,11 @@ object Steps {
                 "residue" -> residue(n, angle)
                 "taylor" -> taylor(n, angle)
                 "det" -> determinant(n, angle)
+                "eigvals", "eigvecs", "charpoly" -> eigen(n, angle)
+                "rref" -> rrefSteps(n, angle)
+                "dsolve" -> ode(n, angle)
+                "mean", "median", "sd", "psd", "var" -> statistics(n, angle)
+                "grad", "div", "curl", "jacobian", "hessian" -> vectorCalculus(n, angle)
                 else -> contour(n, angle)
             }
             else -> if (isComplexArithmetic(row)) complex(row, angle) else simplification(row, angle)
@@ -146,6 +166,10 @@ object Steps {
         MathRow(mutableListOf(Integral(lo?.let { ex(it) } ?: MathRow(), hi?.let { ex(it) } ?: MathRow(), ex(body), MathRow(mutableListOf(sym(x.name))))))
 
     private fun eq(a: Any, b: Any) = line(a, "=", b)
+
+    /** The question and its answer: "=" for a value, "⇒" for an answer that is itself an equation or list (y = …, λ = 1, λ = 3). */
+    private fun ans(question: MathRow, value: Expr): MathRow =
+        if (value is Eq || value is com.example.cas.cas.Seq || value is com.example.cas.cas.Rel) line(question, "  ", "⇒", "  ", value) else line(question, "=", value)
 
     private fun same(a: Expr, b: Expr) = Printer.plain(a) == Printer.plain(b)
 
@@ -228,7 +252,11 @@ object Steps {
 
     private fun methodOf(steps: List<Step>): String {
         val titles = steps.flatMap { listOf(it.title) + it.substeps.map { s -> s.title } }
-        return listOf("Integration by parts", "Substitution", "Partial fractions", "Special function", "Power rule", "Sum rule")
+        return listOf(
+            "Quartic denominator", "Trigonometric substitution", "Weierstrass substitution", "Rationalizing substitution", "By parts twice", "Quadratic denominator",
+            "Complete the square", "Multiple angles", "Product-to-sum", "Power reduction", "Special function", "Integration by parts", "Substitution",
+            "Divide, then split", "Partial fractions", "Power rule", "Sum rule",
+        )
             .firstOrNull { it in titles } ?: titles.firstOrNull() ?: "Integration"
     }
 
@@ -1016,7 +1044,7 @@ object Steps {
         val body = Evaluator(angle).evaluate(n.args[0])
         val value = com.example.cas.graph.ComplexIntegrals.circle(body, z, center, radius)
         val question = MathRow(mutableListOf(n)).let { com.example.cas.editor.MathCodec.copy(it) }
-        val answer = line(question, "=", value)
+        val answer = ans(question, value)
         val steps = ArrayList<Step>()
         val c = Numeric.eval(center); val r = Numeric.real(radius)
         steps += Step("The circle", "Center ${Printer.plain(center)}, radius ${Printer.plain(radius)}, run counterclockwise.", ex(spec))
@@ -1102,7 +1130,7 @@ object Steps {
             val a = ev(n.at)
             steps += Step("Evaluate", "Put ${x.name} = ${Printer.plain(a)} into the derivative.", line(current, ",", " ", x.name, "=", a, "  ", "⇒", " ", value))
         }
-        val answer = line(question, "=", value)
+        val answer = ans(question, value)
         steps += Step("Answer", null, answer, Kind.Result)
         return Solution(methodOf(steps), steps, answer)
     }
@@ -1214,7 +1242,7 @@ object Steps {
         val body = Evaluator(angle).evaluate(n.args[0])
         val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
         val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
-        val answer = line(question, "=", value)
+        val answer = ans(question, value)
         val steps = ArrayList<Step>()
         val infinite = Calculus.isInfinite(a)
         // Straight substitution, when it gives a number.
@@ -1297,7 +1325,7 @@ object Steps {
         val body = ev(n.body); val lo = ev(n.lower); val hi = ev(n.upper)
         val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
         val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
-        val answer = line(question, "=", value)
+        val answer = ans(question, value)
         val steps = ArrayList<Step>()
         val count = (hi as? Num)?.q?.takeIf { it.isInteger }?.let { h -> (lo as? Num)?.q?.takeIf { it.isInteger }?.let { l -> (h - l).num.toLong() + 1 } }
         // A few terms: write them out.
@@ -1394,7 +1422,7 @@ object Steps {
         val body = ev(n.body); val lo = ev(n.lower); val hi = ev(n.upper)
         val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
         val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
-        val answer = line(question, "=", value)
+        val answer = ans(question, value)
         val steps = ArrayList<Step>()
         val count = (hi as? Num)?.q?.takeIf { it.isInteger }?.let { h -> (lo as? Num)?.q?.takeIf { it.isInteger }?.let { l -> (h - l).num.toLong() + 1 } }
         if (count != null && count in 1..8) {
@@ -1446,7 +1474,7 @@ object Steps {
         val f = Evaluator(angle).evaluate(n.args[0])
         val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
         val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
-        val answer = line(question, "=", value)
+        val answer = ans(question, value)
         val steps = ArrayList<Step>()
         val (_, den) = Algebra.together(f)
         val atPole = !den.freeOf(z) && runCatching { Numeric.eval(Algebra.simplify(den.subst(z, a))) }.getOrNull()?.let { it.abs() < 1e-12 } == true
@@ -1479,7 +1507,7 @@ object Steps {
         val f = Evaluator(angle).evaluate(n.args[0])
         val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
         val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
-        val answer = line(question, "=", value)
+        val answer = ans(question, value)
         val derivatives = ArrayList<Step>()
         var g = f
         val coefficients = ArrayList<Expr>()
@@ -1505,7 +1533,7 @@ object Steps {
         if (mat.rows >= 5) return rowReduction(n, mat, angle)
         val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
         val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
-        val answer = line(question, "=", value)
+        val answer = ans(question, value)
         val c = mat.cells
         val steps = ArrayList<Step>()
         if (mat.rows == 2) {
@@ -1535,7 +1563,7 @@ object Steps {
         val a = Array(size) { r -> Array(size) { c -> mat.cells[r * size + c] } }
         val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
         val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
-        val answer = line(question, "=", value)
+        val answer = ans(question, value)
         val steps = ArrayList<Step>()
         var sign = 1
         fun current() = com.example.cas.cas.Mat(size, size, a.flatMap { it.toList() })
@@ -1576,11 +1604,274 @@ object Steps {
         return Solution("Row reduction", steps, answer)
     }
 
+    // ---- Linear algebra ------------------------------------------------------------------------------
+
+    private fun matrixOf(r: MathRow, angle: AngleUnit) = Evaluator(angle).evaluate(r) as? com.example.cas.cas.Mat
+    private fun isZeroExpr(e: Expr) = e == ZERO || runCatching { Numeric.eval(e).abs() < 1e-12 }.getOrDefault(false)
+
+    /**
+     * Gauss–Jordan on [m], pivoting in its first [pivotCols] columns: for each pivot a step with the
+     * matrix after it, and the row operations (swap, scale, clear) inside.
+     */
+    private fun gaussJordan(m: com.example.cas.cas.Mat, pivotCols: Int): Pair<com.example.cas.cas.Mat, List<Step>> {
+        val rows = m.rows; val cols = m.cols
+        val a = Array(rows) { r -> Array(cols) { c -> m.cells[r * cols + c] } }
+        fun current() = com.example.cas.cas.Mat(rows, cols, a.flatMap { it.toList() })
+        val steps = ArrayList<Step>()
+        var pr = 0
+        for (col in 0 until pivotCols) {
+            if (pr >= rows) break
+            val found = (pr until rows).firstOrNull { !isZeroExpr(a[it][col]) } ?: continue
+            val ops = ArrayList<Step>()
+            if (found != pr) { val t = a[pr]; a[pr] = a[found]; a[found] = t; ops += Step("R${pr + 1} ↔ R${found + 1}", "Swap so the pivot isn't 0.") }
+            val pivot = a[pr][col]
+            if (pivot != com.example.cas.cas.ONE) {
+                for (c in 0 until cols) a[pr][c] = Algebra.simplify(div(a[pr][c], pivot))
+                ops += Step("R${pr + 1} ← R${pr + 1} ÷ ${Printer.plain(pivot).replace("-", "−").let { if (it.startsWith("−") || it.contains("+")) "($it)" else it }}", "Make the pivot 1.")
+            }
+            for (r in 0 until rows) {
+                if (r == pr || isZeroExpr(a[r][col])) continue
+                val factor = a[r][col]
+                for (c in 0 until cols) a[r][c] = Algebra.simplify(sub(a[r][c], mul(factor, a[pr][c])))
+                ops += Step("R${r + 1} ← R${r + 1} − ${Printer.plain(factor).replace("-", "−")} · R${pr + 1}", "Clear column ${col + 1} in row ${r + 1}.")
+            }
+            steps += Step("Pivot in column ${col + 1}", "Row ${pr + 1}: a 1 here and 0 above and below it.", ex(current()), substeps = ops)
+            pr++
+        }
+        return current() to steps
+    }
+
+    private fun rrefSteps(n: Func, angle: AngleUnit): Solution? {
+        val m = matrixOf(n.args.firstOrNull() ?: return null, angle) ?: return null
+        val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
+        val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
+        val answer = ans(question, value)
+        val (_, steps) = gaussJordan(m, m.cols)
+        return Solution("Gauss–Jordan elimination", steps + Step("Reduced row echelon form", "Every pivot is 1 with zeros above and below it.", answer, Kind.Result), answer)
+    }
+
+    private fun inverse(row: MathRow, angle: AngleUnit): Solution? {
+        val m = matrixOf(MathRow(mutableListOf(inverseOf(row)!!)), angle) ?: return null
+        if (m.rows != m.cols || m.rows > 8) return null
+        val nn = m.rows
+        val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(row))
+        val answer = ans(row, value)
+        val aug = com.example.cas.cas.Mat(nn, 2 * nn, (0 until nn).flatMap { r -> (0 until 2 * nn).map { c -> if (c < nn) m.cells[r * nn + c] else if (c - nn == r) com.example.cas.cas.ONE else ZERO } })
+        val steps = ArrayList<Step>()
+        steps += Step("Augment with I", "Write A and the identity side by side: [A | I]. Row operations that turn A into I turn I into A⁻¹.", ex(aug))
+        val (done, ops) = gaussJordan(aug, nn)
+        steps += ops
+        val left = (0 until nn).all { r -> (0 until nn).all { c -> isZeroExpr(sub(done.cells[r * 2 * nn + c], if (r == c) com.example.cas.cas.ONE else ZERO)) } }
+        if (!left) {
+            steps += Step("Not invertible", "The left half can't be made the identity: a row of zeros appears, so det A = 0.", answer, Kind.Result)
+            return Solution("Gauss–Jordan elimination", steps, answer)
+        }
+        steps += Step("Read off A⁻¹", "The left half is now I, so the right half is the inverse.", answer, Kind.Result)
+        return Solution("Gauss–Jordan elimination", steps, answer)
+    }
+
+    private fun eigen(n: Func, angle: AngleUnit): Solution? {
+        val m = matrixOf(n.args.firstOrNull() ?: return null, angle) ?: return null
+        if (m.rows != m.cols) return null
+        val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
+        val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
+        val answer = ans(question, value)
+        val lambda = Sym("λ")
+        val size = m.rows
+        val shifted = com.example.cas.cas.Mat(size, size, List(size * size) { k -> val r = k / size; val c = k % size; if (r == c) sub(lambda, m.cells[k]) else neg(m.cells[k]) })
+        val poly = com.example.cas.cas.LinearAlgebra.charpoly(m)
+        val steps = ArrayList<Step>()
+        steps += Step("λI − A", "Subtract A from λ times the identity.", ex(shifted))
+        steps += Step("Characteristic polynomial", "Its determinant, multiplied out.", line("det", "(", "λ", "I", "−", "A", ")", "=", poly))
+        if (n.name == "charpoly") {
+            steps += Step("Answer", null, answer, Kind.Result)
+            return Solution("Characteristic polynomial", steps, answer)
+        }
+        val factored = runCatching { Algebra.factor(poly) }.getOrNull()
+        if (factored != null && !same(factored, poly)) steps += Step("Factor", "The eigenvalues are where it's 0.", eq(poly, factored))
+        val roots = com.example.cas.cas.LinearAlgebra.eigenvalues(m).let { if (it is com.example.cas.cas.Seq) it.items else listOf(it) }.mapNotNull { (it as? Eq)?.rhs }
+        steps += Step("Eigenvalues", "The roots of the characteristic polynomial.", line(*roots.flatMapIndexed { k, r -> (if (k > 0) listOf<Any>(",", "  ") else emptyList()) + listOf<Any>("λ", "=", r) }.toTypedArray()))
+        if (n.name == "eigvecs") for (r in roots) {
+            val am = com.example.cas.cas.Mat(size, size, List(size * size) { k -> val rr = k / size; val c = k % size; if (rr == c) sub(m.cells[k], r) else m.cells[k] })
+            val (reduced, ops) = gaussJordan(am, size)
+            val basis = com.example.cas.cas.LinearAlgebra.nullspace(am)
+            steps += Step(
+                "Eigenvector for λ = ${Printer.plain(r).replace("-", "−")}", "Solve (A − λI)v = 0: row reduce, then set the free variable to 1.",
+                line(ex(reduced), "  ", "⇒", "  ", "v", "=", *basis.flatMapIndexed { k, b -> (if (k > 0) listOf<Any>(",", " ") else emptyList()) + listOf<Any>(b) }.toTypedArray()),
+                substeps = listOf(Step("A − λI", null, ex(am))) + ops,
+            )
+        }
+        steps += Step("Answer", null, answer, Kind.Result)
+        return Solution(if (n.name == "eigvecs") "Eigenvectors" else "Eigenvalues", steps, answer)
+    }
+
+    // ---- Differential equations ------------------------------------------------------------------------
+
+    private fun ode(n: Func, angle: AngleUnit): Solution? {
+        val (eqn, y, x) = Evaluator(angle).odeParts(n.args[0]) ?: return null
+        val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
+        val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
+        val answer = ans(question, value)
+        val f = if (eqn is Eq) sub(eqn.lhs, eqn.rhs) else eqn
+        val y1 = com.example.cas.cas.Ode.derivativeSymbol(y, 1); val y2 = com.example.cas.cas.Ode.derivativeSymbol(y, 2)
+        val c1 = Sym("C₁")
+        val steps = ArrayList<Step>()
+        val hasConditions = n.args[0].items.any { it is SymNode && it.text == "," }
+        if (!f.freeOf(y2)) {
+            val ex0 = Algebra.expand(f)
+            fun coef(v: Sym, e: Expr): Pair<Expr, Expr> { val cs = Algebra.coefficients(e, v)!!; return cs.getOrElse(1) { ZERO } to cs[0] }
+            val (a, r1) = coef(y2, ex0); val (b, r2) = coef(y1, r1); val (c, rest) = coef(y, r2)
+            val g = Algebra.simplify(neg(rest))
+            val r = Sym("r")
+            val charEq = add(mul(a, p(r, two)), mul(b, r), c)
+            steps += Step("Linear, constant coefficients", "a${y.name}″ + b${y.name}′ + c${y.name} = g(${x.name}) with a = ${Printer.plain(a)}, b = ${Printer.plain(b)}, c = ${Printer.plain(c)}.", ex(Eq(add(mul(a, y2), mul(b, y1), mul(c, y)), g)))
+            steps += Step("Characteristic equation", "Try ${y.name} = e^(r${x.name}): it works when ar² + br + c = 0.", ex(Eq(charEq, ZERO)))
+            val roots = Algebra.solve(Eq(charEq, ZERO), r).let { if (it is com.example.cas.cas.Seq) it.items else listOf(it) }.mapNotNull { (it as? Eq)?.rhs }
+            val kind = when {
+                roots.size == 1 -> "A repeated root r: ${y.name}ₕ = (C₁ + C₂${x.name}) e^(r${x.name})."
+                roots.all { Numeric.eval(it).isReal } -> "Two real roots r₁, r₂: ${y.name}ₕ = C₁ e^(r₁${x.name}) + C₂ e^(r₂${x.name})."
+                else -> "Complex roots α ± βi: ${y.name}ₕ = e^(α${x.name}) (C₁ cos β${x.name} + C₂ sin β${x.name})."
+            }
+            steps += Step("Roots", kind, line(*roots.flatMapIndexed { k, rt -> (if (k > 0) listOf<Any>(",", "  ") else emptyList()) + listOf<Any>("r", "=", rt) }.toTypedArray()))
+            if (!LinearAlgebra0.isZero(g)) steps += Step("Particular solution", "Undetermined coefficients: guess a ${y.name}ₚ of the same form as g(${x.name}) = ${Printer.plain(g)}, put it in and match coefficients; ${y.name} = ${y.name}ₕ + ${y.name}ₚ.", null)
+        } else {
+            val rhs = (Algebra.solve(Eq(f, ZERO), y1) as? Eq)?.rhs ?: return null
+            steps += Step("First order", "Write it as ${y.name}′ = f(${x.name}, ${y.name}).", ex(Eq(y1, rhs)))
+            val cs = Algebra.coefficients(Algebra.expand(rhs), y)
+            if (cs != null && cs.size <= 2 && cs.all { it.freeOf(y) }) {
+                val a = cs.getOrElse(1) { ZERO }; val b = cs[0]
+                if (a == ZERO) {
+                    val integral = Calculus.integrate(b, x)
+                    steps += Step("Integrate both sides", "${y.name}′ depends on ${x.name} only.", line(y, "=", int(b, x), "=", integral ?: b, "+", c1))
+                } else {
+                    val ia = Calculus.integrate(a, x) ?: return null
+                    val mu = Algebra.simplify(p(E, neg(ia)))
+                    steps += Step("Linear", "${y.name}′ − a(${x.name})${y.name} = b(${x.name}) with a = ${Printer.plain(a)}, b = ${Printer.plain(b)}.", ex(Eq(sub(y1, mul(a, y)), b)))
+                    steps += Step("Integrating factor", "μ = e^(−∫a d${x.name}): then (μ${y.name})′ = μ(${y.name}′ − a${y.name}).", line("μ", "=", mu))
+                    val inner = if (b == ZERO) ZERO else Calculus.integrate(Algebra.simplify(mul(mu, b)), x) ?: return null
+                    steps += Step("Multiply and integrate", "(μ${y.name})′ = μb, so μ${y.name} = ∫ μb d${x.name} + C₁.", line(mu, y, "=", inner, "+", c1))
+                    steps += Step("Solve for ${y.name}", "Divide by μ.", line(y, "=", Algebra.simplify(Algebra.expand(div(add(inner, c1), mu)))))
+                }
+            } else {
+                val factored = Algebra.factor(rhs)
+                val fs = if (factored is Mul) factored.factors else listOf(factored)
+                val fx = mul(fs.filter { it.freeOf(y) }); val gy = mul(fs.filter { !it.freeOf(y) })
+                val left = Calculus.integrate(Algebra.simplify(p(gy, MINUS_ONE)), y); val right = Calculus.integrate(fx, x)
+                steps += Step("Separable", "${y.name}′ = f(${x.name})·g(${y.name}) with f = ${Printer.plain(fx)}, g = ${Printer.plain(gy)}: put the ${y.name}s on one side.",
+                    line(int(Algebra.simplify(p(gy, MINUS_ONE)), y), "=", int(fx, x)))
+                if (left != null && right != null) steps += Step("Integrate both sides", "Add a constant C₁.", line(left, "=", right, "+", c1))
+                steps += Step("Solve for ${y.name}", "Where the equation can be solved for ${y.name}.", null)
+            }
+        }
+        if (hasConditions) steps += Step("Apply the conditions", "Put the given values in and solve for the constants.", null)
+        steps += Step("Answer", null, answer, Kind.Result)
+        return Solution(if (!f.freeOf(y2)) "Characteristic equation" else steps[1].title.let { if (it == "Integrate both sides") "Direct integration" else it }, steps, answer)
+    }
+
+    private object LinearAlgebra0 { fun isZero(e: Expr) = com.example.cas.cas.LinearAlgebra.isZero(e) }
+
+    // ---- Statistics ------------------------------------------------------------------------------------
+
+    private fun statistics(n: Func, angle: AngleUnit): Solution? {
+        val xs = Evaluator(angle).listValues(n.args.firstOrNull() ?: return null) ?: return null
+        if (xs.isEmpty() || xs.size > 60) return null
+        val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
+        val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
+        val answer = ans(question, value)
+        val count = Num(xs.size.toLong())
+        val total = Algebra.simplify(add(xs))
+        val mean = Algebra.simplify(div(total, count))
+        val steps = ArrayList<Step>()
+        fun listRow(v: List<Expr>, sep: String = "+") = line(*v.flatMapIndexed { k, t -> (if (k > 0) listOf<Any>(sep) else emptyList()) + listOf<Any>(paren(t)) }.toTypedArray())
+        if (n.name == "median") {
+            val sorted = xs.sortedBy { Numeric.real(it) }
+            steps += Step("Sort", "Put the ${xs.size} values in order.", listRow(sorted, ","))
+            steps += Step(
+                if (xs.size % 2 == 1) "Middle value" else "Middle two values",
+                if (xs.size % 2 == 1) "An odd count: the value in position ${(xs.size + 1) / 2}." else "An even count: the mean of positions ${xs.size / 2} and ${xs.size / 2 + 1}.",
+                answer, Kind.Result,
+            )
+            return Solution("Median", steps, answer)
+        }
+        steps += Step("Add them up", "${xs.size} values.", line(listRow(xs), "=", total))
+        steps += Step("Mean", "Divide by n = ${xs.size}.", line(MathRow(mutableListOf(com.example.cas.editor.Frac(ex(total), ex(count)))), "=", mean))
+        if (n.name == "mean") { steps += Step("Answer", null, answer, Kind.Result); return Solution("Mean", steps, answer) }
+        val squares = xs.map { Algebra.simplify(p(sub(it, mean), two)) }
+        val ss = Algebra.simplify(add(squares))
+        steps += Step("Squared deviations", "(x − x̄)² for each value.", line(listRow(squares), "=", ss))
+        val population = n.name == "psd"
+        val divisor = if (population) count else Num((xs.size - 1).toLong())
+        val variance = Algebra.simplify(div(ss, divisor))
+        steps += Step(if (population) "Population variance" else "Sample variance", if (population) "Divide by n = ${xs.size}." else "Divide by n − 1 = ${xs.size - 1} (one degree of freedom goes to the mean).",
+            line(MathRow(mutableListOf(com.example.cas.editor.Frac(ex(ss), ex(divisor)))), "=", variance))
+        if (n.name != "var") steps += Step("Standard deviation", "The square root of the variance.", line(MathRow(mutableListOf(com.example.cas.editor.Sqrt(ex(variance)))), "=", value))
+        steps += Step("Answer", null, answer, Kind.Result)
+        return Solution(if (n.name == "var") "Variance" else "Standard deviation", steps, answer)
+    }
+
+    // ---- Vector calculus ----------------------------------------------------------------------------------
+
+    private fun partial(f: Expr, v: Sym): MathRow = MathRow(mutableListOf(com.example.cas.editor.Derivative(MathRow(mutableListOf(sym(v.name))), ex(f), partial = true)))
+
+    private fun vectorCalculus(n: Func, angle: AngleUnit): Solution? {
+        val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
+        val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
+        val answer = ans(question, value)
+        val arg = Evaluator(angle).evaluate(n.args.firstOrNull() ?: return null)
+        val steps = ArrayList<Step>()
+        val xyz = listOf(Sym("x"), Sym("y"), Sym("z"))
+        fun partials(f: Expr, vars: List<Sym>) = vars.map { v -> Step("∂/∂${v.name}", "Other letters held constant.", eq(partial(f, v), Algebra.simplify(Calculus.diff(f, v)))) }
+        when (n.name) {
+            "grad" -> {
+                if (arg is com.example.cas.cas.Mat) return null
+                if (n.args.getOrNull(1)?.isEmpty == false) return null
+                val vars = xyz.filter { !arg.freeOf(it) }.ifEmpty { return null }.let { v -> if (v.contains(Sym("z"))) xyz else xyz.take(maxOf(2, v.size)) }
+                steps += Step("Partial derivatives", "∇f lists the derivative of f in each direction.", null, substeps = partials(arg, vars))
+            }
+            "div" -> {
+                val m = arg as? com.example.cas.cas.Mat ?: return null
+                val vars = xyz.take(m.cells.size)
+                val terms = m.cells.mapIndexed { k, c -> Algebra.simplify(Calculus.diff(c, vars[k])) }
+                steps += Step("Divergence", "∇·F = ∂F₁/∂x + ∂F₂/∂y (+ ∂F₃/∂z): each component by its own variable.",
+                    line(*terms.flatMapIndexed { k, t -> (if (k > 0) listOf<Any>("+") else emptyList()) + listOf<Any>(paren(t)) }.toTypedArray()),
+                    substeps = m.cells.mapIndexed { k, c -> Step("∂F${k + 1}/∂${vars[k].name}", null, eq(partial(c, vars[k]), terms[k])) })
+            }
+            "curl" -> {
+                val m = arg as? com.example.cas.cas.Mat ?: return null
+                if (m.cells.size != 3) return null
+                val (P, Q, R) = m.cells
+                val (xx, yy, zz) = xyz
+                val comps = listOf(
+                    Triple("x", R to yy, Q to zz), Triple("y", P to zz, R to xx), Triple("z", Q to xx, P to yy),
+                )
+                steps += Step("Curl", "∇×F = (∂R/∂y − ∂Q/∂z, ∂P/∂z − ∂R/∂x, ∂Q/∂x − ∂P/∂y).", null, substeps = comps.map { (name, a, b) ->
+                    val da = Algebra.simplify(Calculus.diff(a.first, a.second)); val db = Algebra.simplify(Calculus.diff(b.first, b.second))
+                    Step("$name-component", null, line(partial(a.first, a.second), "−", partial(b.first, b.second), "=", paren(da), "−", paren(db), "=", Algebra.simplify(sub(da, db))))
+                })
+            }
+            "jacobian" -> {
+                val m = arg as? com.example.cas.cas.Mat ?: return null
+                val vars = xyz.filter { v -> m.cells.any { !it.freeOf(v) } }
+                steps += Step("Jacobian", "Row i, column j: ∂Fᵢ/∂xⱼ.", null, substeps = m.cells.flatMapIndexed { i, c -> vars.map { v -> Step("∂F${i + 1}/∂${v.name}", null, eq(partial(c, v), Algebra.simplify(Calculus.diff(c, v)))) } })
+            }
+            "hessian" -> {
+                val vars = xyz.filter { !arg.freeOf(it) }
+                val first = vars.map { Algebra.simplify(Calculus.diff(arg, it)) }
+                steps += Step("First derivatives", null, null, substeps = partials(arg, vars))
+                steps += Step("Second derivatives", "Row i, column j: ∂²f/∂xᵢ∂xⱼ (the matrix is symmetric).", null, substeps = vars.flatMapIndexed { i, vi ->
+                    vars.drop(i).map { vj -> Step("∂²f/∂${vi.name}∂${vj.name}", null, eq(partial(first[i], vj), Algebra.simplify(Calculus.diff(first[i], vj)))) }
+                })
+            }
+        }
+        steps += Step("Answer", null, answer, Kind.Result)
+        return Solution(when (n.name) { "grad" -> "Gradient"; "div" -> "Divergence"; "curl" -> "Curl"; "jacobian" -> "Jacobian matrix"; else -> "Hessian matrix" }, steps, answer)
+    }
+
     // ---- Complex arithmetic -----------------------------------------------------------------------------
 
     private fun complex(row: MathRow, angle: AngleUnit): Solution? {
         val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(row))
-        val answer = line(row, "=", value)
+        val answer = ans(row, value)
         val steps = ArrayList<Step>()
         val single = row.items.singleOrNull()
         if (single is com.example.cas.editor.Frac && single.den.items.any { it is SymNode && it.text == "i" }) {

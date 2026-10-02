@@ -111,6 +111,24 @@ class Evaluator(
 
     private val FORMS = setOf("factor", "expand", "apart", "together", "simplify", "cancel", "collect", "taylor", "series")
 
+    /** For the steps: a differential equation typed in dsolve(…), as (equation, y, x). */
+    fun odeParts(row: MathRow): Triple<Expr, Sym, Sym>? = runCatching { RowParser(emptyList(), emptyMap()).odeParts(row.items) }.getOrNull()
+
+    /** For the steps: a list typed with commas (or a vector), as its values. */
+    fun listValues(row: MathRow): List<Expr>? = runCatching {
+        val parts = splitTopCommas(clean(row)).filter { it.isNotEmpty() }.map { RowParser(it, emptyMap()).parse() }
+        if (parts.size == 1 && parts[0] is com.example.cas.cas.Mat) (parts[0] as com.example.cas.cas.Mat).cells else parts
+    }.getOrNull()
+
+    private fun splitTopCommas(items: List<Node>): List<List<Node>> {
+        val out = ArrayList<List<Node>>(); var depth = 0; var start = 0
+        items.forEachIndexed { k, n ->
+            when ((n as? com.example.cas.editor.Sym)?.text) { "(" -> depth++; ")" -> depth--; "," -> if (depth == 0) { out += items.subList(start, k); start = k + 1 } }
+        }
+        out += items.subList(start, items.size)
+        return out
+    }
+
     private fun clean(row: MathRow) = row.items.filter { (it as? com.example.cas.editor.Sym)?.text != Formatter.THIN_SPACE }
 
     private fun eval(row: MathRow, env: Map<String, Expr>): Expr {
@@ -522,6 +540,20 @@ class Evaluator(
          * are conditions y(a) = b, y′(a) = b. The unknown is the letter with
          * primes; the variable is x (or t if the equation uses t).
          */
+        /** A differential equation's parts for the steps: the equation (y′ as a symbol), y and x. */
+        fun odeParts(items: List<Node>): Triple<Expr, Sym, Sym> {
+            val first = splitCommas(items).first()
+            val y = first.indices.firstNotNullOfOrNull { k ->
+                val a = (first[k] as? com.example.cas.editor.Sym)?.text
+                val b = (first.getOrNull(k + 1) as? com.example.cas.editor.Sym)?.text
+                if (a != null && a.length == 1 && a[0].isLetter() && b == "′") Sym(a) else null
+            } ?: throw MathError("Write the equation with y′, e.g. y′ = 2y")
+            val bound = env + (y.name to y) + (1..4).associate { y.name + "′".repeat(it) to com.example.cas.cas.Ode.derivativeSymbol(y, it) }
+            val eq = RowParser(first, bound + ("x" to Sym("x")) + ("t" to Sym("t"))).parse()
+            val x = if (!eq.freeOf(Sym("t")) && eq.freeOf(Sym("x"))) Sym("t") else Sym("x")
+            return Triple(eq, y, x)
+        }
+
         private fun dsolve(items: List<Node>): Expr {
             val parts = splitCommas(items)
             val first = parts.first()
