@@ -8,8 +8,8 @@ h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
 p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1500px}
 .row{display:flex;gap:40px;align-items:flex-start;margin-bottom:50px;flex-wrap:wrap}
 .cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px}
-.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--c:#1F2018;--ch:#292A22;--chh:#34352C;--s:#12130C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sc:#45483A;--onsc:#E2E4C4;--ter:#A2D0BF;--onter:#05372B;--tc:#214E41;--ontc:#BEECDB;--lowest:#0D0F08}
-.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--s:#FCF9EE;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sc:#E2E4C4;--onsc:#1B1D0A;--ter:#3C6A5A;--onter:#fff;--tc:#BEECDB;--ontc:#002019;--lowest:#fff}
+.dark{--sec2:#C6C8A9;--onsec2:#2F321B;--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--c:#1F2018;--ch:#292A22;--chh:#34352C;--s:#12130C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sc:#45483A;--onsc:#E2E4C4;--ter:#A2D0BF;--onter:#05372B;--tc:#214E41;--ontc:#BEECDB;--lowest:#0D0F08}
+.light{--sec2:#5E6045;--onsec2:#fff;--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--s:#FCF9EE;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sc:#E2E4C4;--onsc:#1B1D0A;--ter:#3C6A5A;--onter:#fff;--tc:#BEECDB;--ontc:#002019;--lowest:#fff}
 .phone{position:relative;width:412px;height:900px;border-radius:44px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
 .status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font:500 14px GSF}
 .hd{height:56px;display:flex;align-items:center;padding:0 10px 0 6px;gap:8px;font:400 24px GSF}
@@ -41,7 +41,7 @@ p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1500px}
 <div class="row" id="phones"></div>
 <div class="row" id="tab"></div>
 <div class="row" id="hist"></div>
-<script src="gsf_cmap.js"></script><script src="cm_cmap.js"></script><script src="mathlayout.js"></script><script src="converter_data.js"></script>
+<script src="gsf_cmap.js"></script><script src="cm_cmap.js"></script><script src="mathlayout.js"></script><script src="converter_data.js"></script><script src="picker_data.js"></script>
 <script>
 const PAL={dark:{on:'#E5E3D6',onv:'#C8C7B5',pri:'#C5CB86',onpc:'#E1E7A0',onsc:'#E2E4C4',ontc:'#BEECDB',onpri:'#2F3300'},light:{on:'#1C1C16',onv:'#47473B',pri:'#5B6133',onpc:'#1A1E00',onsc:'#1B1D0A',ontc:'#002019',onpri:'#fff'}};
 let P=PAL.dark;
@@ -51,27 +51,41 @@ const cookie=(color)=>{let d='';for(let k=0;k<=216;k++){const a=2*Math.PI*k/216-
  return `<svg width="60" height="60" viewBox="0 0 60 60"><path d="${d}Z" fill="${color}"/><text x="30" y="39" text-anchor="middle" font-size="26" fill="var(--onter)">⇅</text></svg>`};
 function fromCard(d){return `<div class="card" style="background:var(--ch)"><div class="lab" style="color:var(--pri)">From</div>
  <div style="display:flex;align-items:center;gap:6px"><div style="flex:1;font:40px CMR">${d.v}<span style="display:inline-block;width:2px;height:36px;background:var(--pri);vertical-align:-6px;margin-left:2px"></span></div><span class="pill">${rt(CV.chips[0],16,P.onsc)}</span><span class="pill">${rt(CV.chips[1],16,P.onsc)}</span></div>
- <div class="field" style="background:var(--chh)">${d.from}</div>
+ <div class="field" style="background:var(--chh)"><span style="flex:1">${d.from}</span>${pick()}</div>
  <div style="display:flex;align-items:center;gap:8px">${rt(d.fromTex,18,P.onv)}<span class="chipn">${d.fromName}</span></div></div>`}
 function toCard(d,sys){return `<div class="card" style="background:var(--pc);color:var(--onpc)"><div class="lab">To</div>
- <div class="field" style="background:color-mix(in srgb,var(--lowest) 60%,transparent)">${d.to}</div>
+ <div class="field" style="background:color-mix(in srgb,var(--lowest) 60%,transparent)"><span style="flex:1">${d.to}</span>${pick()}</div>
+ ${compat(d)}
  <div class="grp">${['SI','SI base','CGS'].map((s,k)=>`<div class="${sys===k?'on':''}">${s}</div>`).join('')}</div>
  <div style="display:flex;align-items:center;gap:8px">${rt(d.toTex,18,P.onpc)}<span class="chipn">${d.toName}</span></div>
  <div style="margin-top:2px;white-space:nowrap;overflow:hidden">${rt(d.result,30,P.onpc)}</div>
  <div style="display:flex;gap:8px"><span class="act" style="background:color-mix(in srgb,var(--lowest) 70%,transparent)">⧉ Copy</span><span class="act" style="background:color-mix(in srgb,var(--lowest) 70%,transparent)">↵ Use in calculator</span></div></div>`}
+function pick(){return `<span style="height:40px;border-radius:14px;background:var(--sec2);color:var(--onsec2);display:inline-flex;align-items:center;gap:6px;padding:0 14px 0 10px;font:600 14px GSF;margin-right:-10px">◫ Pick</span>`}
+function compat(d){if(d.from!=='nm')return '';return `<div style="display:flex;gap:6px;overflow:hidden">${PK.compat.map(([s,c])=>`<span style="height:36px;flex:none;border-radius:${s===d.to?18:10}px;background:${s===d.to?'var(--pri)':'color-mix(in srgb,var(--lowest) 70%,transparent)'};display:inline-flex;align-items:center;padding:0 12px">${mv(c,16,s===d.to?P.onpri:P.onpc)}</span>`).join('')}</div>`}
 function swap(){return `<div class="swap">${cookie('var(--ter)')}</div>`}
 function notice(d){return d.bridge?`<div class="notice" style="background:var(--tc);color:var(--ontc)"><span style="font-size:20px">ⓘ</span><div>${rt(d.bridge,15,P.ontc)}</div></div>`:''}
 function also(d){return d.alts.length?`<div class="sec"><h4>Also equals</h4>${d.alts.map(a=>`<div class="alt">${rt(a,18)}</div>`).join('')}</div>`:''}
 function details(d){return `<div class="sec"><h4>Details</h4><div style="display:flex;font:14px GSF;color:var(--onv);align-items:center"><span style="width:110px">Dimension</span>${rt(d.dim,17)}</div><div style="display:flex;font:14px GSF;color:var(--onv);align-items:center"><span style="width:110px">Measures</span><span style="color:var(--on)">${d.fromName}</span></div><div style="display:flex;font:14px GSF;color:var(--onv);align-items:center"><span style="width:110px">In SI base</span>${rt(d.base,17)}</div></div>`}
 function consts(){return `<div class="sec"><h4>Physical equivalences</h4><div style="font:13px GSF;color:var(--onv)">When the dimensions differ, these constants may connect them.</div><div style="display:flex;gap:8px;flex-wrap:wrap">${[[2,'speed of light',1],[3,'Planck',1],[4,'reduced Planck',0],[5,'Boltzmann',1]].map(([i,n,on])=>`<span style="height:40px;border-radius:${on?20:10}px;background:${on?'var(--sc)':'var(--ch)'};display:inline-flex;align-items:center;gap:6px;padding:0 14px;font:500 13px GSF;color:${on?'var(--onsc)':'var(--onv)'}">${rt(CV.chips[i],17,on?P.onsc:P.onv)} ${n}</span>`).join('')}</div></div>`}
-function head(){return `<div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div><div class="hd"><span class="ib">←</span>Unit converter <span class="beta">BETA</span><span style="flex:1"></span><span class="ib">◫</span></div>`}
+function head(){return `<div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div><div class="hd"><span class="ib">←</span>Unit converter <span class="beta">BETA</span><span style="flex:1"></span></div>`}
 function phone(theme,d,sys,extra,cap){P=PAL[theme];return `<div><div class="phone ${theme}">${head()}<div class="body">${fromCard(d)}${swap()}${toCard(d,sys)}${extra(d)}</div></div><div class="cap">${cap}</div></div>`}
-document.getElementById('phones').innerHTML=
+function picker(){P=PAL.light;return `<div><div class="phone light">${head()}<div style="position:absolute;inset:0;background:rgba(0,0,0,.32)"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;top:70px;background:var(--low);border-radius:28px 28px 0 0;padding:10px 16px;display:flex;flex-direction:column;gap:12px">
+<div style="width:32px;height:4px;border-radius:2px;background:#77786A;margin:4px auto 6px"></div>
+<div style="display:flex;align-items:center"><span style="flex:1;font:400 22px GSF">Convert from</span><span style="height:44px;border-radius:22px;background:var(--pri);color:var(--onpri);display:inline-flex;align-items:center;padding:0 22px;font:600 14px GSF">Done</span></div>
+<div style="min-height:64px;border-radius:24px;background:var(--chh);display:flex;align-items:center;gap:10px;padding:0 20px">${mv(PK.preview,26)}<span class="chipn">frequency or rate</span></div>
+<div style="display:flex;gap:6px">${PK.ops.map(o=>`<span style="flex:1;height:44px;border-radius:14px;background:var(--sc);display:flex;align-items:center;justify-content:center">${mv(o,17,P.onsc)}</span>`).join('')}<span style="flex:1.2;height:44px;border-radius:14px;background:var(--tc);color:var(--ontc);display:flex;align-items:center;justify-content:center;font-size:18px">⌫</span></div>
+<div style="height:48px;border-radius:24px;background:var(--ch);display:flex;align-items:center;padding:0 18px;font:16px GSF;color:var(--onv)">Search units: parsec, erg, °F…</div>
+<div style="display:flex;gap:8px;overflow:hidden">${['Length','Mass','Time','Astronomy','Energy','Speed'].map(c=>`<span style="flex:none;height:36px;border-radius:${c==='Astronomy'?18:10}px;background:${c==='Astronomy'?'var(--pri)':'var(--chh)'};color:${c==='Astronomy'?'var(--onpri)':'var(--on)'};display:inline-flex;align-items:center;padding:0 14px;font:600 14px GSF">${c}</span>`).join('')}</div>
+<div style="display:flex;gap:4px;align-items:center;overflow:hidden"><span style="font:500 12px GSF;color:var(--onv);margin-right:6px">Prefix</span>${['T','G','M','k','none','c','m','µ','n'].map(p=>`<span style="flex:none;height:34px;min-width:38px;border-radius:${p==='M'?17:8}px;background:${p==='M'?'var(--ter)':'var(--ch)'};color:${p==='M'?'var(--onter)':'var(--on)'};display:inline-flex;align-items:center;justify-content:center;padding:0 10px;font:600 14px GSF">${p}</span>`).join('')}</div>
+<div style="display:flex;flex-direction:column;gap:2px;overflow:hidden">${PK.astro.map(([c,n,d])=>`<div style="display:flex;align-items:center;gap:12px;background:var(--c);border-radius:16px;padding:10px 16px"><span style="min-width:72px">${mv(c,20)}</span><div style="flex:1"><div style="font:16px GSF">${n}</div><div style="font:12px GSF;color:var(--onv)">${d}</div></div><span style="color:var(--pri);font-size:22px">+</span></div>`).join('')}</div>
+</div></div><div class="cap">The unit picker: km ÷ s ÷ Mpc built by tapping. Prefix chips go on the next unit; × ÷ powers and brackets join them; ⌫ removes a whole unit.</div></div>`}
+document.getElementById('phones').innerHTML=picker()+
  phone('dark',CV.hubble,-1,d=>details(d),'The Hubble constant in s⁻¹: the unit as read, in LaTeX, with what it measures; the cookie-shaped button swaps.')+
- phone('light',CV.photon,-1,d=>notice(d)+also(d),'500 nm to eV: the dimensions differ, so hc bridges them, and the notice says how.')+
- phone('dark',CV.erg,0,d=>also(d)+details(d),'1 erg in SI: the system buttons write the answer in SI (named units), SI base or CGS.');
+ phone('light',CV.photon,-1,d=>notice(d)+also(d),'500 nm to eV: every unit field has a Pick button; under To, one tap on units it converts to, including through c, h and k_B.')+
+ '';
 P=PAL.light;const d=CV.temp;
-document.getElementById('tab').innerHTML=`<div><div class="tablet light"><div class="status" style="padding:0 34px"><span>12:30</span><span>▾ ◢ ▮</span></div><div class="hd" style="padding-left:14px"><span class="ib">←</span>Unit converter <span class="beta">BETA</span><span style="flex:1"></span><span class="ib">◫</span></div>
+document.getElementById('tab').innerHTML=`<div><div class="tablet light"><div class="status" style="padding:0 34px"><span>12:30</span><span>▾ ◢ ▮</span></div><div class="hd" style="padding-left:14px"><span class="ib">←</span>Unit converter <span class="beta">BETA</span><span style="flex:1"></span></div>
 <div style="display:flex;gap:24px;padding:0 24px"><div style="flex:1;display:flex;flex-direction:column;gap:12px">${fromCard(d)}${swap()}${toCard(d,-1)}
 <div class="sec"><h4>Try</h4><div style="display:flex;gap:8px;overflow:hidden">${CV.ex.map((e,k)=>`<div style="background:var(--chh);border-radius:20px;padding:10px 14px;white-space:nowrap"><div style="font:500 12px GSF;color:var(--onv)">${['Hubble constant','erg in SI','Photon energy'][k]}</div>${rt(e,15)}</div>`).join('')}</div></div></div>
 <div style="flex:1;display:flex;flex-direction:column;gap:12px">${notice(d)}${also(d)}${details(d)}${consts()}</div></div></div><div class="cap" style="width:900px">Tablet: the inputs on the left, the results beside them. eV to K through k_B.</div></div>`;

@@ -608,4 +608,56 @@ object Units {
     }
 
     val CATEGORIES: List<String> = ALL.map { it.category }.distinct()
+
+    /** The prefixed forms people actually use, offered beside the bare unit. */
+    private val FAVORITE_PREFIXED = mapOf(
+        "m" to listOf("km", "cm", "mm", "µm", "nm"), "g" to listOf("kg", "mg"), "s" to listOf("ms", "µs", "ns"),
+        "eV" to listOf("keV", "MeV", "GeV"), "Hz" to listOf("kHz", "MHz", "GHz"), "pc" to listOf("kpc", "Mpc", "Gpc"),
+        "J" to listOf("kJ", "MJ"), "W" to listOf("kW", "MW"), "Pa" to listOf("kPa", "MPa"), "L" to listOf("mL"),
+        "yr" to listOf("Myr", "Gyr"), "B" to listOf("kB", "MB", "GB", "KiB", "MiB", "GiB"), "Wh" to listOf("kWh"),
+        "cal" to listOf("kcal"), "V" to listOf("mV", "kV"), "A" to listOf("mA"), "T" to listOf("mT"), "N" to listOf("kN"),
+        "bar" to listOf("mbar"), "Jy" to listOf("mJy"), "b" to listOf("mb"),
+    )
+
+    /** Prefixed forms offered when a unit is reached through c, h or k_B. */
+    private val BRIDGED_FORMS = mapOf("m" to listOf("nm", "µm"), "Hz" to listOf("MHz", "GHz"), "eV" to listOf("keV", "MeV"), "g" to listOf("kg"), "J" to emptyList<String>())
+
+    /** The relations offered as one-tap targets, most familiar first. */
+    private val RELATION_RANK = listOf(
+        "Thermal energy", "Photon energy,", "Photon energy from wavelength", "Frequency and wavelength", "Mass–energy",
+        "Rest-mass temperature", "Photon temperature,", "Photon temperature from wavelength", "Angular frequency", "Light travel", "Compton",
+    )
+
+    /** A bridge worth offering: a named relation between energy, mass, temperature, frequency, length and time. */
+    private fun familiar(b: Bridge, from: Dims, to: Dims): Boolean {
+        val kinds = listOf(ENERGY, M, TEMP, FREQ, L, T)
+        if (kinds.none { it.same(from) } || kinds.none { it.same(to) }) return false
+        if (b.describe().startsWith("Using")) return false
+        if (b.b == 0 && b.k == 0 && abs(b.a) == 1 && !b.inverse) return (from.same(L) && to.same(T)) || (from.same(T) && to.same(L))
+        if (b.b == 0 && b.k == 0 && abs(b.a) == 1 && b.inverse) return (from.same(L) && to.same(FREQ)) || (from.same(FREQ) && to.same(L))
+        return true
+    }
+
+    /** One-tap targets for [from]: common units of the same kind first, then ones that c, h or k_B reach, simplest relation first. */
+    fun compatible(from: Dims, bridges: Bridges, limit: Int = 36): List<String> {
+        if (from.isNone) return emptyList()
+        val same = ArrayList<String>()
+        val bridged = ArrayList<Triple<String, Int, Dims>>()
+        for (u in ALL) {
+            if (!u.common) continue
+            val sym = if (u.symbol == "fl oz") "floz" else u.symbol
+            if (u.dims.same(from)) { same += sym; same += FAVORITE_PREFIXED[u.symbol].orEmpty(); continue }
+            val b = bridge(from, u.dims, bridges) ?: continue
+            if (!familiar(b, from, u.dims)) continue
+            val cost = RELATION_RANK.indexOfFirst { b.describe().startsWith(it) }.let { if (it < 0) RELATION_RANK.size else it }
+            // The bare unit, and its everyday prefixed forms for a few (nm for photons, GHz for radio).
+            // The bare unit, and its everyday forms for this use (nm for photons, GHz for radio).
+            bridged += Triple(sym, cost, u.dims)
+            BRIDGED_FORMS[u.symbol]?.forEach { bridged += Triple(it, cost, u.dims) }
+        }
+        // At most four of each kind, so a length offers frequencies and temperatures too, not only energies.
+        val ranked = bridged.sortedBy { it.second }.groupBy { it.third }.values.flatMap { it.take(4) }.sortedBy { it.second }.map { it.first }.distinct()
+        val bridgedRoom = minOf(ranked.size, limit / 3)
+        return (same.distinct().take(limit - bridgedRoom) + ranked.take(bridgedRoom)).distinct()
+    }
 }

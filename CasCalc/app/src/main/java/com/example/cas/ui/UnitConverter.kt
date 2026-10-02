@@ -125,7 +125,8 @@ fun UnitConverterPage(onBack: () -> Unit, onUse: ((Double) -> Unit)? = null) {
     var useHbar by rememberSaveable { mutableStateOf(false) }
     var useKB by rememberSaveable { mutableStateOf(true) }
     var focused by rememberSaveable { mutableStateOf(Field.From) }
-    var browsing by remember { mutableStateOf(false) }
+    // The field whose unit the picker is building, or null when it's closed.
+    var picking by remember { mutableStateOf<Field?>(null) }
     var spin by remember { mutableFloatStateOf(0f) }
 
     val close = { AppSettings.changeConverterState(value, from, to); onBack() }
@@ -139,23 +140,21 @@ fun UnitConverterPage(onBack: () -> Unit, onUse: ((Double) -> Unit)? = null) {
         if (t.lowercase() in setOf("si", "base", "cgs")) state.result?.let { to = from; from = plainUnit(it.to) } else { to = from; from = t }
         spin += 180f
     }
-    fun insert(symbol: String) {
-        val target = if (focused == Field.To) to else from
-        val joined = if (target.isBlank() || target.last() !in "/*( ") symbol else target + symbol
-        if (focused == Field.To) to = joined else from = joined
-    }
 
     Dialog(onDismissRequest = close, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         BackHandler(onBack = close)
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surfaceContainerLow) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-                Header(onBack = close, onBrowse = { browsing = true })
+                Header(onBack = close)
                 BoxWithConstraints(Modifier.fillMaxSize()) {
                     val wide = maxWidth >= 720.dp
                     val inputs: @Composable ColumnScope.() -> Unit = {
-                        FromCard(value, { value = it }, from, { from = it }, state, onFocus = { focused = it })
+                        FromCard(value, { value = it }, from, { from = it }, state, onFocus = { focused = it }, onPick = { picking = Field.From })
                         SwapButton(spin, onSwap = swap)
-                        ToCard(to, { to = it }, state, digits, onFocus = { focused = it }, onUse = onUse?.let { use -> { v: Double -> AppSettings.changeConverterState(value, from, to); use(v) } })
+                        val compatible = remember(state.fromQ?.dims, useC, useH, useHbar, useKB) {
+                            state.fromQ?.let { Units.compatible(it.dims, Units.Bridges(c = useC, h = useH, hbar = useHbar, kB = useKB)) }.orEmpty()
+                        }
+                        ToCard(to, { to = it }, state, digits, compatible, onFocus = { focused = it }, onPick = { picking = Field.To }, onUse = onUse?.let { use -> { v: Double -> AppSettings.changeConverterState(value, from, to); use(v) } })
                         Suggestions(if (focused == Field.To) to else from, visible = focused != Field.Value) { token, symbol ->
                             if (focused == Field.To) to = to.dropLast(token.length) + symbol else from = from.dropLast(token.length) + symbol
                         }
@@ -192,7 +191,14 @@ fun UnitConverterPage(onBack: () -> Unit, onUse: ((Double) -> Unit)? = null) {
                 }
             }
         }
-        if (browsing) UnitCatalog(onPick = { insert(it); browsing = false }, onDismiss = { browsing = false }, into = if (focused == Field.To) "To" else "From")
+        picking?.let { field ->
+            UnitPicker(
+                initial = if (field == Field.To) to.takeUnless { it.trim().lowercase() in setOf("si", "base", "cgs") }.orEmpty() else from,
+                title = if (field == Field.To) "Convert to" else "Convert from",
+                onDone = { if (field == Field.To) to = it else from = it; picking = null },
+                onDismiss = { picking = null },
+            )
+        }
     }
 }
 
@@ -241,7 +247,7 @@ private fun plainUnit(q: Units.Quantity): String = q.parts.joinToString(" ") { p
 }
 
 @Composable
-private fun Header(onBack: () -> Unit, onBrowse: () -> Unit) {
+private fun Header(onBack: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.onSurface) }
@@ -249,13 +255,12 @@ private fun Header(onBack: () -> Unit, onBrowse: () -> Unit) {
         Spacer(Modifier.width(10.dp))
         BetaBadge()
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = onBrowse) { Icon(Icons.Outlined.Category, contentDescription = "Browse units", tint = colors.onSurfaceVariant) }
     }
 }
 
 /** The value and its unit, in a large rounded card. */
 @Composable
-private fun FromCard(value: String, onValue: (String) -> Unit, unit: String, onUnit: (String) -> Unit, state: ConverterState, onFocus: (Field) -> Unit) {
+private fun FromCard(value: String, onValue: (String) -> Unit, unit: String, onUnit: (String) -> Unit, state: ConverterState, onFocus: (Field) -> Unit, onPick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(32.dp)).background(colors.surfaceContainerHigh).padding(horizontal = 20.dp, vertical = 18.dp),
@@ -276,14 +281,14 @@ private fun FromCard(value: String, onValue: (String) -> Unit, unit: String, onU
             Spacer(Modifier.width(6.dp))
             SmallPill("\$\\pm\$", "Change the sign") { onValue(if (value.startsWith("-")) value.drop(1) else "-$value") }
         }
-        UnitField(unit, onUnit, "Unit, like km/s/Mpc", onFocus = { onFocus(Field.From) })
+        UnitField(unit, onUnit, "Pick or type a unit", onFocus = { onFocus(Field.From) }, onPick = onPick)
         UnitPreview(state.fromQ, state.fromError)
     }
 }
 
 /** The unit to convert to, the systems, and the answer, large, in the primary container. */
 @Composable
-private fun ToCard(unit: String, onUnit: (String) -> Unit, state: ConverterState, digits: Int, onFocus: (Field) -> Unit, onUse: ((Double) -> Unit)?) {
+private fun ToCard(unit: String, onUnit: (String) -> Unit, state: ConverterState, digits: Int, compatible: List<String>, onFocus: (Field) -> Unit, onPick: () -> Unit, onUse: ((Double) -> Unit)?) {
     val colors = MaterialTheme.colorScheme
     val context = LocalContext.current
     @Suppress("DEPRECATION") val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
@@ -292,7 +297,21 @@ private fun ToCard(unit: String, onUnit: (String) -> Unit, state: ConverterState
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text("To", style = MaterialTheme.typography.labelLarge, color = colors.onPrimaryContainer)
-        UnitField(unit, onUnit, "Unit, or SI, base, cgs", onFocus = { onFocus(Field.To) }, container = colors.surfaceContainerLowest.copy(alpha = 0.6f))
+        UnitField(unit, onUnit, "Pick or type a unit", onFocus = { onFocus(Field.To) }, onPick = onPick, container = colors.surfaceContainerLowest.copy(alpha = 0.6f))
+        // One tap: units that the From unit converts to.
+        if (compatible.isNotEmpty()) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            compatible.forEach { sym ->
+                val on = sym == unit.trim()
+                val latex = remember(sym) { runCatching { Units.parse(sym).latex() }.getOrDefault(sym) }
+                Box(
+                    Modifier.height(36.dp).clip(if (on) CircleShape else RoundedCornerShape(10.dp))
+                        .background(if (on) colors.primary else colors.surfaceContainerLowest.copy(alpha = 0.7f))
+                        .clickable(onClickLabel = "Convert to $sym") { onUnit(sym) }
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.Center,
+                ) { MathText("\$$latex\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 16.sp), color = if (on) colors.onPrimary else colors.onPrimaryContainer, mathScale = 1f) }
+            }
+        }
         // The systems, as a connected button group.
         val systems = listOf("SI", "base", "cgs")
         val chosen = systems.indexOfFirst { it.equals(unit.trim(), ignoreCase = true) }
@@ -325,18 +344,32 @@ private fun ToCard(unit: String, onUnit: (String) -> Unit, state: ConverterState
 
 /** A unit expression field: rounded, filled, monospace-free; the parsed unit shows under it in LaTeX. */
 @Composable
-private fun UnitField(text: String, onText: (String) -> Unit, hint: String, onFocus: () -> Unit, container: Color = MaterialTheme.colorScheme.surfaceContainerHighest) {
+private fun UnitField(text: String, onText: (String) -> Unit, hint: String, onFocus: () -> Unit, onPick: () -> Unit, container: Color = MaterialTheme.colorScheme.surfaceContainerHighest) {
     val colors = MaterialTheme.colorScheme
-    Box(Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(18.dp)).background(container).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
-        if (text.isEmpty()) Text(hint, style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
-        BasicTextField(
-            text, onText,
-            textStyle = MaterialTheme.typography.titleMedium.copy(color = colors.onSurface),
-            singleLine = true,
-            cursorBrush = SolidColor(colors.primary),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
-            modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) onFocus() }.semantics { contentDescription = hint },
-        )
+    val tap = rememberKeyTap()
+    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(18.dp)).background(container).padding(start = 16.dp, end = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            if (text.isEmpty()) Text(hint, style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
+            BasicTextField(
+                text, onText,
+                textStyle = MaterialTheme.typography.titleMedium.copy(color = colors.onSurface),
+                singleLine = true,
+                cursorBrush = SolidColor(colors.primary),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
+                modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) onFocus() }.semantics { contentDescription = hint },
+            )
+        }
+        // Picking is the main way in: a filled button, not a hidden icon.
+        Row(
+            Modifier.height(40.dp).clip(RoundedCornerShape(14.dp)).background(colors.secondary)
+                .clickable(onClickLabel = "Pick a unit") { tap(); onPick() }
+                .padding(start = 10.dp, end = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Outlined.Category, contentDescription = null, tint = colors.onSecondary, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("Pick", style = MaterialTheme.typography.labelLarge, color = colors.onSecondary)
+        }
     }
 }
 
@@ -585,17 +618,103 @@ private fun ToggleChip(math: String, name: String, on: Boolean, onChange: (Boole
     }
 }
 
-/** Every unit, by category: tap one to put it in the field being edited. */
+private val PICKER_PREFIXES = listOf("T", "G", "M", "k", "", "c", "m", "µ", "n", "p", "f")
+
+/**
+ * The unit picker: builds a unit by tapping. Search or browse a category, choose a prefix,
+ * tap units, and put ×, ÷ and powers between them (km ÷ s ÷ Mpc); the unit so far is drawn
+ * in LaTeX at the top. Done puts it in the field.
+ */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun UnitCatalog(onPick: (String) -> Unit, onDismiss: () -> Unit, into: String) {
+private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit, onDismiss: () -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val tap = rememberKeyTap()
+    var expr by rememberSaveable { mutableStateOf(initial) }
+    var query by rememberSaveable { mutableStateOf("") }
     var category by rememberSaveable { mutableStateOf(Units.CATEGORIES.first()) }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerLow) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-            Text("Units", style = MaterialTheme.typography.titleLarge, color = colors.onSurface)
-            Text("Tap one to put it in “$into”. Every unit that takes SI prefixes is marked.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp, bottom = 10.dp))
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    var prefix by rememberSaveable { mutableStateOf("") }
+    val sheet = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val parsed = remember(expr) { runCatching { Units.parse(expr) } }
+
+    fun add(token: String) {
+        tap()
+        expr = if (expr.isBlank() || expr.last() in "/( ") expr + token else "$expr $token"
+    }
+    fun op(text: String) {
+        tap()
+        expr = when (text) {
+            "/" -> expr.trimEnd() + "/"
+            "(" -> if (expr.isBlank() || expr.last() in "/( ") "$expr(" else "$expr ("
+            ")" -> expr.trimEnd() + ")"
+            else -> expr.trimEnd() + text
+        }
+    }
+    fun backspace() {
+        tap()
+        val t = expr.trimEnd()
+        // A whole unit (with its prefix and power) at a time, or one operator.
+        val m = Regex("""[^\s/()]+$""").find(t)
+        expr = if (m != null) t.substring(0, m.range.first).trimEnd() else t.dropLast(1).trimEnd()
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = colors.surfaceContainerLow) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.weight(1f))
+                Box(
+                    Modifier.height(44.dp).clip(CircleShape).background(colors.primary)
+                        .clickable(onClickLabel = "Use this unit") { tap(); onDone(expr.trim()) }.padding(horizontal = 22.dp),
+                    contentAlignment = Alignment.Center,
+                ) { Text("Done", style = MaterialTheme.typography.labelLarge, color = colors.onPrimary) }
+            }
+            // The unit so far, in LaTeX.
+            Box(
+                Modifier.fillMaxWidth().heightIn(min = 64.dp).clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainerHighest).padding(horizontal = 20.dp, vertical = 10.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                val q = parsed.getOrNull()
+                when {
+                    expr.isBlank() -> Text("Tap units below to build one", style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
+                    q != null -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.weight(1f, fill = false).horizontalScroll(rememberScrollState())) {
+                            MathText("\$${q.latex()}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 26.sp), color = colors.onSurface, mathScale = 1f)
+                        }
+                        Units.quantityName(q.dims)?.let {
+                            Spacer(Modifier.width(10.dp))
+                            Text(it, style = MaterialTheme.typography.labelMedium, color = colors.onSecondaryContainer, modifier = Modifier.clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 10.dp, vertical = 3.dp))
+                        }
+                    }
+                    else -> Text(expr, style = MaterialTheme.typography.titleMedium, color = colors.onSurfaceVariant)
+                }
+            }
+            // ×, ÷, powers, brackets and backspace.
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("\$\\times\$" to " ", "\$\\div\$" to "/", "\$x^{2}\$" to "^2", "\$x^{3}\$" to "^3", "\$x^{-1}\$" to "^-1", "\$(\$" to "(", "\$)\$" to ")").forEach { (label, text) ->
+                    Box(
+                        Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(14.dp)).background(colors.secondaryContainer)
+                            .clickable(onClickLabel = when (text) { " " -> "Times"; "/" -> "Divided by"; "(" -> "Open bracket"; ")" -> "Close bracket"; else -> "To the power ${text.drop(1)}" }) { op(text) },
+                        contentAlignment = Alignment.Center,
+                    ) { MathText(label, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp), color = colors.onSecondaryContainer, mathScale = 1f) }
+                }
+                Box(
+                    Modifier.weight(1.2f).height(44.dp).clip(RoundedCornerShape(14.dp)).background(colors.tertiaryContainer)
+                        .clickable(onClickLabel = "Delete the last unit") { backspace() },
+                    contentAlignment = Alignment.Center,
+                ) { Text("⌫", style = MaterialTheme.typography.titleMedium, color = colors.onTertiaryContainer) }
+            }
+            // Search.
+            Box(Modifier.fillMaxWidth().height(48.dp).clip(CircleShape).background(colors.surfaceContainerHigh).padding(horizontal = 18.dp), contentAlignment = Alignment.CenterStart) {
+                if (query.isEmpty()) Text("Search units: parsec, erg, °F…", style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
+                BasicTextField(
+                    query, { query = it },
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface),
+                    singleLine = true,
+                    cursorBrush = SolidColor(colors.primary),
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Search units" },
+                )
+            }
+            if (query.isBlank()) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Units.CATEGORIES.forEach { c ->
                     val on = c == category
                     Box(
@@ -605,28 +724,47 @@ private fun UnitCatalog(onPick: (String) -> Unit, onDismiss: () -> Unit, into: S
                     ) { Text(c, style = MaterialTheme.typography.labelLarge, color = if (on) colors.onPrimary else colors.onSurface) }
                 }
             }
-            Spacer(Modifier.height(10.dp))
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 520.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                items(Units.ALL.filter { it.category == category }, key = { it.symbol }) { u ->
+            // Prefixes, for units that take them: the chosen one goes on the next unit tapped.
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Prefix", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(end = 6.dp))
+                PICKER_PREFIXES.forEach { p ->
+                    val on = p == prefix
+                    Box(
+                        Modifier.height(34.dp).widthIn(min = 38.dp).clip(if (on) CircleShape else RoundedCornerShape(8.dp))
+                            .background(if (on) colors.tertiary else colors.surfaceContainerHigh)
+                            .clickable(onClickLabel = if (p.isEmpty()) "No prefix" else "Prefix $p") { prefix = p }.padding(horizontal = 10.dp),
+                        contentAlignment = Alignment.Center,
+                    ) { Text(if (p.isEmpty()) "none" else p, style = MaterialTheme.typography.labelLarge, color = if (on) colors.onTertiary else colors.onSurface) }
+                }
+            }
+            val shown = remember(query, category) {
+                val q = query.trim().lowercase()
+                if (q.isEmpty()) Units.ALL.filter { it.category == category }
+                else Units.ALL.filter { u -> u.name.lowercase().contains(q) || u.symbol.lowercase().startsWith(q) || u.aliases.any { it.lowercase().startsWith(q) } }
+            }
+            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 360.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                items(shown, key = { it.symbol }) { u ->
+                    val p = if (u.prefixes) prefix else ""
+                    val symbol = (if (u.symbol == "fl oz") "floz" else u.symbol)
+                    val latex = remember(p, u.symbol) { runCatching { Units.parse(p + symbol).latex() }.getOrDefault(u.latex) }
                     Row(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainer)
-                            .clickable(onClickLabel = "Use ${u.name}") { onPick(if (u.symbol == "fl oz") "floz" else u.symbol) }
+                            .clickable(onClickLabel = "Add ${u.name}") { add(p + symbol) }
                             .padding(horizontal = 16.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Box(Modifier.widthIn(min = 64.dp)) { MathText("\$${u.latex}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 20.sp), color = colors.onSurface, mathScale = 1f) }
+                        Box(Modifier.widthIn(min = 72.dp)) { MathText("\$$latex\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 20.sp), color = colors.onSurface, mathScale = 1f) }
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(u.name, style = MaterialTheme.typography.bodyLarge, color = colors.onSurface)
-                            Text(
-                                (listOf(u.symbol) + u.aliases.take(2)).joinToString(" · ") + if (u.prefixes) " · takes prefixes" else "",
-                                style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
-                            )
+                            Text((if (p.isNotEmpty()) prefixName(p) else "") + u.name, style = MaterialTheme.typography.bodyLarge, color = colors.onSurface)
+                            Text(u.category + (if (u.prefixes) " · takes prefixes" else ""), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
                         }
+                        Text("+", style = MaterialTheme.typography.titleLarge, color = colors.primary)
                     }
                 }
             }
-            Spacer(Modifier.height(24.dp))
         }
     }
 }
+
+private fun prefixName(p: String) = mapOf("T" to "tera", "G" to "giga", "M" to "mega", "k" to "kilo", "c" to "centi", "m" to "milli", "µ" to "micro", "n" to "nano", "p" to "pico", "f" to "femto")[p] ?: ""

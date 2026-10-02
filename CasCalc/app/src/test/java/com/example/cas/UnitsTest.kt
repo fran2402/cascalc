@@ -45,6 +45,16 @@ class UnitsTest {
     @Test fun bridgeOff() { assertNull(Units.bridge(Units.parse("eV").dims, Units.parse("K").dims, Units.Bridges(kB = false))) }
     @Test fun describe() = assertTrue(Units.bridge(Units.parse("kg").dims, Units.parse("J").dims, Units.Bridges())!!.describe().contains("mc^2"))
 
+    @Test fun compatibleLength() {
+        val c = Units.compatible(Units.parse("km").dims, Units.Bridges())
+        assertTrue(c.containsAll(listOf("m", "pc", "Mpc", "ly", "au")))
+        assertTrue("light travel time", c.contains("s"))
+    }
+    @Test fun compatibleEnergy() = assertTrue(Units.compatible(Units.parse("eV").dims, Units.Bridges()).containsAll(listOf("J", "erg", "K", "Hz", "nm")))
+    @Test fun compatibleAllParse() {
+        for (sym in Units.compatible(Units.parse("J").dims, Units.Bridges(), 200) + Units.compatible(Units.parse("m").dims, Units.Bridges(), 200)) Units.parse(sym)
+    }
+
     @Test fun unknown() { assertTrue(runCatching { Units.parse("furlong") }.exceptionOrNull() is Units.UnitError) }
 
     @Test fun numberFormat() {
