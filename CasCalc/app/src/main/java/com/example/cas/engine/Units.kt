@@ -477,24 +477,33 @@ object Units {
 
         fun skip() { while (i < s.length && s[i] == ' ') i++ }
 
-        /** product ('/' product)*: a/b/c is a/(b·c), and "J/kg K" is J/(kg·K). */
+        /**
+         * product ('/' product | '*' product)*: a/b/c is a/(b·c), and "J/kg K" is J/(kg·K) (a space
+         * stays in the denominator), but an explicit × or · goes back to the numerator, so
+         * "lea/Å · in/Å" is (lea/Å)·(in/Å), as the picker's × button means it.
+         */
         fun expr(sign: Double): Pair<Double, Dims> {
-            var (f, d) = product(sign)
+            var (f, d) = product(sign, denominator = false)
             while (true) {
                 skip()
                 if (i < s.length && s[i] == '/') {
                     i++
-                    val (f2, d2) = product(-sign)
+                    val (f2, d2) = product(-sign, denominator = true)
                     f /= f2; d += -d2
+                } else if (i < s.length && s[i] == '*') {
+                    i++
+                    val (f2, d2) = product(sign, denominator = false)
+                    f *= f2; d += d2
                 } else return f to d
             }
         }
 
-        fun product(sign: Double): Pair<Double, Dims> {
+        fun product(sign: Double, denominator: Boolean): Pair<Double, Dims> {
             var (f, d) = power(sign)
             while (true) {
                 skip()
-                if (i < s.length && s[i] == '*') { i++; skip() }
+                // In a denominator an explicit × ends it (see expr); in a numerator it's just a product.
+                if (i < s.length && s[i] == '*') { if (denominator) return f to d; i++; skip() }
                 if (i >= s.length || s[i] == '/' || s[i] == ')') return f to d
                 val (f2, d2) = power(sign)
                 f *= f2; d += d2

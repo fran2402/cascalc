@@ -1,0 +1,127 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:NCMR;src:url(../app/src/main/res/font/ncm_roman.otf)}
+@font-face{font-family:NCMI;src:url(../app/src/main/res/font/ncm_latin_italic.otf)}
+@font-face{font-family:NCMM;src:url(../app/src/main/res/font/ncm_math.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px;width:1900px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1600px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px;line-height:1.4}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--lowest:#fff;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sec:#5E6045;--onsec:#fff;--sc:#E2E4C4;--onsc:#1B1D0A;--ter:#3C6A5A;--onter:#fff;--tc:#BEECDB;--ontc:#002019;--outv:#C8C7B5;--out:#77786A;--err:#BA1A1A;--ec:#FFDAD6;--onec:#410002}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--lowest:#0D0F08;--c:#1F2018;--ch:#292A22;--chh:#34352C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sec:#C6C8A9;--onsec:#2F321B;--sc:#45483A;--onsc:#E2E4C4;--ter:#A2D0BF;--onter:#05372B;--tc:#214E41;--ontc:#BEECDB;--outv:#47473B;--out:#919283;--err:#FFB4AB;--ec:#93000A;--onec:#FFDAD6}
+.phone{position:relative;width:412px;height:900px;border-radius:44px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.tablet{position:relative;width:1280px;height:800px;border-radius:36px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 12px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font:500 14px GSF}
+.top{display:flex;align-items:center;padding:6px 12px 4px 4px;gap:4px}
+.ib{width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--onv)}
+.done{height:48px;border-radius:16px;background:var(--pri);color:var(--onpri);display:flex;align-items:center;gap:8px;padding:0 20px 0 16px;font:600 15px GSF}
+.pill{font:600 14px GSF;border-radius:20px;padding:6px 12px;background:var(--sc);color:var(--onsc)}
+.pill.e{background:var(--ec);color:var(--onec)}
+.sheet{border-radius:28px;background:var(--bg);overflow:hidden;position:relative}
+.cc{border-radius:18px;padding:8px 2px 6px 8px;display:flex;flex-direction:column;gap:6px;flex:none}
+.badge{height:30px;min-width:30px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;font:italic 17px CMI}
+.cell{flex:none;height:44px;border-radius:10px;display:flex;align-items:center;padding:0 12px;font:17px CMR}
+.rn{width:52px;flex:none;text-align:center;font:600 14px GSF;color:var(--onv)}
+.tb{position:absolute;bottom:16px;left:0;right:0;display:flex;justify-content:center;gap:10px;align-items:center}
+.tools{border-radius:28px;background:var(--chh);display:flex;padding:4px 6px;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.tools span{width:48px;height:48px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--onv)}
+.fab{height:56px;border-radius:18px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;gap:8px;padding:0 20px 0 16px;font:600 17px GSF;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.menu{position:absolute;background:var(--c);border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:8px 0;width:270px;z-index:5}
+.menu div{display:flex;align-items:center;gap:12px;padding:10px 16px;font:15px GSF}
+.menu hr{border:none;border-top:1px solid var(--outv);margin:6px 0}
+.mi{display:inline-block;vertical-align:middle}
+.step{display:flex;gap:14px}
+.node{width:30px;height:30px;border-radius:15px;background:var(--pri);color:var(--onpri);font:600 13px GSF;display:flex;align-items:center;justify-content:center;flex:none}
+.mbox{margin-top:8px;border-radius:16px;background:var(--c);padding:10px 12px;overflow:hidden}
+</style></head><body>
+<script src="gsf_cmap.js"></script><script src="cm_cmap.js"></script><script src="ncm_cmap.js"></script><script src="mathlayout.js"></script><script src="round21_data.js"></script>
+
+<h2>Data table, redesigned</h2>
+<p class="note">Each column is now a card tinted with its role. The role shows as a badge (<i style="font-family:CMI">x</i> and <i style="font-family:CMI">y</i> round, σ's rounded squares), next to the column's name. The card's ⋮ menu has the roles, plus sort rows by this column, fill 1, 2, 3…, clear and remove. Cells are tinted by their column's role and sit in banded rows. The cell being typed in gets a primary outline, cells that aren't numbers get a red edge, and Next on the keyboard moves on. Tap a row number to insert a row above or below, or remove it. A floating toolbar holds paste (CSV or tab-separated, e.g. from a spreadsheet), add a column, remove empty rows and preview, with a large "+ Row" button beside it. On a tablet a side pane shows the counts, a live preview of the points with their error bars, and what each role means.</p>
+<div class="row" id="tables"></div>
+
+<h2>Steps: all at once, and nested</h2>
+<p class="note">Every step shows straight away, so there's no Next step / Show all bar. An operation inside another is now worked out from the inside: here the ∮ for a symbolic radius R (for R larger than every singularity's distance, both poles are inside), its residues, the residue theorem, then the limit. |z| written with bars in LaTeX is now an absolute value, as on the keys.</p>
+<div class="row" id="steps"></div>
+
+<h2>Slider, converter and picker</h2>
+<p class="note">The ℝ/ℤ toggle is back as a button beside the slider's name. The converter's swap button showed in the mockup but not in the app: its 0 dp-tall row squeezed it to nothing, and it now overflows the row as designed. In the picker, "none" is the first prefix, tapping the chosen prefix again turns it off, and × writes "·", which ends a denominator: lea/Å·in/Å is (lea/Å)(in/Å). A plain space still keeps the J/kg K convention.</p>
+<div class="row" id="misc"></div>
+
+<script>
+const PAL={dark:{on:'#E5E3D6',onv:'#C8C7B5',pri:'#C5CB86',onpc:'#E1E7A0',onsc:'#E2E4C4'},light:{on:'#1C1C16',onv:'#47473B',pri:'#5B6133',onpc:'#1A1E00',onsc:'#1B1D0A'}};
+let P=PAL.light;
+const mv=(c,size,color)=>MT.render(MT.decode(c),{size,color:color||P.on,accent:P.pri,faint:'rgba(128,128,128,.5)'});
+const rt=(s,size,color)=>s.split(/[\u0001\u0002]/).map((p,k)=>k%2?`<span class="mi">${mv(p,size,color)}</span>`:p).join('');
+
+/* ---------- table ---------- */
+const DATA=[['0.5','1.21','0.05','0.12'],['1.0','2.05','0.05','0.10'],['1.5','2.88','0.05','0.15'],['2.0','4.12','0.05','0.11'],['2.5','4.9','0.05','0.20'],['3.0','6.15','0.05','0.13'],['3.5','6.8x','0.05','0.18'],['4.0','8.02','0.05','0.12'],['4.5','9.1','0.05','0.16'],['5.0','10.2','0.05','0.14'],['5.5','10.9','0.05','0.2'],['6.0','12.1','0.05','0.15']];
+const ROLES=['x','y','σx','σy'], NAMES=['t (s)','d (m)','',''];
+function roleCol(r,th){return {x:['var(--pri)','var(--onpri)'],y:['var(--ter)','var(--onter)'],'σx':['var(--sec)','var(--onsec)'],'σy':['var(--sec)','var(--onsec)']}[r]||['var(--chh)','var(--onv)']}
+function badge(r){const [b,f]=roleCol(r);const t=r==null?'–':r=='σx'?'σ<span style="font-family:CMR">(</span>x<span style="font-family:CMR">)</span>':r=='σy'?'σ<span style="font-family:CMR">(</span>y<span style="font-family:CMR">)</span>':r;return `<span class="badge" style="background:${b};color:${f};border-radius:${r=='x'||r=='y'?'15px':'9px'}">${t}</span>`}
+const tint=(r,a)=>`color-mix(in srgb, ${roleCol(r)[0]} ${a}%, var(--chh))`;
+function grid(W,rows,focus){
+ const cw=112;
+ let h=`<div style="display:flex;padding:10px 0 6px"><div style="width:52px;flex:none"></div><div style="display:flex;gap:6px">${ROLES.map((r,c)=>`<div class="cc" style="width:${cw}px;background:color-mix(in srgb, ${roleCol(r)[0]} 16%, var(--bg))"><div style="display:flex;align-items:center">${badge(r)}<span style="flex:1"></span><span style="color:var(--onv);padding-right:6px">⋮</span></div><div style="font:13px GSF;color:${NAMES[c]?'var(--on)':'var(--out)'}">${NAMES[c]||'Column '+(c+1)}</div></div>`).join('')}</div></div>`;
+ DATA.slice(0,rows).forEach((d,r)=>{h+=`<div style="display:flex;align-items:center;padding:3px 0;background:${r%2?'color-mix(in srgb, var(--lowest) 60%, transparent)':'transparent'}"><div class="rn">${r+1}</div><div style="display:flex;gap:6px">${d.map((v,c)=>{const bad=isNaN(+v);const f=focus&&focus[0]==r&&focus[1]==c;return `<div class="cell" style="width:${cw}px;background:${tint(ROLES[c],8)};border:${bad||f?'2px solid '+(bad?'var(--err)':'var(--pri)'):'none'};border-radius:${f?14:10}px">${v}${f?'<span style="display:inline-block;width:2px;height:20px;background:var(--pri);margin-left:1px"></span>':''}</div>`}).join('')}</div></div>`});
+ return h;
+}
+function toolbar(prev){return `<div class="tb"><div class="tools"><span>📋</span><span>▥</span><span>🧹</span>${prev?'<span style="color:var(--pri)">⁘</span>':''}</div><div class="fab">＋ Row</div></div>`}
+function pills(){return `<div style="display:flex;gap:6px;flex-wrap:wrap"><span class="pill">11 points</span><span class="pill">4 columns</span><span class="pill e">1 not a number</span></div>`}
+function preview(w,h){const pts=DATA.filter(d=>!isNaN(+d[1]));const x0=0,x1=6.5,y0=0,y1=13;const sx=x=>18+(x-x0)/(x1-x0)*(w-36),sy=y=>h-18-(y-y0)/(y1-y0)*(h-36);
+ return `<div style="border-radius:24px;background:var(--c);width:${w}px;height:${h}px"><svg width="${w}" height="${h}"><line x1="${sx(0)}" x2="${sx(0)}" y1="0" y2="${h}" stroke="var(--outv)" stroke-width="1.5"/><line y1="${sy(0)}" y2="${sy(0)}" x1="0" x2="${w}" stroke="var(--outv)" stroke-width="1.5"/>${pts.map(d=>`<line x1="${sx(+d[0])}" x2="${sx(+d[0])}" y1="${sy(+d[1]-+d[3])}" y2="${sy(+d[1]+ +d[3])}" stroke="var(--ter)" stroke-width="2"/><line x1="${sx(+d[0]-.05)}" x2="${sx(+d[0]+.05)}" y1="${sy(+d[1])}" y2="${sy(+d[1])}" stroke="var(--ter)" stroke-width="2"/><circle cx="${sx(+d[0])}" cy="${sy(+d[1])}" r="5" fill="var(--pri)"/>`).join('')}</svg></div>`}
+function phoneTable(){P=PAL.light;return `<div><div class="phone light"><div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div>
+ <div class="top"><span class="ib">✕</span><span style="flex:1;font:400 22px GSF;padding-left:4px">Data table</span><span class="done">✓ Done</span></div>
+ <div style="padding:4px 16px 8px">${pills()}</div>
+ <div style="padding:0 8px"><div class="sheet" style="height:740px">${grid(412,12,[2,1])}${toolbar(true)}</div></div>
+ <div class="menu" style="left:150px;top:200px">${['x','y','σx','σy',null].map(r=>`<div>${badge(r)}<span style="flex:1">${{x:'Across',y:'Up','σx':'Error bars across','σy':'Error bars up'}[r]||'Not used'}</span>${r=='y'?'✓':''}</div>`).join('')}<hr><div>⇅ Sort rows by this column</div><div>№ Fill with 1, 2, 3…</div><div>🧹 Clear the column</div><div style="color:var(--err)">🗑 Remove the column</div></div>
+ </div><div class="cap">Phone, with the second column's menu open: its role (y), then sort, fill, clear and remove. The cell being typed in is outlined, "6.8x" is edged in red, and the pills above count it.</div></div>`}
+function tabletTable(){P=PAL.dark;return `<div><div class="tablet dark"><div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div>
+ <div class="top"><span class="ib">✕</span><span style="flex:1;font:400 22px GSF;padding-left:4px">Data table</span><span class="done">✓ Done</span></div>
+ <div style="display:flex;gap:16px;padding:0 16px 16px">
+  <div style="width:320px;flex:none;display:flex;flex-direction:column;gap:12px">${pills()}${preview(320,266)}
+   <div style="border-radius:24px;background:var(--c);padding:16px;display:flex;flex-direction:column;gap:10px"><div style="font:600 14px GSF;color:var(--pri)">Roles</div>
+   ${[['x','across: without one, rows are numbered 1, 2, 3…'],['y','up: needed for points'],['σx','error bars across'],['σy','error bars up']].map(([r,t])=>`<div style="display:flex;align-items:center;gap:10px;font:14px GSF;color:var(--onv)">${badge(r)}${t}</div>`).join('')}
+   <div style="font:12px GSF;color:var(--onv)">Columns without a role are kept but not plotted. Paste copies a table from a spreadsheet.</div></div></div>
+  <div style="flex:1"><div class="sheet" style="height:690px">${grid(900,12,null)}${toolbar(false)}</div></div>
+ </div></div><div class="cap" style="width:1280px">Tablet, dark: the side pane with the counts, a live preview of the points with their σ(y) error bars, and what the roles mean. The table fills the rest.</div></div>`}
+document.getElementById('tables').innerHTML=phoneTable()+tabletTable();
+
+/* ---------- steps ---------- */
+function steps(){P=PAL.light;const S=R21;return `<div><div class="phone light" style="height:1640px"><div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div>
+ <div style="position:absolute;inset:40px 0 0 0;background:var(--low);border-radius:28px 28px 0 0;padding:14px 20px">
+ <div style="width:32px;height:4px;border-radius:2px;background:var(--out);margin:0 auto 12px"></div>
+ <div style="display:flex;align-items:center;gap:8px"><span style="font:400 22px GSF">Steps</span><span style="font:600 11px GSF;background:var(--tc);color:var(--ontc);border-radius:20px;padding:2px 8px">BETA</span></div>
+ <div style="font:13px GSF;color:var(--onv);margin:4px 0 10px">${S.method}</div>
+ <div class="mbox" style="background:var(--pc)">${mv(S.q,17,P.onpc)}</div>
+ <div style="display:flex;flex-direction:column;gap:16px;margin-top:16px">
+ ${S.steps.map((st,k)=>`<div class="step"><div class="node" style="${st.k=='Result'?'':'background:var(--sc);color:var(--onsc)'}">${k+1}</div><div style="flex:1;min-width:0"><div style="font:600 15px GSF">${rt(st.t,15)}</div>${st.x?`<div style="font:13px/1.4 GSF;color:var(--onv);margin-top:2px">${rt(st.x,13,P.onv)}</div>`:''}${st.m?`<div class="mbox">${mv(st.m,15)}</div>`:''}</div></div>`).join('')}
+ </div></div></div><div class="cap">All ${R21.steps.length} steps at once, with no Next step bar. The inside ∮ comes first: the circle, the poles, "for R &gt; 1 both are inside", the residues and the residue theorem (π/e). Then it's put back and the limit taken.</div></div>`}
+document.getElementById('steps').innerHTML=steps();
+
+/* ---------- misc ---------- */
+function slider(){return `<div><div class="light" style="width:412px;background:var(--low);border-radius:28px;padding:14px 8px;box-shadow:0 10px 30px rgba(0,0,0,.2)">
+ ${[['a',false,.62,'2.4',0],['n',true,.375,'3',8]].map(([n,int,fr,v,t])=>`<div style="display:flex;align-items:center;height:52px;padding:0 8px;gap:4px"><span style="width:40px;text-align:center;color:var(--onv)">▶</span><span style="font:italic 21px CMI;width:28px">${n}</span>
+ <span style="width:36px;height:36px;border-radius:18px;display:flex;align-items:center;justify-content:center;background:${int?'var(--sec)':'var(--sc)'}">${mv(R21.rz[int?1:0],17,int?'#fff':'#1B1D0A')}</span>
+ <div style="flex:1;position:relative;height:44px;margin-left:4px">${(()=>{let s=`<div style="position:absolute;left:0;top:16px;height:12px;width:calc(${fr*100}% - 6px);background:#5B6133;border-radius:6px 2px 2px 6px"></div><div style="position:absolute;right:0;top:16px;height:12px;width:calc(${100-fr*100}% - 6px);background:#E2E4C4;border-radius:2px 6px 6px 2px"></div><div style="position:absolute;left:calc(${fr*100}% - 2px);top:4px;width:4px;height:36px;border-radius:2px;background:#5B6133"></div>`;if(t)for(let i=0;i<=t;i++){const x=i/t*100;s+=`<div style="position:absolute;left:calc(${x}% - 2px);top:20px;width:4px;height:4px;border-radius:2px;background:${x<=fr*100?'#fff':'#5B6133'}"></div>`}return s})()}</div>
+ <span style="background:var(--ch);border-radius:12px;padding:6px 10px;font:17px CMR;min-width:44px;text-align:right;margin-left:6px">${v}</span></div>`).join('')}
+ </div><div class="cap">The ℝ/ℤ button beside the name again (filled when it's integers), in New Computer Modern's blackboard bold.</div></div>`}
+function cookie(){let d='';for(let k=0;k<=216;k++){const a=2*Math.PI*k/216-Math.PI/2,r=30*(0.94+0.06*Math.cos(9*(a+Math.PI/2)));d+=(k?'L':'M')+(30+r*Math.cos(a)).toFixed(2)+' '+(30+r*Math.sin(a)).toFixed(2)}return `<svg width="60" height="60" viewBox="0 0 60 60" style="position:absolute;top:-30px;left:calc(50% - 30px)"><path d="${d}Z" fill="var(--ter)"/><text x="30" y="39" text-anchor="middle" font-size="26" fill="var(--onter)">⇅</text></svg>`}
+function picker(){P=PAL.light;return `<div><div class="light" style="width:412px;background:var(--low);border-radius:28px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.2);display:flex;flex-direction:column;gap:12px">
+ <div style="border-radius:28px;background:var(--pc);padding:14px 18px;display:flex;flex-direction:column;gap:12px">
+ <div style="display:flex;align-items:center;gap:8px;min-height:40px"><div style="flex:1">${mv(R21.units[0],26,P.onpc)}</div><span style="font:500 12px GSF;background:var(--sc);color:var(--onsc);border-radius:20px;padding:4px 10px">length</span></div>
+ <div style="height:48px;border-radius:16px;background:color-mix(in srgb,var(--lowest) 75%,transparent);display:flex;align-items:center;padding:0 14px;gap:10px;font:500 17px GSF;color:var(--onpc)"><span style="opacity:.7">✎</span><span style="flex:1">lea/Å·in/Å</span><span>✕</span></div>
+ <div style="display:flex;gap:4px;align-items:center;overflow:hidden"><span style="font:500 12px GSF;margin-right:6px">Prefix</span>${['none','k','M','G','T','P','E','Z'].map((p,k)=>`<span style="flex:none;height:34px;min-width:38px;border-radius:${k==0?17:8}px;background:${k==0?'var(--pri)':'color-mix(in srgb,var(--lowest) 75%,transparent)'};color:${k==0?'var(--onpri)':'var(--onpc)'};display:inline-flex;align-items:center;justify-content:center;padding:0 10px;font:600 14px GSF">${p}</span>`).join('')}</div>
+ </div></div><div class="cap">The picker: "none" first (tap a chosen prefix again to go back to it). × writes "·", so lea/Å·in/Å is lea·in/Å², with "in" back on top.</div></div>`}
+function conv(){return `<div><div class="light" style="width:412px;background:var(--low);border-radius:28px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.2);display:flex;flex-direction:column;gap:12px">
+ <div style="border-radius:32px;background:var(--ch);height:120px;padding:18px 20px;font:600 14px GSF;color:var(--pri)">From<div style="font:40px CMR;color:var(--on);margin-top:6px">70</div></div>
+ <div style="position:relative;height:0;z-index:2">${cookie()}</div>
+ <div style="border-radius:32px;background:var(--pc);height:120px;padding:18px 20px;font:600 14px GSF;color:var(--onpc)">To<div style="font:40px CMR;margin-top:6px">2.26855 × 10<sup style="font-size:24px">−18</sup></div></div>
+ </div><div class="cap">The swap button between the cards now actually shows in the app.</div></div>`}
+document.getElementById('misc').innerHTML=slider()+conv()+picker();
+document.title='ready';
+</script></body></html>

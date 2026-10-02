@@ -159,6 +159,8 @@ class EngineTest {
     @Test fun exitExponent() = assertEquals("'2;pow{'3;}'+;'1;", MathCodec.encode(type("2^3>+1")))
     @Test fun backspaceEmptyFraction() = assertEquals("'5;", MathCodec.encode(type("5+÷⌫⌫")))
     @Test fun backspaceUnwrapsSqrt() = assertEquals("'9;", MathCodec.encode(type("r9<⌫")))
+    // ⌫ in an empty bottom: the fraction goes, its top stays, the cursor after it.
+    @Test fun backspaceEmptyDenominator() = assertEquals("'1;'7;'3;", MathCodec.encode(type("17÷⌫3")))
     @Test fun codecRoundTrip() {
         val r = row(Integral(row("0"), row("1"), row(Frac(row("x"), row(Sqrt(row("2"))))), row("x")), Matrix(1, 2, listOf(row("1"), row(Const("c0")))))
         assertEquals(MathCodec.encode(r), MathCodec.encode(MathCodec.decode(MathCodec.encode(r))))

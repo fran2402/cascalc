@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -406,7 +407,7 @@ private fun SwapButton(spin: Float, onSwap: () -> Unit) {
         Box(
             Modifier
                 .offset(y = 0.dp)
-                .size(60.dp)
+                .requiredSize(60.dp)
                 .rotate(turn)
                 .clip(shape)
                 .background(colors.tertiary)
@@ -441,7 +442,7 @@ private class CookieShape(val lobes: Int) : androidx.compose.ui.graphics.Shape {
 @Composable
 private fun Suggestions(text: String, visible: Boolean, onPick: (token: String, symbol: String) -> Unit) {
     val colors = MaterialTheme.colorScheme
-    val token = text.takeLastWhile { it !in " /*()^" }
+    val token = text.takeLastWhile { it !in " /*()^·×" }
     val list = remember(token) { if (token.isEmpty() || Units.lookup(token) != null) emptyList() else Units.suggest(token) }
     AnimatedVisibility(visible && list.isNotEmpty(), enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -617,8 +618,8 @@ private fun ToggleChip(math: String, name: String, on: Boolean, onChange: (Boole
     }
 }
 
-/** Every SI prefix, quetta to quecto, with no prefix in the middle. */
-private val PICKER_PREFIXES = listOf("Q", "R", "Y", "Z", "E", "P", "T", "G", "M", "k", "h", "da", "", "d", "c", "m", "µ", "n", "p", "f", "a", "z", "y", "r", "q")
+/** No prefix first (the one used most), then every SI prefix: the common kilo to giga up front. */
+private val PICKER_PREFIXES = listOf("", "k", "M", "G", "T", "P", "E", "Z", "Y", "R", "Q", "h", "da", "d", "c", "m", "µ", "n", "p", "f", "a", "z", "y", "r", "q")
 
 /**
  * The unit picker, in the style of the constants sheet: the unit being built at the top (in
@@ -640,13 +641,15 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
 
     fun add(token: String) {
         tap()
-        expr = if (expr.isBlank() || expr.last() in "/( ") expr + token else "$expr $token"
+        expr = if (expr.isBlank() || expr.last() in "/( ·") expr + token else "$expr $token"
     }
     fun op(text: String) {
         tap()
         expr = when (text) {
             "/" -> expr.trimEnd() + "/"
-            "(" -> if (expr.isBlank() || expr.last() in "/( ") "$expr(" else "$expr ("
+            "(" -> if (expr.isBlank() || expr.last() in "/( ·") "$expr(" else "$expr ("
+            // An explicit times: (lea/Å)·(in/Å), back out of a denominator (see Units.parse).
+            "·" -> expr.trimEnd() + "·"
             ")" -> expr.trimEnd() + ")"
             else -> expr.trimEnd() + text
         }
@@ -655,7 +658,7 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
         tap()
         val t = expr.trimEnd()
         // A whole unit (with its prefix and power) at a time, or one operator.
-        val m = Regex("""[^\s/()]+$""").find(t)
+        val m = Regex("""[^\s/()·]+$""").find(t)
         expr = if (m != null) t.substring(0, m.range.first).trimEnd() else t.dropLast(1).trimEnd()
     }
     val shown = remember(query, category) {
@@ -716,14 +719,14 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
             if (expr.isNotBlank()) parsed.exceptionOrNull()?.message?.let { MathText(it, style = MaterialTheme.typography.bodySmall, color = colors.error) }
             Suggestions(expr, visible = true) { token, symbol -> expr = expr.dropLast(token.length) + symbol }
             // ×, ÷, powers, brackets and backspace, as one connected row.
-            val ops = listOf("\$\\times\$" to " ", "\$\\div\$" to "/", "\$x^{2}\$" to "^2", "\$x^{3}\$" to "^3", "\$x^{-1}\$" to "^-1", "\$(\$" to "(", "\$)\$" to ")")
+            val ops = listOf("\$\\times\$" to "·", "\$\\div\$" to "/", "\$x^{2}\$" to "^2", "\$x^{3}\$" to "^3", "\$x^{-1}\$" to "^-1", "\$(\$" to "(", "\$)\$" to ")")
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 ops.forEachIndexed { k, (label, text) ->
                     Box(
                         Modifier.weight(1f).height(44.dp)
                             .clip(if (k == 0) RoundedCornerShape(topStart = 22.dp, bottomStart = 22.dp, topEnd = 6.dp, bottomEnd = 6.dp) else RoundedCornerShape(6.dp))
                             .background(colors.surfaceContainerLowest.copy(alpha = 0.75f))
-                            .clickable(onClickLabel = when (text) { " " -> "Times"; "/" -> "Divided by"; "(" -> "Open bracket"; ")" -> "Close bracket"; else -> "To the power ${text.drop(1)}" }) { op(text) },
+                            .clickable(onClickLabel = when (text) { "·" -> "Times"; "/" -> "Divided by"; "(" -> "Open bracket"; ")" -> "Close bracket"; else -> "To the power ${text.drop(1)}" }) { op(text) },
                         contentAlignment = Alignment.Center,
                     ) { MathText(label, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp), color = colors.onPrimaryContainer, mathScale = 1f) }
                 }
@@ -741,7 +744,7 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
                     Box(
                         Modifier.height(34.dp).widthIn(min = 38.dp).clip(if (on) CircleShape else RoundedCornerShape(8.dp))
                             .background(if (on) colors.primary else colors.surfaceContainerLowest.copy(alpha = 0.75f))
-                            .clickable(onClickLabel = if (p.isEmpty()) "No prefix" else "Prefix ${prefixName(p)}") { prefix = p }.padding(horizontal = 10.dp),
+                            .clickable(onClickLabel = if (p.isEmpty()) "No prefix" else if (on) "Remove the prefix" else "Prefix ${prefixName(p)}") { prefix = if (on) "" else p }.padding(horizontal = 10.dp),
                         contentAlignment = Alignment.Center,
                     ) { Text(if (p.isEmpty()) "none" else p, style = MaterialTheme.typography.labelLarge, color = if (on) colors.onPrimary else colors.onPrimaryContainer) }
                 }

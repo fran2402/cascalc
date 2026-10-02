@@ -39,3 +39,13 @@ def embolden(src, dst, d):
 
 if __name__ == '__main__':
     embolden(sys.argv[1], sys.argv[2], float(sys.argv[3]))
+
+
+def match_ascent(path, ascent=900):
+    """Gives a subset Computer Modern's line ascent (0.9 em), so a letter from it (Hebrew, whose
+    font is 1.127 em tall) doesn't make its line taller and push accents above it too high."""
+    f = TTFont(path)
+    f['hhea'].ascent = ascent
+    f['OS/2'].sTypoAscender = ascent
+    f['OS/2'].usWinAscent = ascent
+    f.save(path)

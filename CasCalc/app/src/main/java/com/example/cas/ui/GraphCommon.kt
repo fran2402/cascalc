@@ -132,6 +132,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.material3.Button
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.ViewColumn
+import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.ScatterPlot
+import androidx.compose.material.icons.filled.FormatListNumbered
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
@@ -1257,6 +1269,16 @@ private fun ParameterSlider(vm: GraphViewModel, name: String) {
         }
         // A built symbol (x̂₁) drawn as the math draws it, not as its stored text.
         SymbolName(name, 20.sp, colors.onSurface, Modifier.widthIn(min = 28.dp).padding(end = 4.dp))
+        // ℝ or ℤ: real numbers, or integers only. Filled when integers are on.
+        val tap = rememberKeyTap()
+        androidx.compose.material3.FilledTonalIconToggleButton(
+            checked = integers,
+            onCheckedChange = { tap(); vm.setIntegers(name, it) },
+            modifier = Modifier.size(36.dp).semantics { contentDescription = if (integers) "${spokenName(name)} moves through integers; switch to real numbers" else "${spokenName(name)} moves through real numbers; switch to integers" },
+        ) {
+            MathText(if (integers) "\$\\mathbb{Z}\$" else "\$\\mathbb{R}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp), mathScale = 1f)
+        }
+        Spacer(Modifier.width(4.dp))
         val step = (hi - lo) / 200
         // Integers: tick marks at each whole number when there are few enough to see.
         val ticks = (kotlin.math.round(hi - lo).toInt() - 1).takeIf { integers && it in 1..40 } ?: 0
@@ -1285,51 +1307,6 @@ private fun ParameterSlider(vm: GraphViewModel, name: String) {
             }
         }
     }
-    // Under the track: its ends (tap to change the range) and what it moves through, ℝ or ℤ.
-    Row(Modifier.fillMaxWidth().padding(start = 84.dp, end = 16.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        val endStyle = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 13.sp)
-        Box(Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClickLabel = "Change the range") { editing = true }.padding(horizontal = 4.dp, vertical = 2.dp)) {
-            MathText(Readout.markdown(shortNumber(lo)), style = endStyle, color = colors.onSurfaceVariant, mathScale = 1f)
-        }
-        Spacer(Modifier.weight(1f))
-        NumberKindToggle(integers, spokenName(name)) { vm.setIntegers(name, it) }
-        Spacer(Modifier.weight(1f))
-        Box(Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClickLabel = "Change the range") { editing = true }.padding(horizontal = 4.dp, vertical = 2.dp)) {
-            MathText(Readout.markdown(shortNumber(hi)), style = endStyle, color = colors.onSurfaceVariant, mathScale = 1f)
-        }
-    }
-    }
-}
-
-/**
- * Real numbers or integers, as a small two-part pill: ℝ real | ℤ integer. The chosen half fills
- * in the secondary container color and rounds fully; the other stays quiet.
- */
-@Composable
-private fun NumberKindToggle(integers: Boolean, name: String, onChange: (Boolean) -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    val tap = rememberKeyTap()
-    Row(
-        Modifier.height(30.dp).clip(CircleShape).background(colors.surfaceContainerHigh).padding(2.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        listOf(false to "real", true to "integer").forEach { (ints, word) ->
-            val on = integers == ints
-            val fill by androidx.compose.animation.animateColorAsState(if (on) colors.secondaryContainer else Color.Transparent, label = "kind")
-            val corner by androidx.compose.animation.core.animateIntAsState(if (on) 50 else 30, label = "corner")
-            Row(
-                Modifier.fillMaxHeight().clip(RoundedCornerShape(corner)).background(fill)
-                    .clickable(onClickLabel = if (ints) "Integers only" else "Real numbers") { if (!on) { tap(); onChange(ints) } }
-                    .padding(horizontal = 10.dp)
-                    .semantics { contentDescription = "$name: " + (if (ints) "integers only" else "real numbers") + if (on) ", chosen" else "" },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                MathText(if (ints) "\$\\mathbb{Z}\$" else "\$\\mathbb{R}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 15.sp), color = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant, mathScale = 1f)
-                Spacer(Modifier.width(5.dp))
-                Text(word, style = MaterialTheme.typography.labelMedium, color = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant)
-            }
-        }
     }
 }
 
@@ -1825,13 +1802,17 @@ private fun FolderDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () -> U
 }
 
 /**
- * A list of points as a table, as Desmos has: an x and a y for each row, rows added and
- * removed, and the line rewritten as [(x₁, y₁), …] when done. Empty rows are skipped. Rows are
- * built as they scroll into view, so long data (thousands of points) stays quick.
+ * A line's data as a table, in Material 3 Expressive: the columns as cards with their role
+ * (x, y, σ(x), σ(y), or not used) as a colored badge and a menu (sort, fill 1, 2, 3…, clear,
+ * remove), the cells in banded rows tinted by their column's role, and a floating toolbar to
+ * add rows and columns, paste a table from the clipboard and tidy up. On a tablet a side pane
+ * shows the counts and a live preview of the points. Rows are built as they scroll into view,
+ * so long data (thousands of points) stays quick.
  */
 @Composable
 private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val context = androidx.compose.ui.platform.LocalContext.current
     val start = remember(f) { vm.tableOf(f) }
     // Columns of cells, all kept the same length; roles are column positions.
     val names = remember(f) { androidx.compose.runtime.mutableStateListOf(*start.names.let { n -> List(start.columns.size) { n.getOrElse(it) { "" } } }.toTypedArray()) }
@@ -1844,6 +1825,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     var roleY by remember(f) { mutableStateOf(start.y) }
     var roleSx by remember(f) { mutableStateOf(start.sigmaX) }
     var roleSy by remember(f) { mutableStateOf(start.sigmaY) }
+    var preview by remember { mutableStateOf(false) }
     val rows = cells.maxOfOrNull { it.size } ?: 0
     fun table() = com.example.cas.graph.DataTable(names.toList(), cells.map { it.toList() }, roleX, roleY, roleSx, roleSy)
     val current = table()
@@ -1856,6 +1838,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         when (role) { "x" -> roleX = c; "y" -> roleY = c; "σx" -> roleSx = c; "σy" -> roleSy = c }
     }
     fun addRow() = cells.forEach { it.add("") }
+    fun insertRow(at: Int) = cells.forEach { it.add(at.coerceIn(0, it.size), "") }
     fun addColumn() { names.add(""); cells.add(androidx.compose.runtime.mutableStateListOf(*Array(maxOf(rows, 1)) { "" })) }
     fun removeRow(r: Int) { if (rows > 1) cells.forEach { if (r < it.size) it.removeAt(r) } }
     fun removeColumn(c: Int) {
@@ -1865,81 +1848,130 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         fun shift(k: Int?) = k?.let { if (it > c) it - 1 else it }
         roleX = shift(roleX); roleY = shift(roleY); roleSx = shift(roleSx); roleSy = shift(roleSy)
     }
+    /** Every column rewritten in the row order [order]. */
+    fun reorder(order: List<Int>) = cells.forEach { col ->
+        val copy = order.map { col.getOrElse(it) { "" } }
+        col.clear(); col.addAll(copy.ifEmpty { listOf("") })
+    }
+    /** Rows by column [c]'s numbers, smallest first (text and empty cells last). */
+    fun sortBy(c: Int) = reorder((0 until rows).sortedWith(compareBy(nullsLast()) { r: Int -> com.example.cas.graph.DataTable.number(cells[c].getOrElse(r) { "" }) }))
+    fun removeEmptyRows() = reorder((0 until rows).filter { r -> cells.any { it.getOrElse(r) { "" }.isNotBlank() } })
+    /** A table copied from a spreadsheet or a CSV file, added below the rows already filled. */
+    fun paste() {
+        @Suppress("DEPRECATION")
+        val text = (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
+        val t = runCatching { com.example.cas.graph.Csv.parse(text) }.getOrNull()
+        if (t == null || t.columns.isEmpty()) {
+            android.widget.Toast.makeText(context, "No numbers on the clipboard", android.widget.Toast.LENGTH_SHORT).show(); return
+        }
+        removeEmptyRows()
+        while (cells.size < t.columns.size) addColumn()
+        val from = if (rows == 1 && cells.all { it[0].isBlank() }) 0 else rows
+        val n = t.rows
+        cells.forEach { col -> while (col.size < from + n) col.add("") }
+        t.columns.forEachIndexed { c, values -> values.forEachIndexed { r, v -> cells[c][from + r] = com.example.cas.graph.DataTable.text(v) } }
+        if (roleY == null) { if (cells.size >= 2) { roleX = roleX ?: 0; roleY = 1 } else roleY = 0 }
+        android.widget.Toast.makeText(context, "$n row${if (n == 1) "" else "s"} pasted", android.widget.Toast.LENGTH_SHORT).show()
+    }
     val list = androidx.compose.foundation.lazy.rememberLazyListState()
     val across = rememberScrollState()
     val scope = rememberCoroutineScope()
-    val cellWidth = 104.dp
+    val cellWidth = 112.dp
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
     ) {
-        androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = colors.surface) {
-            Column(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
-                // Top bar: close, title with the count, Done.
-                Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close without saving") }
-                    Column(Modifier.weight(1f)) {
-                        Text("Data table", style = MaterialTheme.typography.titleLarge)
-                        Text(
-                            if (roleY == null) "Pick a y column" else "$points point${if (points == 1) "" else "s"} · ${cells.size} column${if (cells.size == 1) "" else "s"}" +
-                                if (bad > 0) " · $bad not numbers" else "",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (bad > 0 || roleY == null) colors.error else colors.onSurfaceVariant,
-                        )
+        androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = colors.surfaceContainerLow) {
+            BoxWithConstraints(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
+                val wide = maxWidth >= 840.dp
+                Column(Modifier.fillMaxSize()) {
+                    // Top bar: close, the title and its counts as pills, Done.
+                    Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 6.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close without saving") }
+                        Text("Data table", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f).padding(start = 4.dp))
+                        Button(
+                            enabled = roleY != null && points > 0,
+                            onClick = { vm.setTable(f, table()); onDismiss() },
+                            shape = RoundedCornerShape(16.dp),
+                            contentPadding = PaddingValues(start = 16.dp, end = 20.dp),
+                            modifier = Modifier.height(48.dp),
+                        ) { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Done") }
                     }
-                    androidx.compose.material3.Button(enabled = roleY != null && points > 0, onClick = { vm.setTable(f, table()); onDismiss() }, modifier = Modifier.padding(end = 8.dp)) { Text("Done") }
-                }
-                Text(
-                    "Tap a column's role to choose x, y, σ(x) or σ(y). Columns without a role are kept but not plotted.",
-                    style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
-                )
-                // Column headers: role, name, remove. They scroll sideways with the cells.
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.Bottom) {
-                    Spacer(Modifier.width(44.dp))
-                    Row(Modifier.weight(1f).horizontalScroll(across), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        cells.indices.forEach { c ->
-                            Column(Modifier.width(cellWidth), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                RoleChip(roleOf(c), onPick = { assign(c, it) }, onRemove = if (cells.size > 1) ({ removeColumn(c) }) else null)
-                                androidx.compose.foundation.text.BasicTextField(
-                                    value = names[c], onValueChange = { names[c] = it }, singleLine = true,
-                                    textStyle = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp, color = colors.onSurfaceVariant),
-                                    cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.primary),
-                                    decorationBox = { inner -> Box { if (names[c].isEmpty()) Text("Column ${c + 1}", style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp, color = colors.outline)); inner() } },
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp),
-                                )
-                            }
-                        }
-                        Spacer(Modifier.width(8.dp))
-                    }
-                    Spacer(Modifier.width(40.dp))
-                }
-                androidx.compose.material3.HorizontalDivider(Modifier.padding(top = 6.dp))
-                androidx.compose.foundation.lazy.LazyColumn(state = list, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(vertical = 6.dp)) {
-                    items(rows, key = { it }) { r ->
-                        Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("${r + 1}", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.width(44.dp).padding(start = 12.dp))
-                            Row(Modifier.weight(1f).horizontalScroll(across), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                cells.forEachIndexed { c, col ->
-                                    val t = col.getOrElse(r) { "" }
-                                    val used = roleOf(c) != null
-                                    TableCell(t, used && t.isNotBlank() && com.example.cas.graph.DataTable.number(t) == null, Modifier.width(cellWidth), faded = !used) { col[r] = it }
+                    if (!wide) TableCounts(points, cells.size, bad, roleY == null, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                    Row(Modifier.weight(1f).fillMaxWidth()) {
+                        if (wide) TableSidePane(current, points, cells.size, bad, roleY == null, Modifier.width(320.dp).fillMaxHeight().padding(start = 16.dp, bottom = 16.dp))
+                        Box(Modifier.weight(1f).fillMaxHeight()) {
+                            Column(Modifier.fillMaxSize().padding(horizontal = if (wide) 16.dp else 8.dp)) {
+                                androidx.compose.animation.AnimatedVisibility(!wide && preview) {
+                                    TablePreview(current, Modifier.fillMaxWidth().height(170.dp).padding(bottom = 8.dp))
                                 }
-                                Spacer(Modifier.width(8.dp))
+                                // The sheet: column cards on top, then the rows; both scroll sideways together.
+                                Column(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(colors.surface)) {
+                                    Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 6.dp), verticalAlignment = Alignment.Bottom) {
+                                        Spacer(Modifier.width(52.dp))
+                                        Row(Modifier.weight(1f).horizontalScroll(across), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            cells.indices.forEach { c ->
+                                                ColumnCard(
+                                                    role = roleOf(c), name = names[c], index = c, width = cellWidth,
+                                                    onName = { names[c] = it }, onRole = { assign(c, it) },
+                                                    onSort = { sortBy(c) },
+                                                    onFill = { cells[c].indices.forEach { r -> cells[c][r] = (r + 1).toString() } },
+                                                    onClear = { cells[c].indices.forEach { r -> cells[c][r] = "" } },
+                                                    onRemove = if (cells.size > 1) ({ removeColumn(c) }) else null,
+                                                )
+                                            }
+                                            Spacer(Modifier.width(12.dp))
+                                        }
+                                    }
+                                    androidx.compose.foundation.lazy.LazyColumn(state = list, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(bottom = 96.dp)) {
+                                        items(rows, key = { it }) { r ->
+                                            Row(
+                                                Modifier.fillMaxWidth().background(if (r % 2 == 0) Color.Transparent else colors.surfaceContainerLowest.copy(alpha = 0.6f)).padding(vertical = 3.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                            ) {
+                                                RowNumber(r, onInsertAbove = { insertRow(r) }, onInsertBelow = { insertRow(r + 1) }, onRemove = if (rows > 1) ({ removeRow(r) }) else null)
+                                                Row(Modifier.weight(1f).horizontalScroll(across), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                    cells.forEachIndexed { c, col ->
+                                                        val t = col.getOrElse(r) { "" }
+                                                        val role = roleOf(c)
+                                                        TableCell(t, role != null && t.isNotBlank() && com.example.cas.graph.DataTable.number(t) == null, Modifier.width(cellWidth), role = role) { col[r] = it }
+                                                    }
+                                                    Spacer(Modifier.width(12.dp))
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
-                            IconButton(onClick = { removeRow(r) }, modifier = Modifier.size(40.dp)) {
-                                Icon(Icons.Default.Close, contentDescription = "Remove row ${r + 1}", tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                            // The floating toolbar: tools in a pill, and adding a row as the main action.
+                            Row(
+                                Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                Row(
+                                    Modifier.shadow(6.dp, CircleShape).clip(CircleShape).background(colors.surfaceContainerHigh).padding(horizontal = 6.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    IconButton(onClick = { paste() }) { Icon(Icons.Default.ContentPaste, contentDescription = "Paste a table from the clipboard") }
+                                    IconButton(onClick = { addColumn(); scope.launch { across.animateScrollTo(across.maxValue + 10_000) } }) { Icon(Icons.Default.ViewColumn, contentDescription = "Add a column") }
+                                    IconButton(onClick = { removeEmptyRows() }) { Icon(Icons.Default.CleaningServices, contentDescription = "Remove empty rows") }
+                                    if (!wide) androidx.compose.material3.IconToggleButton(checked = preview, onCheckedChange = { preview = it }) {
+                                        Icon(Icons.Default.ScatterPlot, contentDescription = if (preview) "Hide the preview" else "Preview the points", tint = if (preview) colors.primary else colors.onSurfaceVariant)
+                                    }
+                                }
+                                Row(
+                                    Modifier.height(56.dp).shadow(6.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(colors.primaryContainer)
+                                        .clickable(onClickLabel = "Add a row") { addRow(); scope.launch { list.animateScrollToItem(maxOf(0, (cells.maxOfOrNull { it.size } ?: 1) - 1)) } }
+                                        .padding(start = 16.dp, end = 20.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Icon(Icons.Default.Add, contentDescription = null, tint = colors.onPrimaryContainer)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Row", style = MaterialTheme.typography.titleMedium, color = colors.onPrimaryContainer)
+                                }
                             }
                         }
-                    }
-                }
-                // Add a row (scrolls to it) or a column.
-                Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    androidx.compose.material3.FilledTonalButton(onClick = { addRow(); scope.launch { list.animateScrollToItem(maxOf(0, (cells.maxOfOrNull { it.size } ?: 1) - 1)) } }) {
-                        Icon(Icons.Default.Add, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Row")
-                    }
-                    androidx.compose.material3.OutlinedButton(onClick = { addColumn(); scope.launch { across.animateScrollTo(across.maxValue + 10_000) } }) {
-                        Icon(Icons.Default.Add, contentDescription = null); Spacer(Modifier.width(6.dp)); Text("Column")
                     }
                 }
             }
@@ -1947,67 +1979,205 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     }
 }
 
-/** A column's role in the table: x, y, σ(x), σ(y) or none, chosen from a menu (which can also remove the column). */
+/** The role's colors: x primary, y tertiary, the uncertainties secondary, unused neutral. */
 @Composable
-private fun RoleChip(role: String?, onPick: (String?) -> Unit, onRemove: (() -> Unit)?) {
+private fun roleColors(role: String?): Pair<Color, Color> {
     val colors = MaterialTheme.colorScheme
-    var open by remember { mutableStateOf(false) }
-    val (bg, fg) = when (role) {
+    return when (role) {
         "x" -> colors.primary to colors.onPrimary
         "y" -> colors.tertiary to colors.onTertiary
-        "σx", "σy" -> colors.secondaryContainer to colors.onSecondaryContainer
-        else -> colors.surfaceContainerHigh to colors.onSurfaceVariant
+        "σx", "σy" -> colors.secondary to colors.onSecondary
+        else -> colors.surfaceContainerHighest to colors.onSurfaceVariant
     }
-    fun label(r: String?) = when (r) { "σx" -> "σ(x)"; "σy" -> "σ(y)"; null -> "Not used"; else -> r }
-    Box {
-        Row(
-            Modifier.fillMaxWidth().height(32.dp).clip(CircleShape).background(bg).clickable(onClickLabel = "Choose this column's role") { open = true }.padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Letters in italic, brackets upright, as in math.
-            val text = if (role == null) androidx.compose.ui.text.AnnotatedString(label(role)) else androidx.compose.ui.text.buildAnnotatedString {
-                label(role).forEach { ch ->
-                    val upright = ch == '(' || ch == ')'
-                    pushStyle(androidx.compose.ui.text.SpanStyle(fontFamily = if (upright) CasFonts.CmRoman else CasFonts.CmItalic))
-                    append(ch)
-                    pop()
+}
+
+/** A role as math: x, y, σ(x), σ(y), letters italic and brackets upright. */
+private fun roleText(role: String) = androidx.compose.ui.text.buildAnnotatedString {
+    (when (role) { "σx" -> "σ(x)"; "σy" -> "σ(y)"; else -> role }).forEach { ch ->
+        pushStyle(androidx.compose.ui.text.SpanStyle(fontFamily = if (ch == '(' || ch == ')') CasFonts.CmRoman else CasFonts.CmItalic))
+        append(ch); pop()
+    }
+}
+
+/** The counts as pills: points, columns, and cells that aren't numbers (or that a y column is needed). */
+@Composable
+private fun TableCounts(points: Int, columns: Int, bad: Int, needY: Boolean, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    @Composable
+    fun pill(text: String, error: Boolean = false) = Text(
+        text, style = MaterialTheme.typography.labelLarge,
+        color = if (error) colors.onErrorContainer else colors.onSecondaryContainer,
+        modifier = Modifier.clip(CircleShape).background(if (error) colors.errorContainer else colors.secondaryContainer).padding(horizontal = 12.dp, vertical = 6.dp),
+    )
+    @OptIn(ExperimentalLayoutApi::class)
+    FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (needY) pill("Pick a y column", error = true) else pill("$points point${if (points == 1) "" else "s"}")
+        pill("$columns column${if (columns == 1) "" else "s"}")
+        if (bad > 0) pill("$bad not number${if (bad == 1) "" else "s"}", error = true)
+    }
+}
+
+/** The tablet's side pane: the counts, a live preview, and what the roles mean. */
+@Composable
+private fun TableSidePane(t: com.example.cas.graph.DataTable, points: Int, columns: Int, bad: Int, needY: Boolean, modifier: Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Column(modifier.verticalScroll(rememberScrollState()).padding(end = 4.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        TableCounts(points, columns, bad, needY)
+        TablePreview(t, Modifier.fillMaxWidth().aspectRatio(1.2f))
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainer).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Roles", style = MaterialTheme.typography.titleSmall, color = colors.primary)
+            listOf("x" to "across: without one, rows are numbered 1, 2, 3…", "y" to "up: needed for points", "σx" to "error bars across", "σy" to "error bars up").forEach { (r, what) ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RoleBadge(r)
+                    Spacer(Modifier.width(10.dp))
+                    Text(what, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
                 }
             }
-            Text(
-                text, color = fg, modifier = Modifier.weight(1f),
-                style = if (role == null) MaterialTheme.typography.labelMedium else TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 17.sp),
-            )
-            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = fg, modifier = Modifier.size(18.dp))
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-            listOf("x", "y", "σx", "σy", null).forEach { r ->
-                DropdownMenuItem(text = { Text(if (r == null) "Not used" else label(r) + when (r) { "x" -> "  (across)"; "y" -> "  (up)"; else -> "  (error bars)" }) }, onClick = { open = false; onPick(r) })
-            }
-            if (onRemove != null) {
-                androidx.compose.material3.HorizontalDivider()
-                DropdownMenuItem(text = { Text("Remove column", color = colors.error) }, onClick = { open = false; onRemove() })
-            }
+            Text("Columns without a role are kept but not plotted. Paste copies a table from a spreadsheet.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
         }
     }
 }
 
-/** One cell of the table: a compact number field, red-edged when it isn't a number. */
+/** The points as they'll be plotted (with their error bars), scaled to fit. */
 @Composable
-private fun TableCell(text: String, error: Boolean, modifier: Modifier, faded: Boolean = false, onChange: (String) -> Unit) {
+private fun TablePreview(t: com.example.cas.graph.DataTable, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
+    val pts = remember(t) { t.points() }
+    val (ex, ey) = remember(t) { t.errors() }
+    Box(modifier.clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainer), contentAlignment = Alignment.Center) {
+        if (pts.isEmpty()) { Text("No points yet", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant); return@Box }
+        androidx.compose.foundation.Canvas(Modifier.fillMaxSize().padding(18.dp)) {
+            fun lo(v: Double, e: Double?) = v - (e?.takeIf { it.isFinite() } ?: 0.0)
+            fun hi(v: Double, e: Double?) = v + (e?.takeIf { it.isFinite() } ?: 0.0)
+            var x0 = pts.indices.minOf { lo(pts[it].first, ex?.get(it)) }; var x1 = pts.indices.maxOf { hi(pts[it].first, ex?.get(it)) }
+            var y0 = pts.indices.minOf { lo(pts[it].second, ey?.get(it)) }; var y1 = pts.indices.maxOf { hi(pts[it].second, ey?.get(it)) }
+            if (x1 - x0 < 1e-12) { x0 -= 1; x1 += 1 }
+            if (y1 - y0 < 1e-12) { y0 -= 1; y1 += 1 }
+            fun sx(x: Double) = ((x - x0) / (x1 - x0) * size.width).toFloat()
+            fun sy(y: Double) = (size.height - (y - y0) / (y1 - y0) * size.height).toFloat()
+            // The axes, where they're in view.
+            if (0.0 in x0..x1) drawLine(colors.outlineVariant, Offset(sx(0.0), 0f), Offset(sx(0.0), size.height), 1.5f)
+            if (0.0 in y0..y1) drawLine(colors.outlineVariant, Offset(0f, sy(0.0)), Offset(size.width, sy(0.0)), 1.5f)
+            pts.forEachIndexed { k, (x, y) ->
+                ey?.get(k)?.takeIf { it.isFinite() && it > 0 }?.let { e -> drawLine(colors.tertiary, Offset(sx(x), sy(y - e)), Offset(sx(x), sy(y + e)), 2f) }
+                ex?.get(k)?.takeIf { it.isFinite() && it > 0 }?.let { e -> drawLine(colors.tertiary, Offset(sx(x - e), sy(y)), Offset(sx(x + e), sy(y)), 2f) }
+            }
+            pts.forEach { (x, y) -> drawCircle(colors.primary, 4.dp.toPx(), Offset(sx(x), sy(y))) }
+        }
+    }
+}
+
+/** A column's role as a small colored shape with its letter. */
+@Composable
+private fun RoleBadge(role: String?, modifier: Modifier = Modifier) {
+    val (bg, fg) = roleColors(role)
+    Box(
+        modifier.height(30.dp).widthIn(min = 30.dp).clip(if (role == "x" || role == "y") CircleShape else RoundedCornerShape(9.dp)).background(bg).padding(horizontal = 6.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (role == null) Text("–", style = MaterialTheme.typography.labelLarge, color = fg)
+        else Text(roleText(role), color = fg, style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 17.sp))
+    }
+}
+
+/**
+ * A column's card: its role badge, its name (typed in place) and a menu with the roles and
+ * what can be done with the column. Tinted with the role's color.
+ */
+@Composable
+private fun ColumnCard(
+    role: String?, name: String, index: Int, width: androidx.compose.ui.unit.Dp,
+    onName: (String) -> Unit, onRole: (String?) -> Unit, onSort: () -> Unit, onFill: () -> Unit, onClear: () -> Unit, onRemove: (() -> Unit)?,
+) {
+    val colors = MaterialTheme.colorScheme
+    var open by remember { mutableStateOf(false) }
+    val tint = roleColors(role).first
+    Box {
+        Column(
+            Modifier.width(width).clip(RoundedCornerShape(18.dp)).background(if (role == null) colors.surfaceContainer else tint.copy(alpha = 0.16f))
+                .clickable(onClickLabel = "Column ${index + 1}: its role and more") { open = true }
+                .padding(start = 8.dp, end = 2.dp, top = 8.dp, bottom = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RoleBadge(role)
+                Spacer(Modifier.weight(1f))
+                Icon(Icons.Default.MoreVert, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp))
+            }
+            androidx.compose.foundation.text.BasicTextField(
+                value = name, onValueChange = onName, singleLine = true,
+                textStyle = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp, color = colors.onSurface),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.primary),
+                decorationBox = { inner -> Box { if (name.isEmpty()) Text("Column ${index + 1}", style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp, color = colors.outline)); inner() } },
+                modifier = Modifier.fillMaxWidth().padding(end = 6.dp, bottom = 2.dp),
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = RoundedCornerShape(16.dp)) {
+            listOf("x" to "across", "y" to "up", "σx" to "error bars across", "σy" to "error bars up", null to "Not used").forEach { (r, what) ->
+                DropdownMenuItem(
+                    leadingIcon = { RoleBadge(r) },
+                    text = { Text(if (r == null) what else what.replaceFirstChar { it.uppercase() }) },
+                    trailingIcon = if (r == role) ({ Icon(Icons.Default.Check, contentDescription = "Chosen") }) else null,
+                    onClick = { open = false; onRole(r) },
+                )
+            }
+            androidx.compose.material3.HorizontalDivider()
+            DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, null) }, text = { Text("Sort rows by this column") }, onClick = { open = false; onSort() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.FormatListNumbered, null) }, text = { Text("Fill with 1, 2, 3…") }, onClick = { open = false; onFill() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.CleaningServices, null) }, text = { Text("Clear the column") }, onClick = { open = false; onClear() })
+            if (onRemove != null) DropdownMenuItem(
+                leadingIcon = { Icon(Icons.Default.Delete, null, tint = colors.error) },
+                text = { Text("Remove the column", color = colors.error) }, onClick = { open = false; onRemove() },
+            )
+        }
+    }
+}
+
+/** A row's number as a pill; tap it to insert a row above or below, or remove this one. */
+@Composable
+private fun RowNumber(r: Int, onInsertAbove: () -> Unit, onInsertBelow: () -> Unit, onRemove: (() -> Unit)?) {
+    val colors = MaterialTheme.colorScheme
+    var open by remember { mutableStateOf(false) }
+    Box(Modifier.width(52.dp), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier.height(32.dp).widthIn(min = 36.dp).clip(CircleShape).clickable(onClickLabel = "Row ${r + 1}: insert or remove") { open = true }.padding(horizontal = 6.dp),
+            contentAlignment = Alignment.Center,
+        ) { Text("${r + 1}", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant) }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = RoundedCornerShape(16.dp)) {
+            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, null) }, text = { Text("Insert a row above") }, onClick = { open = false; onInsertAbove() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) }, text = { Text("Insert a row below") }, onClick = { open = false; onInsertBelow() })
+            if (onRemove != null) DropdownMenuItem(
+                leadingIcon = { Icon(Icons.Default.Delete, null, tint = colors.error) },
+                text = { Text("Remove row ${r + 1}", color = colors.error) }, onClick = { open = false; onRemove() },
+            )
+        }
+    }
+}
+
+/**
+ * One cell: a number field tinted with its column's role, outlined in the primary color while
+ * it's being typed in and red-edged when it isn't a number. Next moves on to the next cell.
+ */
+@Composable
+private fun TableCell(text: String, error: Boolean, modifier: Modifier, role: String? = null, onChange: (String) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    var focused by remember { mutableStateOf(false) }
+    val tint = roleColors(role).first
+    val shape = RoundedCornerShape(if (focused) 14.dp else 10.dp)
     androidx.compose.foundation.text.BasicTextField(
         value = text,
         onValueChange = onChange,
         singleLine = true,
-        textStyle = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = if (faded) colors.onSurfaceVariant else colors.onSurface),
+        textStyle = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = if (role == null) colors.onSurfaceVariant else colors.onSurface),
         cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.primary),
-        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal, imeAction = androidx.compose.ui.text.input.ImeAction.Next),
         modifier = modifier
-            .height(40.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(colors.surfaceContainerHighest)
-            .border(1.dp, if (error) colors.error else Color.Transparent, RoundedCornerShape(10.dp))
-            .padding(horizontal = 10.dp, vertical = 9.dp),
+            .height(44.dp)
+            .onFocusChanged { focused = it.isFocused }
+            .clip(shape)
+            .background(if (role == null) colors.surfaceContainerHigh else tint.copy(alpha = 0.08f).compositeOver(colors.surfaceContainerHighest))
+            .border(if (focused || error) 2.dp else 0.dp, when { error -> colors.error; focused -> colors.primary; else -> Color.Transparent }, shape)
+            .padding(horizontal = 12.dp, vertical = 11.dp),
     )
 }
 

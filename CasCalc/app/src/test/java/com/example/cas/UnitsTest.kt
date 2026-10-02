@@ -103,6 +103,17 @@ class AbsoluteLogIntegralTest {
 }
 
 class MoreUnitsTest {
+    @Test fun explicitTimesEndsADenominator() {
+        // The picker's × writes ·: (lea/Å)·(in/Å), with "in" back in the numerator.
+        val q = Units.parse("lea/Å·in/Å")
+        assertEquals(listOf(1.0, -1.0, 1.0, -1.0), q.parts.map { it.power })
+        // A space still stays in the denominator (J/kg K is J/(kg K)), and a/b/c is a/(b c).
+        assertEquals(listOf(1.0, -1.0, -1.0), Units.parse("J/kg K").parts.map { it.power })
+        assertEquals(listOf(1.0, -1.0, -1.0), Units.parse("km/s/Mpc").parts.map { it.power })
+        assertEquals(listOf(1.0, -1.0, 1.0), Units.parse("m/s * kg").parts.map { it.power })
+        assertEquals(listOf(1.0, 1.0, -2.0), Units.parse("kg·m/s^2").parts.map { it.power })
+    }
+
     @Test fun plainNumbers() {
         assertEquals("70", Units.plain(70.0))
         assertEquals("0.0025", Units.plain(0.0025))

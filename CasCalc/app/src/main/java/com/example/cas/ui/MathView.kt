@@ -1238,6 +1238,8 @@ internal fun CustomSymbolView(sym: com.example.cas.cas.CustomSymbol, level: Int,
             base = { Phantom { accented() } },
             sub = if (sym.preSub.isEmpty()) null else ({ RowView(scriptRow(sym.preSub, 'l'), level + 1) }),
             sup = if (sym.preSup.isEmpty()) null else ({ RowView(scriptRow(sym.preSup, 'q'), level + 1) }),
+            // Against the letter: the shorter script lines up on the right (¹⁴₆C), as in TeX's \prescript.
+            alignEnd = true,
         )
         main()
     }
@@ -1273,13 +1275,16 @@ private fun AccentedLetter(base: String, accent: com.example.cas.cas.Accent?, it
         // or it sits on the letter: it's lifted to clear the letter's top.
         val overlap = if (isVector) (a.height * 0.3f + if (short) em * 0.16f else 0f).roundToInt()
             else (a.height * 0.55f + if (short) em * 0.22f else 0f).roundToInt()
-        val top = max(0, a.height - overlap)
+        // The arrow, scaled to 0.7 about its middle, leaves about 0.44 em of its box empty above its
+        // ink: that's cut off, so a letter with an arrow is no taller than one with a hat.
+        val emptyAbove = if (isVector) (em * 0.44f).roundToInt() else 0
+        val top = max(0, a.height - overlap - emptyAbove)
         val w = max(b.width, a.width)
         val shift = if (italic) (em * 0.08f).roundToInt() else 0
         val axis = top + b.axis()
         layout(w, top + b.height, mapOf(MathBaseline to axis)) {
             b.place((w - b.width) / 2, top)
-            a.place((w - a.width) / 2 + shift, 0)
+            a.place((w - a.width) / 2 + shift, top - (a.height - overlap))
         }
     }
 }

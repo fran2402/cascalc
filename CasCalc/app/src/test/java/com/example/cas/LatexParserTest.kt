@@ -21,7 +21,7 @@ class LatexParserTest {
     @Test fun sumWithIndex() = assertEquals("sum{'k;|'1;|'n;|'k;pow{'2;}}", p("\\sum_{k=1}^{n} k^2"))
     @Test fun sumOfInvisibleIndex() = assertEquals("scr{'Σ;|'i;|}'x;", p("\\sum_i x"))
     @Test fun limit() = assertEquals("fn:lim{frac{'1;|'x;}|'x;'→;'∞;}", p("\\lim_{x\\to\\infty} \\frac{1}{x}"))
-    @Test fun contour() = assertEquals("fn:contour{'f;'(;'z;');|'|;'z;'|;'=;'1;}", p("\\oint_{|z|=1} f(z)\\,dz"))
+    @Test fun contour() = assertEquals("fn:contour{'f;'(;'z;');|fn:abs{'z;}'=;'1;}", p("\\oint_{|z|=1} f(z)\\,dz"))
     @Test fun binomial() = assertEquals("binom{'n;|'k;}", p("\\binom{n}{k}"))
     @Test fun matrix() = assertEquals("mat:2x2{'a;|'b;|'c;|'d;}", p("\\begin{bmatrix} a & b \\\\ c & d \\end{bmatrix}"))
     @Test fun textIsOneUprightPiece() = assertEquals("scr{'Res;|'z;'=;'a;|}", p("\\operatorname{Res}_{z=a}"))

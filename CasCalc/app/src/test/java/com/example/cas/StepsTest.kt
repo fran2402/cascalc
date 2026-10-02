@@ -570,3 +570,28 @@ class InteriorSingularityTest {
     }
     @Test fun smoothUnchanged() = assertEquals("1/3", value(I(m("x", Pow(m("2"))), "0", "1")).getOrThrow().replace("(", "").replace(")", ""))
 }
+
+
+class NestedStepsTest {
+    private fun of(t: String) = latexOk(com.example.cas.engine.Steps.of(com.example.cas.engine.LatexParser.parse(t))!!)
+    private fun text(r: com.example.cas.editor.MathRow) = com.example.cas.engine.Formatter.plain(r)
+
+    @Test fun limitOfAContourIntegral() {
+        // The ∮'s steps (residues, for R past every pole), then the limit.
+        val s = of("\\lim_{R\\to \\infty}\\left(\\oint_{\\left|z\\right|=R} \\frac{e^{iz}}{(z^{2}+1)^{2}}\\,\\mathrm{d}z\\right)")
+        val titles = s.steps.map { it.title }
+        assertTrue(titles.toString(), titles.first() == "The inside first" && titles.any { it.startsWith("Residue at") } && "Put it back" in titles)
+        assertTrue(text(s.answer), text(s.answer).endsWith("=(π)/(e)"))
+    }
+
+    @Test fun limitOfAnIntegral() {
+        val s = of("\\lim_{x\\to 0}\\frac{\\int_{0}^{x} \\sin t\\, dt}{x^{2}}")
+        assertTrue(s.steps.any { it.title == "Put it back" })
+        assertTrue(text(s.answer), text(s.answer).endsWith("=(1)/(2)"))
+    }
+
+    @Test fun barsAreAbsoluteValues() {
+        val row = com.example.cas.engine.LatexParser.parse("\\left|z-1\\right|+|x|")
+        assertEquals(2, row.items.count { it is com.example.cas.editor.Func && it.name == "abs" })
+    }
+}

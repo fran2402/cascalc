@@ -405,6 +405,13 @@ class Editor(initial: MathRow = MathRow()) {
         val slotIndex = parent.slots.indexOf(row)
         when {
             parent.allSlotsEmpty -> { outer.removeAt(at); row = outer; index = at }
+            // ⌫ in an empty bottom of a fraction: the fraction goes, its top stays (cursor after it).
+            parent is Frac && row === parent.den && row.isEmpty -> {
+                outer.removeAt(at)
+                val kept = parent.num.items.toList()
+                kept.forEachIndexed { k, n -> parent.num.items.remove(n); outer.add(at + k, n) }
+                row = outer; index = at + kept.size
+            }
             parent.slots.size == 1 -> {
                 // Unwrap √(…), sin(…), superscripts: keep the contents.
                 outer.removeAt(at)

@@ -77,8 +77,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The worked steps for a calculation in the history (beta). Steps appear one at a time with
- * Next step, or all at once; each is a numbered node on a line, with the rule, a sentence and
+ * The worked steps for a calculation in the history (beta), all shown at once; each is a
+ * numbered node on a line, with the rule, a sentence and
  * the math, and smaller steps inside it. A sheet on a phone; on a tablet a two-pane dialog with
  * the question, answer and an outline of the steps beside them.
  */
@@ -88,16 +88,14 @@ fun StepsView(expression: MathRow, angle: AngleUnit, onDismiss: () -> Unit) {
     val solution by produceState<Result<Steps.Solution?>?>(null, expression) {
         value = Result.success(withContext(Dispatchers.Default) { Steps.of(expression, angle) })
     }
-    var shown by remember { mutableIntStateOf(1) }
     val total = solution?.getOrNull()?.steps?.size ?: 0
-    val state = StepsState(shown, total, onNext = { shown = (shown + 1).coerceAtMost(total) }, onAll = { shown = total })
+    // Every step at once (no revealing them one by one).
+    val state = StepsState(total, total)
     if (isTabletLayout()) TabletSteps(expression, solution?.getOrNull(), solution != null, state, onDismiss)
     else PhoneSteps(expression, solution?.getOrNull(), solution != null, state, onDismiss)
 }
 
-private class StepsState(val shown: Int, val total: Int, val onNext: () -> Unit, val onAll: () -> Unit) {
-    val done get() = shown >= total
-}
+private class StepsState(val shown: Int, val total: Int)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,9 +113,7 @@ private fun PhoneSteps(expression: MathRow, solution: Steps.Solution?, ready: Bo
             Box(Modifier.weight(1f)) {
                 Body(solution, ready, state, list, Modifier.padding(horizontal = 20.dp))
             }
-            Controls(state, ready && solution != null, Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
         }
-        LaunchedEffect(state.shown) { if (state.shown > 1) list.animateScrollToItem(state.shown - 1) }
     }
 }
 
@@ -126,7 +122,6 @@ private fun TabletSteps(expression: MathRow, solution: Steps.Solution?, ready: B
     val colors = MaterialTheme.colorScheme
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    LaunchedEffect(state.shown) { if (state.shown > 1) list.animateScrollToItem(state.shown - 1) }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         androidx.compose.material3.Surface(shape = RoundedCornerShape(36.dp), color = colors.surfaceContainerLow, modifier = Modifier.width(1000.dp).heightIn(max = 760.dp).fillMaxHeight(0.9f)) {
             Row(Modifier.fillMaxSize()) {
@@ -161,7 +156,6 @@ private fun TabletSteps(expression: MathRow, solution: Steps.Solution?, ready: B
                         IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close", tint = colors.onSurfaceVariant) }
                     }
                     Box(Modifier.weight(1f)) { Body(solution, ready, state, list, Modifier.padding(horizontal = 28.dp)) }
-                    Controls(state, ready && solution != null, Modifier.padding(horizontal = 28.dp, vertical = 16.dp))
                 }
             }
         }
@@ -227,9 +221,7 @@ private fun Body(solution: Steps.Solution?, ready: Boolean, state: StepsState, l
         }
         else -> LazyColumn(state = list, modifier = modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)) {
             itemsIndexed(solution.steps) { k, step ->
-                AnimatedVisibility(k < state.shown, enter = fadeIn() + expandVertically(spring(stiffness = Spring.StiffnessMediumLow))) {
-                    StepNode(k + 1, step, last = k == solution.steps.lastIndex || k == state.shown - 1)
-                }
+                StepNode(k + 1, step, last = k == solution.steps.lastIndex)
             }
             item { BetaNote() }
         }
@@ -291,30 +283,6 @@ private fun MathBox(row: MathRow, background: Color, ink: Color, small: Boolean 
         Modifier.padding(top = 8.dp).fillMaxWidth().clip(RoundedCornerShape(if (small) 12.dp else 16.dp)).background(background)
             .horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = if (small) 8.dp else 10.dp),
     ) { MathView(row, if (small) 16.sp else 19.sp, ink) }
-}
-
-/** Next step, or all of them; once they're all shown, a line saying so. */
-@Composable
-private fun Controls(state: StepsState, enabled: Boolean, modifier: Modifier) {
-    val colors = MaterialTheme.colorScheme
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (!enabled || state.done) {
-            Icon(Icons.Default.DoneAll, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp))
-            Text(if (enabled) "All ${state.total} steps" else "", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
-            return@Row
-        }
-        Text("${state.shown} of ${state.total}", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, modifier = Modifier.weight(1f))
-        TextButton(onClick = state.onAll) { Text("Show all") }
-        // The main action, large and filled.
-        Row(
-            Modifier.height(52.dp).clip(RoundedCornerShape(26.dp)).background(colors.primary).clickable(onClickLabel = "Next step") { state.onNext() }.padding(start = 18.dp, end = 22.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Default.SkipNext, contentDescription = null, tint = colors.onPrimary, modifier = Modifier.size(22.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("Next step", style = MaterialTheme.typography.titleSmall, color = colors.onPrimary)
-        }
-    }
 }
 
 /** That steps are in beta, and a way to report a wrong one. */

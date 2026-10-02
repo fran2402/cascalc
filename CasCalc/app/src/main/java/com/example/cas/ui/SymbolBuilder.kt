@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -170,12 +171,13 @@ fun SymbolBuilderPage(onDone: (String?) -> Unit) {
     val accents: @Composable ColumnScope.() -> Unit = {
         Step("2", "Accent")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Chip(selected = accent == null, description = "No accent", onClick = { tap(); accent = null; changed() }) {
+            Chip(selected = accent == null, description = "No accent", onClick = { tap(); accent = null; changed() }, modifier = Modifier.height(52.dp)) {
                 Text("None", style = MaterialTheme.typography.labelLarge, color = colors.onSurface)
             }
             // Each accent shown on the chosen letter.
             Accent.entries.forEach { a ->
-                Chip(selected = accent == a, description = a.label, onClick = { tap(); accent = a; changed() }) {
+                // All the same size, whatever the accent's height.
+                Chip(selected = accent == a, description = a.label, onClick = { tap(); accent = a; changed() }, modifier = Modifier.height(52.dp).widthIn(min = 52.dp)) {
                     MathView(MathRow(mutableListOf(Sym(CustomSymbol(base, a, bold = bold).encode()))), 24.sp, colors.onSurface, computerModern = true)
                 }
             }
@@ -284,10 +286,10 @@ private fun Step(number: String, title: String) {
 }
 
 @Composable
-private fun Chip(selected: Boolean, description: String, onClick: () -> Unit, content: @Composable () -> Unit) {
+private fun Chip(selected: Boolean, description: String, onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Box(
-        Modifier
+        modifier
             .defaultMinSize(minWidth = 44.dp, minHeight = 44.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(if (selected) colors.primaryContainer else colors.surfaceContainerHigh)

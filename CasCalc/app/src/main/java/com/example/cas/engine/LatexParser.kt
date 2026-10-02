@@ -48,7 +48,27 @@ object LatexParser {
     )
     private const val THIN = Formatter.THIN_SPACE
 
-    fun parse(latex: String): MathRow = Reader(latex).row(stopAt = null)
+    fun parse(latex: String): MathRow = Reader(latex).row(stopAt = null).also { absoluteBars(it) }
+
+    /**
+     * |x| (or \left| x \right|) as the editor's absolute value, as typed on the keys: bars in the
+     * same row paired left to right. A lone bar stays a bar.
+     */
+    private fun absoluteBars(row: MathRow) {
+        row.items.forEach { n -> n.slots.forEach { absoluteBars(it) } }
+        var k = 0
+        while (k < row.items.size) {
+            if ((row.items[k] as? Sym)?.text == "|") {
+                val close = (k + 1 until row.items.size).firstOrNull { (row.items[it] as? Sym)?.text == "|" }
+                if (close != null && close > k + 1) {
+                    val inside = MathRow(row.items.subList(k + 1, close).toMutableList())
+                    repeat(close - k + 1) { row.removeAt(k) }
+                    row.add(k, Func("abs", listOf(inside)))
+                }
+            }
+            k++
+        }
+    }
 
     /** Formulas written over several lines (separated by newlines), one row per line. */
     fun lines(latex: String): List<MathRow> = latex.split('\n').map { it.trim() }.filter { it.isNotEmpty() }.map { parse(it) }

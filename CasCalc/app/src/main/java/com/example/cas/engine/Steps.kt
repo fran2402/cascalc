@@ -21,6 +21,7 @@ import com.example.cas.cas.children
 import com.example.cas.cas.div
 import com.example.cas.cas.freeOf
 import com.example.cas.cas.freeVars
+import com.example.cas.cas.isConstant
 import com.example.cas.cas.mul
 import com.example.cas.cas.neg
 import com.example.cas.cas.sub
@@ -124,6 +125,8 @@ object Steps {
     /** The working for [row], or null if there is none (or it couldn't be found). */
     fun of(row: MathRow, angle: AngleUnit = AngleUnit.Radians): Solution? = runCatching {
         inverseOf(row)?.let { return@runCatching inverse(row, angle) }
+        // An operation inside another (∮ inside a limit, a derivative inside an integral): the inside first.
+        nested(row, angle)?.let { return@runCatching it }
         when (val n = target(row)) {
             is Integral -> integral(n, angle)
             is com.example.cas.editor.Derivative -> derivative(n, angle)
@@ -143,6 +146,81 @@ object Steps {
             else -> if (isComplexArithmetic(row)) complex(row, angle) else simplification(row, angle)
         }
     }.getOrNull()
+
+    // ---- Nested operations -------------------------------------------------------------------
+
+    private fun isOperation(n: Node) = n is Integral || n is com.example.cas.editor.Derivative || n is com.example.cas.editor.BigOp || (n is Func && n.name in FUNCS)
+
+    /** Where the first operation inside [root]'s single target is, as item and slot indices (item, slot, item, …, item). */
+    private fun innerPath(root: MathRow): List<Int>? {
+        val top = root.items.indexOfFirst { isOperation(it) }.takeIf { it >= 0 } ?: return null
+        // Breadth-first through the target's slots, so the outermost inner operation comes first.
+        val queue = ArrayDeque<Pair<MathRow, List<Int>>>()
+        root.items[top].slots.forEachIndexed { k, r -> queue.add(r to listOf(top, k)) }
+        while (queue.isNotEmpty()) {
+            val (r, path) = queue.removeFirst()
+            r.items.forEachIndexed { i, item ->
+                if (isOperation(item)) return path + i
+                item.slots.forEachIndexed { k, slot -> queue.add(slot to path + i + k) }
+            }
+        }
+        return null
+    }
+
+    private fun nodeAt(root: MathRow, path: List<Int>): Pair<MathRow, Int> {
+        var r = root
+        var k = 0
+        while (k + 1 < path.size) { r = r.items[path[k]].slots[path[k + 1]]; k += 2 }
+        return r to path.last()
+    }
+
+    /** What a solution came to: the math after its last "=" (null for an answer that's an equation or list). */
+    private fun valueOf(s: Solution): List<Node>? {
+        val at = s.answer.items.indexOfLast { (it as? SymNode)?.text == "=" }
+        if (at < 0 || s.answer.items.any { (it as? SymNode)?.text == "⇒" }) return null
+        return com.example.cas.editor.MathCodec.copy(MathRow(s.answer.items.drop(at + 1).toMutableList())).items.toList()
+    }
+
+    /**
+     * An operation with another inside it, like \lim_{R\to\infty} \oint_{|z|=R} f\,dz: the steps for the
+     * inside one, its value put back in, then the steps for the outside one, all shown. Integrals
+     * of integrals are left to [integral], which works them inside out itself.
+     */
+    private fun nested(row: MathRow, angle: AngleUnit): Solution? {
+        val outer = target(row) ?: return null
+        val path = innerPath(row) ?: return null
+        val (parent, index) = nodeAt(row, path)
+        val inner = parent.items[index]
+        if (outer is Integral && inner is Integral) return null
+        val innerSolution = of(com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(inner))), angle) ?: return null
+        val value = valueOf(innerSolution) ?: return null
+        // The question with the inside replaced by its value (in brackets).
+        val rewritten = com.example.cas.editor.MathCodec.copy(row)
+        val (p2, i2) = nodeAt(rewritten, path)
+        p2.removeAt(i2)
+        // In brackets, unless it already sits in some.
+        val inBrackets = (p2.items.getOrNull(i2 - 1) as? SymNode)?.text == "(" && (p2.items.getOrNull(i2) as? SymNode)?.text == ")"
+        val bracketed = if (inBrackets || value.size == 1) value else listOf<Node>(sym("(")) + value + sym(")")
+        bracketed.asReversed().forEach { p2.add(i2, it) }
+        val outerSolution = of(rewritten, angle)
+        val question = com.example.cas.editor.MathCodec.copy(row)
+        val steps = ArrayList<Step>()
+        steps += Step("The inside first", "Work out the inner part, then put its value back.", com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(inner))))
+        steps += innerSolution.steps.filter { it.kind != Kind.Result || it !== innerSolution.steps.last() } + innerSolution.steps.last().let { last ->
+            if (last.kind == Kind.Result) listOf(Step(if (last.title == "Answer") "So the inside is" else last.title, last.text, last.math, Kind.Rule, last.substeps)) else emptyList()
+        }
+        steps += Step("Put it back", null, line(question, "=", rewritten))
+        if (outerSolution != null) {
+            steps += outerSolution.steps
+            val result = valueOf(outerSolution) ?: return null
+            return Solution(innerSolution.method + ", then " + outerSolution.method.replaceFirstChar { it.lowercase() }, steps, line(question, "=", MathRow(result.toMutableList())))
+        }
+        // No steps for the outside: its value, worked out directly.
+        val v = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(rewritten))
+        val answer = ans(question, v)
+        steps += Step("Answer", null, answer, Kind.Result)
+        return Solution(innerSolution.method, steps, answer)
+    }
 
     // ---- Math rows ---------------------------------------------------------------------------
 
@@ -1283,11 +1361,15 @@ object Steps {
         val center = Algebra.simplify(neg(sub(inside, z)))
         val radius = spec.rhs
         val body = Evaluator(angle).evaluate(n.args[0])
-        val value = com.example.cas.graph.ComplexIntegrals.circle(body, z, center, radius)
+        if (!center.isConstant) return null
+        // A radius like R (inside lim R→∞): large enough that every singularity is inside; the
+        // value comes from the residues rather than numerically.
+        val symbolic = !radius.isConstant
         val question = MathRow(mutableListOf(n)).let { com.example.cas.editor.MathCodec.copy(it) }
-        val answer = ans(question, value)
+        var value: Expr = if (symbolic) ZERO else com.example.cas.graph.ComplexIntegrals.circle(body, z, center, radius)
+        var answer = ans(question, value)
         val steps = ArrayList<Step>()
-        val c = Numeric.eval(center); val r = Numeric.real(radius)
+        val c = Numeric.eval(center); val r = if (symbolic) Double.POSITIVE_INFINITY else Numeric.real(radius)
         steps += Step("The circle", "Center ${tx(center)}, radius ${tx(radius)}, run counterclockwise.", ex(spec))
         val (_, den) = Algebra.together(body)
         val poles: List<Expr>? = if (den.freeOf(z)) emptyList() else runCatching {
@@ -1295,6 +1377,7 @@ object Steps {
             (if (sol is Seq) sol.items else listOf(sol)).mapNotNull { (it as? Eq)?.takeIf { e -> e.lhs == z }?.rhs }
         }.getOrNull()?.takeIf { it.isNotEmpty() }
         if (poles == null) {
+            if (symbolic) return null
             steps += Step("Numerical", "The singularities can't be found exactly (or \$f\$ isn't a fraction of polynomials), so the integral is computed numerically around the circle.", answer, Kind.Note)
             return Solution("Numerical", steps, answer)
         }
@@ -1305,7 +1388,14 @@ object Steps {
         steps += Step("Singularities", "Where the denominator is \$0\$.", line(*poles.flatMapIndexed { k, p -> (if (k > 0) listOf(",", " ") else emptyList()) + listOf<Any>(z.name, "=", p) }.toTypedArray()))
         val within = poles.filter { p -> (Numeric.eval(p) - c).abs() < r }
         val outside = poles - within.toSet()
-        steps += Step(
+        if (symbolic) {
+            val far = poles.maxOf { (Numeric.eval(it) - c).abs() }
+            steps += Step(
+                "Inside the circle",
+                "For \$${lx(radius)} > ${Units.number(far, 4)}\$ (the farthest singularity from the center) every singularity is inside the circle, which is all that matters as \$${lx(radius)}\$ grows.",
+                line(*within.flatMapIndexed { k, p -> (if (k > 0) listOf(",", " ") else emptyList()) + listOf<Any>(z.name, "=", p) }.toTypedArray()),
+            )
+        } else steps += Step(
             "Inside the circle",
             if (within.isEmpty()) "None of them is inside \$|${z.name} - ${lx(center)}| < ${lx(radius)}\$."
             else "Only poles inside count" + (if (outside.isEmpty()) "; all of them are." else "; ${outside.joinToString { tx(it) }} ${if (outside.size == 1) "is" else "are"} outside."),
@@ -1324,6 +1414,10 @@ object Steps {
         }
         steps += residues.map { it.first }
         val total = Algebra.simplify(add(residues.map { it.second }))
+        if (symbolic) {
+            value = Algebra.simplify(mul(com.example.cas.cas.Num(2), com.example.cas.cas.PI, com.example.cas.cas.I, total))
+            answer = ans(question, value)
+        }
         steps += Step("Residue theorem", "\$\\oint f\\,dz = 2\\pi i\$ times the sum of the residues inside.", line(question, "=", "2", "π", "i", "·", paren(total), "=", value), Kind.Result)
         return Solution("Residue theorem", steps, answer)
     }
