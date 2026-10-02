@@ -1,7 +1,6 @@
 package com.example.cas.ui
 
 import com.example.cas.engine.Readout
-import androidx.compose.material3.SegmentedButton
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -1240,7 +1239,12 @@ private fun ParameterSlider(vm: GraphViewModel, name: String) {
     val value = vm.parameters[name] ?: 1.0
     val (lo, hi) = vm.rangeOf(name)
     var editing by remember { mutableStateOf(false) }
-    if (editing) SliderDialog(name, value, lo, hi, onDone = { v, a, b -> vm.setSlider(name, v, a, b); editing = false }, onDismiss = { editing = false })
+    val integers = vm.integerSliders[name] == true
+    if (editing) SliderDialog(name, value, lo, hi, integers, onDone = { v, a, b, ints ->
+        if (ints != integers) vm.setIntegers(name, ints)
+        val (a2, b2) = if (ints) kotlin.math.floor(a) to kotlin.math.ceil(b).let { if (it <= kotlin.math.floor(a)) kotlin.math.floor(a) + 1 else it } else a to b
+        vm.setSlider(name, if (ints) Math.rint(v) else v, a2, b2); editing = false
+    }, onDismiss = { editing = false })
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         val playing = name in vm.playing
         IconButton(onClick = { vm.togglePlay(name) }, modifier = Modifier.size(40.dp)) {
@@ -1252,12 +1256,25 @@ private fun ParameterSlider(vm: GraphViewModel, name: String) {
         }
         // A built symbol (x̂₁) drawn as the math draws it, not as its stored text.
         SymbolName(name, 20.sp, colors.onSurface, Modifier.widthIn(min = 28.dp).padding(end = 4.dp))
+        // ℝ or ℤ: real numbers, or integers only. Filled when integers are on.
+        val tap = rememberKeyTap()
+        androidx.compose.material3.FilledTonalIconToggleButton(
+            checked = integers,
+            onCheckedChange = { tap(); vm.setIntegers(name, it) },
+            modifier = Modifier.size(36.dp).semantics { contentDescription = if (integers) "${spokenName(name)} moves through integers; switch to real numbers" else "${spokenName(name)} moves through real numbers; switch to integers" },
+        ) {
+            MathText(if (integers) "\$\\mathbb{Z}\$" else "\$\\mathbb{R}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp), mathScale = 1f)
+        }
+        Spacer(Modifier.width(4.dp))
         val step = (hi - lo) / 200
+        // Integers: tick marks at each whole number when there are few enough to see.
+        val ticks = (kotlin.math.round(hi - lo).toInt() - 1).takeIf { integers && it in 1..40 } ?: 0
         ExpressiveSlider(
             value = value.toFloat(),
-            onValueChange = { vm.setParameter(name, Math.round(it / step) * step) },
+            onValueChange = { vm.setParameter(name, if (integers) Math.rint(it.toDouble()) else Math.round(it / step) * step) },
             valueRange = lo.toFloat()..hi.toFloat(),
-            modifier = Modifier.weight(1f).semantics { contentDescription = "Value of ${spokenName(name)}, from ${shortNumber(lo)} to ${shortNumber(hi)}" },
+            steps = ticks,
+            modifier = Modifier.weight(1f).semantics { contentDescription = "Value of ${spokenName(name)}, from ${shortNumber(lo)} to ${shortNumber(hi)}" + if (integers) ", integers only" else "" },
         )
         // Tap the value to type it, or change the slider's range.
         Box(
@@ -1270,7 +1287,7 @@ private fun ParameterSlider(vm: GraphViewModel, name: String) {
         ) {
             // Always the same decimals for this range (its step), in a width that fits either end,
             // so the number doesn't jitter as the slider moves.
-            val decimals = sliderDecimals(lo, hi)
+            val decimals = if (integers) 0 else sliderDecimals(lo, hi)
             val widest = maxOf(sliderText(lo, decimals).length, sliderText(hi, decimals).length)
             Box(Modifier.widthIn(min = (widest * 9).dp), contentAlignment = Alignment.CenterEnd) {
                 MathText(Readout.markdown(sliderText(value, decimals)), color = colors.onSurface, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp), mathScale = 1f)
@@ -1281,8 +1298,9 @@ private fun ParameterSlider(vm: GraphViewModel, name: String) {
 
 /** Type a slider's value and its range (−10 to 10 unless changed). A line like a = 3 also sets it. */
 @Composable
-private fun SliderDialog(name: String, value: Double, min: Double, max: Double, onDone: (Double, Double, Double) -> Unit, onDismiss: () -> Unit) {
+private fun SliderDialog(name: String, value: Double, min: Double, max: Double, integers0: Boolean, onDone: (Double, Double, Double, Boolean) -> Unit, onDismiss: () -> Unit) {
     fun text(v: Double) = shortNumber(v).replace("−", "-")
+    var integers by remember { mutableStateOf(integers0) }
     var v by remember { mutableStateOf(text(value)) }
     var a by remember { mutableStateOf(text(min)) }
     var b by remember { mutableStateOf(text(max)) }
@@ -1294,7 +1312,24 @@ private fun SliderDialog(name: String, value: Double, min: Double, max: Double, 
         title = { SymbolName(name, 24.sp, MaterialTheme.colorScheme.onSurface) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(v, { v = it }, singleLine = true, label = { Text("Value") }, modifier = Modifier.fillMaxWidth())
+                // Real numbers or integers only, as a Material 3 segmented button.
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    listOf(false to "Real numbers", true to "Integers").forEachIndexed { k, (ints, label) ->
+                        SegmentedButton(
+                            selected = integers == ints,
+                            onClick = { integers = ints },
+                            shape = SegmentedButtonDefaults.itemShape(k, 2),
+                            label = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    MathText(if (ints) "\$\\mathbb{Z}\$" else "\$\\mathbb{R}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 16.sp), mathScale = 1f)
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(label, maxLines = 1)
+                                }
+                            },
+                        )
+                    }
+                }
+                OutlinedTextField(v, { v = it }, singleLine = true, label = { Text(if (integers) "Value (rounded to an integer)" else "Value") }, modifier = Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(a, { a = it }, singleLine = true, label = { Text("From") }, modifier = Modifier.weight(1f))
                     OutlinedTextField(b, { b = it }, singleLine = true, label = { Text("To") }, modifier = Modifier.weight(1f))
@@ -1306,7 +1341,7 @@ private fun SliderDialog(name: String, value: Double, min: Double, max: Double, 
                 )
             }
         },
-        confirmButton = { TextButton(enabled = valid, onClick = { onDone(nv!!, na!!, nb!!) }) { Text("Done") } },
+        confirmButton = { TextButton(enabled = valid, onClick = { onDone(nv!!, na!!, nb!!, integers) }) { Text("Done") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
 }

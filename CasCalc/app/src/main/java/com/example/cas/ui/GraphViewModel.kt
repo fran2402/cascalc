@@ -223,6 +223,10 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     val parameters = mutableStateMapOf<String, Double>()
     /** Each slider's range, −10 to 10 unless changed. (Declared before init, which loads it.) */
     val ranges = mutableStateMapOf<String, Pair<Double, Double>>()
+    /** Sliders that move through integers only (the rest through real numbers). */
+    val integerSliders = mutableStateMapOf<String, Boolean>()
+    /** Where a playing integer slider really is, between the whole numbers it shows. */
+    private val animationPosition = HashMap<String, Double>()
     /** Saved projects of this kind of graph, newest first. (Declared before init, which loads them.) */
     val projects = mutableStateListOf<Project>()
 
@@ -327,6 +331,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             val bits = line.split('\t')
             if (bits.size == 3) { val lo = bits[1].toDoubleOrNull(); val hi = bits[2].toDoubleOrNull(); if (lo != null && hi != null && lo < hi) ranges[bits[0]] = lo to hi }
         }
+        get("integers").orEmpty().split(",").filter { it.isNotEmpty() }.forEach { integerSliders[it] = true }
         get("parameters").orEmpty().lines().filter { '\t' in it }.forEach { line ->
             val (k, v) = line.split('\t'); v.toDoubleOrNull()?.let { parameters[k] = it }
         }
@@ -343,6 +348,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         "extras" to extrasJson(),
         "ranges" to ranges.entries.joinToString("\n") { "${it.key}\t${it.value.first}\t${it.value.second}" },
         "parameters" to parameters.entries.joinToString("\n") { "${it.key}\t${it.value}" },
+        "integers" to integerSliders.keys.joinToString(","),
     )
 
     // ---- Saved projects ---------------------------------------------------------------------
@@ -407,6 +413,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         functions.clear()
         parameters.clear()
         ranges.clear()
+        integerSliders.clear()
         playing.clear()
         applyData({ p.data[it] })
         functions.forEach { recompile(it) }
@@ -415,6 +422,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         prefs.edit()
             .putString("${key}_parameters", parameters.entries.joinToString("\n") { "${it.key}\t${it.value}" })
             .putString("${key}_ranges", ranges.entries.joinToString("\n") { "${it.key}\t${it.value.first}\t${it.value.second}" })
+            .putString("${key}_integers", integerSliders.keys.joinToString(","))
             .apply()
     }
 
@@ -546,7 +554,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
 
     fun setParameter(name: String, value: Double) {
         playing.remove(name) // dragging a slider stops its animation
-        parameters[name] = value
+        animationPosition.remove(name)
+        parameters[name] = if (integerSliders[name] == true) Math.rint(value) else value
         version++
         prefs.edit().putString("${key}_parameters", parameters.entries.joinToString("\n") { "${it.key}\t${it.value}" }).apply()
     }
@@ -1170,7 +1179,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     }
 
     /** A dragged point's slider: set to [value], widening its range if the point goes past an end. */
-    fun dragSlider(name: String, value: Double) {
+    fun dragSlider(name: String, value0: Double) {
+        val value = if (integerSliders[name] == true) Math.rint(value0) else value0
         val (lo, hi) = rangeOf(name)
         if (value < lo || value > hi) setSlider(name, value, minOf(lo, value), maxOf(hi, value)) else setParameter(name, value)
     }
@@ -1182,15 +1192,31 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         prefs.edit().putString("${key}_ranges", ranges.entries.joinToString("\n") { "${it.key}\t${it.value.first}\t${it.value.second}" }).apply()
     }
 
-    /** Moves every playing slider on by [seconds], bouncing between its ends at a tenth of its range a second. */
+    /**
+     * Integers only or real numbers for a slider. Turning integers on rounds its value, and its
+     * range out to whole numbers.
+     */
+    fun setIntegers(name: String, on: Boolean) {
+        if (on) integerSliders[name] = true else integerSliders.remove(name)
+        prefs.edit().putString("${key}_integers", integerSliders.keys.joinToString(",")).apply()
+        if (on) {
+            val (lo, hi) = rangeOf(name)
+            val a = kotlin.math.floor(lo); val b = kotlin.math.ceil(hi).let { if (it <= a) a + 1 else it }
+            setSlider(name, Math.rint(parameters[name] ?: 1.0), a, b)
+        } else version++
+    }
+
+    /** Moves every playing slider on by [seconds], bouncing between its ends at a tenth of its range a second; integer ones show the whole number they're passing. */
     fun advance(seconds: Double) {
         for ((name, dir) in playing.toMap()) {
             val (lo, hi) = rangeOf(name)
-            var v = (parameters[name] ?: 0.0) + dir * (hi - lo) / 10 * seconds
+            val integer = integerSliders[name] == true
+            val start = (if (integer) animationPosition[name] else null) ?: parameters[name] ?: 0.0
+            var v = start + dir * (hi - lo) / 10 * seconds
             var d = dir
             if (v > hi) { v = 2 * hi - v; d = -1 }
             if (v < lo) { v = 2 * lo - v; d = 1 }
-            parameters[name] = v
+            if (integer) { animationPosition[name] = v; parameters[name] = Math.rint(v) } else parameters[name] = v
             playing[name] = d
         }
         if (playing.isNotEmpty()) version++

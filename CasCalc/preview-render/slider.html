@@ -1,0 +1,38 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:NCM;src:url(../app/src/main/res/font/new_cm_math.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px;display:flex;gap:40px;align-items:flex-start}
+.card{width:412px;background:#F6F4E8;border-radius:28px;padding:16px 8px;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+.row{display:flex;align-items:center;height:52px;padding:0 8px;gap:6px}
+.play{width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:#47473B;font-size:18px}
+.name{font:italic 21px CMI;width:28px}
+.tog{width:36px;height:36px;border-radius:18px;display:flex;align-items:center;justify-content:center;font:19px NCM,CMR}
+.track{flex:1;position:relative;height:44px}
+.val{background:#EBE9DC;border-radius:12px;padding:6px 10px;font:17px CMR;min-width:44px;text-align:right}
+.dlg{width:380px;background:#F1EEE2;border-radius:28px;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.seg{display:flex;border:1px solid #77786A;border-radius:20px;overflow:hidden;height:40px}
+.seg div{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font:500 14px GSF;color:#1C1C16}
+.seg div+div{border-left:1px solid #77786A}.seg .on{background:#E2E4C4}
+.field{border:1px solid #77786A;border-radius:6px;height:56px;padding:0 14px;display:flex;align-items:center;font:16px GSF;position:relative;margin-top:14px}
+.field span{position:absolute;top:-9px;left:10px;background:#F1EEE2;padding:0 4px;font:12px GSF;color:#47473B}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px}
+</style></head><body>
+<div><div class="card" id="rows"></div><div class="cap">Each slider has an ℝ / ℤ toggle: tap it for integers only (filled, ℤ). An integer slider snaps to whole numbers, shows a tick at each one, and drops the decimals; play steps through them.</div></div>
+<div><div class="dlg">
+ <div style="font:italic 26px CMI;margin-bottom:16px">n</div>
+ <div class="seg"><div>ℝ Real numbers</div><div class="on">✓ ℤ Integers</div></div>
+ <div class="field"><span>Value (rounded to an integer)</span>3</div>
+ <div style="display:flex;gap:8px"><div class="field" style="flex:1"><span>From</span>0</div><div class="field" style="flex:1"><span>To</span>8</div></div>
+ <div style="font:13px GSF;color:#47473B;margin-top:12px">You can also set it with a line of its own, like n = 3.</div>
+ <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;font:600 14px GSF;color:#5B6133"><span style="padding:10px 12px">Cancel</span><span style="padding:10px 12px">Done</span></div>
+</div><div class="cap">Tap the value for the dialog: a segmented button picks real numbers or integers, beside the value and the range.</div></div>
+<script>
+function track(frac,ticks){let t='';if(ticks){for(let i=0;i<=ticks;i++){const x=i/ticks*100;t+=`<div style="position:absolute;left:calc(${x}% - 2px);top:20px;width:4px;height:4px;border-radius:2px;background:${x<=frac*100?'#C5CB86':'#5B6133'}"></div>`}}
+ return `<div class="track"><div style="position:absolute;left:0;top:16px;height:12px;width:calc(${frac*100}% - 6px);background:#5B6133;border-radius:6px 2px 2px 6px"></div><div style="position:absolute;right:0;top:16px;height:12px;width:calc(${100-frac*100}% - 6px);background:#E2E4C4;border-radius:2px 6px 6px 2px"></div>${t}<div style="position:absolute;left:calc(${frac*100}% - 2px);top:4px;width:4px;height:36px;border-radius:2px;background:#5B6133"></div></div>`}
+const rows=[['a',false,0.62,'2.4',0],['n',true,0.375,'3',8],['k',true,0.6,'6',10],['b',false,0.3,'−4.0',0]];
+document.getElementById('rows').innerHTML=rows.map(([n,int,f,v,t])=>`<div class="row"><div class="play">▶</div><div class="name">${n}</div><div class="tog" style="background:${int?'#5B6133':'#E2E4C4'};color:${int?'#fff':'#1B1D0A'}">${int?'ℤ':'ℝ'}</div>${track(f,t)}<div class="val">${v}</div></div>`).join('');
+document.title='ready';
+</script></body></html>
