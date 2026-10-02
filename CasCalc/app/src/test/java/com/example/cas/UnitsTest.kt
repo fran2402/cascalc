@@ -103,6 +103,15 @@ class AbsoluteLogIntegralTest {
 }
 
 class MoreUnitsTest {
+    @Test fun plainNumbers() {
+        assertEquals("70", Units.plain(70.0))
+        assertEquals("0.0025", Units.plain(0.0025))
+        assertEquals("1500", Units.plain(1500.0))
+        assertEquals("3e-7", Units.plain(3e-7))
+        assertEquals("2.99792e14", Units.plain(2.99792458e14))
+        assertEquals("0", Units.plain(0.0))
+    }
+
     private fun conv(v: Double, from: String, to: String) = Units.convert(v, Units.parse(from), Units.target(to, Units.parse(from).dims)).value
     private fun close(expected: Double, got: Double, rel: Double = 1e-9) = assertEquals(expected, got, kotlin.math.abs(expected) * rel)
     @Test fun furlong() = close(201.168, conv(1.0, "furlong", "m"))

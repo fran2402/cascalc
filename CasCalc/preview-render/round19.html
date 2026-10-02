@@ -1,0 +1,152 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:NCMR;src:url(../app/src/main/res/font/ncm_roman.otf)}
+@font-face{font-family:NCMI;src:url(../app/src/main/res/font/ncm_latin_italic.otf)}
+@font-face{font-family:Rob;src:url(../app/src/main/res/font/roboto.ttf);font-weight:100 900}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px;width:1800px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1500px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px;line-height:1.4}
+.dark{--sec2:#C6C8A9;--onsec2:#2F321B;--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--c:#1F2018;--ch:#292A22;--chh:#34352C;--s:#12130C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sc:#45483A;--onsc:#E2E4C4;--ter:#A2D0BF;--onter:#05372B;--tc:#214E41;--ontc:#BEECDB;--lowest:#0D0F08;--err:#FFB4AB}
+.light{--sec2:#5E6045;--onsec2:#fff;--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--s:#FCF9EE;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sc:#E2E4C4;--onsc:#1B1D0A;--ter:#3C6A5A;--onter:#fff;--tc:#BEECDB;--ontc:#002019;--lowest:#fff;--err:#BA1A1A}
+.phone{position:relative;width:412px;height:900px;border-radius:44px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font:500 14px GSF}
+.hd{height:56px;display:flex;align-items:center;padding:0 10px 0 6px;gap:8px;font:400 24px GSF}
+.ib{width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--onv)}
+.beta{font:600 11px GSF;background:var(--tc);color:var(--ontc);border-radius:20px;padding:2px 8px;letter-spacing:.5px}
+.body{padding:0 16px;display:flex;flex-direction:column;gap:12px}
+.card{border-radius:32px;padding:18px 20px;display:flex;flex-direction:column;gap:12px}
+.lab{font:600 14px GSF}
+.pill{height:40px;border-radius:14px;background:var(--sc);color:var(--onsc);display:inline-flex;align-items:center;padding:0 12px}
+.ubtn{min-height:68px;border-radius:22px;display:flex;align-items:center;padding:8px 10px 8px 18px;gap:8px}
+.ubtn .nm{font:500 12px GSF;opacity:.8;margin-top:2px}
+.chev{width:40px;height:40px;border-radius:20px;background:var(--sc);color:var(--onsc);display:flex;align-items:center;justify-content:center;font-size:16px;flex:none}
+.qc{flex:none;height:38px;display:inline-flex;align-items:center;padding:0 14px;font:600 14px GSF}
+.act{height:40px;border-radius:20px;display:inline-flex;align-items:center;gap:8px;padding:0 18px 0 14px;font:600 14px GSF}
+.swap{position:relative;height:0;z-index:2;display:flex;justify-content:center}
+.swap svg{position:absolute;top:-30px}
+.sec{border-radius:28px;background:var(--s);padding:16px;display:flex;flex-direction:column;gap:6px}
+.sec h4{margin:0 0 4px 4px;font:600 14px GSF;color:var(--pri)}
+.alt{background:var(--c);padding:12px 16px;border-radius:8px}.alt:first-of-type{border-radius:20px 20px 8px 8px}.alt:last-child{border-radius:8px 8px 20px 20px}
+.notice{border-radius:24px;padding:14px 18px;display:flex;gap:12px;align-items:center;font:14px GSF}
+.mi{display:inline-block;vertical-align:middle}
+/* sliders */
+.gcard{width:412px;border-radius:28px;padding:12px 8px;box-shadow:0 10px 30px rgba(0,0,0,.2);background:var(--low);color:var(--on)}
+.srow{display:flex;align-items:center;height:52px;padding:0 8px;gap:6px}
+.play{width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--onv);font-size:16px}
+.sname{font:italic 22px CMI;width:30px;text-align:center}
+.track{flex:1;position:relative;height:44px}
+.val{background:var(--ch);border-radius:12px;padding:6px 10px;font:17px CMR;min-width:48px;text-align:right}
+.ends{display:flex;align-items:center;padding:0 16px 6px 84px;font:15px CMR;color:var(--onv)}
+.kind{height:30px;border-radius:15px;background:var(--ch);padding:2px;display:flex;gap:2px}
+.kind div{height:26px;display:flex;align-items:center;gap:5px;padding:0 10px;font:500 12px GSF;color:var(--onv);border-radius:9px}
+.kind .on{background:var(--sc);color:var(--onsc);border-radius:13px}
+.kind b{font:400 17px NCMR,CMR}
+.fgrid{display:grid;grid-template-columns:auto 1fr 1fr;gap:0;border-radius:28px;overflow:hidden;background:var(--s);color:var(--on)}
+.fgrid div{padding:10px 18px;border-top:1px solid var(--chh);display:flex;align-items:center;font:14px GSF}
+.fgrid .h{font:600 13px GSF;color:var(--pri);border-top:none}
+</style></head><body>
+<script src="gsf_cmap.js"></script><script src="cm_cmap.js"></script><script src="ncm_cmap.js"></script><script src="mathlayout.js"></script><script src="round19_data.js"></script>
+
+<h2>Graph sliders · real or integer</h2>
+<p class="note">The ℝ/ℤ button moved out of the slider row, which was crowded, into a row of its own under the slider. The range's ends sit at each side, and a small two-part switch in the middle reads "ℝ real | ℤ integer". The chosen part fills and rounds off. Tap an end to edit the range.</p>
+<div class="row" id="sliders"></div>
+
+<h2>Unit converter, redesigned <span class="beta" style="background:#BEECDB;color:#002019">BETA</span></h2>
+<p class="note">Each unit is now one big button showing the unit in LaTeX and what it measures, with a ▾. Tap it to open the picker. The answer comes first in the To card, in large type. Under it is one row of quick targets: SI, SI base and CGS, then units the From unit converts to. Typing a unit moved into the picker. Significant figures and the c/h/k_B equivalences are grouped under Options. All numbers are the engine's real output.</p>
+<div class="row" id="phones"></div>
+
+<h2>Unit symbols in New Computer Modern</h2>
+<p class="note">Computer Modern has no Å, é, ø, ō, ‰ or ☉, so these units used to fall back to Roboto in the middle of the math. They now come from New Computer Modern: an upright subset (Latin-1 and Latin Extended-A, ‰, ℃, ℉, Å, ☉, ☽) and an italic Latin subset, which slot in after Computer Modern and before Roboto.</p>
+<div class="row" id="fonts"></div>
+
+<script>
+const PAL={dark:{on:'#E5E3D6',onv:'#C8C7B5',pri:'#C5CB86',onpc:'#E1E7A0',onsc:'#E2E4C4',ontc:'#BEECDB',onpri:'#2F3300',err:'#FFB4AB'},light:{on:'#1C1C16',onv:'#47473B',pri:'#5B6133',onpc:'#1A1E00',onsc:'#1B1D0A',ontc:'#002019',onpri:'#fff',err:'#BA1A1A'}};
+let P=PAL.light;
+const mv=(c,size,color)=>MT.render(MT.decode(c),{size,color:color||P.on,accent:P.pri,faint:'rgba(128,128,128,.5)'});
+const rt=(s,size,color)=>s.split(/[\u0001\u0002]/).map((p,k)=>k%2?`<span class="mi">${mv(p,size,color)}</span>`:p).join('');
+const m=(s,size,color)=>rt(s,size,color);
+const cookie=(color)=>{let d='';for(let k=0;k<=216;k++){const a=2*Math.PI*k/216-Math.PI/2,r=30*(0.94+0.06*Math.cos(9*(a+Math.PI/2)));d+=(k?'L':'M')+(30+r*Math.cos(a)).toFixed(2)+' '+(30+r*Math.sin(a)).toFixed(2)}
+ return `<svg width="60" height="60" viewBox="0 0 60 60"><path d="${d}Z" fill="${color}"/><text x="30" y="39" text-anchor="middle" font-size="26" fill="var(--onter)">⇅</text></svg>`};
+const C=CV2;
+
+/* ---------- sliders ---------- */
+function track(frac,ticks,th){const a=th=='dark'?'#C5CB86':'#5B6133',b=th=='dark'?'#45483A':'#E2E4C4',dot=th=='dark'?'#2F3300':'#fff';let t='';
+ if(ticks){for(let i=0;i<=ticks;i++){const x=i/ticks*100;t+=`<div style="position:absolute;left:calc(${x}% - 2px);top:20px;width:4px;height:4px;border-radius:2px;background:${x<=frac*100?dot:a}"></div>`}}
+ return `<div class="track"><div style="position:absolute;left:0;top:16px;height:12px;width:calc(${frac*100}% - 6px);background:${a};border-radius:6px 2px 2px 6px"></div><div style="position:absolute;right:0;top:16px;height:12px;width:calc(${100-frac*100}% - 6px);background:${b};border-radius:2px 6px 6px 2px"></div>${t}<div style="position:absolute;left:calc(${frac*100}% - 2px);top:4px;width:4px;height:36px;border-radius:2px;background:${a}"></div></div>`}
+function kind(int){return `<div class="kind"><div class="${int?'':'on'}"><b>ℝ</b>real</div><div class="${int?'on':''}"><b>ℤ</b>integer</div></div>`}
+function sliders(th,rows,cap){return `<div><div class="gcard ${th}">${rows.map(([n,int,f,v,t,lo,hi])=>`<div class="srow"><div class="play">▶</div><div class="sname">${n}</div>${track(f,t,th)}<div class="val">${v}</div></div><div class="ends"><span>${lo}</span><span style="flex:1"></span>${kind(int)}<span style="flex:1"></span><span>${hi}</span></div>`).join('')}</div><div class="cap">${cap}</div></div>`}
+function zoom(){return `<div><div class="gcard light" style="width:300px;padding:28px;display:flex;flex-direction:column;gap:22px;align-items:center">
+ <div style="transform:scale(1.7);transform-origin:center;margin:10px 0">${kind(false)}</div>
+ <div style="transform:scale(1.7);transform-origin:center;margin:10px 0">${kind(true)}</div></div>
+ <div class="cap" style="width:300px">Close-up of both states. The selected half fills with the secondary container and becomes a full pill, so it's clear at a glance which one is on. TalkBack reads it as "n: integers only" or "real numbers".</div></div>`}
+
+document.getElementById('sliders').innerHTML=
+ sliders('light',[['a',false,0.62,'2.4',0,'−5','5'],['n',true,0.375,'3',8,'0','8'],['k',true,0.6,'6',10,'0','10']],'Light theme. The n and k sliders are integer: ticks at each whole number, no decimals, and play steps through them. The a slider is real.')+
+ sliders('dark',[['a',false,0.62,'2.4',0,'−5','5'],['n',true,0.375,'3',8,'0','8'],['b',false,0.3,'−4.0',0,'−10','10']],'Dark theme. Tapping the value box still opens the dialog, which has the same choice as a segmented button.')+zoom();
+
+/* ---------- converter ---------- */
+function head(){return `<div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div><div class="hd"><span class="ib">←</span>Unit converter <span class="beta">BETA</span><span style="flex:1"></span></div>`}
+function ubtn(tex,name,bg,ink){return `<div class="ubtn" style="background:${bg}"><div style="flex:1;min-width:0"><div>${m(tex,24,ink)}</div><div class="nm" style="color:${ink}">${name}</div></div><div class="chev">▼</div></div>`}
+function fromCard(d,v){return `<div class="card" style="background:var(--ch)"><div class="lab" style="color:var(--pri)">From</div>
+ <div style="display:flex;align-items:center;gap:6px"><div style="flex:1;font:40px CMR">${v}<span style="display:inline-block;width:2px;height:36px;background:var(--pri);vertical-align:-6px;margin-left:2px"></span></div><span class="pill">${m(C.chips[0],16,P.onsc)}</span><span class="pill">${m(C.chips[1],16,P.onsc)}</span></div>
+ ${ubtn(d.fromTex,d.fromName,'var(--chh)',P.on)}</div>`}
+function toCard(d,sys){const lowest='color-mix(in srgb,var(--lowest) 70%,transparent)';
+ const qs=[['SI','SI'],['base','SI base'],['cgs','CGS']].map(([k,n])=>`<span class="qc" style="border-radius:${sys===k?19:11}px;background:${sys===k?'var(--pri)':lowest};color:${sys===k?P.onpri:P.onpc}">${n}</span>`).join('')
+  +`<span style="flex:none;width:1px;height:24px;background:color-mix(in srgb,var(--onpc) 25%,transparent);margin:0 4px"></span>`
+  +d.comp.map(([s,c])=>`<span class="qc" style="border-radius:${s===d.to?19:11}px;background:${s===d.to?'var(--pri)':lowest}">${m(c,16,s===d.to?P.onpri:P.onpc)}</span>`).join('');
+ const sysName={SI:'SI',base:'SI base',cgs:'CGS'}[sys];
+ return `<div class="card" style="background:var(--pc);color:var(--onpc)"><div class="lab">To</div>
+ <div style="white-space:nowrap;overflow:hidden;min-height:48px;display:flex;align-items:center">${m(d.num,40,P.onpc)}</div>
+ ${ubtn(d.toTex,(sysName?'In '+sysName+' units · ':'')+d.toName,lowest,P.onpc)}
+ <div style="display:flex;gap:6px;overflow:hidden;align-items:center">${qs}</div>
+ <div style="display:flex;gap:8px"><span class="act" style="background:${lowest}">⧉ Copy</span><span class="act" style="background:${lowest}">↵ Use in calculator</span></div></div>`}
+function swap(){return `<div class="swap">${cookie('var(--ter)')}</div>`}
+function notice(d){return d.bridge?`<div class="notice" style="background:var(--tc);color:var(--ontc)"><span style="font-size:20px">ⓘ</span><div>${rt(d.bridge,15,P.ontc)}</div></div>`:''}
+function also(d){return d.alts.length?`<div class="sec"><h4>Also equals</h4>${d.alts.slice(0,3).map(a=>`<div class="alt">${m(a,18)}</div>`).join('')}</div>`:''}
+function options(){return `<div class="sec"><h4>Options</h4><div style="font:600 14px GSF;margin-left:4px">Significant figures: 6</div>
+ <div style="position:relative;height:44px">${track(4/13,12,'light').replace('class="track"','class="track" style="height:44px"')}</div>
+ <div style="font:600 14px GSF;margin:6px 0 0 4px">Physical equivalences</div>
+ <div style="display:flex;gap:8px;flex-wrap:wrap">${[[2,'speed of light',1],[3,'Planck',1],[4,'reduced Planck',0],[5,'Boltzmann',1]].map(([i,n,on])=>`<span style="height:40px;border-radius:${on?20:10}px;background:${on?'var(--sc)':'var(--ch)'};display:inline-flex;align-items:center;gap:6px;padding:0 14px;font:500 13px GSF;color:${on?'var(--onsc)':'var(--onv)'}">${m(C.chips[i],17,on?P.onsc:P.onv)} ${n}</span>`).join('')}</div></div>`}
+function phone(th,d,v,sys,extra,cap){P=PAL[th];return `<div><div class="phone ${th}">${head()}<div class="body">${fromCard(d,v)}${swap()}${toCard(d,sys)}${extra(d)}</div></div><div class="cap">${cap}</div></div>`}
+function picker(){P=PAL.light;const d=C.hubble;return `<div><div class="phone light">${head()}<div style="position:absolute;inset:0;background:rgba(0,0,0,.32)"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;top:70px;background:var(--low);border-radius:28px 28px 0 0;padding:10px 0;display:flex;flex-direction:column;gap:12px">
+<div style="width:32px;height:4px;border-radius:2px;background:#77786A;margin:4px auto 6px"></div>
+<div style="display:flex;align-items:center;padding:0 16px 0 24px"><span style="flex:1;font:400 22px GSF">Convert from</span><span style="height:40px;border-radius:20px;background:var(--pri);color:var(--onpri);display:inline-flex;align-items:center;padding:0 20px;font:600 14px GSF">Done</span></div>
+<div style="margin:0 16px;border-radius:28px;background:var(--pc);padding:14px 18px;display:flex;flex-direction:column;gap:12px">
+ <div style="display:flex;align-items:center;gap:8px;min-height:40px"><div style="flex:1">${m(d.fromTex,28,P.onpc)}</div><span style="font:500 12px GSF;background:var(--sc);color:var(--onsc);border-radius:20px;padding:4px 10px">${d.fromName}</span></div>
+ <div style="height:48px;border-radius:16px;background:color-mix(in srgb,var(--lowest) 75%,transparent);display:flex;align-items:center;padding:0 14px;gap:10px;font:500 17px GSF;color:var(--onpc)"><span style="opacity:.7">✎</span><span style="flex:1">km/s/Mpc<span style="display:inline-block;width:2px;height:20px;background:var(--pri);vertical-align:-4px;margin-left:1px"></span></span><span style="opacity:.8">✕</span></div>
+ <div style="display:flex;gap:2px">${['×','÷','x²','x³','x⁻¹','(',')'].map((o,k)=>`<span style="flex:1;height:44px;border-radius:${k?6:'22px 6px 6px 22px'};background:color-mix(in srgb,var(--lowest) 75%,transparent);display:flex;align-items:center;justify-content:center;font:17px CMR">${o}</span>`).join('')}<span style="flex:1.2;height:44px;border-radius:6px 22px 22px 6px;background:var(--ter);color:var(--onter);display:flex;align-items:center;justify-content:center;font-size:18px">⌫</span></div>
+ <div style="display:flex;gap:4px;align-items:center;overflow:hidden"><span style="font:500 12px GSF;margin-right:6px">Prefix</span>${['T','G','M','k','h','da','none','d','c','m'].map(p=>`<span style="flex:none;height:34px;min-width:38px;border-radius:${p==='none'?17:8}px;background:${p==='none'?'var(--pri)':'color-mix(in srgb,var(--lowest) 75%,transparent)'};color:${p==='none'?'var(--onpri)':'var(--onpc)'};display:inline-flex;align-items:center;justify-content:center;padding:0 10px;font:600 14px GSF">${p}</span>`).join('')}</div>
+</div>
+<div style="margin:0 16px;height:52px;border-radius:26px;background:var(--chh);display:flex;align-items:center;padding:0 18px;font:16px GSF;color:var(--onv)">⌕&nbsp;&nbsp;Search units</div>
+<div style="display:flex;gap:8px;overflow:hidden;padding:0 16px">${['✓ All','Length','Mass','Time','Astronomy','Energy'].map((c,k)=>`<span style="flex:none;height:32px;border-radius:8px;border:${k?'1px solid #77786A':'none'};background:${k?'transparent':'var(--sc)'};display:inline-flex;align-items:center;padding:0 12px;font:500 14px GSF">${c}</span>`).join('')}</div>
+<div style="padding:0 28px;font:600 14px GSF;color:var(--pri)">Length</div>
+<div style="padding:0 12px;display:flex;flex-direction:column;gap:2px">${C.fonts.filter(f=>['Å','R_⊙','R_⊕'].includes(f[2])).map(([c,n,s],k,a)=>`<div style="display:flex;align-items:center;gap:14px;background:var(--c);border-radius:${k==0?'20px 20px 6px 6px':k==a.length-1?'6px 6px 20px 20px':'6px'};padding:10px 4px 10px 10px"><span style="width:56px;height:56px;border-radius:16px;background:var(--pc);display:flex;align-items:center;justify-content:center">${m(c,22,P.onpc)}</span><div style="flex:1;font:16px GSF">${n}</div><span style="color:var(--pri);font-size:22px;width:44px;text-align:center">+</span></div>`).join('')}</div>
+</div></div><div class="cap">The picker. Typing moved here, into a field in the builder card: the field, the buttons and the unit tiles all edit the same expression, and unit suggestions appear as you type.</div></div>`}
+
+document.getElementById('phones').innerHTML=
+ phone('light',C.hubble,'70','',d=>notice(d)+options(),'70 km/s/Mpc, the Hubble constant, converted to s⁻¹. The answer leads in the To card. The quick row offers SI, SI base and CGS, then units the From unit converts to, including through c, h or k_B.')+
+ phone('dark',C.photon,'500','',d=>notice(d)+also(d),'Dark theme, with a bridge: 500 nm to eV goes through E = hc/λ. The quick chip for eV is filled because it\'s the To unit, and "Also equals" lists other units of the same kind.')+
+ phone('light',C.erg,'1','SI',d=>also(d),'erg to SI. With the SI chip on, the To button shows the SI unit (J) with "In SI units · energy". Tap the button to choose any other unit.')+
+ picker();
+
+/* ---------- fonts ---------- */
+function fontTable(before){const saveR=window.NCMR_HAS,saveI=window.NCMI_HAS;if(before){window.NCMR_HAS=new Set();window.NCMI_HAS=new Set()}
+ P=PAL.light;const rows=C.fonts.filter(f=>/[^\x00-\x7f]/.test(f[2])&&!['°C','°F','°R','°','′','″','µas'].includes(f[2]));
+ const out=rows.map(([c,n])=>`<div>${m(c,24)}</div><div>${n}</div>`).join('');window.NCMR_HAS=saveR;window.NCMI_HAS=saveI;return out}
+function ft(){return `<div><div class="fgrid light" style="width:560px;grid-template-columns:1fr 1fr 1.6fr"><div class="h">Before (Roboto fallback)</div><div class="h">Now (New Computer Modern)</div><div class="h">Unit</div>
+ ${(()=>{const a=fontTable(true).split('</div><div>'),b=fontTable(false).split('</div><div>');const ra=[],rb=[];
+  const A=C.fonts.filter(f=>/[^\x00-\x7f]/.test(f[2])&&!['°C','°F','°R','°','′','″','µas'].includes(f[2]));
+  return A.map(([c,n])=>{const before=(()=>{const s1=window.NCMR_HAS,s2=window.NCMI_HAS;window.NCMR_HAS=new Set();window.NCMI_HAS=new Set();const h=m(c,24);window.NCMR_HAS=s1;window.NCMI_HAS=s2;return h})();
+   return `<div>${before}</div><div>${m(c,24)}</div><div>${n}</div>`}).join('')})()}
+ </div><div class="cap" style="width:560px">Computer Modern has no ☉, ⊕ or ħ either; the app already drew those from its New Computer Modern math subset. The new upright and italic Latin subsets add Å, é, ø, ō and ‰, so whole symbols like °Ré, °Rø, gō and shō are now set in one typeface.</div></div>`}
+function inUse(){P=PAL.light;return `<div><div class="phone light" style="height:640px">${head()}<div class="body">${fromCard(C.reau,'80')}${swap()}${toCard(C.reau,'')}</div></div><div class="cap">In the converter: 80 °Ré, the boiling point of water on the Réaumur scale, converted to °C.</div></div>`}
+function inUse2(){P=PAL.dark;return `<div><div class="phone dark" style="height:640px">${head()}<div class="body">${fromCard(C.ang,'1.5')}${swap()}${toCard(C.ang,'')}</div></div><div class="cap">Dark theme: 1.5 Å to nm, with the ångström symbol in New Computer Modern.</div></div>`}
+document.getElementById('fonts').innerHTML=ft()+inUse()+inUse2();
+document.title='ready';
+</script></body></html>

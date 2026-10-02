@@ -1245,6 +1245,7 @@ private fun ParameterSlider(vm: GraphViewModel, name: String) {
         val (a2, b2) = if (ints) kotlin.math.floor(a) to kotlin.math.ceil(b).let { if (it <= kotlin.math.floor(a)) kotlin.math.floor(a) + 1 else it } else a to b
         vm.setSlider(name, if (ints) Math.rint(v) else v, a2, b2); editing = false
     }, onDismiss = { editing = false })
+    Column(Modifier.fillMaxWidth()) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         val playing = name in vm.playing
         IconButton(onClick = { vm.togglePlay(name) }, modifier = Modifier.size(40.dp)) {
@@ -1256,16 +1257,6 @@ private fun ParameterSlider(vm: GraphViewModel, name: String) {
         }
         // A built symbol (x̂₁) drawn as the math draws it, not as its stored text.
         SymbolName(name, 20.sp, colors.onSurface, Modifier.widthIn(min = 28.dp).padding(end = 4.dp))
-        // ℝ or ℤ: real numbers, or integers only. Filled when integers are on.
-        val tap = rememberKeyTap()
-        androidx.compose.material3.FilledTonalIconToggleButton(
-            checked = integers,
-            onCheckedChange = { tap(); vm.setIntegers(name, it) },
-            modifier = Modifier.size(36.dp).semantics { contentDescription = if (integers) "${spokenName(name)} moves through integers; switch to real numbers" else "${spokenName(name)} moves through real numbers; switch to integers" },
-        ) {
-            MathText(if (integers) "\$\\mathbb{Z}\$" else "\$\\mathbb{R}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp), mathScale = 1f)
-        }
-        Spacer(Modifier.width(4.dp))
         val step = (hi - lo) / 200
         // Integers: tick marks at each whole number when there are few enough to see.
         val ticks = (kotlin.math.round(hi - lo).toInt() - 1).takeIf { integers && it in 1..40 } ?: 0
@@ -1291,6 +1282,52 @@ private fun ParameterSlider(vm: GraphViewModel, name: String) {
             val widest = maxOf(sliderText(lo, decimals).length, sliderText(hi, decimals).length)
             Box(Modifier.widthIn(min = (widest * 9).dp), contentAlignment = Alignment.CenterEnd) {
                 MathText(Readout.markdown(sliderText(value, decimals)), color = colors.onSurface, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp), mathScale = 1f)
+            }
+        }
+    }
+    // Under the track: its ends (tap to change the range) and what it moves through, ℝ or ℤ.
+    Row(Modifier.fillMaxWidth().padding(start = 84.dp, end = 16.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        val endStyle = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 13.sp)
+        Box(Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClickLabel = "Change the range") { editing = true }.padding(horizontal = 4.dp, vertical = 2.dp)) {
+            MathText(Readout.markdown(shortNumber(lo)), style = endStyle, color = colors.onSurfaceVariant, mathScale = 1f)
+        }
+        Spacer(Modifier.weight(1f))
+        NumberKindToggle(integers, spokenName(name)) { vm.setIntegers(name, it) }
+        Spacer(Modifier.weight(1f))
+        Box(Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClickLabel = "Change the range") { editing = true }.padding(horizontal = 4.dp, vertical = 2.dp)) {
+            MathText(Readout.markdown(shortNumber(hi)), style = endStyle, color = colors.onSurfaceVariant, mathScale = 1f)
+        }
+    }
+    }
+}
+
+/**
+ * Real numbers or integers, as a small two-part pill: ℝ real | ℤ integer. The chosen half fills
+ * in the secondary container color and rounds fully; the other stays quiet.
+ */
+@Composable
+private fun NumberKindToggle(integers: Boolean, name: String, onChange: (Boolean) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val tap = rememberKeyTap()
+    Row(
+        Modifier.height(30.dp).clip(CircleShape).background(colors.surfaceContainerHigh).padding(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        listOf(false to "real", true to "integer").forEach { (ints, word) ->
+            val on = integers == ints
+            val fill by androidx.compose.animation.animateColorAsState(if (on) colors.secondaryContainer else Color.Transparent, label = "kind")
+            val corner by androidx.compose.animation.core.animateIntAsState(if (on) 50 else 30, label = "corner")
+            Row(
+                Modifier.fillMaxHeight().clip(RoundedCornerShape(corner)).background(fill)
+                    .clickable(onClickLabel = if (ints) "Integers only" else "Real numbers") { if (!on) { tap(); onChange(ints) } }
+                    .padding(horizontal = 10.dp)
+                    .semantics { contentDescription = "$name: " + (if (ints) "integers only" else "real numbers") + if (on) ", chosen" else "" },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                MathText(if (ints) "\$\\mathbb{Z}\$" else "\$\\mathbb{R}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 15.sp), color = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant, mathScale = 1f)
+                Spacer(Modifier.width(5.dp))
+                Text(word, style = MaterialTheme.typography.labelMedium, color = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant)
             }
         }
     }

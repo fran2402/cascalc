@@ -736,7 +736,11 @@ object Units {
     }
 
     /** A plain number for the clipboard and the calculator: 2.268e-18. */
-    fun plain(v: Double, digits: Int = 6): String = java.math.BigDecimal(v).round(java.math.MathContext(digits)).stripTrailingZeros().toString().replace("E+", "e").replace("E", "e")
+    fun plain(v: Double, digits: Int = 6): String {
+        val d = java.math.BigDecimal(v).round(java.math.MathContext(digits)).stripTrailingZeros()
+        // Everyday sizes in full (70, not 7e1); very large or small ones with an exponent.
+        return if (v == 0.0 || abs(v) in 1e-4..<1e12) d.toPlainString() else d.toString().replace("E+", "e").replace("E", "e")
+    }
 
     private fun power(k: Double): String = when {
         abs(k - 1) < 1e-9 -> ""

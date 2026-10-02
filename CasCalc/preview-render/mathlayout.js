@@ -15,7 +15,7 @@ function runs(text){const out=[];for(const ch of text){const fb=!(GSF_HAS.has(ch
 // Font runs, as MathGlyphs (Computer Modern) / GlyphFallback (Google Sans Flex) do in the app.
 function cmRuns(text,italic){const out=[];for(const ch of text){const cp=ch.codePointAt(0);
   const mainHas=italic?CMI_HAS.has(cp):CMR_HAS.has(cp),otherHas=italic?CMR_HAS.has(cp):CMI_HAS.has(cp);
-  const fam=/\s/.test(ch)||mainHas?(italic?'CMI':'CMR'):otherHas?(italic?'CMR':'CMI'):'Rob';
+  const fam=/\s/.test(ch)||mainHas?(italic?'CMI':'CMR'):otherHas?(italic?'CMR':'CMI'):(italic&&typeof NCMI_HAS!='undefined'&&NCMI_HAS.has(cp))?'NCMI':(typeof NCMR_HAS!='undefined'&&NCMR_HAS.has(cp))?'NCMR':'Rob';
   const last=out[out.length-1];if(last&&last.fam==fam)last.s+=ch;else out.push({s:ch,fam})}return out}
 // Google Sans Flex, then Roboto, then Computer Modern (GlyphFallback in the app).
 function gsRuns(text){const out=[];for(const ch of text){const cp=ch.codePointAt(0);

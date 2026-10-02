@@ -188,6 +188,10 @@ object CasFonts {
     val NcmMath = FontFamily(Font(R.font.ncm_math))
     val NcmHebrew = FontFamily(Font(R.font.ncm_hebrew))
     val NcmItalic = FontFamily(Font(R.font.ncm_italic))
+    /** New Computer Modern's roman for what Computer Modern lacks: Latin-1 and Latin Extended-A (Å, é, ø, µ), ‰, ℃, ℉, Å, ☉, ☽ ☾. */
+    val NcmRoman = FontFamily(Font(R.font.ncm_roman))
+    /** New Computer Modern's italic for the same Latin letters, in italic runs. */
+    val NcmLatinItalic = FontFamily(Font(R.font.ncm_latin_italic))
     /** Math on keys: Google Sans Flex, rounded like the rest of the interface. */
     val Math = googleSansFlex(weight = 400)
     val MathItalic = googleSansFlex(weight = 400, slant = -10f)
@@ -276,6 +280,9 @@ class MathGlyphs(context: Context) {
                 alpha != null -> withStyle(SpanStyle(fontFamily = if (alpha.first == com.example.cas.editor.MathAlphabets.Style.Calligraphic) CasFonts.CmCal else CasFonts.CmFrak, fontStyle = androidx.compose.ui.text.font.FontStyle.Normal)) { append(alpha.second) }
                 Character.isWhitespace(cp) || inMain -> append(chunk)
                 inOther -> withStyle(SpanStyle(fontFamily = if (italicRun) CasFonts.CmRoman else CasFonts.CmItalic)) { append(chunk) }
+                // Not in Computer Modern: New Computer Modern (the same design, extended) before Roboto.
+                italicRun && FontCoverage.covers(FontCoverage.NCM_LATIN_ITALIC, cp) -> withStyle(SpanStyle(fontFamily = CasFonts.NcmLatinItalic, fontStyle = androidx.compose.ui.text.font.FontStyle.Normal)) { append(chunk) }
+                FontCoverage.covers(FontCoverage.NCM_ROMAN, cp) -> withStyle(SpanStyle(fontFamily = CasFonts.NcmRoman, fontStyle = androidx.compose.ui.text.font.FontStyle.Normal)) { append(chunk) }
                 else -> withStyle(SpanStyle(fontFamily = fallback)) { append(chunk) }
             }
             i += chunk.length
