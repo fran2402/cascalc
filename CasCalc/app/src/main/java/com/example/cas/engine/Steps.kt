@@ -181,7 +181,11 @@ object Steps {
 
     // ---- Integrals -----------------------------------------------------------------------------
 
-    private class Traced(val result: Expr, val steps: List<Step>)
+    /** An antiderivative and the steps to it; [sub] when the last move was a substitution (for changing the limits). */
+    private class Traced(val result: Expr, val steps: List<Step>, val sub: SubUsed? = null)
+
+    /** A substitution as made: the new variable [t] = [tOfX] (in x), the integrand in t, and its antiderivative in t. */
+    private class SubUsed(val t: Sym, val tOfX: Expr, val integrand: Expr, val antiderivative: Expr)
 
     /**
      * An integral's working. A double or triple integral is worked from the inside out: the
@@ -264,6 +268,11 @@ object Steps {
         }
         val a = ev(n.lower); val b = ev(n.upper)
         val value = Calculus.definite(body, x, a, b)
+        // A substitution: change the limits and finish in the new variable, with no back-substitution.
+        if (absLogs == null && traced?.sub != null) changedLimits(body, x, a, b, value, traced)?.let { (work, method2) ->
+            val answer = eq(int(body, x, a, b), value)
+            return Solution(method2 ?: method, work + Step("Answer", null, answer, Kind.Result), answer)
+        }
         val fa = at(f, x, a, fromBelow = false); val fb = at(f, x, b, fromBelow = true)
         steps += Step(
             "Fundamental theorem", "\$F(b) - F(a)\$: the antiderivative at the upper limit minus its value at the lower one" +
@@ -273,6 +282,39 @@ object Steps {
         val answer = eq(int(body, x, a, b), value)
         steps += Step("Answer", null, answer, Kind.Result)
         return Solution(method, steps, answer)
+    }
+
+    /**
+     * ∫ₐᵇ f dx by substitution with the limits changed: the substitution's steps (without putting
+     * the old variable back), the new limits t(a) and t(b), and the new integral evaluated there.
+     * Null when the limits can't be found or the result doesn't agree with [value].
+     */
+    private fun changedLimits(body: Expr, x: Sym, a: Expr, b: Expr, value: Expr, traced: Traced): Pair<List<Step>, String?>? {
+        val su = traced.sub ?: return null
+        if (Calculus.isInfinite(a) || Calculus.isInfinite(b)) return null
+        val ta = runCatching { Algebra.simplify(su.tOfX.subst(x, a)) }.getOrNull() ?: return null
+        val tb = runCatching { Algebra.simplify(su.tOfX.subst(x, b)) }.getOrNull() ?: return null
+        fun finite(e: Expr) = runCatching { Numeric.eval(e) }.getOrNull()?.let { it.re.isFinite() && kotlin.math.abs(it.im) < 1e-12 } == true
+        if (!finite(ta) || !finite(tb)) return null
+        val big = su.antiderivative
+        val gb = at(big, su.t, tb, fromBelow = true); val ga = at(big, su.t, ta, fromBelow = false)
+        val got = runCatching { Algebra.simplify(sub(gb, ga)) }.getOrNull() ?: return null
+        // The same number as the direct way, or don't use it (a substitution that jumps inside the interval).
+        val v1 = runCatching { Numeric.eval(got).re }.getOrNull() ?: return null
+        val v2 = runCatching { Numeric.eval(value).re }.getOrNull() ?: return null
+        if (!v1.isFinite() || kotlin.math.abs(v1 - v2) > 1e-8 * maxOf(1.0, kotlin.math.abs(v2))) return null
+        val t = su.t.name
+        fun noBack(steps: List<Step>): List<Step> = steps.filter { it.title != "Back-substitute" }.map { Step(it.title, it.text, it.math, it.kind, noBack(it.substeps)) }
+        val work = noBack(traced.steps).toMutableList()
+        work += Step(
+            "Change the limits", "With \$$t = ${lx(su.tOfX)}\$: when \$${x.name} = ${lx(a)}\$, \$$t = ${lx(ta)}\$; when \$${x.name} = ${lx(b)}\$, \$$t = ${lx(tb)}\$. Then there's no need to put \$${x.name}\$ back.",
+            line(int(body, x, a, b), "=", int(su.integrand, su.t, ta, tb)),
+        )
+        work += Step(
+            "Evaluate in \$$t\$", "The antiderivative in \$$t\$ at the new upper limit minus its value at the new lower one.",
+            line(int(su.integrand, su.t, ta, tb), "=", gb, "−", paren(ga), "=", value),
+        )
+        return work to null
     }
 
     private fun paren(e: Expr): MathRow = if (e is Add || (e is Num && e.q.signum < 0) || (e is Mul && Printer.plain(e).startsWith("-"))) line("(", e, ")") else ex(e)
@@ -325,7 +367,9 @@ object Steps {
             if (consts.isNotEmpty()) {
                 val c = mul(consts); val r = mul(rest)
                 val inner = trace(r, x, depth + 1) ?: return null
-                return Traced(mul(c, inner.result), listOf(Step("Constant multiple", "Take ${tx(c)} out of the integral.", eq(int(e, x), line(paren(c), int(r, x))), substeps = inner.steps)))
+                // A substitution inside still counts, scaled by c, so the limits can be changed.
+                val su = inner.sub?.let { SubUsed(it.t, it.tOfX, mul(c, it.integrand), mul(c, it.antiderivative)) }
+                return Traced(mul(c, inner.result), listOf(Step("Constant multiple", "Take ${tx(c)} out of the integral.", eq(int(e, x), line(paren(c), int(r, x))), substeps = inner.steps)), su)
             }
         }
         standard(e, x)?.let { return it }
@@ -340,6 +384,8 @@ object Steps {
         if (e !is Add) runCatching { Calculus.integrate(e, x) }.getOrNull()?.takeIf { f -> f.contains { it is Fn && it.name in SPECIAL } }?.let { f ->
             runCatching { specialSteps(e, x, f, depth) }.getOrNull()?.let { return it }
         }
+        // A substitution that lands on elementary functions beats integrating by parts (x e^(x²) is u = x², not erfi).
+        substitution(e, x, depth)?.takeIf { t -> !t.result.contains { it is Fn && it.name in SPECIAL } }?.let { return it }
         byParts(e, x, depth)?.let { return it }
         substitution(e, x, depth)?.let { return it }
         multiplyOut(e, x, depth)?.let { return it }
@@ -676,7 +722,7 @@ object Steps {
             Step(sub.title, sub.text, sub.setup),
             Step("The new integral", "Everything in terms of \$${sub.t.name}\$, \$d${x.name}\$ included.", eq(int(e, x), int(g, sub.t)), substeps = inner.steps),
             Step("Back-substitute", "Put \$${sub.t.name} = ${lx(sub.back)}\$ back.", eq(inner.result, back)),
-        ))
+        ), SubUsed(sub.t, sub.back, g, inner.result))
     }
 
     /** A fresh letter for the new variable. */
@@ -1073,7 +1119,8 @@ object Steps {
         collect(e)
         for (u in candidates) {
             val du = runCatching { Calculus.diff(u, x) }.getOrNull() ?: continue
-            if (du == ZERO) continue
+            // u linear in x only renames the variable (the table already handles linear insides).
+            if (du == ZERO || Algebra.simplify(du).freeOf(x)) continue
             val q = Algebra.simplify(div(e, du))
             val inT = q.subst(u, t)
             if (!inT.freeOf(x) || inT == q) continue
@@ -1082,7 +1129,7 @@ object Steps {
             return Traced(result, listOf(
                 Step("Substitution", "Let \$$uName = ${lx(u)}\$, so \$d$uName = ${lx(du)}\\,d${x.name}\$.", eq(int(e, x), int(inT, t)), substeps = inner.steps),
                 Step("Back-substitute", "Put \$$uName = ${lx(u)}\$ back.", eq(inner.result, result)),
-            ))
+            ), SubUsed(t, u, inT, inner.result))
         }
         return null
     }

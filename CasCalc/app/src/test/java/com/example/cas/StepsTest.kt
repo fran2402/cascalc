@@ -6,6 +6,7 @@ import com.example.cas.editor.Integral
 import com.example.cas.editor.MathRow
 import com.example.cas.editor.Node
 import com.example.cas.editor.Pow
+import com.example.cas.editor.Sqrt
 import com.example.cas.editor.Sym
 import com.example.cas.engine.Formatter
 import com.example.cas.engine.LatexParser
@@ -479,4 +480,34 @@ class AbsoluteLogStepsTest {
         assertTrue(s.steps.any { it.title == "Put the absolute values back" })
         assertTrue(s.steps.any { it.kind == Steps.Kind.Check })
     }
+}
+
+class ChangedLimitsStepsTest {
+    private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
+    private fun fn(n: String, vararg a: MathRow) = Func(n, a.toList())
+    private fun of(body: MathRow, lo: MathRow, hi: MathRow) = latexOk(Steps.of(m(Integral(lo, hi, body, m("x"))))!!)
+    private fun all(st: List<Steps.Step>): List<Steps.Step> = st.flatMap { listOf(it) + all(it.substeps) }
+    private fun titles(s: Steps.Solution): List<String> = all(s.steps).map { it.title }
+
+    @Test fun plainSubstitution() {
+        val s = of(m("x", "e", Pow(m("x", Pow(m("2"))))), m("0"), m("1"))
+        assertEquals("Substitution", s.method)
+        assertTrue(titles(s).contains("Change the limits"))
+        assertFalse("no back-substitution when the limits change", titles(s).contains("Back-substitute"))
+        assertFalse(titles(s).contains("Fundamental theorem"))
+    }
+
+    @Test fun underConstantMultiple() {
+        val s = of(m("2x", fn("cos", m("x", Pow(m("2"))))), m("0"), m(Sqrt(m("π"))))
+        assertTrue(titles(s).contains("Change the limits"))
+        assertTrue(Formatter.plain(s.answer).endsWith("=0"))
+    }
+
+    @Test fun trigSubstitution() {
+        val s = of(m(Sqrt(m("4−x", Pow(m("2"))))), m("0"), m("2"))
+        assertTrue(titles(s).contains("Change the limits"))
+        assertTrue(Formatter.plain(s.answer).endsWith("=π"))
+    }
+
+    @Test fun noSubstitutionKeepsFundamentalTheorem() = assertTrue(titles(of(m("x", Pow(m("2"))), m("0"), m("1"))).contains("Fundamental theorem"))
 }

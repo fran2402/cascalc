@@ -543,12 +543,13 @@ private fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (Gr
         }
         Spacer(Modifier.height(6.dp))
         // The answer, large, to the right; on the left, when there's a decimal too, the chip that swaps them.
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+        // The chip stays at the left edge; the answer takes the rest of the row, right-aligned.
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             if (item.answer.approx != null) {
                 ApproxChip(item.showApprox) { tap(); item.showApprox = !item.showApprox }
                 Spacer(Modifier.width(12.dp))
-                Spacer(Modifier.weight(1f))
             }
+            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             if (!item.answer.isStatement) {
                 MathText(if (item.answer.isApproximate || item.showApprox) "\$\\approx\$" else "\$=\$", color = colors.primary, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = answerSize), mathScale = 1f)
                 Spacer(Modifier.width(12.dp))
@@ -564,6 +565,7 @@ private fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (Gr
                         onClick = { vm.reuse(shown) },
                     ),
                 )
+            }
             }
         }
         // Actions, on the newest card or a tapped one.
