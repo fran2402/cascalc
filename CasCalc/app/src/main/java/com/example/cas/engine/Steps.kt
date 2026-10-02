@@ -249,10 +249,25 @@ object Steps {
             }
         }
         standard(e, x)?.let { return it }
+        if (depth < 5) {
+            runCatching { quadraticPiece(e, x, depth) }.getOrNull()?.let { return it }
+            runCatching { partsTwice(e, x) }.getOrNull()?.let { return it }
+        }
         partialFractions(e, x, depth)?.let { return it }
+        runCatching { gaussianSteps(e, x) }.getOrNull()?.let { return it }
+        // An answer in a special function: say so straight away, rather than substituting around it.
+        if (e !is Add) runCatching { Calculus.integrate(e, x) }.getOrNull()?.takeIf { f -> f.contains { it is Fn && it.name in SPECIAL } }?.let { f ->
+            runCatching { specialSteps(e, x, f, depth) }.getOrNull()?.let { return it }
+        }
         byParts(e, x, depth)?.let { return it }
         substitution(e, x, depth)?.let { return it }
         multiplyOut(e, x, depth)?.let { return it }
+        if (depth < 5) {
+            runCatching { inverseByParts(e, x, depth) }.getOrNull()?.let { return it }
+            runCatching { gaussianSteps(e, x) }.getOrNull()?.let { return it }
+            runCatching { trigRewrite(e, x, depth) }.getOrNull()?.let { return it }
+            runCatching { exponentialForm(e, x, depth) }.getOrNull()?.let { return it }
+        }
         return blackBox(e, x, depth)
     }
 
@@ -273,10 +288,207 @@ object Steps {
             runCatching { substitutionSteps(e, x, sub, depth) }.getOrNull()?.let { return it }
         }
         val f = found?.second ?: Calculus.integrate(e, x) ?: return null
+        if (f.contains { it is Fn && it.name in SPECIAL }) runCatching { specialSteps(e, x, f, depth) }.getOrNull()?.let { return it }
+        if (found?.first == "quartic") runCatching { quarticSteps(e, x, f) }.getOrNull()?.let { return it }
         val (title, text) = found?.first?.let { describe(it, e, x) }
             ?: if (f.contains { it is Fn && it.name in SPECIAL }) "Special function" to "This has no antiderivative in elementary functions; it's written with a function defined by this very integral."
             else "Rewrite and integrate" to "Rewrite the integrand (identities, a substitution) and integrate the pieces."
         return Traced(f, listOf(Step(title, text, eq(int(e, x), f))))
+    }
+
+    // ---- The remaining methods written out ---------------------------------------------------------------
+
+    private val one get() = com.example.cas.cas.ONE
+    private val two get() = com.example.cas.cas.TWO
+    private fun f1(name: String, a: Expr) = com.example.cas.cas.fn(name, a)
+    private fun p(b: Expr, k: Expr) = com.example.cas.cas.pow(b, k)
+
+    /** (Bx + C)/(x² + px + q), the quadratic irreducible: a logarithm part and an arctangent part. */
+    private fun quadraticPiece(e: Expr, x: Sym, depth: Int): Traced? {
+        val (n, d) = Algebra.together(e)
+        val qn = Algebra.qpoly(n, x) ?: return null; val qd = Algebra.qpoly(d, x) ?: return null
+        if (qd.degree != 2 || qn.degree > 1) return null
+        val lead = qd.lead
+        val pq = qd.scale(lead.reciprocal())
+        val pp = pq[1]; val qq = pq[0]
+        val disc = qq - pp * pp / com.example.cas.math.Rational.of(4)
+        if (disc.signum <= 0) return null
+        val bq = qn[1] / lead; val cq = qn[0] / lead
+        val quad = pq.toExpr(x)
+        val logCoef = Num(bq / com.example.cas.math.Rational.of(2))
+        val atanCoef = Num(cq - bq * pp / com.example.cas.math.Rational.of(2))
+        val h = Num(pp / com.example.cas.math.Rational.of(2))
+        val k = Num(disc)
+        val rk = Algebra.simplify(com.example.cas.cas.sqrt(k))
+        val logPart = mul(logCoef, f1("ln", quad))
+        val atanPart = mul(atanCoef, div(one, rk), f1("atan", div(add(x, h), rk)))
+        val result = add(logPart, atanPart)
+        val steps = ArrayList<Step>()
+        if (bq.signum != 0) steps += Step("Split the numerator", "Write the top as a multiple of the bottom's derivative (2${x.name} + ${Printer.plain(Num(pp))}) plus a constant.",
+            eq(ex(e), line(paren(logCoef), MathRow(mutableListOf(com.example.cas.editor.Frac(ex(add(mul(two, x), Num(pp))), ex(quad)))), "+", paren(atanCoef), MathRow(mutableListOf(com.example.cas.editor.Frac(MathRow(mutableListOf(sym("1"))), ex(quad)))))))
+        if (bq.signum != 0) steps += Step("Logarithm part", "The top is the derivative of the bottom: ∫ u′/u = ln u.", eq(int(div(add(mul(two, x), Num(pp)), quad), x), f1("ln", quad)))
+        if (atanCoef != ZERO) {
+            steps += Step("Complete the square", "${Printer.plain(quad)} = (${x.name} + ${Printer.plain(h)})² + ${Printer.plain(k)}.", eq(ex(quad), line("(", add(x, h), ")", com.example.cas.editor.Pow(MathRow(mutableListOf(sym("2")))), "+", k)))
+            steps += Step("Arctangent", "∫ 1/(u² + a²) du = (1/a) atan(u/a), with u = ${x.name} + ${Printer.plain(h)}, a = ${Printer.plain(rk)}.", eq(int(div(one, quad), x), mul(div(one, rk), f1("atan", div(add(x, h), rk)))))
+        }
+        if (!agrees(Algebra.simplify(Calculus.diff(result, x)), e, x)) return null
+        return Traced(result, listOf(Step("Quadratic denominator", "It doesn't factor over the reals, so integrate it as a logarithm plus an arctangent.", eq(int(e, x), result), substeps = steps)))
+    }
+
+    /** e^(ax) sin(bx) or cos(bx): by parts twice, then solve for the integral that comes back. */
+    private fun partsTwice(e: Expr, x: Sym): Traced? {
+        val fs = (e as? Mul)?.factors ?: return null
+        if (fs.size != 2) return null
+        val ex0 = fs.firstOrNull { it is Pow && it.base == E } as? Pow ?: return null
+        val tr = fs.firstOrNull { it is Fn && it.name in setOf("sin", "cos") } as? Fn ?: return null
+        val a = linear(ex0.exp, x) ?: return null; val b = linear(tr.args[0], x) ?: return null
+        val other = if (tr.name == "sin") "cos" else "sin"
+        val i = sym("I")
+        val f = Calculus.integrate(e, x) ?: return null
+        val eOther = mul(ex0, f1(other, tr.args[0]))
+        val sign = if (tr.name == "sin") "−" else "+"
+        val first = line(i, "=", mul(div(one, a), e), sign, paren(div(b, a)), int(eOther, x))
+        val second = line(int(eOther, x), "=", mul(div(one, a), eOther), if (tr.name == "sin") "+" else "−", paren(div(b, a)), i)
+        val norm = Algebra.simplify(add(mul(a, a), mul(b, b)))
+        val steps = listOf(
+            Step("By parts", "u = ${tr.name}(${Printer.plain(tr.args[0])}), dv = ${Printer.plain(ex0)} d${x.name}.", first),
+            Step("By parts again", "Now u = $other(${Printer.plain(tr.args[0])}): the original integral I comes back.", second),
+            Step("Solve for I", "Put the second line into the first and move the I terms together: I·(a² + b²)/a² = …, with a² + b² = ${Printer.plain(norm)}.", line(i, "=", f)),
+        )
+        return Traced(f, listOf(Step("By parts twice", "Call the integral I; integrating by parts twice brings I back, so it can be solved for.", eq(int(e, x), f), substeps = steps)))
+    }
+
+    /** By parts with u a logarithm or inverse function and dv the rest (dv = dx when there's no rest). */
+    private fun inverseByParts(e: Expr, x: Sym, depth: Int): Traced? {
+        val fs = if (e is Mul) e.factors else listOf(e)
+        val inverse = setOf("ln", "atan", "asin", "acos", "asinh", "acosh", "atanh", "erf", "erfi", "si", "ci", "ei", "polylog")
+        val u = fs.firstOrNull { f -> val b = if (f is Pow && f.exp is Num && (f.exp as Num).q.isInteger && (f.exp as Num).q.signum > 0) f.base else f; b is Fn && b.name in inverse && !b.freeOf(x) } ?: return null
+        val dv = mul(fs.filter { it !== u })
+        if (dv.contains { it is Fn && it.name in inverse && !it.freeOf(x) }) return null
+        // Plain ln x, atan x… are in the table; this is for the rest.
+        if (dv == one && u is Fn && linear(u.args[0], x) != null) return null
+        val v = Calculus.integrate(dv, x) ?: return null
+        val du = Calculus.diff(u, x)
+        val restBody = Algebra.simplify(mul(v, du))
+        val rest = trace(restBody, x, depth + 1) ?: return null
+        val result = sub(mul(u, v), rest.result)
+        if (!agrees(Algebra.simplify(Calculus.diff(result, x)), e, x)) return null
+        return Traced(result, listOf(Step(
+            "Integration by parts", "u = ${Printer.plain(u)} (simpler once differentiated), dv = ${Printer.plain(dv)} d${x.name}: ∫ u dv = uv − ∫ v du.",
+            eq(int(e, x), line(mul(u, v), "−", int(restBody, x))),
+            substeps = listOf(Step("u and v", null, line(sym("d"), "u", "=", du, " ", "d", x.name, ",", "  ", "v", "=", v))) + rest.steps,
+        )))
+    }
+
+    /** e^Q, Q quadratic with a negative x² coefficient: complete the square, substitute, erf. */
+    private fun gaussianSteps(e: Expr, x: Sym): Traced? {
+        if (e !is Pow || e.base != E) return null
+        val cs = Algebra.coefficients(Algebra.expand(e.exp), x)?.map { (it as? Num)?.q } ?: return null
+        if (cs.size != 3 || cs.any { it == null }) return null
+        val (c0, c1, c2) = cs.map { it!! }
+        if (c2.signum >= 0) return null
+        val a = -c2
+        val h = c1 / (a * com.example.cas.math.Rational.of(2))
+        val k = c0 + c1 * c1 / (a * com.example.cas.math.Rational.of(4))
+        val f = Calculus.integrate(e, x) ?: return null
+        val shifted = sub(x, Num(h))
+        val square = add(mul(Num(-a), p(shifted, two)), Num(k))
+        val ra = Algebra.simplify(com.example.cas.cas.sqrt(Num(a)))
+        val uExpr = mul(ra, shifted)
+        val steps = ArrayList<Step>()
+        if (c1.signum != 0 || c0.signum != 0) steps += Step("Complete the square", null, eq(ex(e.exp), ex(square)))
+        steps += Step("Substitute", "u = ${Printer.plain(uExpr)}, so d${x.name} = du/${Printer.plain(ra)}.", eq(int(e, x), line(paren(div(p(E, Num(k)), ra)), int(p(E, neg(p(Sym("u"), two))), Sym("u")))))
+        steps += Step("Gaussian integral", "∫ e^(−u²) du = (√π/2) erf u: erf is defined by this integral.", eq(int(e, x), f))
+        return Traced(f, listOf(Step("Complete the square", "A quadratic exponent: complete the square, then the Gaussian integral.", eq(int(e, x), f), substeps = steps)))
+    }
+
+    /** sin·cos products and even powers rewritten as single sines and cosines, then term by term. */
+    private fun trigRewrite(e: Expr, x: Sym, depth: Int): Traced? {
+        if (!e.contains { it is Fn && it.name in setOf("sin", "cos") }) return null
+        var used = ""
+        fun walk(z: Expr): Expr = when {
+            z is Mul -> {
+                val fs = z.factors.map { walk(it) }
+                val trig = fs.filter { it is Fn && it.name in setOf("sin", "cos") }
+                if (trig.size >= 2) {
+                    val (s1, s2) = trig.take(2).map { it as Fn }
+                    val a = s1.args[0]; val b = s2.args[0]
+                    used = "Product-to-sum"
+                    val r = when {
+                        s1.name == "sin" && s2.name == "cos" -> mul(com.example.cas.cas.HALF, add(f1("sin", add(a, b)), f1("sin", sub(a, b))))
+                        s1.name == "cos" && s2.name == "sin" -> mul(com.example.cas.cas.HALF, add(f1("sin", add(a, b)), f1("sin", sub(b, a))))
+                        s1.name == "cos" -> mul(com.example.cas.cas.HALF, add(f1("cos", sub(a, b)), f1("cos", add(a, b))))
+                        else -> mul(com.example.cas.cas.HALF, sub(f1("cos", sub(a, b)), f1("cos", add(a, b))))
+                    }
+                    mul(fs.filter { it !== s1 && it !== s2 } + r)
+                } else mul(fs)
+            }
+            z is Pow && z.exp == two && z.base is Fn && (z.base as Fn).name in setOf("sin", "cos") -> {
+                if (used.isEmpty()) used = "Power reduction"
+                val u = (z.base as Fn).args[0]
+                if ((z.base as Fn).name == "sin") mul(com.example.cas.cas.HALF, sub(one, f1("cos", mul(two, u)))) else mul(com.example.cas.cas.HALF, add(one, f1("cos", mul(two, u))))
+            }
+            z is Add -> add(z.terms.map { walk(it) })
+            else -> z
+        }
+        val r = Algebra.expand(walk(e))
+        if (used.isEmpty() || same(r, e) || r !is Add) return null
+        val inner = trace(r, x, depth + 1) ?: return null
+        val text = if (used == "Product-to-sum") "sin A cos B = ½[sin(A + B) + sin(A − B)], cos A cos B = ½[cos(A − B) + cos(A + B)], sin A sin B = ½[cos(A − B) − cos(A + B)]."
+            else "sin²u = (1 − cos 2u)/2, cos²u = (1 + cos 2u)/2."
+        return Traced(inner.result, listOf(Step(used, text, eq(ex(e), ex(r)))) + inner.steps)
+    }
+
+    /** sinh, cosh, tanh written with exponentials, then term by term. */
+    private fun exponentialForm(e: Expr, x: Sym, depth: Int): Traced? {
+        if (!e.contains { it is Fn && it.name in setOf("sinh", "cosh") } || e is Fn) return null
+        val r = Algebra.expand(replace(e, { it is Fn && it.name in setOf("sinh", "cosh") }) { z ->
+            val u = (z as Fn).args[0]
+            if (z.name == "sinh") mul(com.example.cas.cas.HALF, sub(p(E, u), p(E, neg(u)))) else mul(com.example.cas.cas.HALF, add(p(E, u), p(E, neg(u))))
+        })
+        if (r !is Add) return null
+        val inner = trace(r, x, depth + 1) ?: return null
+        return Traced(inner.result, listOf(Step("Exponential form", "sinh u = (eᵘ − e⁻ᵘ)/2, cosh u = (eᵘ + e⁻ᵘ)/2.", eq(ex(e), ex(r)))) + inner.steps)
+    }
+
+    /** A special function: substitute its argument if needed, then recognize its defining derivative. */
+    private fun specialSteps(e: Expr, x: Sym, f: Expr, depth: Int): Traced? {
+        val special = mutableListOf<Fn>()
+        fun walk(z: Expr) { if (z is Fn && z.name in SPECIAL) special += z; z.children.forEach { walk(it) } }
+        walk(f)
+        val sf = special.firstOrNull() ?: return null
+        val name = SPECIAL_NAMES[sf.name] ?: sf.name
+        val u = sf.args.last()
+        val steps = ArrayList<Step>()
+        val a = linear(u, x)
+        if (a != null && u != x) steps += Step("Substitute", "u = ${Printer.plain(u)}, d${x.name} = du/${Printer.plain(a)}.", null)
+        val back = Algebra.simplify(Calculus.diff(f, x))
+        steps += Step("Defining derivative", "$name is defined so that its derivative is this kind of integrand: ${SPECIAL_DEFS[sf.name] ?: ""}", eq(d(f, x), back))
+        return Traced(f, listOf(Step("Special function", "No antiderivative in elementary functions: the answer is written with $name.", eq(int(e, x), f), substeps = steps)))
+    }
+
+    private val SPECIAL_NAMES = mapOf("si" to "the sine integral Si", "ci" to "the cosine integral Ci", "ei" to "the exponential integral Ei", "li" to "the logarithmic integral li",
+        "shi" to "Shi", "chi" to "Chi", "erf" to "the error function erf", "erfi" to "erfi", "fresnels" to "the Fresnel integral S", "fresnelc" to "the Fresnel integral C",
+        "gammainc" to "the incomplete gamma function Γ(s, x)", "ellipticf" to "the elliptic integral F", "elliptice" to "the elliptic integral E", "polylog" to "the polylogarithm Li")
+    private val SPECIAL_DEFS = mapOf("si" to "Si′(u) = sin u/u.", "ci" to "Ci′(u) = cos u/u.", "ei" to "Ei′(u) = eᵘ/u.", "li" to "li′(u) = 1/ln u.", "shi" to "Shi′(u) = sinh u/u.",
+        "chi" to "Chi′(u) = cosh u/u.", "erf" to "erf′(u) = (2/√π) e^(−u²).", "erfi" to "erfi′(u) = (2/√π) e^(u²).", "fresnels" to "S′(u) = sin(πu²/2).", "fresnelc" to "C′(u) = cos(πu²/2).",
+        "gammainc" to "∂Γ(s, u)/∂u = −u^(s−1) e^(−u).", "ellipticf" to "F′(φ | m) = 1/√(1 − m sin²φ).", "elliptice" to "E′(φ | m) = √(1 − m sin²φ).", "polylog" to "Li₂′(u) = −ln(1 − u)/u.")
+
+    /** x⁴ + px² + q: the factorization into two quadratics, then partial fractions. */
+    private fun quarticSteps(e: Expr, x: Sym, f: Expr): Traced? {
+        val (_, d) = Algebra.together(e)
+        val q = Algebra.qpoly(d, x) ?: return null
+        if (q.degree != 4) return null
+        val m = q.scale(q.lead.reciprocal())
+        val pp = m[2]; val qq = m[0]
+        val r = Algebra.simplify(com.example.cas.cas.sqrt(Num(qq)))
+        val s = Algebra.simplify(com.example.cas.cas.sqrt(sub(mul(two, r), Num(pp))))
+        val f1q = add(p(x, two), mul(s, x), r); val f2q = add(p(x, two), neg(mul(s, x)), r)
+        val steps = listOf(
+            Step("Factor the quartic", "x⁴ + px² + q = (x² + r)² − (2r − p)x² = (x² + sx + r)(x² − sx + r), r = √q, s = √(2r − p).", eq(ex(m.toExpr(x)), line("(", f1q, ")", "(", f2q, ")"))),
+            Step("Partial fractions", "Split over the two quadratics; each gives a logarithm and an arctangent.", eq(int(e, x), f)),
+        )
+        return Traced(f, listOf(Step("Quartic denominator", null, eq(int(e, x), f), substeps = steps)))
     }
 
     // ---- Substitutions written out ----------------------------------------------------------------

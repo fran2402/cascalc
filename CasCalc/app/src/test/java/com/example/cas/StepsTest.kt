@@ -271,3 +271,22 @@ class WrittenSubstitutionTest {
         assertTrue(titles(s).isNotEmpty())
     }
 }
+
+class RemainingMethodsTest {
+    private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
+    private fun fn(name: String, vararg a: MathRow) = Func(name, a.toList())
+    private fun integral(body: MathRow) = m(Integral(m(""), m(""), body, m("x")))
+    private fun deep(ss: List<Steps.Step>, pre: String): List<String> = ss.flatMap { listOf(pre + it.title) + deep(it.substeps, "  ") }
+    private fun titles(s: Steps.Solution) = deep(s.steps, "")
+    private fun of(r: MathRow) = Steps.of(r)!!.also { s -> println(titles(s)) }
+
+    @Test fun quadratic() = assertTrue(titles(of(integral(m(Frac(m("x+3"), m("x", Pow(m("2")), "+2x+5")))))).contains("Quadratic denominator"))
+    @Test fun partsTwice() = assertTrue(titles(of(integral(m("e", Pow(m("x")), fn("sin", m("x")))))).contains("By parts twice"))
+    @Test fun productToSum() = assertTrue(titles(of(integral(m(fn("sin", m("3x")), fn("cos", m("2x")))))).contains("Product-to-sum"))
+    @Test fun powerReduction() = assertTrue(titles(of(integral(m(fn("cos", m("x")), Pow(m("2")))))).let { it.contains("Power reduction") || it.any { t -> "Half" in t } })
+    @Test fun gaussian() = assertTrue(titles(of(integral(m("e", Pow(m("−x", Pow(m("2")), "+2x")))))).contains("Complete the square"))
+    @Test fun special() = assertTrue(titles(of(integral(m(Frac(m("e", Pow(m("x"))), m("x")))))).contains("  Defining derivative"))
+    @Test fun inverseParts() = assertTrue(titles(of(integral(m("x", fn("atan", m("x")))))).any { it.contains("parts") })
+    @Test fun hyperbolicForm() = assertTrue(titles(of(integral(m("x", fn("sinh", m("x")))))).isNotEmpty())
+    @Test fun quarticDenominator() = assertTrue(titles(of(integral(m(Frac(m("1"), m("x", Pow(m("4")), "+1")))))).isNotEmpty())
+}
