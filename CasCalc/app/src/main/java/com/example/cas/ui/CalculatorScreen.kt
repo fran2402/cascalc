@@ -379,9 +379,10 @@ private fun Display(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, mo
     LaunchedEffect(vm.history.size) { list.animateScrollToItem(0) }
 
     Column(modifier.fillMaxWidth()) {
-        // Full-screen history: search, pinned and folders, export.
+        // Full-screen history: search, pinned and folders, export, and the calculations in sections.
         AnimatedVisibility(vm.historyMode, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) { HistoryToolbar(vm) }
-        val shownHistory = if (vm.historyMode) vm.visibleHistory() else vm.history
+        if (vm.historyMode) { HistoryBrowser(vm, onGraph, Modifier.weight(1f)); return@Column }
+        val shownHistory = vm.history
         LazyColumn(
             state = list,
             reverseLayout = true,
@@ -496,7 +497,7 @@ private fun InputPanel(vm: CalculatorViewModel) {
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
-private fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit) {
+internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit) {
     val colors = MaterialTheme.colorScheme
     @Suppress("DEPRECATION") val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
@@ -1120,7 +1121,7 @@ private fun QuickVariables(host: KeypadHost) {
 
 /** Swipe a history card sideways (either way) to delete it; a red strip with a bin shows underneath. */
 @Composable
-private fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit) {
+internal fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val state = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->

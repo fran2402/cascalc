@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
-class HistoryItem(val expression: MathRow, val answer: Answer, decimalFirst: Boolean = false) {
+class HistoryItem(val expression: MathRow, val answer: Answer, decimalFirst: Boolean = false, val time: Long = System.currentTimeMillis()) {
     /** Showing the decimal approximation instead of the exact answer. */
     var showApprox by mutableStateOf((decimalFirst || answer.preferApprox) && answer.approx != null)
 
@@ -278,6 +278,8 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
         if (needsBrackets) editor.type("(")
         editor.insertRow(copy)
         if (needsBrackets) editor.type(")")
+        // From the full-screen history: back to the calculator, where it's been put.
+        historyMode = false
     }
 
     /** An example from a guide, typed in place of what's there. */
@@ -393,6 +395,7 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
                 item.answer.approx?.let { MathCodec.encode(it) } ?: "",
                 if (item.pinned) "p" else "",
                 item.folder?.replace("\t", " ")?.replace("\n", " ") ?: "",
+                item.time.toString(),
             ).joinToString("\t")
         }
         val vars = variables.entries.joinToString("\n") { (k, v) -> k + "\t" + MathCodec.encode(Formatter.row(v)) }
@@ -408,7 +411,8 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
                 val approx = parts.getOrNull(2)?.takeIf { it.isNotEmpty() }?.let { MathCodec.decode(it) }
                 // Answers are saved as 2D rows; parsing one back gives the value again.
                 val value = Evaluator().evaluate(exact)
-                history += HistoryItem(expr, Answer(value, exact, approx), decimalFirst).also { item ->
+                // Calculations saved before times were kept have 0: listed under "Earlier".
+                history += HistoryItem(expr, Answer(value, exact, approx), decimalFirst, parts.getOrNull(5)?.toLongOrNull() ?: 0L).also { item ->
                     item.pinned = parts.getOrNull(3) == "p"
                     item.folder = parts.getOrNull(4)?.takeIf { it.isNotEmpty() }
                 }

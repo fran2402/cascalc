@@ -1,0 +1,84 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:NCMR;src:url(../app/src/main/res/font/ncm_roman.otf)}
+@font-face{font-family:NCMI;src:url(../app/src/main/res/font/ncm_latin_italic.otf)}
+@font-face{font-family:NCMM;src:url(../app/src/main/res/font/ncm_math.otf)}
+@font-face{font-family:CMS2;src:url(../app/src/main/res/font/cm_size2.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px;width:2000px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1700px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px;line-height:1.4}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sc:#E2E4C4;--onsc:#1B1D0A;--tc:#BEECDB;--ontc:#002019;--outv:#C8C7B5;--out:#77786A}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--c:#1F2018;--ch:#292A22;--chh:#34352C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sc:#45483A;--onsc:#E2E4C4;--tc:#214E41;--ontc:#BEECDB;--outv:#47473B;--out:#919283}
+.phone{position:relative;width:412px;height:900px;border-radius:44px;overflow:hidden;background:var(--bg);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.tablet{position:relative;width:1180px;height:780px;border-radius:36px;overflow:hidden;background:var(--bg);color:var(--on);box-shadow:0 0 0 12px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font:500 14px GSF}
+.topbar{height:56px;display:flex;align-items:center;padding:0 8px;gap:4px}
+.ib{width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--onv);border-radius:22px}
+.search{flex:1;height:52px;border-radius:26px;background:var(--chh);display:flex;align-items:center;padding:0 16px;gap:10px;font:16px GSF;color:var(--onv)}
+.exp{width:52px;height:52px;border-radius:16px;background:var(--sc);color:var(--onsc);display:flex;align-items:center;justify-content:center;font-size:20px}
+.chip{height:36px;border-radius:10px;background:var(--c);color:var(--onv);display:inline-flex;align-items:center;gap:6px;padding:0 14px;font:600 14px GSF;flex:none}
+.chip.on{background:var(--sc);color:var(--onsc);border-radius:18px}
+.head{display:flex;align-items:center;gap:6px;padding:14px 8px 8px;font:500 16px GSF;color:var(--pri)}
+.count{margin-left:auto;font:600 13px GSF;border-radius:12px;background:var(--sc);color:var(--onsc);padding:2px 10px}
+.rowi{display:flex;align-items:center;gap:12px;background:var(--c);padding:10px 14px 10px 12px;margin-bottom:3px}
+.badge{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;font:italic 20px CMI;flex:none}
+.tag{font:600 11px GSF;border-radius:10px;background:var(--sc);color:var(--onsc);padding:2px 8px;white-space:nowrap}
+.card{border-radius:28px;background:var(--chh);padding:14px 16px 12px 20px;margin:4px 0 7px}
+.act{height:36px;border-radius:12px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;font:600 13px GSF;border:1px solid var(--outv);color:var(--onv)}
+.act.t{background:var(--sc);color:var(--onsc);border-color:transparent}
+.mi{display:inline-block;vertical-align:middle}
+</style></head><body>
+<script src="gsf_cmap.js"></script><script src="cm_cmap.js"></script><script src="ncm_cmap.js"></script><script src="mathlayout.js"></script><script src="round23_data.js"></script>
+<h2>History, organized</h2>
+<p class="note">Full-screen history is now an organized list, newest first, instead of a chat-style feed. Pinned calculations come first, then the rest by when they were done: Today, Yesterday, This week, This month, then each month. Each section has a sticky header with its count, and its rows form one rounded group, with large corners at the ends and small ones between. Each row has a badge for its kind (∫, <i>d/dx</i>, lim, Σ, matrix, equation, number), the question small and muted, the answer large, and its pin and folder. Tap a row to open it into the full card with its actions (Steps, Graph, Use, Copy, Pin, Folder, Share). Swipe to delete. Using a calculation goes back to the calculator with it typed in. The search, the All / Pinned / folder chips and Export sit above. Calculations get a time from now on; older ones are listed under "Earlier".</p>
+<div class="row" id="phones"></div>
+<div class="row" id="tab"></div>
+<script>
+const PAL={dark:{on:'#E5E3D6',onv:'#C8C7B5',pri:'#C5CB86',onpc:'#E1E7A0',onsc:'#E2E4C4'},light:{on:'#1C1C16',onv:'#47473B',pri:'#5B6133',onpc:'#1A1E00',onsc:'#1B1D0A'}};
+let P=PAL.light;
+const mv=(c,size,color)=>MT.render(MT.decode(c),{size,color:color||P.on,accent:P.pri,faint:'rgba(128,128,128,.5)'});
+const KIND={int:['∫','pc','onpc'],d:['d/dx','sc','onsc'],lim:['lim','tc','ontc'],sum:['Σ','sc','onsc'],mat:['[ ]','tc','ontc'],eq:['x =','pc','onpc'],num:['=','chh','onv']};
+// [data index, kind, pinned, folder, approx]
+function rowi(i,kind,pin,folder,approx,k,n){const [s,b,f]=KIND[kind];const big=24,sm=6;const r=`${k==0?big:sm}px ${k==0?big:sm}px ${k==n-1?big:sm}px ${k==n-1?big:sm}px`;
+ return `<div class="rowi" style="border-radius:${r}"><div class="badge" style="background:var(--${b});color:var(--${f});${s.length>2?'font-size:13px':''}">${s}</div>
+ <div style="flex:1;min-width:0;overflow:hidden"><div style="white-space:nowrap">${mv(R23[i][0],15,P.onv)}</div><div style="white-space:nowrap;margin-top:2px"><span style="font:19px CMR;color:var(--pri)">${approx?'≈':'='} </span>${mv(R23[i][1],19)}</div></div>
+ ${pin||folder?`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">${pin?'<span style="color:var(--pri);font-size:14px">📌</span>':''}${folder?`<span class="tag">${folder}</span>`:''}</div>`:''}</div>`}
+function card(i,kind,folder){return `<div class="card"><div style="display:flex;gap:6px;margin-bottom:4px"><span class="tag">${folder}</span></div><div>${mv(R23[i][0],17,P.onv)}</div>
+ <div style="text-align:right;margin-top:8px"><span style="font:24px CMR;color:var(--pri)">= </span>${mv(R23[i][1],24)}</div>
+ <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:10px"><span class="act t">📈 Graph</span><span class="act">☰ Steps</span><span class="act">↵ Use</span><span class="act">⧉ Copy</span><span class="act">📌 Pin</span><span class="act">📁 ${folder}</span><span class="act">⇪ Share</span></div></div>`}
+function section(title,rows,open){const pin=title=='Pinned';return `<div class="head">${pin?'📌 ':''}${title}<span class="count">${rows.length}</span></div>`+rows.map((r,k)=>open&&open[0]===k?card(r[0],r[1],open[1]):rowi(r[0],r[1],r[2],r[3],r[4],k,rows.length)).join('')}
+function toolbar(chips,query){return `<div style="padding:4px 12px 6px;display:flex;flex-direction:column;gap:8px"><div style="display:flex;gap:6px"><div class="search">⌕ <span style="color:${query?'var(--on)':'var(--onv)'}">${query||'Search calculations'}</span></div><div class="exp">⇪</div></div>
+ <div style="display:flex;gap:8px;overflow:hidden">${chips.map(([c,on])=>`<span class="chip ${on?'on':''}">${c}</span>`).join('')}</div></div>`}
+function topBar(){return `<div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div><div class="topbar"><span class="ib" style="color:var(--pri);background:var(--sc)">🕘</span><span style="flex:1;font:400 22px GSF;padding-left:8px">History</span><span class="ib">⋮</span></div>`}
+function phoneA(){P=PAL.light;return `<div><div class="phone light">${topBar()}${toolbar([['All',true],['📌 Pinned',false],['📁 Homework 3',false],['📁 Exam prep',false]])}
+ <div style="padding:0 12px;height:690px;overflow:hidden">
+ ${section('Pinned',[[3,'sum',1,'Exam prep'],[9,'num',1,null,1]])}
+ ${section('Today',[[0,'int',0,'Homework 3'],[1,'d',0,'Homework 3'],[2,'lim',0,null]],[1,'Homework 3'])}
+ ${section('Yesterday',[[4,'eq',0,null],[5,'mat',0,null]])}
+ </div></div><div class="cap">Light: Pinned on top, then Today with one calculation opened into its full card (Graph, Steps, Use, Copy, Pin, Folder, Share), then Yesterday. Each section is one rounded group with a sticky header and count.</div></div>`}
+function phoneB(){P=PAL.dark;return `<div><div class="phone dark">${topBar()}${toolbar([['All',false],['📌 Pinned',false],['📁 Homework 3',true],['📁 Exam prep',false]],'')}
+ <div style="padding:2px 20px;font:600 12px GSF;color:var(--onv)">5 of 42</div>
+ <div style="padding:0 12px;height:690px;overflow:hidden">
+ ${section('Today',[[0,'int',0,null],[1,'d',0,null]])}
+ ${section('This week',[[7,'int',0,null],[8,'int',1,null]])}
+ ${section('September 2026',[[6,'num',0,null,1]])}
+ </div></div><div class="cap">Dark: the Homework 3 folder on its own, still in sections by time. The folder tag is left off its rows since the chip already says it.</div></div>`}
+function tablet(){P=PAL.light;return `<div><div class="tablet light"><div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div>
+ <div style="display:flex;height:740px">
+  <div style="flex:1;display:flex;flex-direction:column"><div class="topbar"><span class="ib" style="color:var(--pri);background:var(--sc)">🕘</span><span style="flex:1;font:400 22px GSF;padding-left:8px">History</span><span class="ib">⋮</span></div>
+  ${toolbar([['All',true],['📌 Pinned',false],['📁 Homework 3',false],['📁 Exam prep',false]],'')}
+  <div style="padding:0 12px;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;gap:0 16px">
+   <div>${section('Pinned',[[3,'sum',1,'Exam prep'],[9,'num',1,null,1]])}${section('Today',[[0,'int',0,'Homework 3'],[1,'d',0,'Homework 3'],[2,'lim',0,null]])}</div>
+   <div>${section('Yesterday',[[4,'eq',0,null],[5,'mat',0,null]])}${section('This week',[[7,'int',0,null],[8,'int',0,null],[6,'num',0,null,1]])}</div>
+  </div></div>
+  <div style="width:400px;background:var(--low);border-left:1px solid var(--outv);display:flex;align-items:center;justify-content:center;color:var(--onv);font:14px GSF">(the keypad, beside it on a tablet)</div>
+ </div></div><div class="cap" style="width:1180px">Tablet (landscape, keypad at the side): the same sections in the history pane. (The two columns are the mockup's way of showing more at once; in the app the sections run down one list.)</div></div>`}
+document.getElementById('phones').innerHTML=phoneA()+phoneB();
+document.getElementById('tab').innerHTML=tablet();
+document.title='ready';
+</script></body></html>
