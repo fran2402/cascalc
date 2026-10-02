@@ -63,6 +63,12 @@ object AppSettings {
     /** Beta: worked steps for integrals, derivatives, limits, sums and ∮ loop integrals, from the history. */
     var showSteps by mutableStateOf(false)
         private set
+    /** Beta: the unit converter in the ⋮ menu. */
+    var unitConverter by mutableStateOf(false)
+        private set
+    /** The converter's last value, from and to units, so it opens where it was left. */
+    var converterState by mutableStateOf("1\nkm/s/Mpc\n1/s")
+        private set
     /** How many calculations the history keeps: 50, 100, 500, or 0 for all. */
     var historyLimit by mutableStateOf(100)
         private set
@@ -129,6 +135,8 @@ object AppSettings {
         polarComplex = p.getBoolean("polarComplex", false)
         livePreview = p.getBoolean("livePreview", true)
         showSteps = p.getBoolean("showSteps", false)
+        unitConverter = p.getBoolean("unitConverter", false)
+        converterState = p.getString("converterState", null) ?: converterState
         historyLimit = p.getInt("historyLimit", 100)
         confirmClearHistory = p.getBoolean("confirmClearHistory", true)
         confirmDeleteEntry = p.getBoolean("confirmDeleteEntry", false)
@@ -153,7 +161,7 @@ object AppSettings {
 
     private fun save(key: String, value: Any) {
         prefs?.edit()?.apply {
-            when (value) { is Int -> putInt(key, value); is Boolean -> putBoolean(key, value) }
+            when (value) { is Int -> putInt(key, value); is Boolean -> putBoolean(key, value); is String -> putString(key, value) }
             apply()
         }
     }
@@ -175,6 +183,8 @@ object AppSettings {
     fun changePolarComplex(v: Boolean) { polarComplex = v; com.example.cas.engine.Formatter.polarComplex = v; save("polarComplex", v) }
     fun changeLivePreview(v: Boolean) { livePreview = v; save("livePreview", v) }
     fun changeShowSteps(v: Boolean) { showSteps = v; save("showSteps", v) }
+    fun changeUnitConverter(v: Boolean) { unitConverter = v; save("unitConverter", v) }
+    fun changeConverterState(value: String, from: String, to: String) { converterState = "$value\n$from\n$to"; save("converterState", converterState) }
     fun changeHistoryLimit(v: Int) { historyLimit = v; save("historyLimit", v) }
     fun changeConfirmClearHistory(v: Boolean) { confirmClearHistory = v; save("confirmClearHistory", v) }
     fun changeConfirmDeleteEntry(v: Boolean) { confirmDeleteEntry = v; save("confirmDeleteEntry", v) }

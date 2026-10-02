@@ -1,0 +1,85 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1500px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:50px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--c:#1F2018;--ch:#292A22;--chh:#34352C;--s:#12130C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sc:#45483A;--onsc:#E2E4C4;--ter:#A2D0BF;--onter:#05372B;--tc:#214E41;--ontc:#BEECDB;--lowest:#0D0F08}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--s:#FCF9EE;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sc:#E2E4C4;--onsc:#1B1D0A;--ter:#3C6A5A;--onter:#fff;--tc:#BEECDB;--ontc:#002019;--lowest:#fff}
+.phone{position:relative;width:412px;height:900px;border-radius:44px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font:500 14px GSF}
+.hd{height:56px;display:flex;align-items:center;padding:0 10px 0 6px;gap:8px;font:400 24px GSF}
+.ib{width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--onv)}
+.beta{font:600 11px GSF;background:var(--tc);color:var(--ontc);border-radius:20px;padding:2px 8px;letter-spacing:.5px}
+.body{padding:0 16px;display:flex;flex-direction:column;gap:12px}
+.card{border-radius:32px;padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.lab{font:600 14px GSF}
+.field{border-radius:18px;min-height:52px;display:flex;align-items:center;padding:0 16px;font:500 17px GSF}
+.pill{height:40px;border-radius:14px;background:var(--sc);color:var(--onsc);display:inline-flex;align-items:center;padding:0 12px}
+.chipn{font:600 12px GSF;background:var(--sc);color:var(--onsc);border-radius:20px;padding:3px 10px}
+.grp{display:flex;gap:2px}.grp div{flex:1;height:44px;display:flex;align-items:center;justify-content:center;font:600 14px GSF;background:var(--chh);color:var(--on)}
+.grp div:first-child{border-radius:24px 8px 8px 24px}.grp div:last-child{border-radius:8px 24px 24px 8px}.grp div:nth-child(2){border-radius:8px}
+.grp .on{background:var(--pri)!important;color:var(--onpri)!important;border-radius:24px!important}
+.act{height:40px;border-radius:20px;display:inline-flex;align-items:center;gap:8px;padding:0 18px 0 14px;font:600 14px GSF}
+.swap{position:relative;height:0;z-index:2;display:flex;justify-content:center}
+.swap svg{position:absolute;top:-30px}
+.sec{border-radius:28px;background:var(--s);padding:16px;display:flex;flex-direction:column;gap:6px}
+.sec h4{margin:0 0 4px 4px;font:600 14px GSF;color:var(--pri)}
+.alt{background:var(--c);padding:12px 16px;border-radius:8px}.alt:first-of-type{border-radius:20px 20px 8px 8px}
+.notice{border-radius:24px;padding:14px 18px;display:flex;gap:12px;align-items:center;font:14px GSF}
+.mi{display:inline-block;vertical-align:middle}
+.tablet{width:1180px;height:780px;border-radius:36px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 12px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.hist{background:var(--c);border-radius:28px;padding:14px 16px 12px 20px;width:412px}
+.achip{display:inline-flex;align-items:center;gap:4px;border-radius:20px;padding:6px 16px 6px 10px;font:16px GSF}
+</style></head><body>
+<h2>Unit converter <span class="beta" style="background:#BEECDB;color:#002019">BETA</span> · history chip</h2>
+<p class="note">Turned on in Settings › Calculator (beta), then in the ⋮ menu. Units are typed as expressions (km/s/Mpc, W/(m² sr Hz), cm-3, ²·³) or picked from the catalog; SI, SI base and CGS write the answer in that system. When the dimensions differ, c, h (or ħ) and k_B bridge them. Every value below is the engine's real output.</p>
+<div class="row" id="phones"></div>
+<div class="row" id="tab"></div>
+<div class="row" id="hist"></div>
+<script src="gsf_cmap.js"></script><script src="cm_cmap.js"></script><script src="mathlayout.js"></script><script src="converter_data.js"></script>
+<script>
+const PAL={dark:{on:'#E5E3D6',onv:'#C8C7B5',pri:'#C5CB86',onpc:'#E1E7A0',onsc:'#E2E4C4',ontc:'#BEECDB',onpri:'#2F3300'},light:{on:'#1C1C16',onv:'#47473B',pri:'#5B6133',onpc:'#1A1E00',onsc:'#1B1D0A',ontc:'#002019',onpri:'#fff'}};
+let P=PAL.dark;
+const mv=(c,size,color)=>MT.render(MT.decode(c),{size,color:color||P.on,accent:P.pri,faint:'rgba(128,128,128,.5)'});
+const rt=(s,size,color)=>s.split(/[\u0001\u0002]/).map((p,k)=>k%2?`<span class="mi">${mv(p,size,color)}</span>`:p).join('');
+const cookie=(color)=>{let d='';for(let k=0;k<=216;k++){const a=2*Math.PI*k/216-Math.PI/2,r=30*(0.94+0.06*Math.cos(9*(a+Math.PI/2)));d+=(k?'L':'M')+(30+r*Math.cos(a)).toFixed(2)+' '+(30+r*Math.sin(a)).toFixed(2)}
+ return `<svg width="60" height="60" viewBox="0 0 60 60"><path d="${d}Z" fill="${color}"/><text x="30" y="39" text-anchor="middle" font-size="26" fill="var(--onter)">⇅</text></svg>`};
+function fromCard(d){return `<div class="card" style="background:var(--ch)"><div class="lab" style="color:var(--pri)">From</div>
+ <div style="display:flex;align-items:center;gap:6px"><div style="flex:1;font:40px CMR">${d.v}<span style="display:inline-block;width:2px;height:36px;background:var(--pri);vertical-align:-6px;margin-left:2px"></span></div><span class="pill">${rt(CV.chips[0],16,P.onsc)}</span><span class="pill">${rt(CV.chips[1],16,P.onsc)}</span></div>
+ <div class="field" style="background:var(--chh)">${d.from}</div>
+ <div style="display:flex;align-items:center;gap:8px">${rt(d.fromTex,18,P.onv)}<span class="chipn">${d.fromName}</span></div></div>`}
+function toCard(d,sys){return `<div class="card" style="background:var(--pc);color:var(--onpc)"><div class="lab">To</div>
+ <div class="field" style="background:color-mix(in srgb,var(--lowest) 60%,transparent)">${d.to}</div>
+ <div class="grp">${['SI','SI base','CGS'].map((s,k)=>`<div class="${sys===k?'on':''}">${s}</div>`).join('')}</div>
+ <div style="display:flex;align-items:center;gap:8px">${rt(d.toTex,18,P.onpc)}<span class="chipn">${d.toName}</span></div>
+ <div style="margin-top:2px;white-space:nowrap;overflow:hidden">${rt(d.result,30,P.onpc)}</div>
+ <div style="display:flex;gap:8px"><span class="act" style="background:color-mix(in srgb,var(--lowest) 70%,transparent)">⧉ Copy</span><span class="act" style="background:color-mix(in srgb,var(--lowest) 70%,transparent)">↵ Use in calculator</span></div></div>`}
+function swap(){return `<div class="swap">${cookie('var(--ter)')}</div>`}
+function notice(d){return d.bridge?`<div class="notice" style="background:var(--tc);color:var(--ontc)"><span style="font-size:20px">ⓘ</span><div>${rt(d.bridge,15,P.ontc)}</div></div>`:''}
+function also(d){return d.alts.length?`<div class="sec"><h4>Also equals</h4>${d.alts.map(a=>`<div class="alt">${rt(a,18)}</div>`).join('')}</div>`:''}
+function details(d){return `<div class="sec"><h4>Details</h4><div style="display:flex;font:14px GSF;color:var(--onv);align-items:center"><span style="width:110px">Dimension</span>${rt(d.dim,17)}</div><div style="display:flex;font:14px GSF;color:var(--onv);align-items:center"><span style="width:110px">Measures</span><span style="color:var(--on)">${d.fromName}</span></div><div style="display:flex;font:14px GSF;color:var(--onv);align-items:center"><span style="width:110px">In SI base</span>${rt(d.base,17)}</div></div>`}
+function consts(){return `<div class="sec"><h4>Physical equivalences</h4><div style="font:13px GSF;color:var(--onv)">When the dimensions differ, these constants may connect them.</div><div style="display:flex;gap:8px;flex-wrap:wrap">${[[2,'speed of light',1],[3,'Planck',1],[4,'reduced Planck',0],[5,'Boltzmann',1]].map(([i,n,on])=>`<span style="height:40px;border-radius:${on?20:10}px;background:${on?'var(--sc)':'var(--ch)'};display:inline-flex;align-items:center;gap:6px;padding:0 14px;font:500 13px GSF;color:${on?'var(--onsc)':'var(--onv)'}">${rt(CV.chips[i],17,on?P.onsc:P.onv)} ${n}</span>`).join('')}</div></div>`}
+function head(){return `<div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div><div class="hd"><span class="ib">←</span>Unit converter <span class="beta">BETA</span><span style="flex:1"></span><span class="ib">◫</span></div>`}
+function phone(theme,d,sys,extra,cap){P=PAL[theme];return `<div><div class="phone ${theme}">${head()}<div class="body">${fromCard(d)}${swap()}${toCard(d,sys)}${extra(d)}</div></div><div class="cap">${cap}</div></div>`}
+document.getElementById('phones').innerHTML=
+ phone('dark',CV.hubble,-1,d=>details(d),'The Hubble constant in s⁻¹: the unit as read, in LaTeX, with what it measures; the cookie-shaped button swaps.')+
+ phone('light',CV.photon,-1,d=>notice(d)+also(d),'500 nm to eV: the dimensions differ, so hc bridges them, and the notice says how.')+
+ phone('dark',CV.erg,0,d=>also(d)+details(d),'1 erg in SI: the system buttons write the answer in SI (named units), SI base or CGS.');
+P=PAL.light;const d=CV.temp;
+document.getElementById('tab').innerHTML=`<div><div class="tablet light"><div class="status" style="padding:0 34px"><span>12:30</span><span>▾ ◢ ▮</span></div><div class="hd" style="padding-left:14px"><span class="ib">←</span>Unit converter <span class="beta">BETA</span><span style="flex:1"></span><span class="ib">◫</span></div>
+<div style="display:flex;gap:24px;padding:0 24px"><div style="flex:1;display:flex;flex-direction:column;gap:12px">${fromCard(d)}${swap()}${toCard(d,-1)}
+<div class="sec"><h4>Try</h4><div style="display:flex;gap:8px;overflow:hidden">${CV.ex.map((e,k)=>`<div style="background:var(--chh);border-radius:20px;padding:10px 14px;white-space:nowrap"><div style="font:500 12px GSF;color:var(--onv)">${['Hubble constant','erg in SI','Photon energy'][k]}</div>${rt(e,15)}</div>`).join('')}</div></div></div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px">${notice(d)}${also(d)}${details(d)}${consts()}</div></div></div><div class="cap" style="width:900px">Tablet: the inputs on the left, the results beside them. eV to K through k_B.</div></div>`;
+// History card: the ≈ chip on the left of the answer.
+const H=(theme,open)=>{P=PAL[theme];const q="'2;'+;sqrt{'2;}";const ex="'2;'+;sqrt{'2;}";const ap="'3;'.;'4;'1;'4;'2;'1;'3;'5;'6;'2;";
+ return `<div class="${theme}" style="background:var(--bg);padding:16px;border-radius:24px"><div class="hist"><div style="font:18px CMR;color:var(--onv)">${mv(q,18,P.onv)}</div>
+ <div style="display:flex;align-items:center;margin-top:8px"><span class="achip" style="background:${open?'var(--pri)':'var(--pc)'};color:${open?'var(--onpri)':'var(--onpc)'}"><span style="display:inline-block;transform:rotate(${open?90:0}deg)">›</span>${open?'exact':rt(CV.chips[6],16,P.onpc)}</span><span style="flex:1"></span>
+ ${rt(CV.chips[6].replace(/./g,c=>c),0)}<span style="font:28px CMR;color:var(--pri);margin-right:12px">${open?'≈':'='}</span>${mv(open?ap:ex,28)}</div></div></div>`};
+document.getElementById('hist').innerHTML=`<div><div style="display:flex;gap:20px">${H('light',false)}${H('light',true)}</div><div class="cap" style="width:900px">History: the chip on the left is back. ≈ shows the decimal; once open it reads “exact” to go back.</div></div>`;
+document.title='ready';
+</script></body></html>

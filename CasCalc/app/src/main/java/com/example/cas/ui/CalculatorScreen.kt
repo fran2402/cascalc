@@ -77,7 +77,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.animation.animateContentSize
-import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.FilledTonalButton
@@ -311,6 +310,7 @@ fun CalculatorTrailingAction(vm: CalculatorViewModel) {
     var menu by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(false) }
     var acknowledgements by remember { mutableStateOf(false) }
+    var converter by remember { mutableStateOf(false) }
     var confirmClear by remember { mutableStateOf(false) }
     if (confirmClear) {
         AlertDialog(
@@ -323,6 +323,7 @@ fun CalculatorTrailingAction(vm: CalculatorViewModel) {
     }
     if (settings) AppSettingsPage(vm, onBack = { settings = false }, onAcknowledgements = { settings = false; acknowledgements = true })
     if (acknowledgements) AcknowledgementsDialog(onDismiss = { acknowledgements = false })
+    if (converter) UnitConverterPage(onBack = { converter = false }, onUse = { v -> converter = false; vm.insertNumber(v) })
     @Suppress("DEPRECATION") val clipboard = LocalClipboardManager.current
     val colors = MaterialTheme.colorScheme
     run {
@@ -345,6 +346,10 @@ fun CalculatorTrailingAction(vm: CalculatorViewModel) {
                         onClick = { menu = false; vm.clearVariables() },
                     )
                 }
+                if (AppSettings.unitConverter) DropdownMenuItem(
+                    text = { Row(verticalAlignment = Alignment.CenterVertically) { Text("Unit converter"); Spacer(Modifier.width(8.dp)); BetaBadge() } },
+                    onClick = { menu = false; converter = true },
+                )
                 DropdownMenuItem(
                     text = { Text("Settings") },
                     onClick = { menu = false; settings = true },
@@ -482,7 +487,7 @@ private fun InputPanel(vm: CalculatorViewModel) {
 /**
  * A past calculation. The answer leads, large and to the right, with = or ≈ in the accent color;
  * the question sits above it, smaller and muted (tap either to use it again). When an answer has
- * both forms, the other one is written under it, small: tap it to swap them. The newest card (or
+ * both forms, a chip on the left switches between the exact answer and the decimal. The newest card (or
  * one you tap) also shows its actions: use the answer, graph it, copy, share, delete.
  */
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
@@ -495,7 +500,6 @@ private fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (Gr
     val tap = rememberKeyTap()
     val focused = vm.isFocused(item)
     val shown = if (item.showApprox && item.answer.approx != null) item.answer.approx else item.answer.exact
-    val other = if (item.answer.approx == null) null else if (item.showApprox) item.answer.exact else item.answer.approx
     // The card draws into a layer too, so "share as image" can take a picture of it.
     val layer = rememberGraphicsLayer()
     var shareMenu by remember { mutableStateOf(false) }
@@ -538,8 +542,13 @@ private fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (Gr
             )
         }
         Spacer(Modifier.height(6.dp))
-        // The answer, large, to the right.
+        // The answer, large, to the right; on the left, when there's a decimal too, the chip that swaps them.
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            if (item.answer.approx != null) {
+                ApproxChip(item.showApprox) { tap(); item.showApprox = !item.showApprox }
+                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.weight(1f))
+            }
             if (!item.answer.isStatement) {
                 MathText(if (item.answer.isApproximate || item.showApprox) "\$\\approx\$" else "\$=\$", color = colors.primary, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = answerSize), mathScale = 1f)
                 Spacer(Modifier.width(12.dp))
@@ -555,26 +564,6 @@ private fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (Gr
                         onClick = { vm.reuse(shown) },
                     ),
                 )
-            }
-        }
-        // The other form, small: tap to swap.
-        if (other != null) {
-            Row(
-                Modifier.fillMaxWidth().padding(top = 2.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Row(
-                    Modifier.clip(RoundedCornerShape(10.dp))
-                        .clickable(onClickLabel = if (item.showApprox) "Show the exact answer" else "Show the decimal") { tap(); item.showApprox = !item.showApprox }
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Default.SwapVert, contentDescription = null, tint = colors.primary, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    MathText(if (item.showApprox) "\$=\$ " else "\$\\approx\$ ", color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = MathSizes.historyInput), mathScale = 1f)
-                    Box(Modifier.widthIn(max = 260.dp).horizontalScroll(rememberScrollState())) { MathView(other, MathSizes.historyInput, colors.onSurfaceVariant) }
-                }
             }
         }
         // Actions, on the newest card or a tapped one.
@@ -639,6 +628,26 @@ private fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (Gr
                 )
             }
         }
+    }
+}
+
+/** ≈ shows the decimal; once open, "exact" goes back. The chevron turns as it opens. */
+@Composable
+private fun ApproxChip(expanded: Boolean, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val turn by animateFloatAsState(if (expanded) 90f else 0f, label = "chevron")
+    Row(
+        Modifier
+            .clip(CircleShape)
+            .background(if (expanded) colors.primary else colors.primaryContainer)
+            .clickable(onClickLabel = if (expanded) "Show the exact answer" else "Show the decimal", onClick = onClick)
+            .padding(start = 10.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val fg = if (expanded) colors.onPrimary else colors.onPrimaryContainer
+        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = fg, modifier = Modifier.size(20.dp).rotate(turn))
+        Spacer(Modifier.width(4.dp))
+        MathText(if (expanded) "exact" else "\$\\approx\$", color = fg, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 16.sp), mathScale = 1f)
     }
 }
 
@@ -1524,6 +1533,10 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsToggle(
                 "Show steps", "Worked steps for calculus (integrals, derivatives, limits, sums, series, \$\\oint\$), algebra and complex numbers, matrices (determinants, inverses, eigenvalues, rref), differential equations, statistics and vector calculus: Steps on a history card. Still in beta, so steps may skip some algebra",
                 AppSettings.showSteps, AppSettings::changeShowSteps, badge = "Beta",
+            )
+            SettingsToggle(
+                "Unit converter", "In the \$\\vdots\$ menu: convert any units, like km/s/Mpc to \$\\mathrm{s}^{-1}\$ or erg to SI, with c, h and \$k_B\$ bridging energy, mass, frequency and temperature. Still in beta",
+                AppSettings.unitConverter, AppSettings::changeUnitConverter, badge = "Beta",
             )
         },
         PageSection("History", Icons.Outlined.History) {

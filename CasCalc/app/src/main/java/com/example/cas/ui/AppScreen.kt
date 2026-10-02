@@ -31,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -122,13 +123,19 @@ private fun GraphMenuAction() {
     var menu by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(false) }
     var acknowledgements by remember { mutableStateOf(false) }
+    var converter by remember { mutableStateOf(false) }
     if (settings) AppSettingsPage(onBack = { settings = false }, onAcknowledgements = { settings = false; acknowledgements = true })
     if (acknowledgements) AcknowledgementsDialog(onDismiss = { acknowledgements = false })
+    if (converter) UnitConverterPage(onBack = { converter = false })
     Box {
         IconButton(onClick = { menu = true }) {
             Icon(Icons.Default.MoreVert, contentDescription = "More options", tint = colors.onSurfaceVariant)
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            if (AppSettings.unitConverter) DropdownMenuItem(
+                text = { androidx.compose.foundation.layout.Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) { Text("Unit converter"); androidx.compose.foundation.layout.Spacer(Modifier.width(8.dp)); BetaBadge() } },
+                onClick = { menu = false; converter = true },
+            )
             DropdownMenuItem(text = { Text("Settings") }, onClick = { menu = false; settings = true })
             DropdownMenuItem(text = { Text("Acknowledgements") }, onClick = { menu = false; acknowledgements = true })
         }

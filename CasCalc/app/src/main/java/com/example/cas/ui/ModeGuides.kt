@@ -79,7 +79,7 @@ object ModeGuides {
             Tip("swipe", "Swipe the function keys", "Moves to the next group (the dots show which)"),
         ),
         listOf(
-            Tip("swap", "Exact or decimal", "Tap the form under an answer to swap them; Settings › Numbers picks which comes first"),
+            Tip("swap", "Exact or decimal", "Tap the \$\\approx\$ chip beside an answer for its decimal, then exact to go back; Settings › Numbers picks which comes first"),
             Tip("graph", "Graph an answer", "Graph on a card draws it in the right graph"),
             Tip("units", "Constants and units", "The ⚛ group: \$c\$, \$h\$, \$k_B\$… in SI or other systems"),
         ),
