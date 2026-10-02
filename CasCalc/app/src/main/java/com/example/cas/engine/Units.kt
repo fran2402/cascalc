@@ -545,9 +545,9 @@ object Units {
                 if (u.symbol == "g" && sym in setOf("T", "G", "M")) continue
                 val p = if (sym.isEmpty()) null else SI_PREFIXES.first { it.symbol == sym }
                 val v = si / ((p?.factor ?: 1.0) * u.factor)
-                // Closest to between 1 and 1000, with a nudge towards no prefix.
+                // Closest to 1 ≤ v < 1000 (so 1 Mpc beats 1000 kpc), with a nudge towards no prefix.
                 val l = log10(abs(v))
-                val s = (if (l < 0) -l else if (l > 3) l - 3 else 0.0) + (if (p == null) 0.0 else 0.05)
+                val s = (if (l < 0) -l else if (l >= 3 - 1e-9) l - 3 + 0.1 else 0.0) + (if (p == null) 0.0 else 0.05)
                 if (s < score) { score = s; best = v to p }
             }
             val (v, p) = best ?: continue
