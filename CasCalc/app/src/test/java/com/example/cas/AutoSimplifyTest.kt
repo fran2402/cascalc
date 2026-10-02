@@ -51,3 +51,24 @@ class SimplifyStepsTest {
     @Test fun expandSteps() = assertEquals("Expand", com.example.cas.engine.Steps.of(m("(x+1)", sq(), "−x", sq()))!!.method)
     @Test fun nothingToDo() = org.junit.Assert.assertFalse(com.example.cas.engine.Steps.supports(m("x", sq(), "+2x+1")))
 }
+
+class MoreAutoSimplifyTest {
+    private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
+    private fun sq() = Pow(m("2"))
+    private fun f(n: String, vararg a: MathRow) = Func(n, a.toList())
+    private fun cas(r: MathRow) = Printer.plain(Evaluator().evaluate(r)).also { println(it) }
+
+    @Test fun logSum() = assertEquals("ln(xy)", cas(m(f("ln", m("x")), "+", f("ln", m("y")))))
+    @Test fun logDifference() = assertEquals("ln(x/y)", cas(m(f("ln", m("x")), "−", f("ln", m("y")))))
+    @Test fun logMultiple() = assertEquals("ln(x^2y)", cas(m("2", f("ln", m("x")), "+", f("ln", m("y")))))
+    @Test fun doubleAngleSine() = assertEquals("sin(2x)", cas(m("2", f("sin", m("x")), f("cos", m("x")))))
+    @Test fun doubleAngleCosine() = assertEquals("cos(2x)", cas(m(f("cos", m("x")), sq(), "−", f("sin", m("x")), sq())))
+    @Test fun doubleAngleOneMinus() = assertEquals("cos(2x)", cas(m("1−2", f("sin", m("x")), sq())))
+    @Test fun doubleAngleTwoCos() = assertEquals("cos(2x)", cas(m("2", f("cos", m("x")), sq(), "−1")))
+    @Test fun tangent() = assertEquals("tan(x)", cas(m(Frac(m(f("sin", m("x"))), m(f("cos", m("x")))))))
+    @Test fun cosh() = assertEquals("cosh(x)", cas(m(Frac(m("e", Pow(m("x")), "+e", Pow(m("−x"))), m("2")))))
+    @Test fun sinh() = assertEquals("sinh(x)", cas(m(Frac(m("e", Pow(m("x")), "−e", Pow(m("−x"))), m("2")))))
+    @Test fun lonelySquareStays() = assertEquals("sin(x)^2", cas(m(f("sin", m("x")), sq())))
+    @Test fun lonelyProductStays() = assertEquals("cos(x)sin(x)", cas(m(f("sin", m("x")), f("cos", m("x")))))
+    @Test fun singleLogStays() = assertEquals("ln(x)", cas(m(f("ln", m("x")))))
+}

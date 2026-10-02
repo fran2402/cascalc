@@ -41,7 +41,130 @@ object AutoSimplify {
         runCatching { Move("Expand", "Multiply out and combine like terms.", Algebra.expand(e)) }.getOrNull(),
         runCatching { cancel(e) }.getOrNull(),
         runCatching { pythagoras(e) }.getOrNull(),
+        runCatching { combineLogs(e) }.getOrNull(),
+        runCatching { doubleAngle(e) }.getOrNull(),
+        runCatching { powerReduction(e) }.getOrNull(),
+        runCatching { tangent(e) }.getOrNull(),
+        runCatching { hyperbolic(e) }.getOrNull(),
     )
+
+    // ---- Logarithms -----------------------------------------------------------------------------
+
+    /** a ln u + b ln v + … = ln(uᵃ vᵇ ⋯) (for positive u, v: the rules for logarithms). */
+    private fun combineLogs(e: Expr): Move? {
+        if (e !is Add) return null
+        val logs = ArrayList<Expr>(); val rest = ArrayList<Expr>()
+        for (t in e.terms) {
+            val (c, m) = Simplify.splitCoefficient(t)
+            if (m is Fn && m.name == "ln" && c is Num) logs += pow(m.args[0], c) else rest += t
+        }
+        if (logs.size < 2) return null
+        val inside = Algebra.simplify(mul(logs))
+        val text = "ln u + ln v = ln(uv), ln u − ln v = ln(u/v), a ln u = ln(uᵃ)."
+        return Move("Combine logarithms", text, add(rest + fn("ln", inside)))
+    }
+
+    // ---- Double angles ------------------------------------------------------------------------------
+
+    /** sin u · cos u = sin(2u)/2, in every product. */
+    private fun doubleAngle(e: Expr): Move? {
+        var changed = false
+        fun walk(z: Expr): Expr = when (z) {
+            is Mul -> {
+                val fs = z.factors.map { walk(it) }.toMutableList()
+                val s = fs.indexOfFirst { it is Fn && it.name == "sin" }
+                val c = if (s >= 0) fs.indexOfFirst { it is Fn && it.name == "cos" && it.args == (fs[s] as Fn).args } else -1
+                if (s >= 0 && c >= 0) {
+                    val u = (fs[s] as Fn).args[0]
+                    val rest = fs.filterIndexed { k, _ -> k != s && k != c }
+                    changed = true
+                    mul(rest + listOf(HALF, fn("sin", mul(TWO, u))))
+                } else mul(fs)
+            }
+            is Add -> add(z.terms.map { walk(it) })
+            is Pow -> pow(walk(z.base), z.exp)
+            else -> z
+        }
+        val r = walk(e)
+        return if (changed) Move("Double angle", "2 sin u cos u = sin 2u.", r) else null
+    }
+
+    /** cos²u = (1 + cos 2u)/2 and sin²u = (1 − cos 2u)/2, then multiplied out: cos²u − sin²u = cos 2u, 1 − 2 sin²u = cos 2u. */
+    private fun powerReduction(e: Expr): Move? {
+        if (e !is Add) return null
+        var changed = false
+        fun walk(z: Expr): Expr = when {
+            z is Pow && z.exp == TWO && z.base is Fn && (z.base as Fn).name in setOf("sin", "cos") -> {
+                changed = true
+                val u = (z.base as Fn).args[0]
+                val c2 = fn("cos", mul(TWO, u))
+                if ((z.base as Fn).name == "cos") mul(HALF, add(ONE, c2)) else mul(HALF, sub(ONE, c2))
+            }
+            z is Add -> add(z.terms.map { walk(it) })
+            z is Mul -> mul(z.factors.map { walk(it) })
+            else -> z
+        }
+        val r = Algebra.expand(walk(e))
+        return if (changed) Move("Double angle", "cos 2u = cos²u − sin²u = 1 − 2 sin²u = 2 cos²u − 1.", r) else null
+    }
+
+    // ---- Quotients and exponentials -----------------------------------------------------------------
+
+    /** sin u / cos u = tan u (to any power). */
+    private fun tangent(e: Expr): Move? {
+        var changed = false
+        fun walk(z: Expr): Expr = when (z) {
+            is Mul -> {
+                val fs = z.factors.map { walk(it) }
+                fun power(f: Expr, name: String): Pair<Expr, Expr>? = when {
+                    f is Fn && f.name == name -> f.args[0] to ONE
+                    f is Pow && f.base is Fn && (f.base as Fn).name == name && f.exp is Num -> (f.base as Fn).args[0] to f.exp
+                    else -> null
+                }
+                var out: Expr? = null
+                for (a in fs) {
+                    val (u, k) = power(a, "sin") ?: continue
+                    val b = fs.firstOrNull { power(it, "cos")?.let { (v, j) -> v == u && Algebra.simplify(add(j, k)) == ZERO } == true } ?: continue
+                    changed = true
+                    out = mul(fs.filter { it !== a && it !== b } + pow(fn("tan", u), k))
+                    break
+                }
+                out ?: mul(fs)
+            }
+            is Add -> add(z.terms.map { walk(it) })
+            else -> z
+        }
+        val r = walk(e)
+        return if (changed) Move("Tangent", "sin u / cos u = tan u.", r) else null
+    }
+
+    /** c(eᵘ + e⁻ᵘ) = 2c cosh u and c(eᵘ − e⁻ᵘ) = 2c sinh u. */
+    private fun hyperbolic(e0: Expr): Move? {
+        val e = if (e0 is Add) e0 else Algebra.expand(e0)
+        if (e !is Add) return null
+        val terms = e.terms.toMutableList()
+        for (i in terms.indices) {
+            val (c1, m1) = Simplify.splitCoefficient(terms[i])
+            if (m1 !is Pow || m1.base != E) continue
+            for (j in terms.indices) {
+                if (j == i) continue
+                val (c2, m2) = Simplify.splitCoefficient(terms[j])
+                if (m2 !is Pow || m2.base != E || Algebra.simplify(add(m1.exp, m2.exp)) != ZERO) continue
+                val u = m1.exp
+                val sumC = Algebra.simplify(sub(c1, c2))
+                val name = when {
+                    Algebra.simplify(sub(c1, c2)) == ZERO -> "cosh"
+                    Algebra.simplify(add(c1, c2)) == ZERO -> "sinh"
+                    else -> continue
+                }
+                if (sumC == ZERO && name == "sinh") continue
+                val replaced = mul(TWO, c1, fn(name, u))
+                val rest = terms.filterIndexed { k, _ -> k != i && k != j }
+                return Move(if (name == "cosh") "Hyperbolic cosine" else "Hyperbolic sine", if (name == "cosh") "eᵘ + e⁻ᵘ = 2 cosh u." else "eᵘ − e⁻ᵘ = 2 sinh u.", add(rest + replaced))
+            }
+        }
+        return null
+    }
 
     /** One fraction, then common factors of the top and bottom cancelled. */
     private fun cancel(e: Expr): Move? {
@@ -103,7 +226,8 @@ object AutoSimplify {
         is Num -> if (e.q.isInteger) 1 else 3
         is Mul -> e.factors.sumOf { size(it) } + (if (e.factors.firstOrNull() == MINUS_ONE) 0 else e.factors.size - 1)
         is Add -> e.terms.sumOf { size(it) } + e.terms.size - 1
-        is Pow -> size(e.base) + size(e.exp) + 1
+        // 1/u is a fraction bar under u.
+        is Pow -> if (e.exp == MINUS_ONE) size(e.base) + 1 else size(e.base) + size(e.exp) + 1
         is Fn -> 1 + e.args.sumOf { size(it) }
         else -> 1
     }
