@@ -41,13 +41,13 @@ class SimplifyStepsTest {
     @Test fun cancelSteps() {
         val r = m(Frac(m("x", sq(), "−1"), m("x−1")))
         org.junit.Assert.assertTrue(com.example.cas.engine.Steps.supports(r))
-        val s = com.example.cas.engine.Steps.of(r)!!
+        val s = latexOk(com.example.cas.engine.Steps.of(r)!!)
         println(s.steps.map { it.title + ": " + it.text })
         assertEquals("Factor and cancel", s.method)
         org.junit.Assert.assertTrue(s.steps[1].text!!.contains("x-1") || s.steps[1].text!!.contains("x−1"))
     }
 
-    @Test fun pythagorasSteps() = assertEquals("Pythagorean identity", com.example.cas.engine.Steps.of(m(f("sin", m("x")), sq(), "+", f("cos", m("x")), sq()))!!.method)
+    @Test fun pythagorasSteps() = assertEquals("Pythagorean identity", latexOk(com.example.cas.engine.Steps.of(m(f("sin", m("x")), sq(), "+", f("cos", m("x")), sq()))!!).method)
     @Test fun expandSteps() = assertEquals("Expand", com.example.cas.engine.Steps.of(m("(x+1)", sq(), "−x", sq()))!!.method)
     @Test fun nothingToDo() = org.junit.Assert.assertFalse(com.example.cas.engine.Steps.supports(m("x", sq(), "+2x+1")))
 }

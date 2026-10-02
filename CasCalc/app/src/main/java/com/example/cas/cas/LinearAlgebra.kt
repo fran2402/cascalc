@@ -73,7 +73,7 @@ object LinearAlgebra {
 
     /** The distinct eigenvalues, as λ = … equations. */
     fun eigenvalues(e: Expr): Expr {
-        if (e.contains { it == LAMBDA }) throw MathError("λ is used for the eigenvalues; use another letter in the matrix")
+        if (e.contains { it == LAMBDA }) throw MathError("\$\\lambda\$ is used for the eigenvalues; use another letter in the matrix")
         return Algebra.solve(Eq(charpoly(e), ZERO), LAMBDA)
     }
 

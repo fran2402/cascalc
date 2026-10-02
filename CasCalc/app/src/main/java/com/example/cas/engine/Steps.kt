@@ -173,6 +173,12 @@ object Steps {
 
     private fun same(a: Expr, b: Expr) = Printer.plain(a) == Printer.plain(b)
 
+    /** LaTeX for an expression, for the math in step texts; [tx] wraps it in $ … $. */
+    private fun lx(e: Expr): String = Latex.of(Formatter.row(e))
+    private fun tx(e: Expr): String = "\$" + lx(e) + "\$"
+    /** [lx] in brackets when it's negative or a sum, for a factor (R₂ − (−3) R₁). */
+    private fun lxp(e: Expr): String = lx(e).let { if (it.startsWith("-") || it.contains('+') || it.drop(1).contains('-')) "\\left($it\\right)" else it }
+
     // ---- Integrals -----------------------------------------------------------------------------
 
     private class Traced(val result: Expr, val steps: List<Step>)
@@ -209,15 +215,15 @@ object Steps {
                 )
             }
             val answer = line(int(body, x), "=", f, "+", "C")
-            steps += Step("Answer", "Add a constant C: every antiderivative differs by one.", answer, Kind.Result)
+            steps += Step("Answer", "Add a constant \$C\$: every antiderivative differs by one.", answer, Kind.Result)
             return Solution(method, steps, answer)
         }
         val a = ev(n.lower); val b = ev(n.upper)
         val value = Calculus.definite(body, x, a, b)
         val fa = at(f, x, a, fromBelow = false); val fb = at(f, x, b, fromBelow = true)
         steps += Step(
-            "Fundamental theorem", "F(b) − F(a): the antiderivative at the upper limit minus its value at the lower one" +
-                (if (Calculus.isInfinite(a) || Calculus.isInfinite(b)) ", as a limit at ∞." else "."),
+            "Fundamental theorem", "\$F(b) - F(a)\$: the antiderivative at the upper limit minus its value at the lower one" +
+                (if (Calculus.isInfinite(a) || Calculus.isInfinite(b)) ", as a limit at \$\\infty\$." else "."),
             line(int(body, x, a, b), "=", fb, "−", paren(fa)),
         )
         val answer = eq(int(body, x, a, b), value)
@@ -263,7 +269,7 @@ object Steps {
     /** The steps to ∫ [e] d[x], following the integrator's methods; null if it can't follow them. */
     private fun trace(e: Expr, x: Sym, depth: Int): Traced? {
         if (depth > 9) return blackBox(e, x, depth)
-        if (e.freeOf(x)) return Traced(mul(e, x), listOf(Step("Constant", "The integral of a constant c is c·${x.name}.", eq(int(e, x), mul(e, x)))))
+        if (e.freeOf(x)) return Traced(mul(e, x), listOf(Step("Constant", "The integral of a constant \$c\$ is \$c\\,${x.name}\$.", eq(int(e, x), mul(e, x)))))
         if (e is Add) {
             val parts = e.terms.map { trace(it, x, depth + 1) ?: return null }
             val result = add(parts.map { it.result })
@@ -275,7 +281,7 @@ object Steps {
             if (consts.isNotEmpty()) {
                 val c = mul(consts); val r = mul(rest)
                 val inner = trace(r, x, depth + 1) ?: return null
-                return Traced(mul(c, inner.result), listOf(Step("Constant multiple", "Take ${Printer.plain(c)} out of the integral.", eq(int(e, x), line(paren(c), int(r, x))), substeps = inner.steps)))
+                return Traced(mul(c, inner.result), listOf(Step("Constant multiple", "Take ${tx(c)} out of the integral.", eq(int(e, x), line(paren(c), int(r, x))), substeps = inner.steps)))
             }
         }
         standard(e, x)?.let { return it }
@@ -361,13 +367,13 @@ object Steps {
         val steps = ArrayList<Step>()
         val deriv = add(mul(two, x), pE)
         if (bC != ZERO) {
-            steps += Step("Split the numerator", "Write the top as a multiple of the bottom's derivative (${Printer.plain(deriv).replace("-", "−")}) plus a constant.",
+            steps += Step("Split the numerator", "Write the top as a multiple of the bottom's derivative (${tx(deriv)}) plus a constant.",
                 eq(ex(div(add(mul(bC, x), cC), quad)), line(paren(logCoef), MathRow(mutableListOf(com.example.cas.editor.Frac(ex(deriv), ex(quad)))), "+", paren(atanCoef), MathRow(mutableListOf(com.example.cas.editor.Frac(MathRow(mutableListOf(sym("1"))), ex(quad)))))))
-            steps += Step("Logarithm part", "The top is the derivative of the bottom: ∫ u′/u = ln u.", eq(int(div(deriv, quad), x), f1("ln", quad)))
+            steps += Step("Logarithm part", "The top is the derivative of the bottom: \$\\int \\frac{u'}{u}\\,du = \\ln u\$.", eq(int(div(deriv, quad), x), f1("ln", quad)))
         }
         if (atanCoef != ZERO) {
             steps += Step("Complete the square", null, eq(ex(quad), line("(", add(x, h), ")", com.example.cas.editor.Pow(MathRow(mutableListOf(sym("2")))), "+", paren(k))))
-            steps += Step("Arctangent", "∫ 1/(u² + a²) du = (1/a) atan(u/a), with u = ${Printer.plain(add(x, h)).replace("-", "−")}, a = ${Printer.plain(rk)}.", eq(int(div(one, quad), x), mul(div(one, rk), f1("atan", div(add(x, h), rk)))))
+            steps += Step("Arctangent", "\$\\int \\frac{du}{u^2 + a^2} = \\frac{1}{a}\\tan^{-1}\\frac{u}{a}\$, with \$u = ${lx(add(x, h))}\$, \$a = ${lx(rk)}\$.", eq(int(div(one, quad), x), mul(div(one, rk), f1("atan", div(add(x, h), rk)))))
         }
         return add(logPart, atanPart) to steps
     }
@@ -401,8 +407,8 @@ object Steps {
         if (!agrees(Algebra.simplify(Calculus.diff(result, x)), e, x)) return null
         val pieces = line(MathRow(mutableListOf(com.example.cas.editor.Frac(ex(add(mul(A, x), B)), ex(q1)))), "+", MathRow(mutableListOf(com.example.cas.editor.Frac(ex(add(mul(C, x), D)), ex(q2)))))
         val steps = listOf(
-            Step("Factor the quartic", "x⁴ + px² + q = (x² + r)² − (2r − p)x², a difference of squares: r = √q = ${Printer.plain(r)}, s = √(2r − p) = ${Printer.plain(sv)}.", eq(ex(m.toExpr(x)), line("(", q1, ")", "(", q2, ")"))),
-            Step("Partial fractions", "Write it as (Ax + B)/(first) + (Cx + D)/(second) and match the powers of ${x.name}: A + C, B + D, s(C − A) + B + D and r(A + C) + s(D − B) give the coefficients.", eq(ex(e), pieces)),
+            Step("Factor the quartic", "\$x^4 + px^2 + q = (x^2 + r)^2 - (2r - p)x^2\$, a difference of squares: \$r = \\sqrt{q} = ${lx(r)}\$, \$s = \\sqrt{2r - p} = ${lx(sv)}\$.", eq(ex(m.toExpr(x)), line("(", q1, ")", "(", q2, ")"))),
+            Step("Partial fractions", "Write it as \$\\frac{Ax + B}{\\text{first}} + \\frac{Cx + D}{\\text{second}}\$ and match the powers of \$${x.name}\$: \$A + C\$, \$B + D\$, \$s(C - A) + B + D\$ and \$r(A + C) + s(D - B)\$ give the coefficients.", eq(ex(e), pieces)),
             Step("First piece", null, eq(int(div(add(mul(A, x), B), q1), x), r1), substeps = s1),
             Step("Second piece", null, eq(int(div(add(mul(C, x), D), q2), x), r2), substeps = s2),
         )
@@ -425,14 +431,14 @@ object Steps {
         val second = line(int(eOther, x), "=", mul(div(one, a), eOther), if (tr.name == "sin") "+" else "−", paren(div(b, a)), i)
         val norm = Algebra.simplify(add(mul(a, a), mul(b, b)))
         val steps = listOf(
-            Step("By parts", "u = ${tr.name}(${Printer.plain(tr.args[0])}), dv = ${Printer.plain(ex0)} d${x.name}.", first),
-            Step("By parts again", "Now u = $other(${Printer.plain(tr.args[0])}): the original integral I comes back.", second),
+            Step("By parts", "\$u = \\${tr.name}(${lx(tr.args[0])})\$, \$dv = ${lx(ex0)}\\,d${x.name}\$.", first),
+            Step("By parts again", "Now \$u = \\$other(${lx(tr.args[0])})\$: the original integral \$I\$ comes back.", second),
             Step("Substitute back", "Put the second line into the first.", line(i, "=", mul(div(one, a), e), sign, paren(div(b, a)), "[", mul(div(one, a), eOther), if (tr.name == "sin") "+" else "−", paren(div(b, a)), i, "]")),
-            Step("Collect the I terms", "Move ${Printer.plain(Algebra.simplify(div(mul(b, b), mul(a, a))))}·I to the left: I(1 + b²/a²) = I(a² + b²)/a², with a² + b² = ${Printer.plain(norm)}.",
+            Step("Collect the I terms", "Move \$${lx(Algebra.simplify(div(mul(b, b), mul(a, a))))}\\,I\$ to the left: \$I\\left(1 + \\frac{b^2}{a^2}\\right) = I\\,\\frac{a^2 + b^2}{a^2}\$, with \$a^2 + b^2 = ${lx(norm)}\$.",
                 line(paren(Algebra.simplify(div(norm, mul(a, a)))), i, "=", Algebra.simplify(add(mul(div(one, a), e), mul(if (tr.name == "sin") neg(div(b, mul(a, a))) else div(b, mul(a, a)), eOther))))),
-            Step("Solve for I", "Divide by ${Printer.plain(Algebra.simplify(div(norm, mul(a, a))))}.", line(i, "=", f)),
+            Step("Solve for I", "Divide by ${tx(Algebra.simplify(div(norm, mul(a, a))))}.", line(i, "=", f)),
         )
-        return Traced(f, listOf(Step("By parts twice", "Call the integral I; integrating by parts twice brings I back, so it can be solved for.", eq(int(e, x), f), substeps = steps)))
+        return Traced(f, listOf(Step("By parts twice", "Call the integral \$I\$; integrating by parts twice brings \$I\$ back, so it can be solved for.", eq(int(e, x), f), substeps = steps)))
     }
 
     /** By parts with u a logarithm or inverse function and dv the rest (dv = dx when there's no rest). */
@@ -451,7 +457,7 @@ object Steps {
         val result = sub(mul(u, v), rest.result)
         if (!agrees(Algebra.simplify(Calculus.diff(result, x)), e, x)) return null
         return Traced(result, listOf(Step(
-            "Integration by parts", "u = ${Printer.plain(u)} (simpler once differentiated), dv = ${Printer.plain(dv)} d${x.name}: ∫ u dv = uv − ∫ v du.",
+            "Integration by parts", "\$u = ${lx(u)}\$ (simpler once differentiated), \$dv = ${lx(dv)}\\,d${x.name}\$: \$\\int u\\,dv = uv - \\int v\\,du\$.",
             eq(int(e, x), line(mul(u, v), "−", int(restBody, x))),
             substeps = listOf(Step("u and v", null, line(sym("d"), "u", "=", du, " ", "d", x.name, ",", "  ", "v", "=", v))) + rest.steps,
         )))
@@ -474,8 +480,8 @@ object Steps {
         val uExpr = mul(ra, shifted)
         val steps = ArrayList<Step>()
         if (c1.signum != 0 || c0.signum != 0) steps += Step("Complete the square", null, eq(ex(e.exp), ex(square)))
-        steps += Step("Substitute", "u = ${Printer.plain(uExpr)}, so d${x.name} = du/${Printer.plain(ra)}.", eq(int(e, x), line(paren(div(p(E, Num(k)), ra)), int(p(E, neg(p(Sym("u"), two))), Sym("u")))))
-        steps += Step("Gaussian integral", "∫ e^(−u²) du = (√π/2) erf u: erf is defined by this integral.", eq(int(e, x), f))
+        steps += Step("Substitute", "\$u = ${lx(uExpr)}\$, so \$d${x.name} = \\frac{du}{${lx(ra)}}\$.", eq(int(e, x), line(paren(div(p(E, Num(k)), ra)), int(p(E, neg(p(Sym("u"), two))), Sym("u")))))
+        steps += Step("Gaussian integral", "\$\\int e^{-u^2}\\,du = \\frac{\\sqrt{\\pi}}{2}\\operatorname{erf} u\$: erf is defined by this integral.", eq(int(e, x), f))
         return Traced(f, listOf(Step("Complete the square", "A quadratic exponent: complete the square, then the Gaussian integral.", eq(int(e, x), f), substeps = steps)))
     }
 
@@ -507,7 +513,7 @@ object Steps {
         if (same(r, e)) return null
         val inner = trace(r, x, depth + 1) ?: return null
         return Traced(inner.result, listOf(Step(
-            "Multiple angles", "sin 2u = 2 sin u cos u, cos 2u = 1 − 2 sin²u = 2 cos²u − 1, sin 3u = 3 sin u − 4 sin³u, cos 3u = 4 cos³u − 3 cos u; then simplify.",
+            "Multiple angles", "\$\\sin 2u = 2\\sin u\\cos u\$, \$\\cos 2u = 1 - 2\\sin^2 u = 2\\cos^2 u - 1\$, \$\\sin 3u = 3\\sin u - 4\\sin^3 u\$, \$\\cos 3u = 4\\cos^3 u - 3\\cos u\$; then simplify.",
             eq(ex(e), ex(r)),
         )) + inner.steps)
     }
@@ -544,8 +550,8 @@ object Steps {
         val r = Algebra.expand(walk(e))
         if (used.isEmpty() || same(r, e) || r !is Add) return null
         val inner = trace(r, x, depth + 1) ?: return null
-        val text = if (used == "Product-to-sum") "sin A cos B = ½[sin(A + B) + sin(A − B)], cos A cos B = ½[cos(A − B) + cos(A + B)], sin A sin B = ½[cos(A − B) − cos(A + B)]."
-            else "sin²u = (1 − cos 2u)/2, cos²u = (1 + cos 2u)/2."
+        val text = if (used == "Product-to-sum") "\$\\sin A\\cos B = \\frac{1}{2}[\\sin(A + B) + \\sin(A - B)]\$, \$\\cos A\\cos B = \\frac{1}{2}[\\cos(A - B) + \\cos(A + B)]\$, \$\\sin A\\sin B = \\frac{1}{2}[\\cos(A - B) - \\cos(A + B)]\$."
+            else "\$\\sin^2 u = \\frac{1 - \\cos 2u}{2}\$, \$\\cos^2 u = \\frac{1 + \\cos 2u}{2}\$."
         return Traced(inner.result, listOf(Step(used, text, eq(ex(e), ex(r)))) + inner.steps)
     }
 
@@ -558,7 +564,7 @@ object Steps {
         })
         if (r !is Add) return null
         val inner = trace(r, x, depth + 1) ?: return null
-        return Traced(inner.result, listOf(Step("Exponential form", "sinh u = (eᵘ − e⁻ᵘ)/2, cosh u = (eᵘ + e⁻ᵘ)/2.", eq(ex(e), ex(r)))) + inner.steps)
+        return Traced(inner.result, listOf(Step("Exponential form", "\$\\sinh u = \\frac{e^u - e^{-u}}{2}\$, \$\\cosh u = \\frac{e^u + e^{-u}}{2}\$.", eq(ex(e), ex(r)))) + inner.steps)
     }
 
     /** A special function: substitute its argument if needed, then recognize its defining derivative. */
@@ -571,18 +577,24 @@ object Steps {
         val u = sf.args.last()
         val steps = ArrayList<Step>()
         val a = linear(u, x)
-        if (a != null && u != x) steps += Step("Substitute", "u = ${Printer.plain(u)}, d${x.name} = du/${Printer.plain(a)}.", null)
+        if (a != null && u != x) steps += Step("Substitute", "\$u = ${lx(u)}\$, \$d${x.name} = \\frac{du}{${lx(a)}}\$.", null)
         val back = Algebra.simplify(Calculus.diff(f, x))
-        steps += Step("Defining derivative", "$name is defined so that its derivative is this kind of integrand: ${SPECIAL_DEFS[sf.name] ?: ""}", eq(d(f, x), back))
+        steps += Step("Defining derivative", "$name is defined so that its derivative is this kind of integrand${SPECIAL_DEFS[sf.name]?.let { ", \$$it\$." } ?: "."}", eq(d(f, x), back))
         return Traced(f, listOf(Step("Special function", "No antiderivative in elementary functions: the answer is written with $name.", eq(int(e, x), f), substeps = steps)))
     }
 
     private val SPECIAL_NAMES = mapOf("si" to "the sine integral Si", "ci" to "the cosine integral Ci", "ei" to "the exponential integral Ei", "li" to "the logarithmic integral li",
         "shi" to "Shi", "chi" to "Chi", "erf" to "the error function erf", "erfi" to "erfi", "fresnels" to "the Fresnel integral S", "fresnelc" to "the Fresnel integral C",
-        "gammainc" to "the incomplete gamma function Γ(s, x)", "ellipticf" to "the elliptic integral F", "elliptice" to "the elliptic integral E", "polylog" to "the polylogarithm Li")
-    private val SPECIAL_DEFS = mapOf("si" to "Si′(u) = sin u/u.", "ci" to "Ci′(u) = cos u/u.", "ei" to "Ei′(u) = eᵘ/u.", "li" to "li′(u) = 1/ln u.", "shi" to "Shi′(u) = sinh u/u.",
-        "chi" to "Chi′(u) = cosh u/u.", "erf" to "erf′(u) = (2/√π) e^(−u²).", "erfi" to "erfi′(u) = (2/√π) e^(u²).", "fresnels" to "S′(u) = sin(πu²/2).", "fresnelc" to "C′(u) = cos(πu²/2).",
-        "gammainc" to "∂Γ(s, u)/∂u = −u^(s−1) e^(−u).", "ellipticf" to "F′(φ | m) = 1/√(1 − m sin²φ).", "elliptice" to "E′(φ | m) = √(1 − m sin²φ).", "polylog" to "Li₂′(u) = −ln(1 − u)/u.")
+        "gammainc" to "the incomplete gamma function \$\\Gamma(s, x)\$", "ellipticf" to "the elliptic integral F", "elliptice" to "the elliptic integral E", "polylog" to "the polylogarithm Li")
+    private val SPECIAL_DEFS = mapOf(
+        "si" to "\\operatorname{Si}'(u) = \\frac{\\sin u}{u}", "ci" to "\\operatorname{Ci}'(u) = \\frac{\\cos u}{u}",
+        "ei" to "\\operatorname{Ei}'(u) = \\frac{e^u}{u}", "li" to "\\operatorname{li}'(u) = \\frac{1}{\\ln u}",
+        "shi" to "\\operatorname{Shi}'(u) = \\frac{\\sinh u}{u}", "chi" to "\\operatorname{Chi}'(u) = \\frac{\\cosh u}{u}",
+        "erf" to "\\operatorname{erf}'(u) = \\frac{2}{\\sqrt{\\pi}} e^{-u^2}", "erfi" to "\\operatorname{erfi}'(u) = \\frac{2}{\\sqrt{\\pi}} e^{u^2}",
+        "fresnels" to "S'(u) = \\sin\\frac{\\pi u^2}{2}", "fresnelc" to "C'(u) = \\cos\\frac{\\pi u^2}{2}",
+        "gammainc" to "\\frac{\\partial \\Gamma(s, u)}{\\partial u} = -u^{s-1} e^{-u}", "ellipticf" to "F'(\\varphi \\mid m) = \\frac{1}{\\sqrt{1 - m\\sin^2\\varphi}}",
+        "elliptice" to "E'(\\varphi \\mid m) = \\sqrt{1 - m\\sin^2\\varphi}", "polylog" to "\\operatorname{Li}_2'(u) = -\\frac{\\ln(1 - u)}{u}",
+    )
 
     /** x⁴ + px² + q: the factorization into two quadratics, then partial fractions. */
     private fun quarticSteps(e: Expr, x: Sym, f: Expr): Traced? {
@@ -595,7 +607,7 @@ object Steps {
         val s = Algebra.simplify(com.example.cas.cas.sqrt(sub(mul(two, r), Num(pp))))
         val f1q = add(p(x, two), mul(s, x), r); val f2q = add(p(x, two), neg(mul(s, x)), r)
         val steps = listOf(
-            Step("Factor the quartic", "x⁴ + px² + q = (x² + r)² − (2r − p)x² = (x² + sx + r)(x² − sx + r), r = √q, s = √(2r − p).", eq(ex(m.toExpr(x)), line("(", f1q, ")", "(", f2q, ")"))),
+            Step("Factor the quartic", "\$x^4 + px^2 + q = (x^2 + r)^2 - (2r - p)x^2 = (x^2 + sx + r)(x^2 - sx + r)\$, \$r = \\sqrt{q}\$, \$s = \\sqrt{2r - p}\$.", eq(ex(m.toExpr(x)), line("(", f1q, ")", "(", f2q, ")"))),
             Step("Partial fractions", "Split over the two quadratics; each gives a logarithm and an arctangent.", eq(int(e, x), f)),
         )
         return Traced(f, listOf(Step("Quartic denominator", null, eq(int(e, x), f), substeps = steps)))
@@ -618,8 +630,8 @@ object Steps {
         if (!agrees(Algebra.simplify(Calculus.diff(back, x)), e, x)) return null
         return Traced(back, listOf(
             Step(sub.title, sub.text, sub.setup),
-            Step("The new integral", "Everything in terms of ${sub.t.name}, d${x.name} included.", eq(int(e, x), int(g, sub.t)), substeps = inner.steps),
-            Step("Back-substitute", "Put ${sub.t.name} = ${Printer.plain(sub.back).replace("-", "−")} back.", eq(inner.result, back)),
+            Step("The new integral", "Everything in terms of \$${sub.t.name}\$, \$d${x.name}\$ included.", eq(int(e, x), int(g, sub.t)), substeps = inner.steps),
+            Step("Back-substitute", "Put \$${sub.t.name} = ${lx(sub.back)}\$ back.", eq(inner.result, back)),
         ))
     }
 
@@ -681,10 +693,10 @@ object Steps {
             com.example.cas.cas.pow(root, Num((z as Pow).exp.let { (it as Num).q * two }))
         }
         val integrand = mul(replaced.subst(x, xOf), dx)
-        val (_, identity) = when (name) { "sine" -> 0 to "1 − sin²θ = cos²θ"; "tangent" -> 0 to "1 + tan²θ = sec²θ"; else -> 0 to "sec²θ − 1 = tan²θ" }
+        val (_, identity) = when (name) { "sine" -> 0 to "1 - \\sin^2${th.name} = \\cos^2${th.name}"; "tangent" -> 0 to "1 + \\tan^2${th.name} = \\sec^2${th.name}"; else -> 0 to "\\sec^2${th.name} - 1 = \\tan^2${th.name}" }
         val shift = if (h == ZERO) ex(x) else ex(sub(x, h))
         return Sub(
-            "Trigonometric substitution", "A $name substitution, since $identity: the root becomes ${Printer.plain(root).replace("-", "−")}.",
+            "Trigonometric substitution", "A $name substitution, since \$$identity\$: the root becomes ${tx(root)}.",
             th, integrand, back,
             line(shift, "=", mul(r, trig), ",", "  ", "d", x.name, "=", dx, " ", "d", th.name),
         )
@@ -712,7 +724,7 @@ object Steps {
         if (!replaced.freeOf(x)) return null
         val integrand = mul(replaced, div(com.example.cas.cas.TWO, mul(a, den)))
         return Sub(
-            "Weierstrass substitution", "sin u = 2t/(1 + t²), cos u = (1 − t²)/(1 + t²): the integrand becomes a rational function of t.",
+            "Weierstrass substitution", "\$\\sin u = \\frac{2t}{1 + t^2}\$, \$\\cos u = \\frac{1 - t^2}{1 + t^2}\$: the integrand becomes a rational function of \$t\$.",
             t, integrand, com.example.cas.cas.fn("tan", div(arg, com.example.cas.cas.TWO)),
             line(t, "=", com.example.cas.cas.fn("tan", div(arg, com.example.cas.cas.TWO)), ",", "  ", "d", x.name, "=", div(com.example.cas.cas.TWO, mul(a, den)), " ", "d", t.name),
         )
@@ -734,7 +746,7 @@ object Steps {
         val replaced = replace(e, { z -> z is Pow && z.base == b && z.exp is Num }) { z -> com.example.cas.cas.pow(u, mul((z as Pow).exp, Num(q.toLong()))) }
         val dx = div(mul(Num(q.toLong()), com.example.cas.cas.pow(u, Num((q - 1).toLong()))), a)
         return Sub(
-            "Rationalizing substitution", "Every root of ${Printer.plain(b)} becomes a power of u, so the integrand is a rational function of u.",
+            "Rationalizing substitution", "Every root of ${tx(b)} becomes a power of \$u\$, so the integrand is a rational function of \$u\$.",
             u, mul(replaced.subst(x, xOf), dx), com.example.cas.cas.pow(b, Num(com.example.cas.math.Rational.of(1, q.toLong()))),
             line(u, "=", com.example.cas.cas.pow(b, Num(com.example.cas.math.Rational.of(1, q.toLong()))), ",", "  ", x.name, "=", xOf, ",", "  ", "d", x.name, "=", dx, " ", "d", u.name),
         )
@@ -749,7 +761,7 @@ object Steps {
                 com.example.cas.cas.pow(u, Num((z as Pow).exp.let { (it as Num).q.num.toLong() / n }))
             }
             if (inU.freeOf(x)) return Sub(
-                "Substitution u = ${x.name}^$n", "${x.name}^${n - 1} d${x.name} is there beside a function of ${x.name}^$n.",
+                "Substitution \$u = ${x.name}^{$n}\$", "\$${x.name}^{${n - 1}}\\,d${x.name}\$ is there beside a function of \$${x.name}^{$n}\$.",
                 u, inU, com.example.cas.cas.pow(x, Num(n.toLong())),
                 line(u, "=", com.example.cas.cas.pow(x, Num(n.toLong())), ",", "  ", "d", u.name, "=", mul(Num(n.toLong()), com.example.cas.cas.pow(x, Num((n - 1).toLong()))), " ", "d", x.name),
             )
@@ -773,7 +785,7 @@ object Steps {
         if (!replaced.freeOf(x)) return null
         val integrand = div(replaced, mul(Num(g), u))
         return Sub(
-            "Substitution u = e^(${Printer.plain(gx)})", "Everything is a function of e^(${Printer.plain(gx)}); dx = du/(${Printer.plain(Num(g))}u).",
+            "Substitution \$u = e^{${lx(gx)}}\$", "Everything is a function of \$e^{${lx(gx)}}\$; \$d${x.name} = \\frac{du}{${lx(Num(g))}u}\$.",
             u, integrand, com.example.cas.cas.pow(E, gx),
             line(u, "=", com.example.cas.cas.pow(E, gx), ",", "  ", "d", x.name, "=", div(com.example.cas.cas.ONE, mul(Num(g), u)), " ", "d", u.name),
         )
@@ -785,7 +797,7 @@ object Steps {
         val replaced = replace(e, { z -> z is Fn && z.name == "ln" && z.args[0] == x }) { u }
         val integrand = mul(replaced.subst(x, com.example.cas.cas.pow(E, u)), com.example.cas.cas.pow(E, u))
         return Sub(
-            "Substitution x = eᵘ", "A function of ln ${x.name}: with u = ln ${x.name}, d${x.name} = eᵘ du.",
+            "Substitution \$${x.name} = e^u\$", "A function of \$\\ln ${x.name}\$: with \$u = \\ln ${x.name}\$, \$d${x.name} = e^u\\,du\$.",
             u, integrand, com.example.cas.cas.fn("ln", x),
             line(u, "=", com.example.cas.cas.fn("ln", x), ",", "  ", x.name, "=", com.example.cas.cas.pow(E, u), ",", "  ", "d", x.name, "=", com.example.cas.cas.pow(E, u), " ", "d", u.name),
         )
@@ -821,7 +833,7 @@ object Steps {
         if (!inW.freeOf(x)) return null
         val integrand = mul(inW, if (sinOdd) neg(div(com.example.cas.cas.ONE, a)) else div(com.example.cas.cas.ONE, a))
         return Sub(
-            "Odd power of ${if (sinOdd) "sine" else "cosine"}", "Keep one $keep u, write the others with $keep²u = 1 − $other²u, then substitute w = $other u.",
+            "Odd power of ${if (sinOdd) "sine" else "cosine"}", "Keep one \$\\$keep u\$, write the others with \$\\$keep^2 u = 1 - \\$other^2 u\$, then substitute \$w = \\$other u\$.",
             w, integrand, com.example.cas.cas.fn(other, u),
             line(w, "=", com.example.cas.cas.fn(other, u), ",", "  ", "d", w.name, "=", mul(if (sinOdd) neg(a) else a, keepFn), " ", "d", x.name),
         )
@@ -831,27 +843,27 @@ object Steps {
     private fun describe(method: String, e: Expr, x: Sym): Pair<String, String> {
         val v = x.name
         return when (method) {
-            "rationalFull" -> "Partial fractions" to "Factor the denominator into linear and quadratic pieces and split the fraction; linear pieces give logarithms, quadratic ones ln and atan (after completing the square)."
-            "gaussian" -> "Complete the square" to "The exponent is quadratic: write it as −a($v − h)² + k, so the integral becomes the Gaussian one, √π/2 · erf."
-            "overLinear" -> "Special function" to "A sine, cosine or exponential over a linear term: substitute u = the linear term; the result is Si, Ci, Shi, Chi or Ei, functions defined by these integrals."
-            "fresnel" -> "Fresnel integrals" to "sin or cos of a quadratic: complete the square, then u = √(2/π)($v − h) gives the Fresnel integrals S and C."
-            "logIntegral" -> "Logarithmic integral" to "Substitute u = ln $v: ${v}ᵏ/ln $v becomes e^((k+1)u)/u, whose integral is Ei (li when k = 0)."
-            "incompleteGamma" -> "Incomplete gamma function" to "Substitute u = a$v: ${v}ᵖ e^(−a$v) becomes uᵖ e^(−u), the integrand of Γ(p + 1, u)."
-            "dilog" -> "Dilogarithm" to "A logarithm over a linear term: the integral of −ln(1 − u)/u defines Li₂(u)."
-            "elliptic" -> "Elliptic integral" to "√(c₀ + c₁ sin²u): written as an elliptic integral F or E with parameter m = −c₁/c₀."
+            "rationalFull" -> "Partial fractions" to "Factor the denominator into linear and quadratic pieces and split the fraction; linear pieces give logarithms, quadratic ones \$\\ln\$ and \$\\tan^{-1}\$ (after completing the square)."
+            "gaussian" -> "Complete the square" to "The exponent is quadratic: write it as \$-a($v - h)^2 + k\$, so the integral becomes the Gaussian one, \$\\frac{\\sqrt{\\pi}}{2}\\operatorname{erf}\$."
+            "overLinear" -> "Special function" to "A sine, cosine or exponential over a linear term: substitute \$u\$ = the linear term; the result is \$\\operatorname{Si}\$, \$\\operatorname{Ci}\$, \$\\operatorname{Shi}\$, \$\\operatorname{Chi}\$ or \$\\operatorname{Ei}\$, functions defined by these integrals."
+            "fresnel" -> "Fresnel integrals" to "\$\\sin\$ or \$\\cos\$ of a quadratic: complete the square, then \$u = \\sqrt{2/\\pi}\\,($v - h)\$ gives the Fresnel integrals \$S\$ and \$C\$."
+            "logIntegral" -> "Logarithmic integral" to "Substitute \$u = \\ln $v\$: \$\\frac{$v^k}{\\ln $v}\$ becomes \$\\frac{e^{(k+1)u}}{u}\$, whose integral is \$\\operatorname{Ei}\$ (\$\\operatorname{li}\$ when \$k = 0\$)."
+            "incompleteGamma" -> "Incomplete gamma function" to "Substitute \$u = a$v\$: \$$v^p e^{-a$v}\$ becomes \$u^p e^{-u}\$, the integrand of \$\\Gamma(p + 1, u)\$."
+            "dilog" -> "Dilogarithm" to "A logarithm over a linear term: the integral of \$-\\frac{\\ln(1 - u)}{u}\$ defines \$\\operatorname{Li}_2(u)\$."
+            "elliptic" -> "Elliptic integral" to "\$\\sqrt{c_0 + c_1\\sin^2 u}\$: written as an elliptic integral \$F\$ or \$E\$ with parameter \$m = -c_1/c_0\$."
             "sqrtQuadratic" -> trigSubstitution(e, x)
             "sinCos" -> sinCosMethod(e, x)
-            "expTrig" -> "By parts twice" to "Integrate eᵃ$v sin b$v by parts twice: the same integral comes back on the right, so solve for it."
-            "quartic" -> "Factor the quartic" to "$v⁴ + p$v² + q = ($v² + s$v + r)($v² − s$v + r) with r = √q, s = √(2r − p); then partial fractions."
-            "parts" -> "Integration by parts" to "u = the logarithm or inverse function (simpler once differentiated), dv = the rest: ∫ u dv = uv − ∫ v du."
-            "multipleAngles" -> "Multiple angles" to "Write sin k$v and cos k$v with sin $v and cos $v (sin 2u = 2 sin u cos u, cos 2u = 2cos²u − 1, …), then integrate."
+            "expTrig" -> "By parts twice" to "Integrate \$e^{a$v}\\sin b$v\$ by parts twice: the same integral comes back on the right, so solve for it."
+            "quartic" -> "Factor the quartic" to "\$$v^4 + p$v^2 + q = ($v^2 + s$v + r)($v^2 - s$v + r)\$ with \$r = \\sqrt{q}\$, \$s = \\sqrt{2r - p}\$; then partial fractions."
+            "parts" -> "Integration by parts" to "\$u\$ = the logarithm or inverse function (simpler once differentiated), \$dv\$ = the rest: \$\\int u\\,dv = uv - \\int v\\,du\$."
+            "multipleAngles" -> "Multiple angles" to "Write \$\\sin k$v\$ and \$\\cos k$v\$ with \$\\sin $v\$ and \$\\cos $v\$ (\$\\sin 2u = 2\\sin u\\cos u\$, \$\\cos 2u = 2\\cos^2 u - 1\$, …), then integrate."
             "radical" -> radicalSubstitution(e, x)
-            "powerSub" -> "Substitution u = ${v}ⁿ" to "${v}ⁿ⁻¹ d$v appears beside a function of ${v}ⁿ: with u = ${v}ⁿ, du = n${v}ⁿ⁻¹ d$v."
-            "expSub" -> "Substitution u = eᵍ$v" to "Everything is a function of eᵍ$v: with u = eᵍ$v, d$v = du/(g u), the integrand becomes a rational function of u."
-            "logSub" -> "Substitution $v = eᵘ" to "A function of ln $v: with u = ln $v, $v = eᵘ and d$v = eᵘ du."
-            "productToSum" -> "Product-to-sum" to "sin A cos B = ½[sin(A + B) + sin(A − B)] (and the like) turn products of sines and cosines into single ones."
-            "weierstrass" -> "Weierstrass substitution" to "t = tan(u/2): sin u = 2t/(1 + t²), cos u = (1 − t²)/(1 + t²), du = 2 dt/(1 + t²); a rational function of t, by partial fractions."
-            "hyperbolic" -> "Exponential form" to "Write sinh, cosh and tanh with eᵘ and e⁻ᵘ, then integrate the exponentials."
+            "powerSub" -> "Substitution \$u = $v^n\$" to "\$$v^{n-1}\\,d$v\$ appears beside a function of \$$v^n\$: with \$u = $v^n\$, \$du = n$v^{n-1}\\,d$v\$."
+            "expSub" -> "Substitution \$u = e^{g$v}\$" to "Everything is a function of \$e^{g$v}\$: with \$u = e^{g$v}\$, \$d$v = \\frac{du}{gu}\$, the integrand becomes a rational function of \$u\$."
+            "logSub" -> "Substitution \$$v = e^u\$" to "A function of \$\\ln $v\$: with \$u = \\ln $v\$, \$$v = e^u\$ and \$d$v = e^u\\,du\$."
+            "productToSum" -> "Product-to-sum" to "\$\\sin A\\cos B = \\frac{1}{2}[\\sin(A + B) + \\sin(A - B)]\$ (and the like) turn products of sines and cosines into single ones."
+            "weierstrass" -> "Weierstrass substitution" to "\$t = \\tan\\frac{u}{2}\$: \$\\sin u = \\frac{2t}{1 + t^2}\$, \$\\cos u = \\frac{1 - t^2}{1 + t^2}\$, \$du = \\frac{2\\,dt}{1 + t^2}\$; a rational function of \$t\$, by partial fractions."
+            "hyperbolic" -> "Exponential form" to "Write \$\\sinh\$, \$\\cosh\$ and \$\\tanh\$ with \$e^u\$ and \$e^{-u}\$, then integrate the exponentials."
             else -> "Rewrite and integrate" to "Rewrite the integrand and integrate the pieces."
         }
     }
@@ -867,22 +879,23 @@ object Steps {
         walk(e)
         val q = found ?: return "Trigonometric substitution" to "Complete the square under the root and substitute a sine, tangent or secant."
         val cs = Algebra.coefficients(Algebra.expand(q), x)?.map { (it as? Num)?.q }
-        if (cs == null || cs.size != 3 || cs.any { it == null }) return "Substitution" to "R($v, √Q): rationalize the root with a substitution."
+        if (cs == null || cs.size != 3 || cs.any { it == null }) return "Substitution" to "\$R($v, \\sqrt{Q})\$: rationalize the root with a substitution."
         val (c0, c1, c2) = cs.map { it!! }
         val h = -c1 / (c2 * com.example.cas.math.Rational.of(2))
         val k = c0 - c1 * c1 / (c2 * com.example.cas.math.Rational.of(4))
-        val shift = if (h.signum == 0) v else "$v ${if (h.signum > 0) "−" else "+"} ${Printer.plain(Num(h.abs()))}"
-        val square = "${if (c2 == com.example.cas.math.Rational.ONE) "" else Printer.plain(Num(c2))}($shift)² ${if (k.signum >= 0) "+" else "−"} ${Printer.plain(Num(k.abs()))}"
-        val r = Printer.plain(Algebra.simplify(com.example.cas.cas.sqrt(Num((k / c2).abs())))).replace("-", "−")
-        val rk = Printer.plain(Algebra.simplify(com.example.cas.cas.sqrt(Num(k.abs()))))
+        // All LaTeX, for the $ … $ in the text.
+        val shift = if (h.signum == 0) v else "$v ${if (h.signum > 0) "-" else "+"} ${lx(Num(h.abs()))}"
+        val square = "${if (c2 == com.example.cas.math.Rational.ONE) "" else lx(Num(c2))}($shift)^2 ${if (k.signum >= 0) "+" else "-"} ${lx(Num(k.abs()))}"
+        val r = lx(Algebra.simplify(com.example.cas.cas.sqrt(Num((k / c2).abs())))).let { if (it == "1") "" else it }
+        val rk = lx(Algebra.simplify(com.example.cas.cas.sqrt(Num(k.abs())))).let { if (it == "1") "" else it }
         val (sub, identity, rest) = when {
-            c2.signum < 0 && k.signum > 0 -> Triple("$shift = $r sin θ", "1 − sin²θ = cos²θ", "the root becomes $rk cos θ and d$v = $r cos θ dθ")
-            c2.signum > 0 && k.signum > 0 -> Triple("$shift = $r tan θ", "1 + tan²θ = sec²θ", "the root becomes $rk sec θ and d$v = $r sec²θ dθ")
-            c2.signum > 0 && k.signum < 0 -> Triple("$shift = $r sec θ", "sec²θ − 1 = tan²θ", "the root becomes $rk tan θ and d$v = $r sec θ tan θ dθ")
-            else -> return "Substitution" to "Complete the square: $square."
+            c2.signum < 0 && k.signum > 0 -> Triple("$shift = $r\\sin\\theta", "1 - \\sin^2\\theta = \\cos^2\\theta", "the root becomes \$$rk\\cos\\theta\$ and \$d$v = $r\\cos\\theta\\,d\\theta\$")
+            c2.signum > 0 && k.signum > 0 -> Triple("$shift = $r\\tan\\theta", "1 + \\tan^2\\theta = \\sec^2\\theta", "the root becomes \$$rk\\sec\\theta\$ and \$d$v = $r\\sec^2\\theta\\,d\\theta\$")
+            c2.signum > 0 && k.signum < 0 -> Triple("$shift = $r\\sec\\theta", "\\sec^2\\theta - 1 = \\tan^2\\theta", "the root becomes \$$rk\\tan\\theta\$ and \$d$v = $r\\sec\\theta\\tan\\theta\\,d\\theta\$")
+            else -> return "Substitution" to "Complete the square: \$$square\$."
         }
-        val completed = if (c1.signum == 0) "" else "Complete the square: Q = $square. "
-        return "Trigonometric substitution" to "${completed}Let $sub. Since $identity, $rest. Integrate in θ, then put θ back in terms of $v."
+        val completed = if (c1.signum == 0) "" else "Complete the square: \$Q = $square\$. "
+        return "Trigonometric substitution" to "${completed}Let \$$sub\$. Since \$$identity\$, $rest. Integrate in \$\\theta\$, then put \$\\theta\$ back in terms of \$$v\$."
     }
 
     /** sinᵐ cosⁿ: an odd power gives a substitution, even powers the half-angle formulas. */
@@ -901,9 +914,9 @@ object Steps {
         }
         walk(e)
         return when {
-            m % 2 != 0 && m > 0 -> "Odd power of sine" to "Keep one sin u, write the rest with sin²u = 1 − cos²u, then substitute w = cos u (dw = −sin u du)."
-            n % 2 != 0 && n > 0 -> "Odd power of cosine" to "Keep one cos u, write the rest with cos²u = 1 − sin²u, then substitute w = sin u (dw = cos u du)."
-            else -> "Half-angle formulas" to "Even powers: sin²u = (1 − cos 2u)/2 and cos²u = (1 + cos 2u)/2 lower the powers until each piece integrates directly."
+            m % 2 != 0 && m > 0 -> "Odd power of sine" to "Keep one \$\\sin u\$, write the rest with \$\\sin^2 u = 1 - \\cos^2 u\$, then substitute \$w = \\cos u\$ (\$dw = -\\sin u\\,du\$)."
+            n % 2 != 0 && n > 0 -> "Odd power of cosine" to "Keep one \$\\cos u\$, write the rest with \$\\cos^2 u = 1 - \\sin^2 u\$, then substitute \$w = \\sin u\$ (\$dw = \\cos u\\,du\$)."
+            else -> "Half-angle formulas" to "Even powers: \$\\sin^2 u = \\frac{1 - \\cos 2u}{2}\$ and \$\\cos^2 u = \\frac{1 + \\cos 2u}{2}\$ lower the powers until each piece integrates directly."
         }
     }
 
@@ -917,7 +930,7 @@ object Steps {
         walk(e)
         val p = found ?: return "Substitution" to "Substitute the root to get a rational function."
         val q = (p.exp as Num).q.den
-        return "Rationalizing substitution" to "Let u = (${Printer.plain(p.base)})^(1/$q), so ${Printer.plain(p.base)} = u^$q and every root becomes a power of u; the integrand is then a rational function of u."
+        return "Rationalizing substitution" to "Let \$u = (${lx(p.base)})^{1/$q}\$, so \$${lx(p.base)} = u^{$q}\$ and every root becomes a power of \$u\$; the integrand is then a rational function of \$u\$."
     }
 
     private val SPECIAL = setOf("si", "ci", "ei", "li", "shi", "chi", "erf", "erfi", "fresnels", "fresnelc", "gammainc", "ellipticf", "elliptice", "polylog")
@@ -931,12 +944,12 @@ object Steps {
     /** The table of standard integrals, as the integrator's own. */
     private fun standard(e: Expr, x: Sym): Traced? {
         val (title, text) = when {
-            e == x -> "Power rule" to "∫ xⁿ dx = xⁿ⁺¹/(n + 1), with n = 1."
+            e == x -> "Power rule" to "\$\\int ${x.name}^n\\,d${x.name} = \\frac{${x.name}^{n+1}}{n + 1}\$, with \$n = 1\$."
             e is Pow && e.exp.freeOf(x) && linear(e.base, x) != null ->
-                if (e.exp == MINUS_ONE) "Logarithm" to "∫ 1/u du = ln|u|" + inner(e.base, x)
-                else "Power rule" to "∫ uⁿ du = uⁿ⁺¹/(n + 1), with n = ${Printer.plain(e.exp)}" + inner(e.base, x)
+                if (e.exp == MINUS_ONE) "Logarithm" to "\$\\int \\frac{1}{u}\\,du = \\ln|u|\$" + inner(e.base, x)
+                else "Power rule" to "\$\\int u^n\\,du = \\frac{u^{n+1}}{n + 1}\$, with \$n = ${lx(e.exp)}\$" + inner(e.base, x)
             e is Pow && e.base.freeOf(x) && linear(e.exp, x) != null ->
-                "Exponential" to (if (e.base == E) "∫ eᵘ du = eᵘ" else "∫ aᵘ du = aᵘ/ln a") + inner(e.exp, x)
+                "Exponential" to (if (e.base == E) "\$\\int e^u\\,du = e^u\$" else "\$\\int a^u\\,du = \\frac{a^u}{\\ln a}\$") + inner(e.exp, x)
             e is Fn && e.args.size == 1 && e.name in TABLE && linear(e.args[0], x) != null ->
                 "Standard integral" to TABLE.getValue(e.name) + inner(e.args[0], x)
             else -> return null
@@ -947,14 +960,14 @@ object Steps {
 
     private fun inner(u: Expr, x: Sym): String {
         val a = linear(u, x) ?: return "."
-        return if (u == x) "." else ", with u = ${Printer.plain(u)}" + (if (a == com.example.cas.cas.ONE) "." else ", so divide by ${Printer.plain(a)}.")
+        return if (u == x) "." else ", with \$u = ${lx(u)}\$" + (if (a == com.example.cas.cas.ONE) "." else ", so divide by ${tx(a)}.")
     }
 
     private val TABLE = mapOf(
-        "sin" to "∫ sin u du = −cos u", "cos" to "∫ cos u du = sin u", "tan" to "∫ tan u du = −ln|cos u|",
-        "sinh" to "∫ sinh u du = cosh u", "cosh" to "∫ cosh u du = sinh u", "tanh" to "∫ tanh u du = ln cosh u",
-        "ln" to "∫ ln u du = u ln u − u", "asin" to "∫ asin u du = u asin u + √(1 − u²)",
-        "acos" to "∫ acos u du = u acos u − √(1 − u²)", "atan" to "∫ atan u du = u atan u − ln(1 + u²)/2",
+        "sin" to "\$\\int \\sin u\\,du = -\\cos u\$", "cos" to "\$\\int \\cos u\\,du = \\sin u\$", "tan" to "\$\\int \\tan u\\,du = -\\ln|\\cos u|\$",
+        "sinh" to "\$\\int \\sinh u\\,du = \\cosh u\$", "cosh" to "\$\\int \\cosh u\\,du = \\sinh u\$", "tanh" to "\$\\int \\tanh u\\,du = \\ln\\cosh u\$",
+        "ln" to "\$\\int \\ln u\\,du = u\\ln u - u\$", "asin" to "\$\\int \\sin^{-1} u\\,du = u\\sin^{-1} u + \\sqrt{1 - u^2}\$",
+        "acos" to "\$\\int \\cos^{-1} u\\,du = u\\cos^{-1} u - \\sqrt{1 - u^2}\$", "atan" to "\$\\int \\tan^{-1} u\\,du = u\\tan^{-1} u - \\frac{\\ln(1 + u^2)}{2}\$",
     )
 
     /** A fraction of polynomials: split into partial fractions, then each piece. */
@@ -987,10 +1000,10 @@ object Steps {
         val restBody = Algebra.simplify(mul(v, du))
         val rest = trace(restBody, x, depth + 1) ?: return null
         val result = sub(mul(u, v), rest.result)
-        val choose = Step("Choose u and dv", "u = ${Printer.plain(u)} (it gets simpler when differentiated), dv = ${Printer.plain(dv)} d${x.name}.",
+        val choose = Step("Choose u and dv", "\$u = ${lx(u)}\$ (it gets simpler when differentiated), \$dv = ${lx(dv)}\\,d${x.name}\$.",
             line(com.example.cas.editor.MathCodec.decode("'u;'=;"), u, ",", " ", "v", "=", v))
         return Traced(result, listOf(Step(
-            "Integration by parts", "∫ u dv = uv − ∫ v du",
+            "Integration by parts", "\$\\int u\\,dv = uv - \\int v\\,du\$",
             eq(int(e, x), line(mul(u, v), "−", int(restBody, x))),
             substeps = listOf(choose) + rest.steps,
         )))
@@ -1023,8 +1036,8 @@ object Steps {
             val inner = trace(inT, t, depth + 1) ?: continue
             val result = inner.result.subst(t, u)
             return Traced(result, listOf(
-                Step("Substitution", "Let $uName = ${Printer.plain(u)}, so d$uName = ${Printer.plain(du)} d${x.name}.", eq(int(e, x), int(inT, t)), substeps = inner.steps),
-                Step("Back-substitute", "Put $uName = ${Printer.plain(u)} back.", eq(inner.result, result)),
+                Step("Substitution", "Let \$$uName = ${lx(u)}\$, so \$d$uName = ${lx(du)}\\,d${x.name}\$.", eq(int(e, x), int(inT, t)), substeps = inner.steps),
+                Step("Back-substitute", "Put \$$uName = ${lx(u)}\$ back.", eq(inner.result, result)),
             ))
         }
         return null
@@ -1047,43 +1060,43 @@ object Steps {
         val answer = ans(question, value)
         val steps = ArrayList<Step>()
         val c = Numeric.eval(center); val r = Numeric.real(radius)
-        steps += Step("The circle", "Center ${Printer.plain(center)}, radius ${Printer.plain(radius)}, run counterclockwise.", ex(spec))
+        steps += Step("The circle", "Center ${tx(center)}, radius ${tx(radius)}, run counterclockwise.", ex(spec))
         val (_, den) = Algebra.together(body)
         val poles: List<Expr>? = if (den.freeOf(z)) emptyList() else runCatching {
             val sol = Algebra.solve(Eq(den, ZERO), z)
             (if (sol is Seq) sol.items else listOf(sol)).mapNotNull { (it as? Eq)?.takeIf { e -> e.lhs == z }?.rhs }
         }.getOrNull()?.takeIf { it.isNotEmpty() }
         if (poles == null) {
-            steps += Step("Numerical", "The singularities can't be found exactly (or f isn't a fraction of polynomials), so the integral is computed numerically around the circle.", answer, Kind.Note)
+            steps += Step("Numerical", "The singularities can't be found exactly (or \$f\$ isn't a fraction of polynomials), so the integral is computed numerically around the circle.", answer, Kind.Note)
             return Solution("Numerical", steps, answer)
         }
         if (poles.isEmpty()) {
-            steps += Step("Cauchy's theorem", "f has no poles, so it's analytic inside the circle and the integral is 0.", answer, Kind.Result)
+            steps += Step("Cauchy's theorem", "\$f\$ has no poles, so it's analytic inside the circle and the integral is \$0\$.", answer, Kind.Result)
             return Solution("Cauchy's theorem", steps, answer)
         }
-        steps += Step("Singularities", "Where the denominator is 0.", line(*poles.flatMapIndexed { k, p -> (if (k > 0) listOf(",", " ") else emptyList()) + listOf<Any>(z.name, "=", p) }.toTypedArray()))
+        steps += Step("Singularities", "Where the denominator is \$0\$.", line(*poles.flatMapIndexed { k, p -> (if (k > 0) listOf(",", " ") else emptyList()) + listOf<Any>(z.name, "=", p) }.toTypedArray()))
         val within = poles.filter { p -> (Numeric.eval(p) - c).abs() < r }
         val outside = poles - within.toSet()
         steps += Step(
             "Inside the circle",
-            if (within.isEmpty()) "None of them is inside |${z.name} − ${Printer.plain(center)}| < ${Printer.plain(radius)}."
-            else "Only poles inside count" + (if (outside.isEmpty()) "; all of them are." else "; ${outside.joinToString { Printer.plain(it) }} ${if (outside.size == 1) "is" else "are"} outside."),
+            if (within.isEmpty()) "None of them is inside \$|${z.name} - ${lx(center)}| < ${lx(radius)}\$."
+            else "Only poles inside count" + (if (outside.isEmpty()) "; all of them are." else "; ${outside.joinToString { tx(it) }} ${if (outside.size == 1) "is" else "are"} outside."),
             if (within.isEmpty()) null else line(*within.flatMapIndexed { k, p -> (if (k > 0) listOf(",", " ") else emptyList()) + listOf<Any>(z.name, "=", p) }.toTypedArray()),
         )
         if (within.isEmpty()) {
-            steps += Step("Cauchy's theorem", "No poles inside: the integral is 0.", answer, Kind.Result)
+            steps += Step("Cauchy's theorem", "No poles inside: the integral is \$0\$.", answer, Kind.Result)
             return Solution("Cauchy's theorem", steps, answer)
         }
         val residues = within.map { p ->
             val res = com.example.cas.graph.ComplexIntegrals.residue(body, z, p)
             val order = orderOf(den, z, p)
-            val how = if (order == 1) "Simple pole: Res = lim (${z.name} − a) f(${z.name}) as ${z.name} → a."
-            else "Pole of order $order: Res = 1/${order - 1}! · the limit of the ${ordinal(order - 1)} derivative of (${z.name} − a)^$order f(${z.name})."
-            Step("Residue at ${z.name} = ${Printer.plain(p)}", how, line(com.example.cas.editor.MathCodec.decode("'R;'e;'s;"), "(", z.name, "=", p, ")", "=", res)) to res
+            val how = if (order == 1) "Simple pole: \$\\operatorname{Res} = \\lim_{${z.name} \\to a} (${z.name} - a) f(${z.name})\$."
+            else "Pole of order \$$order\$: \$\\operatorname{Res} = \\frac{1}{${order - 1}!}\$ times the limit of the ${ordinal(order - 1)} derivative of \$(${z.name} - a)^{$order} f(${z.name})\$."
+            Step("Residue at \$${z.name} = ${lx(p)}\$", how, line(com.example.cas.editor.MathCodec.decode("'R;'e;'s;"), "(", z.name, "=", p, ")", "=", res)) to res
         }
         steps += residues.map { it.first }
         val total = Algebra.simplify(add(residues.map { it.second }))
-        steps += Step("Residue theorem", "∮ f dz = 2πi × the sum of the residues inside.", line(question, "=", "2", "π", "i", "·", paren(total), "=", value), Kind.Result)
+        steps += Step("Residue theorem", "\$\\oint f\\,dz = 2\\pi i\$ times the sum of the residues inside.", line(question, "=", "2", "π", "i", "·", paren(total), "=", value), Kind.Result)
         return Solution("Residue theorem", steps, answer)
     }
 
@@ -1128,7 +1141,7 @@ object Steps {
         }
         if (!n.at.isEmpty) {
             val a = ev(n.at)
-            steps += Step("Evaluate", "Put ${x.name} = ${Printer.plain(a)} into the derivative.", line(current, ",", " ", x.name, "=", a, "  ", "⇒", " ", value))
+            steps += Step("Evaluate", "Put \$${x.name} = ${lx(a)}\$ into the derivative.", line(current, ",", " ", x.name, "=", a, "  ", "⇒", " ", value))
         }
         val answer = ans(question, value)
         steps += Step("Answer", null, answer, Kind.Result)
@@ -1141,7 +1154,7 @@ object Steps {
         fun leaf(title: String, text: String) = Traced(result, listOf(Step(title, text, eq(d(e, x), result))))
         if (depth > 8) return leaf("Differentiate", "Rule by rule, as above.")
         if (e.freeOf(x)) return leaf("Constant rule", "The derivative of a constant is 0.")
-        if (e == x) return leaf("Power rule", "d/d${x.name} ${x.name} = 1.")
+        if (e == x) return leaf("Power rule", "\$\\frac{d}{d${x.name}} ${x.name} = 1\$.")
         if (e is Add) {
             val parts = e.terms.map { dtrace(it, x, depth + 1) }
             val split = line(*e.terms.flatMapIndexed { k, t -> (if (k == 0) emptyList() else listOf<Any>("+")) + listOf<Any>(d(t, x)) }.toTypedArray())
@@ -1152,7 +1165,7 @@ object Steps {
             if (consts.isNotEmpty()) {
                 val c = mul(consts); val r = mul(rest)
                 val inner = dtrace(r, x, depth + 1)
-                return Traced(result, listOf(Step("Constant multiple", "Keep ${Printer.plain(c)} in front.", eq(d(e, x), line(paren(c), d(r, x))), substeps = inner.steps)))
+                return Traced(result, listOf(Step("Constant multiple", "Keep ${tx(c)} in front.", eq(d(e, x), line(paren(c), d(r, x))), substeps = inner.steps)))
             }
             // A quotient u/v: a factor with a negative power.
             val den = rest.filter { it is Pow && it.exp is Num && (it.exp as Num).q.signum < 0 }
@@ -1161,7 +1174,7 @@ object Steps {
                 val v = mul(den.map { com.example.cas.cas.pow((it as Pow).base, neg(it.exp)) })
                 val du = dtrace(u, x, depth + 1); val dv = dtrace(v, x, depth + 1)
                 return Traced(result, listOf(Step(
-                    "Quotient rule", "(u/v)′ = (u′v − uv′)/v², with u = ${Printer.plain(u)} and v = ${Printer.plain(v)}.",
+                    "Quotient rule", "\$\\left(\\frac{u}{v}\\right)' = \\frac{u'v - uv'}{v^2}\$, with \$u = ${lx(u)}\$ and \$v = ${lx(v)}\$.",
                     eq(d(e, x), ex(div(sub(mul(du.result, v), mul(u, dv.result)), com.example.cas.cas.pow(v, com.example.cas.cas.TWO)))),
                     substeps = du.steps + dv.steps,
                 )))
@@ -1169,7 +1182,7 @@ object Steps {
             val u = rest.first(); val v = mul(rest.drop(1))
             val du = dtrace(u, x, depth + 1); val dv = dtrace(v, x, depth + 1)
             return Traced(result, listOf(Step(
-                "Product rule", "(uv)′ = u′v + uv′, with u = ${Printer.plain(u)} and v = ${Printer.plain(v)}.",
+                "Product rule", "\$(uv)' = u'v + uv'\$, with \$u = ${lx(u)}\$ and \$v = ${lx(v)}\$.",
                 eq(d(e, x), ex(add(mul(du.result, v), mul(u, dv.result)))),
                 substeps = du.steps + dv.steps,
             )))
@@ -1177,12 +1190,13 @@ object Steps {
         if (e is Pow) {
             val (b, k) = e.base to e.exp
             if (k.freeOf(x)) {
-                if (b == x) return leaf("Power rule", "d/d${x.name} ${x.name}ⁿ = n ${x.name}ⁿ⁻¹, with n = ${Printer.plain(k)}.")
-                return chain("Power rule", "(uⁿ)′ = n uⁿ⁻¹ · u′, with n = ${Printer.plain(k)}", e, b, x, depth, result)
+                if (b == x) return leaf("Power rule", "\$\\frac{d}{d${x.name}} ${x.name}^n = n\\,${x.name}^{n-1}\$, with \$n = ${lx(k)}\$.")
+                return chain("Power rule", "\$(u^n)' = n\\,u^{n-1} \\cdot u'\$, with \$n = ${lx(k)}\$", e, b, x, depth, result)
             }
             if (b.freeOf(x)) {
-                val rule = if (b == E) "(eᵘ)′ = eᵘ · u′" else "(aᵘ)′ = aᵘ ln a · u′"
-                return if (k == x) leaf("Exponential", rule.replace(" · u′", "").replace("u", x.name)) else chain("Exponential", rule, e, k, x, depth, result)
+                val v = x.name
+                if (k == x) return leaf("Exponential", if (b == E) "\$\\frac{d}{d$v} e^$v = e^$v\$" else "\$\\frac{d}{d$v} a^$v = a^$v\\ln a\$")
+                return chain("Exponential", if (b == E) "\$(e^u)' = e^u \\cdot u'\$" else "\$(a^u)' = a^u\\ln a \\cdot u'\$", e, k, x, depth, result)
             }
             val y = sym("y")
             val lnRhs = mul(k, f1("ln", b))
@@ -1190,16 +1204,16 @@ object Steps {
             return Traced(result, listOf(Step(
                 "Logarithmic differentiation", "A variable to a variable power: take logarithms first.", eq(d(e, x), result),
                 substeps = listOf(
-                    Step("Take logarithms", "y = ${Printer.plain(e)}, so ln y = ${Printer.plain(k)} · ln(${Printer.plain(b)}).", line("ln", " ", y, "=", lnRhs)),
-                    Step("Differentiate both sides", "The left side by the chain rule: (ln y)′ = y′/y.", line(MathRow(mutableListOf(com.example.cas.editor.Frac(MathRow(mutableListOf(sym("y"), sym("′"))), MathRow(mutableListOf(sym("y")))))), "=", dln)),
-                    Step("Multiply by y", "y′ = y · (the right side).", line(sym("y"), "′", "=", paren(e), "·", paren(dln))),
+                    Step("Take logarithms", "\$y = ${lx(e)}\$, so \$\\ln y = ${lx(k)} \\cdot \\ln(${lx(b)})\$.", line("ln", " ", y, "=", lnRhs)),
+                    Step("Differentiate both sides", "The left side by the chain rule: \$(\\ln y)' = \\frac{y'}{y}\$.", line(MathRow(mutableListOf(com.example.cas.editor.Frac(MathRow(mutableListOf(sym("y"), sym("′"))), MathRow(mutableListOf(sym("y")))))), "=", dln)),
+                    Step("Multiply by y", "\$y' = y\$ times the right side.", line(sym("y"), "′", "=", paren(e), "·", paren(dln))),
                 ),
             )))
         }
         if (e is Fn && e.args.size == 1 && e.name in DTABLE) {
             val u = e.args[0]
-            return if (u == x) leaf("Standard derivative", DTABLE.getValue(e.name).replace("u", x.name).replace(" · ${x.name}′", ""))
-            else chain("Standard derivative", DTABLE.getValue(e.name), e, u, x, depth, result)
+            return if (u == x) leaf("Standard derivative", drule(e.name, x.name, chain = false))
+            else chain("Standard derivative", drule(e.name, "u", chain = true), e, u, x, depth, result)
         }
         return leaf("Differentiate", "Using the derivative of each function involved.")
     }
@@ -1208,17 +1222,32 @@ object Steps {
     private fun chain(title: String, rule: String, e: Expr, u: Expr, x: Sym, depth: Int, result: Expr): Traced {
         val du = dtrace(u, x, depth + 1)
         return Traced(result, listOf(Step(
-            "$title and chain rule", "$rule, with u = ${Printer.plain(u)}.", eq(d(e, x), result),
+            "$title and chain rule", "$rule, with \$u = ${lx(u)}\$.", eq(d(e, x), result),
             substeps = du.steps,
         )))
     }
 
-    private val DTABLE = mapOf(
-        "sin" to "(sin u)′ = cos u · u′", "cos" to "(cos u)′ = −sin u · u′", "tan" to "(tan u)′ = (1 + tan²u) · u′",
-        "ln" to "(ln u)′ = u′/u", "sinh" to "(sinh u)′ = cosh u · u′", "cosh" to "(cosh u)′ = sinh u · u′",
-        "asin" to "(asin u)′ = u′/√(1 − u²)", "acos" to "(acos u)′ = −u′/√(1 − u²)", "atan" to "(atan u)′ = u′/(1 + u²)",
-        "tanh" to "(tanh u)′ = (1 − tanh²u) · u′", "abs" to "|u|′ = (u/|u|) · u′", "erf" to "(erf u)′ = (2/√π) e^(−u²) · u′",
-    )
+    private val DTABLE = setOf("sin", "cos", "tan", "ln", "sinh", "cosh", "asin", "acos", "atan", "tanh", "abs", "erf")
+
+    /** The derivative of a standard function of [v], in LaTeX; with [chain], times u′. */
+    private fun drule(name: String, v: String, chain: Boolean): String {
+        val t = if (chain) " \\cdot u'" else ""
+        val d = if (chain) "u'" else "1"
+        return "\$" + when (name) {
+            "sin" -> "(\\sin $v)' = \\cos $v$t"
+            "cos" -> "(\\cos $v)' = -\\sin $v$t"
+            "tan" -> "(\\tan $v)' = (1 + \\tan^2 $v)$t"
+            "ln" -> "(\\ln $v)' = \\frac{$d}{$v}"
+            "sinh" -> "(\\sinh $v)' = \\cosh $v$t"
+            "cosh" -> "(\\cosh $v)' = \\sinh $v$t"
+            "asin" -> "(\\sin^{-1} $v)' = \\frac{$d}{\\sqrt{1 - $v^2}}"
+            "acos" -> "(\\cos^{-1} $v)' = -\\frac{$d}{\\sqrt{1 - $v^2}}"
+            "atan" -> "(\\tan^{-1} $v)' = \\frac{$d}{1 + $v^2}"
+            "tanh" -> "(\\tanh $v)' = (1 - \\tanh^2 $v)$t"
+            "abs" -> "|$v|' = \\frac{$v}{|$v|}$t"
+            else -> "(\\operatorname{erf} $v)' = \\frac{2}{\\sqrt{\\pi}} e^{-$v^2}$t"
+        } + "\$"
+    }
 
     // ---- Limits ---------------------------------------------------------------------------------------
 
@@ -1249,7 +1278,7 @@ object Steps {
         if (!infinite) {
             val direct = runCatching { Algebra.simplify(body.subst(x, a)) }.getOrNull()
             if (direct != null && finiteValue(direct)) {
-                steps += Step("Direct substitution", "f is continuous at ${x.name} = ${Printer.plain(a)}: put it in.", eq(lim(body, x, a, side), direct))
+                steps += Step("Direct substitution", "\$f\$ is continuous at \$${x.name} = ${lx(a)}\$: put it in.", eq(lim(body, x, a, side), direct))
                 steps += Step("Answer", null, answer, Kind.Result)
                 return Solution("Direct substitution", steps, answer)
             }
@@ -1266,7 +1295,7 @@ object Steps {
         // Rational function at ∞: the highest powers decide.
         if (infinite && form != null && Algebra.qpoly(num, x) != null && Algebra.qpoly(den, x) != null) {
             val p = Algebra.qpoly(num, x)!!; val q = Algebra.qpoly(den, x)!!
-            steps += Step("Highest powers", "Divide the numerator and the denominator by ${x.name}^${q.degree}: only the leading terms survive.",
+            steps += Step("Highest powers", "Divide the numerator and the denominator by \$${x.name}^{${q.degree}}\$: only the leading terms survive.",
                 line(ex(com.example.cas.cas.mul(Num(p.lead), com.example.cas.cas.pow(x, p.degree.toLong()))), "/", ex(com.example.cas.cas.mul(Num(q.lead), com.example.cas.cas.pow(x, q.degree.toLong())))))
             steps += Step("Answer", null, answer, Kind.Result)
             return Solution("Highest powers", steps, answer)
@@ -1294,11 +1323,11 @@ object Steps {
         }
         // Otherwise the series around the point (as the calculator does).
         if (!infinite) runCatching { Calculus.taylor(body, x, a, 4) }.getOrNull()?.let { t ->
-            steps += Step("Series expansion", "Expand around ${x.name} = ${Printer.plain(a)}; the leading term gives the limit.", eq(ex(body), line(t, "+", "…")))
+            steps += Step("Series expansion", "Expand around \$${x.name} = ${lx(a)}\$; the leading term gives the limit.", eq(ex(body), line(t, "+", "…")))
             steps += Step("Answer", null, answer, Kind.Result)
             return Solution("Series expansion", steps, answer)
         }
-        steps += Step("Limit", "From the leading behavior of each part as ${x.name} → ${Printer.plain(a)}.", answer, Kind.Result)
+        steps += Step("Limit", "From the leading behavior of each part as \$${x.name} \\to ${lx(a)}\$.", answer, Kind.Result)
         return Solution("Leading behavior", steps, answer)
     }
 
@@ -1331,7 +1360,7 @@ object Steps {
         // A few terms: write them out.
         if (count != null && count in 1..8) {
             val terms = (0 until count).map { j -> Algebra.simplify(body.subst(k, add(lo, Num(j)))) }
-            steps += Step("Write out the terms", "${k.name} = ${Printer.plain(lo)}, …, ${Printer.plain(hi)}.", line(*terms.flatMapIndexed { j, t -> (if (j > 0) listOf<Any>("+") else emptyList()) + listOf<Any>(paren(t)) }.toTypedArray()))
+            steps += Step("Write out the terms", "\$${k.name} = ${lx(lo)}, \\ldots, ${lx(hi)}\$.", line(*terms.flatMapIndexed { j, t -> (if (j > 0) listOf<Any>("+") else emptyList()) + listOf<Any>(paren(t)) }.toTypedArray()))
             steps += Step("Add them up", null, answer, Kind.Result)
             return Solution("Adding the terms", steps, answer)
         }
@@ -1339,18 +1368,17 @@ object Steps {
         if (Calculus.isPlusInfinity(hi)) {
             geometric(body, k)?.let { r ->
                 val first = Algebra.simplify(body.subst(k, lo))
-                steps += Step("Geometric series", "Each term is the last times r = ${Printer.plain(r)}; the first term is a = ${Printer.plain(first)}.", line("a", "=", first, ",", "  ", "r", "=", r))
-                steps += Step("Converges", "|r| < 1, so the sum is a/(1 − r).", line(MathRow(mutableListOf(com.example.cas.editor.Frac(ex(first), ex(sub(com.example.cas.cas.ONE, r))))), "=", value), Kind.Check)
+                steps += Step("Geometric series", "Each term is the last times \$r = ${lx(r)}\$; the first term is \$a = ${lx(first)}\$.", line("a", "=", first, ",", "  ", "r", "=", r))
+                steps += Step("Converges", "\$|r| < 1\$, so the sum is \$\\frac{a}{1 - r}\$.", line(MathRow(mutableListOf(com.example.cas.editor.Frac(ex(first), ex(sub(com.example.cas.cas.ONE, r))))), "=", value), Kind.Check)
                 steps += Step("Answer", null, answer, Kind.Result)
                 return Solution("Geometric series", steps, answer)
             }
             pSeries(body, k)?.let { (p, alternating) ->
-                val pText = Printer.plain(p)
-                steps += Step(if (alternating) "Alternating p-series" else "p-series", "The term is ${if (alternating) "±" else ""}1/${k.name}^$pText.", ex(body))
-                steps += Step("Converges", if (alternating) "The terms shrink to 0 and alternate in sign." else "p = $pText > 1, so the series converges.", null, Kind.Check)
+                steps += Step(if (alternating) "Alternating \$p\$-series" else "\$p\$-series", "The term is \$${if (alternating) "\\pm" else ""}\\frac{1}{${k.name}^{${lx(p)}}}\$.", ex(body))
+                steps += Step("Converges", if (alternating) "The terms shrink to \$0\$ and alternate in sign." else "\$p = ${lx(p)} > 1\$, so the series converges.", null, Kind.Check)
                 steps += Step(
                     if (alternating) "Dirichlet eta function" else "Riemann zeta function",
-                    if (alternating) "Σ (−1)^(${k.name}+1)/${k.name}^p = η(p), and η(1) = ln 2, η(p) = (1 − 2^(1−p)) ζ(p)." else "Σ 1/${k.name}^p from 1 is ζ(p); ζ(2) = π²/6, ζ(4) = π⁴/90.",
+                    if (alternating) "\$\\sum_{${k.name}=1}^{\\infty} \\frac{(-1)^{${k.name}+1}}{${k.name}^p} = \\eta(p)\$, and \$\\eta(1) = \\ln 2\$, \$\\eta(p) = (1 - 2^{1-p})\\,\\zeta(p)\$." else "\$\\sum_{${k.name}=1}^{\\infty} \\frac{1}{${k.name}^p} = \\zeta(p)\$; \$\\zeta(2) = \\frac{\\pi^2}{6}\$, \$\\zeta(4) = \\frac{\\pi^4}{90}\$.",
                     answer, Kind.Result,
                 )
                 return Solution(if (alternating) "Eta function" else "Zeta function", steps, answer)
@@ -1364,18 +1392,18 @@ object Steps {
             val pieces = cs.mapIndexedNotNull { p, c -> if (c == ZERO) null else Triple(p, c, POWER_SUMS[p]) }
             steps += Step("Linearity", "Split the sum and take constants out.",
                 line(sigma(body, k, lo, hi), "=", *pieces.flatMapIndexed { j, (p, c, _) -> (if (j > 0) listOf<Any>("+") else emptyList()) + listOf<Any>(paren(c), sigma(com.example.cas.cas.pow(k, p.toLong()), k, lo, hi)) }.toTypedArray()))
-            if (lo != com.example.cas.cas.ONE) steps += Step("Shift", "The formulas below start at ${k.name} = 1: subtract the terms before ${Printer.plain(lo)}.", null, Kind.Note)
+            if (lo != com.example.cas.cas.ONE) steps += Step("Shift", "The formulas below start at \$${k.name} = 1\$: subtract the terms before ${tx(lo)}.", null, Kind.Note)
             pieces.forEach { (p, c, formula) ->
                 val term = com.example.cas.cas.pow(k, p.toLong())
                 val v = runCatching { Algebra.simplify(Calculus.sum(term, k, lo, hi, false)) }.getOrNull()
-                steps += Step("Sum of ${if (p == 0) "a constant" else k.name + if (p > 1) "^$p" else ""}", formula + if (lo != com.example.cas.cas.ONE) " (shifted to start at ${Printer.plain(lo)})." else ".",
+                steps += Step("Sum of ${if (p == 0) "a constant" else "\$" + k.name + (if (p > 1) "^$p" else "") + "\$"}", formula + if (lo != com.example.cas.cas.ONE) " (shifted to start at ${tx(lo)})." else ".",
                     v?.let { line(paren(c), sigma(term, k, lo, hi), "=", paren(c), paren(it)) })
             }
             steps += Step("Simplify", "Put the pieces together and factor.", answer, Kind.Result)
             return Solution("Power sums", steps, answer)
         }
         geometric(body, k)?.let { r ->
-            steps += Step("Geometric sum", "Ratio r = ${Printer.plain(r)}: Σ a rᵏ = a (r^(n+1) − 1)/(r − 1) from 0 to n.", ex(r))
+            steps += Step("Geometric sum", "Ratio \$r = ${lx(r)}\$: \$\\sum_{k=0}^{n} a r^k = a\\,\\frac{r^{n+1} - 1}{r - 1}\$.", ex(r))
             steps += Step("Answer", null, answer, Kind.Result)
             return Solution("Geometric sum", steps, answer)
         }
@@ -1384,7 +1412,7 @@ object Steps {
     }
 
     private val POWER_SUMS = listOf(
-        "Σ 1 from 1 to n = n", "Σ k from 1 to n = n(n + 1)/2", "Σ k² from 1 to n = n(n + 1)(2n + 1)/6", "Σ k³ from 1 to n = (n(n + 1)/2)²",
+        "\$\\sum_{k=1}^{n} 1 = n\$", "\$\\sum_{k=1}^{n} k = \\frac{n(n + 1)}{2}\$", "\$\\sum_{k=1}^{n} k^2 = \\frac{n(n + 1)(2n + 1)}{6}\$", "\$\\sum_{k=1}^{n} k^3 = \\left(\\frac{n(n + 1)}{2}\\right)^2\$",
     )
 
     /** r when the term is a·rᵏ (r constant), else null. */
@@ -1427,31 +1455,31 @@ object Steps {
         val count = (hi as? Num)?.q?.takeIf { it.isInteger }?.let { h -> (lo as? Num)?.q?.takeIf { it.isInteger }?.let { l -> (h - l).num.toLong() + 1 } }
         if (count != null && count in 1..8) {
             val fs = (0 until count).map { j -> Algebra.simplify(body.subst(k, add(lo, Num(j)))) }
-            steps += Step("Write out the factors", "${k.name} = ${Printer.plain(lo)}, …, ${Printer.plain(hi)}.", line(*fs.flatMapIndexed { j, t -> (if (j > 0) listOf<Any>("·") else emptyList()) + listOf<Any>(paren(t)) }.toTypedArray()))
+            steps += Step("Write out the factors", "\$${k.name} = ${lx(lo)}, \\ldots, ${lx(hi)}\$.", line(*fs.flatMapIndexed { j, t -> (if (j > 0) listOf<Any>("·") else emptyList()) + listOf<Any>(paren(t)) }.toTypedArray()))
             steps += Step("Multiply them", null, answer, Kind.Result)
             return Solution("Multiplying the factors", steps, answer)
         }
         if (body.freeOf(k) && !Calculus.isInfinite(hi)) {
             val m = Algebra.simplify(add(sub(hi, lo), com.example.cas.cas.ONE))
-            steps += Step("Constant factor", "The same factor ${Printer.plain(body)}, ${Printer.plain(m)} times.", ex(com.example.cas.cas.pow(body, m)))
+            steps += Step("Constant factor", "The same factor ${tx(body)}, ${tx(m)} times.", ex(com.example.cas.cas.pow(body, m)))
             steps += Step("Answer", null, answer, Kind.Result)
             return Solution("Powers", steps, answer)
         }
         if (body == k && lo == com.example.cas.cas.ONE) {
-            steps += Step("Factorial", "1 · 2 · 3 ⋯ ${Printer.plain(hi)} is ${Printer.plain(hi)}!.", answer, Kind.Result)
+            steps += Step("Factorial", "\$1 \\cdot 2 \\cdot 3 \\cdots ${lx(hi)} = ${lx(hi)}!\$.", answer, Kind.Result)
             return Solution("Factorial", steps, answer)
         }
         // Telescoping: each factor is g(k + 1)/g(k), so everything cancels but the ends.
         val (num, den) = Algebra.together(body)
         val shifted = runCatching { Algebra.simplify(den.subst(k, add(k, com.example.cas.cas.ONE))) }.getOrNull()
         if (!den.freeOf(k) && shifted != null && runCatching { Algebra.simplify(sub(num, shifted)) }.getOrNull() == ZERO) {
-            steps += Step("Telescoping", "Each factor is g(${k.name} + 1)/g(${k.name}) with g(${k.name}) = ${Printer.plain(den)}: neighbours cancel.", eq(ex(body), ex(div(shifted, den))))
-            steps += Step("What's left", "Only the last numerator and the first denominator remain: g(${Printer.plain(add(hi, com.example.cas.cas.ONE))})/g(${Printer.plain(lo)}).", null)
+            steps += Step("Telescoping", "Each factor is \$\\frac{g(${k.name} + 1)}{g(${k.name})}\$ with \$g(${k.name}) = ${lx(den)}\$: neighbors cancel.", eq(ex(body), ex(div(shifted, den))))
+            steps += Step("What's left", "Only the last numerator and the first denominator remain: \$\\frac{g(${lx(add(hi, com.example.cas.cas.ONE))})}{g(${lx(lo)})}\$.", null)
             steps += Step("Answer", null, answer, Kind.Result)
             return Solution("Telescoping product", steps, answer)
         }
         if (Calculus.isPlusInfinity(hi)) {
-            steps += Step("Take logarithms", "ln of the product is Σ ln(factor): a product converges when that sum does.", line("ln", pi(body, k, lo, hi), "=", sigma(com.example.cas.cas.fn("ln", body), k, lo, hi)), Kind.Note)
+            steps += Step("Take logarithms", "\$\\ln\$ of the product is the sum of \$\\ln\$ of each factor: a product converges when that sum does.", line("ln", pi(body, k, lo, hi), "=", sigma(com.example.cas.cas.fn("ln", body), k, lo, hi)), Kind.Note)
             steps += Step("Answer", null, answer, Kind.Result)
             return Solution("Infinite product", steps, answer)
         }
@@ -1479,19 +1507,19 @@ object Steps {
         val (_, den) = Algebra.together(f)
         val atPole = !den.freeOf(z) && runCatching { Numeric.eval(Algebra.simplify(den.subst(z, a))) }.getOrNull()?.let { it.abs() < 1e-12 } == true
         if (!atPole) {
-            steps += Step("Not a pole", "The denominator isn't 0 at ${z.name} = ${Printer.plain(a)} (or f is analytic there), so the residue is 0 unless f has an essential singularity.", answer, Kind.Result)
+            steps += Step("Not a pole", "The denominator isn't \$0\$ at \$${z.name} = ${lx(a)}\$ (or \$f\$ is analytic there), so the residue is \$0\$ unless \$f\$ has an essential singularity.", answer, Kind.Result)
             return Solution("Analytic point", steps, answer)
         }
         val m = orderOf(den, z, a)
-        steps += Step("Order of the pole", "${Printer.plain(a)} is a root of the denominator ${m} time${if (m > 1) "s" else ""}: a pole of order $m.", ex(den))
+        steps += Step("Order of the pole", "${tx(a)} is a root of the denominator ${m} time${if (m > 1) "s" else ""}: a pole of order \$$m\$.", ex(den))
         val g = Algebra.simplify(mul(com.example.cas.cas.pow(sub(z, a), Num(m.toLong())), f))
-        steps += Step("Remove the pole", "Multiply by (${z.name} − ${Printer.plain(a)})${if (m > 1) "^$m" else ""}.", ex(g))
+        steps += Step("Remove the pole", "Multiply by \$(${z.name} - ${lx(a)})${if (m > 1) "^{$m}" else ""}\$.", ex(g))
         if (m == 1) {
-            steps += Step("Simple pole", "Res = lim (${z.name} − a) f(${z.name}): put ${z.name} = ${Printer.plain(a)} in.", answer, Kind.Result)
+            steps += Step("Simple pole", "\$\\operatorname{Res} = \\lim_{${z.name} \\to a} (${z.name} - a) f(${z.name})\$: put \$${z.name} = ${lx(a)}\$ in.", answer, Kind.Result)
         } else {
             var dg = g
             repeat(m - 1) { dg = Algebra.simplify(Calculus.diff(dg, z)) }
-            steps += Step("Differentiate ${m - 1} time${if (m > 2) "s" else ""}", "Res = 1/(${m - 1})! · the limit of the ${ordinal(m - 1)} derivative.", ex(dg))
+            steps += Step("Differentiate ${m - 1} time${if (m > 2) "s" else ""}", "\$\\operatorname{Res} = \\frac{1}{${m - 1}!}\$ times the limit of the ${ordinal(m - 1)} derivative.", ex(dg))
             steps += Step("Divide by (${m - 1})!", null, answer, Kind.Result)
         }
         return Solution(if (m == 1) "Simple pole" else "Pole of order $m", steps, answer)
@@ -1515,13 +1543,13 @@ object Steps {
         for (k in 0..order) {
             if (k > 0) { g = Algebra.simplify(Calculus.diff(g, x)); fact = mul(fact, Num(k.toLong())) }
             val at = runCatching { Algebra.simplify(g.subst(x, a)) }.getOrNull()?.takeIf { finiteValue(it) } ?: Calculus.limit(g, x, a)
-            derivatives += Step("f${"′".repeat(minOf(k, 3)).ifEmpty { "" }}${if (k > 3) "⁽$k⁾" else ""}(${Printer.plain(a)})", null, line(ex(g), "  ", "→", " ", at))
+            derivatives += Step("\$f${if (k > 3) "^{($k)}" else "'".repeat(k)}(${lx(a)})\$", null, line(ex(g), "  ", "→", " ", at))
             coefficients += Algebra.simplify(div(at, fact))
         }
         val steps = ArrayList<Step>()
-        steps += Step("Derivatives at ${x.name} = ${Printer.plain(a)}", "Differentiate $order times and put ${x.name} = ${Printer.plain(a)} in each.", null, substeps = derivatives)
-        steps += Step("Coefficients", "Divide the k-th derivative by k!.", line(*coefficients.flatMapIndexed { k, c -> (if (k > 0) listOf<Any>(",", " ") else emptyList()) + listOf<Any>(c) }.toTypedArray()))
-        steps += Step("Taylor's formula", "f(${x.name}) ≈ Σ f⁽ᵏ⁾(a)/k! (${x.name} − a)ᵏ, up to k = $order.", answer, Kind.Result)
+        steps += Step("Derivatives at \$${x.name} = ${lx(a)}\$", "Differentiate $order times and put \$${x.name} = ${lx(a)}\$ in each.", null, substeps = derivatives)
+        steps += Step("Coefficients", "Divide the \$k\$-th derivative by \$k!\$.", line(*coefficients.flatMapIndexed { k, c -> (if (k > 0) listOf<Any>(",", " ") else emptyList()) + listOf<Any>(c) }.toTypedArray()))
+        steps += Step("Taylor's formula", "\$f(${x.name}) \\approx \\sum_{k=0}^{$order} \\frac{f^{(k)}(a)}{k!} (${x.name} - a)^k\$.", answer, Kind.Result)
         return Solution("Taylor series", steps, answer)
     }
 
@@ -1537,9 +1565,9 @@ object Steps {
         val c = mat.cells
         val steps = ArrayList<Step>()
         if (mat.rows == 2) {
-            steps += Step("2 × 2 formula", "det = ad − bc: the diagonal product minus the other one.", line(paren(c[0]), "·", paren(c[3]), "−", paren(c[1]), "·", paren(c[2])))
+            steps += Step("\$2 \\times 2\$ formula", "\$\\det = ad - bc\$: the diagonal product minus the other one.", line(paren(c[0]), "·", paren(c[3]), "−", paren(c[1]), "·", paren(c[2])))
             steps += Step("Answer", null, answer, Kind.Result)
-            return Solution("ad − bc", steps, answer)
+            return Solution("\$ad - bc\$", steps, answer)
         }
         val size = mat.rows
         val minors = (0 until size).map { j ->
@@ -1547,10 +1575,10 @@ object Steps {
             for (r in 1 until size) for (k in 0 until size) if (k != j) cells += c[r * size + k]
             val minor = com.example.cas.cas.Mat(size - 1, size - 1, cells)
             val d = Algebra.simplify(com.example.cas.cas.Matrices.det(minor))
-            Step("Minor of ${Printer.plain(c[j])}", "Cross out row 1 and column ${j + 1}; its ${size - 1} × ${size - 1} determinant${if (size == 4) ", by the same expansion" else ""}.", line(ex(minor), "→", d)) to d
+            Step("Minor of ${tx(c[j])}", "Cross out row 1 and column ${j + 1}; its \$${size - 1} \\times ${size - 1}\$ determinant${if (size == 4) ", by the same expansion" else ""}.", line(ex(minor), "→", d)) to d
         }
         val signs = (0 until size).map { if (it % 2 == 0) "+" else "−" }
-        steps += Step("Cofactor expansion", "Along the first row, with signs ${signs.joinToString(" ")}.",
+        steps += Step("Cofactor expansion", "Along the first row, with signs \$${signs.joinToString("\\;") { if (it == "+") "+" else "-" }}\$.",
             line(*minors.flatMapIndexed { j, (_, d) -> (if (j == 0) emptyList() else listOf<Any>(signs[j])) + listOf<Any>(paren(c[j]), "·", paren(d)) }.toTypedArray()),
             substeps = minors.map { it.first })
         steps += Step("Answer", null, answer, Kind.Result)
@@ -1587,8 +1615,8 @@ object Steps {
                 for (c in col until size) a[r][c] = Algebra.simplify(sub(a[r][c], mul(factor, a[col][c])))
                 // Each row operation, with the multiplier m = (entry)/(pivot) and the new row.
                 operations += Step(
-                    "R${r + 1} ← R${r + 1} − ${Printer.plain(factor).replace("-", "−")} · R${col + 1}",
-                    "m = ${Printer.plain(entry).replace("-", "−")} ÷ ${Printer.plain(a[col][col]).replace("-", "−")} (the entry over the pivot), so row ${r + 1} gets 0 in column ${col + 1}.",
+                    "\$R_{${r + 1}} \\leftarrow R_{${r + 1}} - ${lxp(factor)}\\,R_{${col + 1}}\$",
+                    "\$m = \\frac{${lx(entry)}}{${lx(a[col][col])}}\$ (the entry over the pivot), so row ${r + 1} gets \$0\$ in column ${col + 1}.",
                     line("R", "${r + 1}", "=", "(", *a[r].flatMapIndexed { k, v -> (if (k > 0) listOf<Any>(",", " ") else emptyList()) + listOf<Any>(v) }.toTypedArray(), ")"),
                 )
             }
@@ -1598,7 +1626,7 @@ object Steps {
             )
         }
         val diagonal = (0 until size).map { a[it][it] }
-        steps += Step("Multiply the diagonal", "The matrix is now triangular: its determinant is the product of the diagonal" + if (sign < 0) ", times −1 for the odd number of swaps." else ".",
+        steps += Step("Multiply the diagonal", "The matrix is now triangular: its determinant is the product of the diagonal" + if (sign < 0) ", times \$-1\$ for the odd number of swaps." else ".",
             line(*(if (sign < 0) listOf<Any>("−") else emptyList<Any>()).toTypedArray(), *diagonal.flatMapIndexed { k, d -> (if (k > 0) listOf<Any>("·") else emptyList()) + listOf<Any>(paren(d)) }.toTypedArray(), "=", value))
         steps += Step("Answer", null, answer, Kind.Result)
         return Solution("Row reduction", steps, answer)
@@ -1623,17 +1651,17 @@ object Steps {
             if (pr >= rows) break
             val found = (pr until rows).firstOrNull { !isZeroExpr(a[it][col]) } ?: continue
             val ops = ArrayList<Step>()
-            if (found != pr) { val t = a[pr]; a[pr] = a[found]; a[found] = t; ops += Step("R${pr + 1} ↔ R${found + 1}", "Swap so the pivot isn't 0.") }
+            if (found != pr) { val t = a[pr]; a[pr] = a[found]; a[found] = t; ops += Step("\$R_{${pr + 1}} \\leftrightarrow R_{${found + 1}}\$", "Swap so the pivot isn't \$0\$.") }
             val pivot = a[pr][col]
             if (pivot != com.example.cas.cas.ONE) {
                 for (c in 0 until cols) a[pr][c] = Algebra.simplify(div(a[pr][c], pivot))
-                ops += Step("R${pr + 1} ← R${pr + 1} ÷ ${Printer.plain(pivot).replace("-", "−").let { if (it.startsWith("−") || it.contains("+")) "($it)" else it }}", "Make the pivot 1.")
+                ops += Step("\$R_{${pr + 1}} \\leftarrow R_{${pr + 1}} \\div ${lxp(pivot)}\$", "Make the pivot \$1\$.")
             }
             for (r in 0 until rows) {
                 if (r == pr || isZeroExpr(a[r][col])) continue
                 val factor = a[r][col]
                 for (c in 0 until cols) a[r][c] = Algebra.simplify(sub(a[r][c], mul(factor, a[pr][c])))
-                ops += Step("R${r + 1} ← R${r + 1} − ${Printer.plain(factor).replace("-", "−")} · R${pr + 1}", "Clear column ${col + 1} in row ${r + 1}.")
+                ops += Step("\$R_{${r + 1}} \\leftarrow R_{${r + 1}} - ${lxp(factor)}\\,R_{${pr + 1}}\$", "Clear column ${col + 1} in row ${r + 1}.")
             }
             steps += Step("Pivot in column ${col + 1}", "Row ${pr + 1}: a 1 here and 0 above and below it.", ex(current()), substeps = ops)
             pr++
@@ -1647,7 +1675,7 @@ object Steps {
         val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
         val answer = ans(question, value)
         val (_, steps) = gaussJordan(m, m.cols)
-        return Solution("Gauss–Jordan elimination", steps + Step("Reduced row echelon form", "Every pivot is 1 with zeros above and below it.", answer, Kind.Result), answer)
+        return Solution("Gauss–Jordan elimination", steps + Step("Reduced row echelon form", "Every pivot is \$1\$ with zeros above and below it.", answer, Kind.Result), answer)
     }
 
     private fun inverse(row: MathRow, angle: AngleUnit): Solution? {
@@ -1658,15 +1686,15 @@ object Steps {
         val answer = ans(row, value)
         val aug = com.example.cas.cas.Mat(nn, 2 * nn, (0 until nn).flatMap { r -> (0 until 2 * nn).map { c -> if (c < nn) m.cells[r * nn + c] else if (c - nn == r) com.example.cas.cas.ONE else ZERO } })
         val steps = ArrayList<Step>()
-        steps += Step("Augment with I", "Write A and the identity side by side: [A | I]. Row operations that turn A into I turn I into A⁻¹.", ex(aug))
+        steps += Step("Augment with \$I\$", "Write \$A\$ and the identity side by side: \$[A \\mid I]\$. Row operations that turn \$A\$ into \$I\$ turn \$I\$ into \$A^{-1}\$.", ex(aug))
         val (done, ops) = gaussJordan(aug, nn)
         steps += ops
         val left = (0 until nn).all { r -> (0 until nn).all { c -> isZeroExpr(sub(done.cells[r * 2 * nn + c], if (r == c) com.example.cas.cas.ONE else ZERO)) } }
         if (!left) {
-            steps += Step("Not invertible", "The left half can't be made the identity: a row of zeros appears, so det A = 0.", answer, Kind.Result)
+            steps += Step("Not invertible", "The left half can't be made the identity: a row of zeros appears, so \$\\det A = 0\$.", answer, Kind.Result)
             return Solution("Gauss–Jordan elimination", steps, answer)
         }
-        steps += Step("Read off A⁻¹", "The left half is now I, so the right half is the inverse.", answer, Kind.Result)
+        steps += Step("Read off \$A^{-1}\$", "The left half is now \$I\$, so the right half is the inverse.", answer, Kind.Result)
         return Solution("Gauss–Jordan elimination", steps, answer)
     }
 
@@ -1681,7 +1709,7 @@ object Steps {
         val shifted = com.example.cas.cas.Mat(size, size, List(size * size) { k -> val r = k / size; val c = k % size; if (r == c) sub(lambda, m.cells[k]) else neg(m.cells[k]) })
         val poly = com.example.cas.cas.LinearAlgebra.charpoly(m)
         val steps = ArrayList<Step>()
-        steps += Step("λI − A", "Subtract A from λ times the identity.", ex(shifted))
+        steps += Step("\$\\lambda I - A\$", "Subtract \$A\$ from \$\\lambda\$ times the identity.", ex(shifted))
         steps += Step("Characteristic polynomial", "Its determinant, multiplied out.", line("det", "(", "λ", "I", "−", "A", ")", "=", poly))
         if (n.name == "charpoly") {
             steps += Step("Answer", null, answer, Kind.Result)
@@ -1696,9 +1724,9 @@ object Steps {
             val (reduced, ops) = gaussJordan(am, size)
             val basis = com.example.cas.cas.LinearAlgebra.nullspace(am)
             steps += Step(
-                "Eigenvector for λ = ${Printer.plain(r).replace("-", "−")}", "Solve (A − λI)v = 0: row reduce, then set the free variable to 1.",
+                "Eigenvector for \$\\lambda = ${lx(r)}\$", "Solve \$(A - \\lambda I)v = 0\$: row reduce, then set the free variable to \$1\$.",
                 line(ex(reduced), "  ", "⇒", "  ", "v", "=", *basis.flatMapIndexed { k, b -> (if (k > 0) listOf<Any>(",", " ") else emptyList()) + listOf<Any>(b) }.toTypedArray()),
-                substeps = listOf(Step("A − λI", null, ex(am))) + ops,
+                substeps = listOf(Step("\$A - \\lambda I\$", null, ex(am))) + ops,
             )
         }
         steps += Step("Answer", null, answer, Kind.Result)
@@ -1724,43 +1752,43 @@ object Steps {
             val g = Algebra.simplify(neg(rest))
             val r = Sym("r")
             val charEq = add(mul(a, p(r, two)), mul(b, r), c)
-            steps += Step("Linear, constant coefficients", "a${y.name}″ + b${y.name}′ + c${y.name} = g(${x.name}) with a = ${Printer.plain(a)}, b = ${Printer.plain(b)}, c = ${Printer.plain(c)}.", ex(Eq(add(mul(a, y2), mul(b, y1), mul(c, y)), g)))
-            steps += Step("Characteristic equation", "Try ${y.name} = e^(r${x.name}): it works when ar² + br + c = 0.", ex(Eq(charEq, ZERO)))
+            steps += Step("Linear, constant coefficients", "\$a${y.name}'' + b${y.name}' + c${y.name} = g(${x.name})\$ with \$a = ${lx(a)}\$, \$b = ${lx(b)}\$, \$c = ${lx(c)}\$.", ex(Eq(add(mul(a, y2), mul(b, y1), mul(c, y)), g)))
+            steps += Step("Characteristic equation", "Try \$${y.name} = e^{r${x.name}}\$: it works when \$ar^2 + br + c = 0\$.", ex(Eq(charEq, ZERO)))
             val roots = Algebra.solve(Eq(charEq, ZERO), r).let { if (it is com.example.cas.cas.Seq) it.items else listOf(it) }.mapNotNull { (it as? Eq)?.rhs }
             val kind = when {
-                roots.size == 1 -> "A repeated root r: ${y.name}ₕ = (C₁ + C₂${x.name}) e^(r${x.name})."
-                roots.all { Numeric.eval(it).isReal } -> "Two real roots r₁, r₂: ${y.name}ₕ = C₁ e^(r₁${x.name}) + C₂ e^(r₂${x.name})."
-                else -> "Complex roots α ± βi: ${y.name}ₕ = e^(α${x.name}) (C₁ cos β${x.name} + C₂ sin β${x.name})."
+                roots.size == 1 -> "A repeated root \$r\$: \$${y.name}_h = (C_1 + C_2${x.name})\\,e^{r${x.name}}\$."
+                roots.all { Numeric.eval(it).isReal } -> "Two real roots \$r_1\$, \$r_2\$: \$${y.name}_h = C_1 e^{r_1${x.name}} + C_2 e^{r_2${x.name}}\$."
+                else -> "Complex roots \$\\alpha \\pm \\beta i\$: \$${y.name}_h = e^{\\alpha ${x.name}} (C_1\\cos\\beta ${x.name} + C_2\\sin\\beta ${x.name})\$."
             }
             steps += Step("Roots", kind, line(*roots.flatMapIndexed { k, rt -> (if (k > 0) listOf<Any>(",", "  ") else emptyList()) + listOf<Any>("r", "=", rt) }.toTypedArray()))
-            if (!LinearAlgebra0.isZero(g)) steps += Step("Particular solution", "Undetermined coefficients: guess a ${y.name}ₚ of the same form as g(${x.name}) = ${Printer.plain(g)}, put it in and match coefficients; ${y.name} = ${y.name}ₕ + ${y.name}ₚ.", null)
+            if (!LinearAlgebra0.isZero(g)) steps += Step("Particular solution", "Undetermined coefficients: guess a \$${y.name}_p\$ of the same form as \$g(${x.name}) = ${lx(g)}\$, put it in and match coefficients; \$${y.name} = ${y.name}_h + ${y.name}_p\$.", null)
         } else {
             val rhs = (Algebra.solve(Eq(f, ZERO), y1) as? Eq)?.rhs ?: return null
-            steps += Step("First order", "Write it as ${y.name}′ = f(${x.name}, ${y.name}).", ex(Eq(y1, rhs)))
+            steps += Step("First order", "Write it as \$${y.name}' = f(${x.name}, ${y.name})\$.", ex(Eq(y1, rhs)))
             val cs = Algebra.coefficients(Algebra.expand(rhs), y)
             if (cs != null && cs.size <= 2 && cs.all { it.freeOf(y) }) {
                 val a = cs.getOrElse(1) { ZERO }; val b = cs[0]
                 if (a == ZERO) {
                     val integral = Calculus.integrate(b, x)
-                    steps += Step("Integrate both sides", "${y.name}′ depends on ${x.name} only.", line(y, "=", int(b, x), "=", integral ?: b, "+", c1))
+                    steps += Step("Integrate both sides", "\$${y.name}'\$ depends on \$${x.name}\$ only.", line(y, "=", int(b, x), "=", integral ?: b, "+", c1))
                 } else {
                     val ia = Calculus.integrate(a, x) ?: return null
                     val mu = Algebra.simplify(p(E, neg(ia)))
-                    steps += Step("Linear", "${y.name}′ − a(${x.name})${y.name} = b(${x.name}) with a = ${Printer.plain(a)}, b = ${Printer.plain(b)}.", ex(Eq(sub(y1, mul(a, y)), b)))
-                    steps += Step("Integrating factor", "μ = e^(−∫a d${x.name}): then (μ${y.name})′ = μ(${y.name}′ − a${y.name}).", line("μ", "=", mu))
+                    steps += Step("Linear", "\$${y.name}' - a(${x.name})\\,${y.name} = b(${x.name})\$ with \$a = ${lx(a)}\$, \$b = ${lx(b)}\$.", ex(Eq(sub(y1, mul(a, y)), b)))
+                    steps += Step("Integrating factor", "\$\\mu = e^{-\\int a\\,d${x.name}}\$: then \$(\\mu ${y.name})' = \\mu(${y.name}' - a${y.name})\$.", line("μ", "=", mu))
                     val inner = if (b == ZERO) ZERO else Calculus.integrate(Algebra.simplify(mul(mu, b)), x) ?: return null
-                    steps += Step("Multiply and integrate", "(μ${y.name})′ = μb, so μ${y.name} = ∫ μb d${x.name} + C₁.", line(mu, y, "=", inner, "+", c1))
-                    steps += Step("Solve for ${y.name}", "Divide by μ.", line(y, "=", Algebra.simplify(Algebra.expand(div(add(inner, c1), mu)))))
+                    steps += Step("Multiply and integrate", "\$(\\mu ${y.name})' = \\mu b\$, so \$\\mu ${y.name} = \\int \\mu b\\,d${x.name} + C_1\$.", line(mu, y, "=", inner, "+", c1))
+                    steps += Step("Solve for \$${y.name}\$", "Divide by \$\\mu\$.", line(y, "=", Algebra.simplify(Algebra.expand(div(add(inner, c1), mu)))))
                 }
             } else {
                 val factored = Algebra.factor(rhs)
                 val fs = if (factored is Mul) factored.factors else listOf(factored)
                 val fx = mul(fs.filter { it.freeOf(y) }); val gy = mul(fs.filter { !it.freeOf(y) })
                 val left = Calculus.integrate(Algebra.simplify(p(gy, MINUS_ONE)), y); val right = Calculus.integrate(fx, x)
-                steps += Step("Separable", "${y.name}′ = f(${x.name})·g(${y.name}) with f = ${Printer.plain(fx)}, g = ${Printer.plain(gy)}: put the ${y.name}s on one side.",
+                steps += Step("Separable", "\$${y.name}' = f(${x.name})\\,g(${y.name})\$ with \$f = ${lx(fx)}\$, \$g = ${lx(gy)}\$: put the \$${y.name}\$ terms on one side.",
                     line(int(Algebra.simplify(p(gy, MINUS_ONE)), y), "=", int(fx, x)))
-                if (left != null && right != null) steps += Step("Integrate both sides", "Add a constant C₁.", line(left, "=", right, "+", c1))
-                steps += Step("Solve for ${y.name}", "Where the equation can be solved for ${y.name}.", null)
+                if (left != null && right != null) steps += Step("Integrate both sides", "Add a constant \$C_1\$.", line(left, "=", right, "+", c1))
+                steps += Step("Solve for \$${y.name}\$", "Where the equation can be solved for \$${y.name}\$.", null)
             }
         }
         if (hasConditions) steps += Step("Apply the conditions", "Put the given values in and solve for the constants.", null)
@@ -1794,15 +1822,15 @@ object Steps {
             return Solution("Median", steps, answer)
         }
         steps += Step("Add them up", "${xs.size} values.", line(listRow(xs), "=", total))
-        steps += Step("Mean", "Divide by n = ${xs.size}.", line(MathRow(mutableListOf(com.example.cas.editor.Frac(ex(total), ex(count)))), "=", mean))
+        steps += Step("Mean", "Divide by \$n = ${xs.size}\$.", line(MathRow(mutableListOf(com.example.cas.editor.Frac(ex(total), ex(count)))), "=", mean))
         if (n.name == "mean") { steps += Step("Answer", null, answer, Kind.Result); return Solution("Mean", steps, answer) }
         val squares = xs.map { Algebra.simplify(p(sub(it, mean), two)) }
         val ss = Algebra.simplify(add(squares))
-        steps += Step("Squared deviations", "(x − x̄)² for each value.", line(listRow(squares), "=", ss))
+        steps += Step("Squared deviations", "\$(x - \\bar{x})^2\$ for each value.", line(listRow(squares), "=", ss))
         val population = n.name == "psd"
         val divisor = if (population) count else Num((xs.size - 1).toLong())
         val variance = Algebra.simplify(div(ss, divisor))
-        steps += Step(if (population) "Population variance" else "Sample variance", if (population) "Divide by n = ${xs.size}." else "Divide by n − 1 = ${xs.size - 1} (one degree of freedom goes to the mean).",
+        steps += Step(if (population) "Population variance" else "Sample variance", if (population) "Divide by \$n = ${xs.size}\$." else "Divide by \$n - 1 = ${xs.size - 1}\$ (one degree of freedom goes to the mean).",
             line(MathRow(mutableListOf(com.example.cas.editor.Frac(ex(ss), ex(divisor)))), "=", variance))
         if (n.name != "var") steps += Step("Standard deviation", "The square root of the variance.", line(MathRow(mutableListOf(com.example.cas.editor.Sqrt(ex(variance)))), "=", value))
         steps += Step("Answer", null, answer, Kind.Result)
@@ -1820,21 +1848,21 @@ object Steps {
         val arg = Evaluator(angle).evaluate(n.args.firstOrNull() ?: return null)
         val steps = ArrayList<Step>()
         val xyz = listOf(Sym("x"), Sym("y"), Sym("z"))
-        fun partials(f: Expr, vars: List<Sym>) = vars.map { v -> Step("∂/∂${v.name}", "Other letters held constant.", eq(partial(f, v), Algebra.simplify(Calculus.diff(f, v)))) }
+        fun partials(f: Expr, vars: List<Sym>) = vars.map { v -> Step("\$\\frac{\\partial}{\\partial ${v.name}}\$", "Other letters held constant.", eq(partial(f, v), Algebra.simplify(Calculus.diff(f, v)))) }
         when (n.name) {
             "grad" -> {
                 if (arg is com.example.cas.cas.Mat) return null
                 if (n.args.getOrNull(1)?.isEmpty == false) return null
                 val vars = xyz.filter { !arg.freeOf(it) }.ifEmpty { return null }.let { v -> if (v.contains(Sym("z"))) xyz else xyz.take(maxOf(2, v.size)) }
-                steps += Step("Partial derivatives", "∇f lists the derivative of f in each direction.", null, substeps = partials(arg, vars))
+                steps += Step("Partial derivatives", "\$\\nabla f\$ lists the derivative of \$f\$ in each direction.", null, substeps = partials(arg, vars))
             }
             "div" -> {
                 val m = arg as? com.example.cas.cas.Mat ?: return null
                 val vars = xyz.take(m.cells.size)
                 val terms = m.cells.mapIndexed { k, c -> Algebra.simplify(Calculus.diff(c, vars[k])) }
-                steps += Step("Divergence", "∇·F = ∂F₁/∂x + ∂F₂/∂y (+ ∂F₃/∂z): each component by its own variable.",
+                steps += Step("Divergence", "\$\\nabla \\cdot F = \\frac{\\partial F_1}{\\partial x} + \\frac{\\partial F_2}{\\partial y} + \\frac{\\partial F_3}{\\partial z}\$ (two terms in the plane): each component by its own variable.",
                     line(*terms.flatMapIndexed { k, t -> (if (k > 0) listOf<Any>("+") else emptyList()) + listOf<Any>(paren(t)) }.toTypedArray()),
-                    substeps = m.cells.mapIndexed { k, c -> Step("∂F${k + 1}/∂${vars[k].name}", null, eq(partial(c, vars[k]), terms[k])) })
+                    substeps = m.cells.mapIndexed { k, c -> Step("\$\\frac{\\partial F_{${k + 1}}}{\\partial ${vars[k].name}}\$", null, eq(partial(c, vars[k]), terms[k])) })
             }
             "curl" -> {
                 val m = arg as? com.example.cas.cas.Mat ?: return null
@@ -1844,22 +1872,22 @@ object Steps {
                 val comps = listOf(
                     Triple("x", R to yy, Q to zz), Triple("y", P to zz, R to xx), Triple("z", Q to xx, P to yy),
                 )
-                steps += Step("Curl", "∇×F = (∂R/∂y − ∂Q/∂z, ∂P/∂z − ∂R/∂x, ∂Q/∂x − ∂P/∂y).", null, substeps = comps.map { (name, a, b) ->
+                steps += Step("Curl", "\$\\nabla \\times F = \\left(\\frac{\\partial R}{\\partial y} - \\frac{\\partial Q}{\\partial z}, \\frac{\\partial P}{\\partial z} - \\frac{\\partial R}{\\partial x}, \\frac{\\partial Q}{\\partial x} - \\frac{\\partial P}{\\partial y}\\right)\$.", null, substeps = comps.map { (name, a, b) ->
                     val da = Algebra.simplify(Calculus.diff(a.first, a.second)); val db = Algebra.simplify(Calculus.diff(b.first, b.second))
-                    Step("$name-component", null, line(partial(a.first, a.second), "−", partial(b.first, b.second), "=", paren(da), "−", paren(db), "=", Algebra.simplify(sub(da, db))))
+                    Step("\$$name\$-component", null, line(partial(a.first, a.second), "−", partial(b.first, b.second), "=", paren(da), "−", paren(db), "=", Algebra.simplify(sub(da, db))))
                 })
             }
             "jacobian" -> {
                 val m = arg as? com.example.cas.cas.Mat ?: return null
                 val vars = xyz.filter { v -> m.cells.any { !it.freeOf(v) } }
-                steps += Step("Jacobian", "Row i, column j: ∂Fᵢ/∂xⱼ.", null, substeps = m.cells.flatMapIndexed { i, c -> vars.map { v -> Step("∂F${i + 1}/∂${v.name}", null, eq(partial(c, v), Algebra.simplify(Calculus.diff(c, v)))) } })
+                steps += Step("Jacobian", "Row \$i\$, column \$j\$: \$\\frac{\\partial F_i}{\\partial x_j}\$.", null, substeps = m.cells.flatMapIndexed { i, c -> vars.map { v -> Step("\$\\frac{\\partial F_{${i + 1}}}{\\partial ${v.name}}\$", null, eq(partial(c, v), Algebra.simplify(Calculus.diff(c, v)))) } })
             }
             "hessian" -> {
                 val vars = xyz.filter { !arg.freeOf(it) }
                 val first = vars.map { Algebra.simplify(Calculus.diff(arg, it)) }
                 steps += Step("First derivatives", null, null, substeps = partials(arg, vars))
-                steps += Step("Second derivatives", "Row i, column j: ∂²f/∂xᵢ∂xⱼ (the matrix is symmetric).", null, substeps = vars.flatMapIndexed { i, vi ->
-                    vars.drop(i).map { vj -> Step("∂²f/∂${vi.name}∂${vj.name}", null, eq(partial(first[i], vj), Algebra.simplify(Calculus.diff(first[i], vj)))) }
+                steps += Step("Second derivatives", "Row \$i\$, column \$j\$: \$\\frac{\\partial^2 f}{\\partial x_i\\,\\partial x_j}\$ (the matrix is symmetric).", null, substeps = vars.flatMapIndexed { i, vi ->
+                    vars.drop(i).map { vj -> Step("\$\\frac{\\partial^2 f}{\\partial ${vi.name}\\,\\partial ${vj.name}}\$", null, eq(partial(first[i], vj), Algebra.simplify(Calculus.diff(first[i], vj)))) }
                 })
             }
         }
@@ -1881,15 +1909,15 @@ object Steps {
             val conj = add(a, mul(neg(b), com.example.cas.cas.I))
             val norm = Algebra.simplify(add(com.example.cas.cas.pow(a, com.example.cas.cas.TWO), com.example.cas.cas.pow(b, com.example.cas.cas.TWO)))
             val numerator = com.example.cas.cas.ComplexArith.normalize(mul(top, conj))
-            steps += Step("Multiply by the conjugate", "Multiply the top and the bottom by ${Printer.plain(conj)}: the bottom becomes real.", MathRow(mutableListOf(com.example.cas.editor.Frac(line("(", top, ")", "(", conj, ")"), line("(", bottom, ")", "(", conj, ")")))))
-            steps += Step("The bottom", "(a + bi)(a − bi) = a² + b².", ex(norm))
-            steps += Step("The top", "Multiply out, with i² = −1.", ex(numerator))
-            steps += Step("Answer", "Divide each part by ${Printer.plain(norm)}.", answer, Kind.Result)
+            steps += Step("Multiply by the conjugate", "Multiply the top and the bottom by ${tx(conj)}: the bottom becomes real.", MathRow(mutableListOf(com.example.cas.editor.Frac(line("(", top, ")", "(", conj, ")"), line("(", bottom, ")", "(", conj, ")")))))
+            steps += Step("The bottom", "\$(a + bi)(a - bi) = a^2 + b^2\$.", ex(norm))
+            steps += Step("The top", "Multiply out, with \$i^2 = -1\$.", ex(numerator))
+            steps += Step("Answer", "Divide each part by ${tx(norm)}.", answer, Kind.Result)
             return Solution("Complex division", steps, answer)
         }
         val euler = row.items.any { it is SymNode && it.text == "e" } && row.items.any { n -> n is com.example.cas.editor.Pow && n.exp.items.any { it is SymNode && it.text == "i" } }
         if (euler) {
-            steps += Step("Euler's formula", "e^(iθ) = cos θ + i sin θ, and eˣ⁺ⁱʸ = eˣ (cos y + i sin y).", null)
+            steps += Step("Euler's formula", "\$e^{i\\theta} = \\cos\\theta + i\\sin\\theta\$, and \$e^{x + iy} = e^x(\\cos y + i\\sin y)\$.", null)
             steps += Step("Exact values", "Use the exact cosine and sine of the angle, then collect real and imaginary parts.", answer, Kind.Result)
             return Solution("Euler's formula", steps, answer)
         }
@@ -1903,7 +1931,7 @@ object Steps {
                 val (a, b) = p1; val (c, d) = p2
                 steps += Step("Multiply out", "Each part of the first times each part of the second (FOIL).",
                     line(paren(mul(a, c)), "+", paren(mul(a, d)), "i", "+", paren(mul(b, c)), "i", "+", paren(mul(b, d)), "i", com.example.cas.editor.Pow(MathRow(mutableListOf(sym("2"))))))
-                steps += Step("Use i² = −1", "So the last term changes sign and joins the real part.", ex(z(Algebra.simplify(sub(mul(a, c), mul(b, d))), Algebra.simplify(add(mul(a, d), mul(b, c))))))
+                steps += Step("Use \$i^2 = -1\$", "So the last term changes sign and joins the real part.", ex(z(Algebra.simplify(sub(mul(a, c), mul(b, d))), Algebra.simplify(add(mul(a, d), mul(b, c))))))
                 steps += Step("Answer", null, answer, Kind.Result)
                 return Solution("Complex multiplication", steps, answer)
             }
@@ -1913,7 +1941,7 @@ object Steps {
             if (base != null) {
                 val n = (raw.exp as Num).q.num.toInt()
                 val (a, b) = base
-                steps += Step("Square", "(a + bi)² = a² − b² + 2abi, as i² = −1.", line("(", z(a, b), ")", com.example.cas.editor.Pow(MathRow(mutableListOf(sym("2")))), "=", com.example.cas.cas.ComplexArith.normalize(com.example.cas.cas.pow(z(a, b), two))))
+                steps += Step("Square", "\$(a + bi)^2 = a^2 - b^2 + 2abi\$, as \$i^2 = -1\$.", line("(", z(a, b), ")", com.example.cas.editor.Pow(MathRow(mutableListOf(sym("2")))), "=", com.example.cas.cas.ComplexArith.normalize(com.example.cas.cas.pow(z(a, b), two))))
                 // Higher powers by squaring again (and one more factor for odd steps).
                 var k = 2
                 var current = com.example.cas.cas.ComplexArith.normalize(com.example.cas.cas.pow(z(a, b), two))
@@ -1927,7 +1955,7 @@ object Steps {
                     val (c, d) = com.example.cas.cas.ComplexArith.split(current) ?: break
                     val next = com.example.cas.cas.ComplexArith.normalize(mul(current, zz))
                     k++
-                    steps += Step("Times z", "z^$k = z^${k - 1} · z: multiply out (FOIL), then i² = −1.",
+                    steps += Step("Times \$z\$", "\$z^{$k} = z^{${k - 1}} \\cdot z\$: multiply out (FOIL), then \$i^2 = -1\$.",
                         line("(", z(c, d), ")", "(", zz, ")", "=", paren(mul(c, a)), "+", paren(mul(c, b)), "i", "+", paren(mul(d, a)), "i", "+", paren(mul(d, b)), "i",
                             com.example.cas.editor.Pow(MathRow(mutableListOf(sym("2")))), "=", next))
                     current = next
@@ -1937,30 +1965,38 @@ object Steps {
             }
         }
         steps += Step("Multiply out", "Expand the products and powers like ordinary algebra.", null)
-        steps += Step("Use i² = −1", "Every i² becomes −1 (and i³ = −i, i⁴ = 1).", null)
-        steps += Step("Collect", "Real parts together, imaginary parts together: a + bi.", answer, Kind.Result)
+        steps += Step("Use \$i^2 = -1\$", "Every \$i^2\$ becomes \$-1\$ (and \$i^3 = -i\$, \$i^4 = 1\$).", null)
+        steps += Step("Collect", "Real parts together, imaginary parts together: \$a + bi\$.", answer, Kind.Result)
         return Solution("Complex arithmetic", steps, answer)
     }
 
     /** The working as plain text, for copying. */
+    /** The working as Markdown, with the math in LaTeX ($ … $), for copying. */
     fun text(question: MathRow, s: Solution): String = buildString {
-        appendLine(Formatter.plain(question))
-        appendLine("Method: ${s.method}")
+        appendLine("\$" + Latex.of(question) + "\$")
+        appendLine("Method: ${markdown(s.method)}")
         var n = 0
         for (st in s.steps) {
             n++
-            append("$n. ${st.title}")
-            st.text?.let { append(" — $it") }
+            append("$n. ${markdown(st.title)}")
+            st.text?.let { append(" — ${markdown(it)}") }
             appendLine()
-            st.math?.let { appendLine("   " + Formatter.plain(it)) }
+            st.math?.let { appendLine("   \$" + Latex.of(it) + "\$") }
             for ((k, sub) in flattenSubsteps(st.substeps).withIndex()) {
-                append("   ${'a' + k}) ${sub.title}")
-                sub.text?.let { append(" — $it") }
+                append("   ${'a' + k}) ${markdown(sub.title)}")
+                sub.text?.let { append(" — ${markdown(it)}") }
                 appendLine()
-                sub.math?.let { appendLine("      " + Formatter.plain(it)) }
+                sub.math?.let { appendLine("      \$" + Latex.of(it) + "\$") }
             }
         }
     }
+
+    /** Greek letters typed as Unicode inside $ … $ become LaTeX commands, for the copied Markdown. */
+    private fun markdown(text: String): String = LatexParser.inline(text).joinToString("") { (isMath, piece) ->
+        if (!isMath) piece else "\$" + piece.map { c -> GREEK[c]?.let { "\\$it " } ?: c.toString() }.joinToString("").replace(" }", "}").trim() + "\$"
+    }
+    private val GREEK = mapOf('α' to "alpha", 'β' to "beta", 'γ' to "gamma", 'δ' to "delta", 'ε' to "varepsilon", 'θ' to "theta", 'λ' to "lambda", 'μ' to "mu",
+        'ξ' to "xi", 'π' to "pi", 'ρ' to "rho", 'σ' to "sigma", 'τ' to "tau", 'φ' to "varphi", 'χ' to "chi", 'ψ' to "psi", 'ω' to "omega", 'Γ' to "Gamma", 'Δ' to "Delta")
 
     private fun flattenSubsteps(steps: List<Step>): List<Step> = steps.flatMap { listOf(it) + flattenSubsteps(it.substeps) }
 }

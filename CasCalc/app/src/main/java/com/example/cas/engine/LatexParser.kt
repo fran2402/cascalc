@@ -39,6 +39,7 @@ object LatexParser {
         "ldots" to "…", "dots" to "…", "cdots" to "⋯", "mid" to "|", "vert" to "|", "lfloor" to "⌊", "rfloor" to "⌋",
         "lceil" to "⌈", "rceil" to "⌉", "langle" to "⟨", "rangle" to "⟩", "{" to "{", "}" to "}", "angle" to "∠",
         "Re" to "ℜ", "Im" to "ℑ", "hbar" to "ℏ", "aleph" to "ℵ", "beth" to "ℶ", "gimel" to "ℷ", "daleth" to "ℸ", "varrho" to "ϱ", "varsigma" to "ς", "varpi" to "ϖ", "ell" to "ℓ", "circ" to "∘", "otimes" to "⊗", "oplus" to "⊕", "prime" to "′",
+        "leftarrow" to "←", "gets" to "←", "leftrightarrow" to "↔", "Rightarrow" to "⇒", "implies" to "⇒", "Leftrightarrow" to "⇔", "iff" to "⇔", "cap" to "∩", "cup" to "∪", "subset" to "⊂", "forall" to "∀", "exists" to "∃", "neg" to "¬", "propto" to "∝", "equiv" to "≡", "perp" to "⊥", "parallel" to "∥",
     )
     /** Upright function names: \sin → sin. */
     private val WORDS = setOf(
@@ -380,18 +381,52 @@ object LatexParser {
 
     private fun MathRow.add(n: Node) { items.add(n) }
 
-    /** Splits text with inline math \( … \) into (isMaths, piece) parts. */
+    /**
+     * Splits text with inline math, written as in Markdown ($ … $) or as \( … \), into
+     * (isMaths, piece) parts. \$ is a literal dollar sign; a $ with no closing one is text.
+     */
     fun inline(text: String): List<Pair<Boolean, String>> {
         val out = ArrayList<Pair<Boolean, String>>()
+        val plain = StringBuilder()
+        fun flush() { if (plain.isNotEmpty()) { out += false to plain.toString(); plain.clear() } }
         var k = 0
         while (k < text.length) {
-            val open = text.indexOf("\\(", k)
-            if (open < 0) { out += false to text.substring(k); break }
-            if (open > k) out += false to text.substring(k, open)
-            val close = text.indexOf("\\)", open + 2).let { if (it < 0) text.length else it }
-            out += true to text.substring(open + 2, close)
-            k = close + 2
+            when {
+                text.startsWith("\\$", k) -> { plain.append('$'); k += 2 }
+                text.startsWith("\\(", k) -> {
+                    val close = text.indexOf("\\)", k + 2).let { if (it < 0) text.length else it }
+                    flush()
+                    out += true to text.substring(k + 2, close)
+                    k = close + 2
+                }
+                text[k] == '$' -> {
+                    val close = closingDollar(text, k + 1)
+                    if (close < 0) { plain.append('$'); k++ } else {
+                        flush()
+                        out += true to text.substring(k + 1, close).trim()
+                        k = close + 1
+                    }
+                }
+                else -> { plain.append(text[k]); k++ }
+            }
         }
+        flush()
         return out.filter { it.second.isNotEmpty() }
+    }
+
+    /** The next unescaped $ from [from], or −1. */
+    private fun closingDollar(text: String, from: Int): Int {
+        var k = from
+        while (k < text.length) {
+            if (text[k] == '\\') { k += 2; continue }
+            if (text[k] == '$') return k
+            k++
+        }
+        return -1
+    }
+
+    /** [text] with its inline math written out plainly (for places that can't draw it). */
+    fun plain(text: String): String = inline(text).joinToString("") { (isMaths, piece) ->
+        if (!isMaths) piece else Formatter.plain(parse(piece))
     }
 }

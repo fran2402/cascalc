@@ -464,6 +464,8 @@ private fun NodeView(n: Node, row: MathRow, index: Int, level: Int) {
             base = { RowView(n.base, level) },
             sub = if (n.sub.isEmpty) null else ({ RowView(n.sub, level + 1) }),
             sup = if (n.sup.isEmpty) null else ({ RowView(n.sup, level + 1) }),
+            // Prescripts (empty base) sit against the letter that follows, so align them right.
+            alignEnd = n.base.isEmpty,
         )
         is Binom -> Fenced(Delim.Paren, level) {
             FracLayout(level, line = false, num = { RowView(n.n, childLevel(level)) }, den = { RowView(n.k, childLevel(level)) })
@@ -585,6 +587,7 @@ private fun Scripts(
     base: @Composable () -> Unit,
     sub: (@Composable () -> Unit)? = null,
     sup: (@Composable () -> Unit)? = null,
+    alignEnd: Boolean = false,
 ) {
     val env = LocalMath.current
     Layout(
@@ -605,11 +608,12 @@ private fun Scripts(
         // Heights above the shared baseline.
         val asc = maxOf(baseAxis, sp?.let { supRise + it.axis() } ?: 0, sb?.let { it.axis() - subDrop } ?: 0)
         val desc = maxOf(b.height - baseAxis, sb?.let { subDrop + it.height - it.axis() } ?: 0)
-        val w = b.width + max(sb?.width ?: 0, sp?.width ?: 0)
+        val sw = max(sb?.width ?: 0, sp?.width ?: 0)
+        val w = b.width + sw
         layout(w, asc + desc, mapOf(MathBaseline to asc)) {
             b.place(0, asc - baseAxis)
-            sb?.place(b.width, asc + subDrop - sb.axis())
-            sp?.place(b.width, asc - supRise - sp.axis())
+            sb?.place(b.width + if (alignEnd) sw - sb.width else 0, asc + subDrop - sb.axis())
+            sp?.place(b.width + if (alignEnd) sw - sp.width else 0, asc - supRise - sp.axis())
         }
     }
 }

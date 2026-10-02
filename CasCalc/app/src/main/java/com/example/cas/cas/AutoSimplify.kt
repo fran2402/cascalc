@@ -65,7 +65,7 @@ object AutoSimplify {
             else -> z
         }
         val r = Algebra.expand(split(e))
-        return if (changed) Move("Expand logarithms", "ln(uv) = ln u + ln v and ln(uᵃ) = a ln u, then collect.", r) else null
+        return if (changed) Move("Expand logarithms", "\$\\ln(uv) = \\ln u + \\ln v\$ and \$\\ln(u^a) = a\\ln u\$, then collect.", r) else null
     }
 
     /** sin A cos B ± cos A sin B = sin(A ± B), cos A cos B ∓ sin A sin B = cos(A ± B). */
@@ -101,7 +101,7 @@ object AutoSimplify {
                 else -> continue
             }
             val rest = terms.filterIndexed { k, _ -> k != i && k != j }
-            return Move("Angle sum", "sin(A ± B) = sin A cos B ± cos A sin B, cos(A ± B) = cos A cos B ∓ sin A sin B.", add(rest + r))
+            return Move("Angle sum", "\$\\sin(A \\pm B) = \\sin A\\cos B \\pm \\cos A\\sin B\$, \$\\cos(A \\pm B) = \\cos A\\cos B \\mp \\sin A\\sin B\$.", add(rest + r))
         }
         return null
     }
@@ -127,7 +127,7 @@ object AutoSimplify {
             else -> z
         }
         val r = Algebra.expand(walk(e))
-        return if (changed) Move("Angle formulas", "Write out sin(A ± B), cos(A ± B), sin 2u = 2 sin u cos u and cos 2u = cos²u − sin²u, then collect.", r) else null
+        return if (changed) Move("Angle formulas", "Write out \$\\sin(A \\pm B)\$, \$\\cos(A \\pm B)\$, \$\\sin 2u = 2\\sin u\\cos u\$ and \$\\cos 2u = \\cos^2 u - \\sin^2 u\$, then collect.", r) else null
     }
 
     /** The numbers and powers every term shares, taken out: x²y + xy² = xy(x + y). */
@@ -149,7 +149,7 @@ object AutoSimplify {
         }
         if (logs.size < 2) return null
         val inside = Algebra.simplify(mul(logs))
-        val text = "ln u + ln v = ln(uv), ln u − ln v = ln(u/v), a ln u = ln(uᵃ)."
+        val text = "\$\\ln u + \\ln v = \\ln(uv)\$, \$\\ln u - \\ln v = \\ln\\frac{u}{v}\$, \$a\\ln u = \\ln(u^a)\$."
         return Move("Combine logarithms", text, add(rest + fn("ln", inside)))
     }
 
@@ -175,7 +175,7 @@ object AutoSimplify {
             else -> z
         }
         val r = walk(e)
-        return if (changed) Move("Double angle", "2 sin u cos u = sin 2u.", r) else null
+        return if (changed) Move("Double angle", "\$2\\sin u\\cos u = \\sin 2u\$.", r) else null
     }
 
     /** cos²u = (1 + cos 2u)/2 and sin²u = (1 − cos 2u)/2, then multiplied out: cos²u − sin²u = cos 2u, 1 − 2 sin²u = cos 2u. */
@@ -194,7 +194,7 @@ object AutoSimplify {
             else -> z
         }
         val r = Algebra.expand(walk(e))
-        return if (changed) Move("Double angle", "cos 2u = cos²u − sin²u = 1 − 2 sin²u = 2 cos²u − 1.", r) else null
+        return if (changed) Move("Double angle", "\$\\cos 2u = \\cos^2 u - \\sin^2 u = 1 - 2\\sin^2 u = 2\\cos^2 u - 1\$.", r) else null
     }
 
     // ---- Quotients and exponentials -----------------------------------------------------------------
@@ -224,7 +224,7 @@ object AutoSimplify {
             else -> z
         }
         val r = walk(e)
-        return if (changed) Move("Tangent", "sin u / cos u = tan u.", r) else null
+        return if (changed) Move("Tangent", "\$\\frac{\\sin u}{\\cos u} = \\tan u\$.", r) else null
     }
 
     /** c(eᵘ + e⁻ᵘ) = 2c cosh u and c(eᵘ − e⁻ᵘ) = 2c sinh u. */
@@ -249,7 +249,7 @@ object AutoSimplify {
                 if (sumC == ZERO && name == "sinh") continue
                 val replaced = mul(TWO, c1, fn(name, u))
                 val rest = terms.filterIndexed { k, _ -> k != i && k != j }
-                return Move(if (name == "cosh") "Hyperbolic cosine" else "Hyperbolic sine", if (name == "cosh") "eᵘ + e⁻ᵘ = 2 cosh u." else "eᵘ − e⁻ᵘ = 2 sinh u.", add(rest + replaced))
+                return Move(if (name == "cosh") "Hyperbolic cosine" else "Hyperbolic sine", if (name == "cosh") "\$e^u + e^{-u} = 2\\cosh u\$." else "\$e^u - e^{-u} = 2\\sinh u\$.", add(rest + replaced))
             }
         }
         return null
@@ -269,7 +269,7 @@ object AutoSimplify {
         } else null
         val fractions = (e as? Add)?.terms?.count { t -> Algebra.together(t).second != ONE } ?: 0
         return when {
-            common != null -> Move("Factor and cancel", "${Printer.plain(common).replace("-", "−")} divides the top and the bottom: cancel it.", result)
+            common != null -> Move("Factor and cancel", "\$${com.example.cas.engine.Latex.of(com.example.cas.engine.Formatter.row(common))}\$ divides the top and the bottom: cancel it.", result)
             fractions > 1 -> Move("Common denominator", "Put the fractions over one denominator.", result)
             else -> Move("Cancel", "Cancel the common factors of the top and the bottom.", result)
         }
@@ -292,8 +292,8 @@ object AutoSimplify {
         var r = e
         for (u in trig) r = replaceSquares(r, "sin", u, sub(ONE, pow(fn("cos", u), TWO)))
         for (u in hyper) r = replaceSquares(r, "sinh", u, sub(pow(fn("cosh", u), TWO), ONE))
-        val text = if (trig.isNotEmpty()) "sin²u + cos²u = 1" else "cosh²u − sinh²u = 1"
-        return Move("Pythagorean identity", "$text: write each ${if (trig.isNotEmpty()) "sin²" else "sinh²"} with the other function, then simplify.", Algebra.expand(r))
+        val text = if (trig.isNotEmpty()) "\$\\sin^2 u + \\cos^2 u = 1\$" else "\$\\cosh^2 u - \\sinh^2 u = 1\$"
+        return Move("Pythagorean identity", "$text: write each ${if (trig.isNotEmpty()) "\$\\sin^2\$" else "\$\\sinh^2\$"} with the other function, then simplify.", Algebra.expand(r))
     }
 
     /** [name](u)ⁿ → [square]^(n/2)·[name](u)^(n mod 2), everywhere in [e]. */

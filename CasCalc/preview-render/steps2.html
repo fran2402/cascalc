@@ -136,6 +136,7 @@ svg.mv{display:inline-block}
 <p class="note">Every step below is the app's real output (exported from the steps engine and drawn with the same layout rules as the app's math). Each method is carried out in full, substitutions with the new integral and the back-substitution, linear algebra with every row operation, and each answer is checked.</p>
 <div class="hero2" id="cats"></div>
 <div class="row" id="phones"></div>
+<div class="row" id="latex"></div>
 <div class="row"><div><div class="tablet light" id="t"></div><div class="cap" style="width:900px">Tablet: question, answer and a tappable outline on the left; the full working on the right.</div></div></div>
 <script src="gsf_cmap.js"></script><script src="cm_cmap.js"></script><script src="mathlayout.js"></script><script src="steps_data.js"></script>
 <script>
@@ -143,16 +144,18 @@ const PAL={dark:{on:'#E5E3D6',onv:'#C8C7B5',pri:'#C5CB86',onpc:'#E1E7A0'},light:
 const faint=c=>{const n=parseInt(c.slice(1),16);return `rgba(${n>>16},${(n>>8)&255},${n&255},.45)`};
 let P=PAL.dark;
 const mv=(codec,size,color)=>MT.render(MT.decode(codec),{size,color,accent:P.pri,faint:faint(color)});
+// Text with inline math: the pieces between \u0001 and \u0002 are drawn like the app's MathText.
+const rt=(s,size,color)=>s.split(/[\u0001\u0002]/).map((p,k)=>k%2?`<span style="display:inline-block;vertical-align:middle;margin:1px 0">${mv(p,size,color||P.on)}</span>`:p).join('');
 const cats=[['∫','Integrals','substitutions, by parts, partial fractions, special functions'],['d/dx','Derivatives','product, quotient, chain, logarithmic'],['lim','Limits',"L'Hôpital, highest powers, series"],['Σ Π','Sums & products','power sums, geometric, ζ, telescoping'],['∮','Loop integrals','poles, residues, residue theorem'],['[ ]','Matrices','determinants, inverses, rref, eigen'],['y′','Differential equations','integrating factor, separable, characteristic'],['x̄','Statistics','mean, variance, SD, median'],['∇','Vector calculus','grad, div, curl, Jacobian, Hessian'],['a+bi','Algebra & complex','simplification, conjugates, powers']];
 document.getElementById('cats').innerHTML=cats.map(([i,t,d])=>`<div class="cat"><i>${i}</i>${t}<span style="font-weight:400;color:#6b6b5e">· ${d}</span></div>`).join('');
 function node(st,n,last){const cls=st.kind=='Result'?'res':st.kind=='Check'?'chk':'';const lab=st.kind=='Result'?'⚑':st.kind=='Check'?'✓':n;
  const flat=[];(function f(ss){ss.forEach(x=>{flat.push(x);f(x.subs)})})(st.subs);
- return `<div class="st"><div class="rail"><div class="node ${cls}">${lab}</div>${last?'':'<div class="conn"></div>'}</div><div class="sb"><b>${st.title}</b>${st.text?`<p>${st.text}</p>`:''}${st.math?`<div class="mb ${st.kind=='Result'?'res':''}">${mv(st.math,18,st.kind=='Result'?P.onpc:P.on)}</div>`:''}
- ${flat.length?`<div class="subs">${flat.map((x,k)=>`<div class="sub"><div class="l">${String.fromCharCode(97+k)}</div><div style="flex:1;min-width:0"><b>${x.title}</b>${x.text?`<p>${x.text}</p>`:''}${x.math?`<div class="mb">${mv(x.math,15,P.on)}</div>`:''}</div></div>`).join('')}</div>`:''}</div></div>`}
+ return `<div class="st"><div class="rail"><div class="node ${cls}">${lab}</div>${last?'':'<div class="conn"></div>'}</div><div class="sb"><b>${rt(st.title,16)}</b>${st.text?`<p>${rt(st.text,15,P.onv)}</p>`:''}${st.math?`<div class="mb ${st.kind=='Result'?'res':''}">${mv(st.math,18,st.kind=='Result'?P.onpc:P.on)}</div>`:''}
+ ${flat.length?`<div class="subs">${flat.map((x,k)=>`<div class="sub"><div class="l">${String.fromCharCode(97+k)}</div><div style="flex:1;min-width:0"><b>${rt(x.title,14)}</b>${x.text?`<p>${rt(x.text,13,P.onv)}</p>`:''}${x.math?`<div class="mb">${mv(x.math,15,P.on)}</div>`:''}</div></div>`).join('')}</div>`:''}</div></div>`}
 function phone(theme,key,shown,cap,skip=0){P=PAL[theme];const d=STEPS[key];const total=d.steps.length;
  const steps=d.steps.slice(skip,shown).map((st,k)=>node(st,k+1+skip,k+skip==shown-1)).join('');
  return `<div><div class="phone ${theme}"><div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div><div style="height:800px;background:var(--bg)"></div><div class="scrim2"></div>
- <div class="sheetX"><div class="handle"></div><div style="padding:0 20px"><div class="shd"><h3>Steps</h3><span class="beta" style="margin:0">BETA</span><span class="cp">⧉</span><span class="meth" style="margin-left:0">${d.method}</span></div>
+ <div class="sheetX"><div class="handle"></div><div style="padding:0 20px"><div class="shd"><h3>Steps</h3><span class="beta" style="margin:0">BETA</span><span class="cp">⧉</span><span class="meth" style="margin-left:0">${rt(d.method,14)}</span></div>
  <div class="qbox" style="overflow:hidden;white-space:nowrap">${mv(d.q,22,P.on)}</div></div>
  <div class="body">${skip?'<div style="font:600 12px GSF;color:var(--onv);margin:-2px 0 8px 54px">⋮ earlier steps above</div>':''}${steps}</div>
  <div class="ctl">${shown<total?`<span class="n">${shown} of ${total}</span><span class="tbtn">Show all</span><div class="nxt">⏭ Next step</div>`:`<span style="color:var(--pri)">✓✓</span><span class="n">All ${total} steps</span>`}</div></div></div><div class="cap">${cap}</div></div>`}
@@ -164,13 +167,21 @@ document.getElementById('phones').innerHTML=
 P=PAL.light;const d=STEPS.quartic;
 document.getElementById('t').innerHTML=`<div class="status" style="padding:0 34px"><span>12:30</span><span>▾ ◢ ▮</span></div><div style="position:absolute;inset:40px 0 0;background:var(--bg)"></div><div class="scrim2"></div>
 <div class="dlgX"><div style="width:330px;background:var(--c2);padding:24px;overflow:hidden">
-<div class="shd"><h3>Steps</h3><span class="beta" style="margin:0">BETA</span></div><div style="margin-top:10px"><span class="meth" style="margin:0">${d.method}</span></div>
+<div class="shd"><h3>Steps</h3><span class="beta" style="margin:0">BETA</span></div><div style="margin-top:10px"><span class="meth" style="margin:0">${rt(d.method,14)}</span></div>
 <div class="qbox" style="margin-top:14px;overflow:hidden">${mv(d.q,22,P.on)}</div>
 <div style="margin-top:12px;background:var(--pc);border-radius:20px;padding:14px 16px;overflow:hidden"><div style="font:600 13px GSF;color:var(--onpc)">Answer</div><div style="margin-top:6px;white-space:nowrap">${mv(d.answer,13,P.onpc)}</div></div>
 <div style="font:600 14px GSF;color:var(--pri);margin:20px 0 8px">Outline</div>
-${d.steps.map((s,k)=>`<div class="ol"><i>${k+1}</i>${s.title}</div>`).join('')}</div>
+${d.steps.map((s,k)=>`<div class="ol"><i>${k+1}</i>${rt(s.title,14)}</div>`).join('')}</div>
 <div style="flex:1;display:flex;flex-direction:column;min-width:0"><div style="display:flex;align-items:center;padding:16px 12px 0 28px"><span style="flex:1;font:500 22px GSF">Steps</span><span style="font-size:18px;color:var(--onv);padding:10px">⧉</span><span style="font-size:20px;color:var(--onv);padding:10px">✕</span></div>
 <div style="flex:1;overflow:hidden;padding:12px 28px 0">${d.steps.map((st,k)=>node(st,k+1,k==d.steps.length-1)).join('')}</div>
 <div class="ctl" style="padding:16px 28px"><span style="color:var(--pri)">✓✓</span><span class="n">All ${d.steps.length} steps</span></div></div></div>`;
+P=PAL.light;
+{const cell=(old,cap)=>{window.OLD_PRESCRIPTS=old;window.NO_PLACEHOLDER=true;const svg=mv(BUILDER,44,P.on);window.OLD_PRESCRIPTS=false;window.NO_PLACEHOLDER=false;
+ return `<div style="background:#fff;border-radius:28px;padding:28px 34px;width:520px"><div style="font:600 14px GSF;color:${old?'#ba1a1a':'#5B6133'};margin-bottom:14px">${cap}</div>${svg}</div>`};
+ const st=STEPS.trig.steps[0];
+ document.getElementById('latex').innerHTML=`<div><div style="display:flex;gap:24px">${cell(true,'Before: left scripts aligned left')}${cell(false,'Now: left scripts aligned to the letter')}</div>
+ <div class="cap" style="width:1080px">Symbol builder: ^210 _4 x keeps the 4 under the 0, against the letter, as in nuclide notation.</div></div>
+ <div><div style="background:#fff;border-radius:28px;padding:24px 28px;width:560px;font:15px GSF;color:#47473B;line-height:1.6"><div style="font:600 16px GSF;color:#1C1C16;margin-bottom:6px">${rt(st.title,16)}</div>${rt(st.text,15,P.onv)}<div style="margin-top:14px;font:600 13px GSF;color:#5B6133">Written in the source as</div><code style="font:13px monospace;color:#1C1C16;word-break:break-all">A sine substitution, since $1 - \\sin^2\\theta = \\cos^2\\theta$: the root becomes $2\\cos\\theta$.</code></div>
+ <div class="cap" style="width:600px">Formulas in explanations, guides, settings and error messages are LaTeX in Markdown ($…$), drawn by the app's math renderer; Copy gives Markdown.</div></div>`;}
 document.title='ready';
 </script></body></html>

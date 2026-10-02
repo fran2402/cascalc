@@ -106,7 +106,7 @@ class GraphTest {
     @Test fun explicitSurface() = assertTrue(spec3(row(Sym("x"), Sym("y"))) is com.example.cas.graph.PlotSpec3D.Explicit)
     @Test fun explicitWithZ() = assertTrue(spec3(row(Sym("z"), Sym("="), Sym("x"), Sym("y"))) is com.example.cas.graph.PlotSpec3D.Explicit)
     @Test fun implicitSurface() = assertTrue(spec3(row(Sym("x"), Pow(row("2")), Sym("+"), Sym("y"), Pow(row("2")), Sym("+"), Sym("z"), Pow(row("2")), Sym("="), Sym("4"))) is com.example.cas.graph.PlotSpec3D.Implicit)
-    @Test fun bareZIsAnError() = assertEquals("Add = … to make it an equation in x, y and z", runCatching { spec3(row(Sym("x"), Sym("z"))) }.exceptionOrNull()?.message)
+    @Test fun bareZIsAnError() = assertEquals("Add \$= \\ldots\$ to make it an equation in \$x\$, \$y\$ and \$z\$", runCatching { spec3(row(Sym("x"), Sym("z"))) }.exceptionOrNull()?.message)
 
     // ---- Area under a curve between two points
     @Test fun areaOfSine() {

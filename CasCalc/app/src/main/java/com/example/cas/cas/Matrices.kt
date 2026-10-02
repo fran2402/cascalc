@@ -43,7 +43,7 @@ object Matrices {
         Mat(a.cols, a.rows, (0 until a.cols).flatMap { c -> (0 until a.rows).map { r -> Algebra.simplify(fn("conj", a.cells[r * a.cols + c])) } })
 
     private fun times(a: Mat, b: Mat): Mat {
-        if (a.cols != b.rows) throw MathError("Matrix sizes don't match for ×")
+        if (a.cols != b.rows) throw MathError("Matrix sizes don't match for \$\\times\$")
         return Mat(a.rows, b.cols, List(a.rows * b.cols) { idx ->
             val i = idx / b.cols
             val j = idx % b.cols

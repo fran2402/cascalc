@@ -79,7 +79,7 @@ object VectorCalculus {
     fun div(field: Expr, c: Coordinates = Coordinates()): Expr {
         val m = components(field, "∇·")
         val n = m.cells.size
-        if (n !in 2..3) throw MathError("∇· works in 2 or 3 dimensions")
+        if (n !in 2..3) throw MathError("\$\\nabla \\cdot\$ works in 2 or 3 dimensions")
         val q = c.symbols.take(n)
         val h = scale(c, n)
         val big = mul(h)
@@ -99,7 +99,7 @@ object VectorCalculus {
                 fun comp(i: Int, j: Int, k: Int) = s(div(sub(d(mul(h[k], f[k]), q[j]), d(mul(h[j], f[j]), q[k])), mul(h[j], h[k])))
                 column(listOf(comp(0, 1, 2), comp(1, 2, 0), comp(2, 0, 1)), m)
             }
-            else -> throw MathError("∇× works in 2 or 3 dimensions")
+            else -> throw MathError("\$\\nabla \\times\$ works in 2 or 3 dimensions")
         }
     }
 

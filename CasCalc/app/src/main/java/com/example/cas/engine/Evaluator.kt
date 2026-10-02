@@ -246,7 +246,7 @@ class Evaluator(
             val args = splitCommas(inner).map { RowParser(it, env).parse() }
             i = end + 1
             if (args.size != f.variables.size) throw MathError("$name takes ${f.variables.size} value${if (f.variables.size == 1) "" else "s"}")
-            if (primes > 0 && f.variables.size != 1) throw MathError("$name′ needs a function of one variable; use ∂ for the others")
+            if (primes > 0 && f.variables.size != 1) throw MathError("\$$name'\$ needs a function of one variable; use \$\\partial\$ for the others")
             var body = f.body
             repeat(primes) { body = com.example.cas.cas.Calculus.diff(body, Sym(f.variable)) }
             // Substitute all at once (through placeholders), so f(y, x) swaps correctly.
@@ -453,7 +453,7 @@ class Evaluator(
                         val x0 = eval(f.args[0], env)
                         val order = if (f.args.size < 2 || f.args[1].isEmpty) 1
                         else com.example.cas.cas.Numeric.real(eval(f.args[1], env)).let {
-                            if (it < 1 || it > 4 || it != Math.rint(it)) throw MathError("The order of ∇ must be 1, 2, 3 or 4") else it.toInt()
+                            if (it < 1 || it > 4 || it != Math.rint(it)) throw MathError("The order of \$\\nabla\$ must be 1, 2, 3 or 4") else it.toInt()
                         }
                         return when (order) {
                             1 -> com.example.cas.cas.VectorCalculus.grad(x0, coordinates)
@@ -506,13 +506,13 @@ class Evaluator(
 
         /** |z − a| = r (or |z| = r): the variable, the center a and the radius r. */
         private fun circleSpec(e: Expr): Triple<Sym, Expr, Expr> {
-            val eq = e as? com.example.cas.cas.Eq ?: throw MathError("Write the circle as |z − a| = r")
+            val eq = e as? com.example.cas.cas.Eq ?: throw MathError("Write the circle as \$|z - a| = r\$")
             val abs = eq.lhs as? com.example.cas.cas.Fn
-            if (abs == null || abs.name != "abs") throw MathError("Write the circle as |z − a| = r")
+            if (abs == null || abs.name != "abs") throw MathError("Write the circle as \$|z - a| = r\$")
             val inner = abs.args[0]
-            val z = inner.freeVars().singleOrNull()?.let { Sym(it) } ?: throw MathError("Write the circle as |z − a| = r")
+            val z = inner.freeVars().singleOrNull()?.let { Sym(it) } ?: throw MathError("Write the circle as \$|z - a| = r\$")
             val cs = Algebra.coefficients(Algebra.expand(inner), z)
-            if (cs == null || cs.size != 2 || cs[1] != com.example.cas.cas.ONE) throw MathError("Write the circle as |z − a| = r")
+            if (cs == null || cs.size != 2 || cs[1] != com.example.cas.cas.ONE) throw MathError("Write the circle as \$|z - a| = r\$")
             return Triple(z, Algebra.simplify(com.example.cas.cas.neg(cs[0])), eq.rhs)
         }
 
@@ -547,7 +547,7 @@ class Evaluator(
                 val a = (first[k] as? com.example.cas.editor.Sym)?.text
                 val b = (first.getOrNull(k + 1) as? com.example.cas.editor.Sym)?.text
                 if (a != null && a.length == 1 && a[0].isLetter() && b == "′") Sym(a) else null
-            } ?: throw MathError("Write the equation with y′, e.g. y′ = 2y")
+            } ?: throw MathError("Write the equation with \$y'\$, e.g. \$y' = 2y\$")
             val bound = env + (y.name to y) + (1..4).associate { y.name + "′".repeat(it) to com.example.cas.cas.Ode.derivativeSymbol(y, it) }
             val eq = RowParser(first, bound + ("x" to Sym("x")) + ("t" to Sym("t"))).parse()
             val x = if (!eq.freeOf(Sym("t")) && eq.freeOf(Sym("x"))) Sym("t") else Sym("x")
@@ -561,7 +561,7 @@ class Evaluator(
                 val a = (first[k] as? com.example.cas.editor.Sym)?.text
                 val b = (first.getOrNull(k + 1) as? com.example.cas.editor.Sym)?.text
                 if (a != null && a.length == 1 && a[0].isLetter() && b == "′") Sym(a) else null
-            } ?: throw MathError("Write the equation with y′, e.g. y′ = 2y")
+            } ?: throw MathError("Write the equation with \$y'\$, e.g. \$y' = 2y\$")
             val bound = env + (y.name to y) + (1..4).associate { y.name + "′".repeat(it) to com.example.cas.cas.Ode.derivativeSymbol(y, it) }
             val eq = RowParser(first, bound + ("x" to Sym("x")) + ("t" to Sym("t"))).parse()
             val x = if (!eq.freeOf(Sym("t")) && eq.freeOf(Sym("x"))) Sym("t") else Sym("x")

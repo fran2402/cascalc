@@ -150,7 +150,7 @@ private fun TabletSteps(expression: MathRow, solution: Steps.Solution?, ready: B
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text("${k + 1}", style = MaterialTheme.typography.labelLarge, color = if (reached) colors.primary else colors.outline, modifier = Modifier.width(24.dp))
-                                Text(step.title, style = MaterialTheme.typography.bodyMedium, color = if (reached) colors.onSurface else colors.outline)
+                                MathText(step.title, style = MaterialTheme.typography.bodyMedium, color = if (reached) colors.onSurface else colors.outline)
                             }
                         }
                     }
@@ -187,7 +187,7 @@ private fun Header(solution: Steps.Solution?, question: MathRow) {
             }) { Icon(Icons.Default.ContentCopy, contentDescription = "Copy the steps", tint = colors.onSurfaceVariant) }
         }
         solution?.let {
-            Text(
+            MathText(
                 it.method, style = MaterialTheme.typography.labelLarge, color = colors.onSecondaryContainer, maxLines = 1,
                 modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(colors.secondaryContainer).padding(horizontal = 12.dp, vertical = 6.dp),
             )
@@ -259,8 +259,8 @@ private fun StepNode(number: Int, step: Steps.Step, last: Boolean) {
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f).padding(bottom = 20.dp, top = 6.dp)) {
-            Text(step.title, style = MaterialTheme.typography.titleSmall, color = colors.onSurface, modifier = Modifier.semantics { heading() })
-            step.text?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp)) }
+            MathText(step.title, style = MaterialTheme.typography.titleSmall, color = colors.onSurface, modifier = Modifier.semantics { heading() })
+            step.text?.let { MathText(it, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp)) }
             step.math?.let { MathBox(it, if (step.kind == Steps.Kind.Result) colors.primaryContainer else colors.surfaceContainerHighest, if (step.kind == Steps.Kind.Result) colors.onPrimaryContainer else colors.onSurface) }
             // Smaller steps inside, lettered, flattened to one level.
             val inner = remember(step) { flatten(step.substeps) }
@@ -272,8 +272,8 @@ private fun StepNode(number: Int, step: Steps.Step, last: Boolean) {
                     Row {
                         Text("${'a' + k}", style = MaterialTheme.typography.labelLarge, color = colors.primary, modifier = Modifier.width(20.dp).padding(top = 1.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(s.title, style = MaterialTheme.typography.labelLarge, color = colors.onSurface)
-                            s.text?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant) }
+                            MathText(s.title, style = MaterialTheme.typography.labelLarge, color = colors.onSurface)
+                            s.text?.let { MathText(it, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant) }
                             s.math?.let { MathBox(it, colors.surfaceContainerHigh, colors.onSurface, small = true) }
                         }
                     }

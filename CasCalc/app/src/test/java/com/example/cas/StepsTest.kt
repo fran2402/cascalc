@@ -8,6 +8,7 @@ import com.example.cas.editor.Node
 import com.example.cas.editor.Pow
 import com.example.cas.editor.Sym
 import com.example.cas.engine.Formatter
+import com.example.cas.engine.LatexParser
 import com.example.cas.engine.Steps
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -15,12 +16,26 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/** Every formula in the step texts is LaTeX in $ … $ that the renderer reads, with no Unicode math left in the prose. */
+internal fun latexOk(s: Steps.Solution): Steps.Solution {
+    fun all(steps: List<Steps.Step>): List<Steps.Step> = steps.flatMap { listOf(it) + all(it.substeps) }
+    for (t in all(s.steps).flatMap { listOfNotNull(it.title, it.text) } + s.method) {
+        assertEquals("unbalanced $ in: $t", 0, t.count { it == '$' } % 2)
+        for ((isMath, piece) in LatexParser.inline(t)) {
+            if (isMath) assertEquals("unknown LaTeX in: $t", emptySet<String>(), LatexParser.unknownCommands(piece))
+            else assertFalse("Unicode math in prose: $t", piece.any { it in "²³ⁿ√∫∮Σ×≤≥′⁻¹½∞∂∇±ᵘᵏᵃᵇᵖ⁽⁾₀₁₂₃ₕₚ·÷−θπλμ" })
+        }
+    }
+    return s
+}
+
 class StepsTest {
     private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
     private fun fn(name: String, vararg a: MathRow) = Func(name, a.toList())
     private fun integral(body: MathRow, lo: String = "", hi: String = "") = m(Integral(m(lo), m(hi), body, m("x")))
-    private fun titles(s: Steps.Solution): List<String> = s.steps.flatMap { listOf(it.title) + it.substeps.map { t -> "  " + t.title } }
+    private fun titles(s: Steps.Solution): List<String> = latexOk(s).steps.flatMap { listOf(it.title) + it.substeps.map { t -> "  " + t.title } }
     private fun text(r: MathRow) = Formatter.plain(r)
+
 
     @Test fun onlyIntegralsAndLoops() {
         assertTrue(Steps.supports(integral(m("x"))))
@@ -86,7 +101,7 @@ class StepsTest {
     @Test fun doublePole() {
         val s = Steps.of(m(fn("contour", m(Frac(m("1"), m("z", Pow(m("2"))))), m(fn("abs", m("z")), "=1"))))!!
         println(s.steps.map { it.title + ": " + it.text })
-        assertTrue(s.steps.any { it.text?.contains("order 2") == true })
+        assertTrue(s.steps.any { it.text?.contains("order \$2\$") == true })
     }
 }
 
@@ -94,8 +109,21 @@ class MoreStepsTest {
     private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
     private fun fn(name: String, vararg a: MathRow) = Func(name, a.toList())
     private fun d(body: MathRow, order: String = "", at: String = "") = m(com.example.cas.editor.Derivative(m("x"), body, m(at), m(order)))
-    private fun titles(s: Steps.Solution): List<String> = s.steps.flatMap { listOf(it.title) + it.substeps.map { t -> "  " + t.title } }
+    private fun titles(s: Steps.Solution): List<String> = latexOk(s).steps.flatMap { listOf(it.title) + it.substeps.map { t -> "  " + t.title } }
     private fun text(r: MathRow) = Formatter.plain(r)
+
+    /** Every formula in the step texts is LaTeX in $ … $ that the renderer reads, with no Unicode math left in the prose. */
+    private fun latexOk(s: Steps.Solution): Steps.Solution {
+        fun all(steps: List<Steps.Step>): List<Steps.Step> = steps.flatMap { listOf(it) + all(it.substeps) }
+        for (t in all(s.steps).flatMap { listOfNotNull(it.title, it.text) } + s.method) {
+            assertEquals("unbalanced $ in: $t", 0, t.count { it == '$' } % 2)
+            for ((isMath, piece) in LatexParser.inline(t)) {
+                if (isMath) assertEquals("unknown LaTeX in: $t", emptySet<String>(), LatexParser.unknownCommands(piece))
+                else assertFalse("Unicode math in prose: $t", piece.any { it in "²³ⁿ√∫∮Σ×≤≥′⁻¹½∞∂∇±ᵘᵏᵃᵇᵖ⁽⁾₀₁₂₃ₕₚ·÷−θπλμ" })
+            }
+        }
+        return s
+    }
     private fun lim(body: MathRow, to: String) = m(fn("lim", body, m("x→$to")))
     private fun sum(body: MathRow, lo: String, hi: String) = m(com.example.cas.editor.BigOp(com.example.cas.editor.BigOpKind.Sum, m("k"), m(lo), m(hi), body))
 
@@ -161,7 +189,20 @@ class EvenMoreStepsTest {
     private fun fn(name: String, vararg a: MathRow) = Func(name, a.toList())
     private fun prod(body: MathRow, lo: String, hi: String) = m(com.example.cas.editor.BigOp(com.example.cas.editor.BigOpKind.Product, m("k"), m(lo), m(hi), body))
     private fun text(r: MathRow) = Formatter.plain(r)
-    private fun of(r: MathRow) = Steps.of(r)!!.also { println(it.method + ": " + it.steps.map { s -> s.title } + " → " + text(it.answer)) }
+
+    /** Every formula in the step texts is LaTeX in $ … $ that the renderer reads, with no Unicode math left in the prose. */
+    private fun latexOk(s: Steps.Solution): Steps.Solution {
+        fun all(steps: List<Steps.Step>): List<Steps.Step> = steps.flatMap { listOf(it) + all(it.substeps) }
+        for (t in all(s.steps).flatMap { listOfNotNull(it.title, it.text) } + s.method) {
+            assertEquals("unbalanced $ in: $t", 0, t.count { it == '$' } % 2)
+            for ((isMath, piece) in LatexParser.inline(t)) {
+                if (isMath) assertEquals("unknown LaTeX in: $t", emptySet<String>(), LatexParser.unknownCommands(piece))
+                else assertFalse("Unicode math in prose: $t", piece.any { it in "²³ⁿ√∫∮Σ×≤≥′⁻¹½∞∂∇±ᵘᵏᵃᵇᵖ⁽⁾₀₁₂₃ₕₚ·÷−θπλμ" })
+            }
+        }
+        return s
+    }
+    private fun of(r: MathRow) = latexOk(Steps.of(r)!!).also { println(it.method + ": " + it.steps.map { s -> s.title } + " → " + text(it.answer)) }
 
     @Test fun productWrittenOut() = assertEquals("Multiplying the factors", of(prod(m("k+1"), "1", "4")).method)
     @Test fun factorial() = assertEquals("Factorial", of(prod(m("k"), "1", "n")).method)
@@ -214,7 +255,7 @@ class MethodStepsTest {
     private fun fn(name: String, vararg a: MathRow) = Func(name, a.toList())
     private fun integral(body: MathRow) = m(Integral(m(""), m(""), body, m("x")))
     private fun all(s: Steps.Solution): List<Pair<String, String?>> = s.steps.flatMap { listOf(it.title to it.text) + it.substeps.map { t -> t.title to t.text } }
-    private fun of(r: MathRow) = Steps.of(r)!!.also { println(all(it)) }
+    private fun of(r: MathRow) = latexOk(Steps.of(r)!!).also { println(all(it)) }
 
     @Test fun trigSubstitutionSine() {
         val s = of(integral(m(com.example.cas.editor.Sqrt(m("4−x", Pow(m("2")))))))
@@ -247,7 +288,7 @@ class WrittenSubstitutionTest {
     private fun fn(name: String, vararg a: MathRow) = Func(name, a.toList())
     private fun integral(body: MathRow) = m(Integral(m(""), m(""), body, m("x")))
     private fun titles(s: Steps.Solution) = s.steps.flatMap { listOf(it.title) + it.substeps.map { t -> "  " + t.title } }
-    private fun of(r: MathRow) = Steps.of(r)!!.also { s -> println(titles(s)); s.steps.forEach { st -> st.math?.let { println("   " + st.title + ": " + Formatter.plain(it)) } } }
+    private fun of(r: MathRow) = latexOk(Steps.of(r)!!).also { s -> println(titles(s)); s.steps.forEach { st -> st.math?.let { println("   " + st.title + ": " + Formatter.plain(it)) } } }
 
     @Test fun trigSubstitutionWrittenOut() {
         val s = of(integral(m(com.example.cas.editor.Sqrt(m("4−x", Pow(m("2")))))))
@@ -278,7 +319,7 @@ class RemainingMethodsTest {
     private fun integral(body: MathRow) = m(Integral(m(""), m(""), body, m("x")))
     private fun deep(ss: List<Steps.Step>, pre: String): List<String> = ss.flatMap { listOf(pre + it.title) + deep(it.substeps, "  ") }
     private fun titles(s: Steps.Solution) = deep(s.steps, "")
-    private fun of(r: MathRow) = Steps.of(r)!!.also { s -> println(titles(s)) }
+    private fun of(r: MathRow) = latexOk(Steps.of(r)!!).also { s -> println(titles(s)) }
 
     @Test fun quadratic() = assertTrue(titles(of(integral(m(Frac(m("x+3"), m("x", Pow(m("2")), "+2x+5")))))).contains("Quadratic denominator"))
     @Test fun partsTwice() = assertTrue(titles(of(integral(m("e", Pow(m("x")), fn("sin", m("x")))))).contains("By parts twice"))
@@ -323,7 +364,7 @@ class FullStepsTest {
 class MoreFullStepsTest {
     private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
     private fun fn(name: String, vararg a: MathRow) = Func(name, a.toList())
-    private fun of(r: MathRow) = Steps.of(r)!!.also { s -> println(s.method + ": " + s.steps.map { st -> st.title + " | " + (st.math?.let { Formatter.plain(it) } ?: "") }) }
+    private fun of(r: MathRow) = latexOk(Steps.of(r)!!).also { s -> println(s.method + ": " + s.steps.map { st -> st.title + " | " + (st.math?.let { Formatter.plain(it) } ?: "") }) }
 
     @Test fun complexProduct() = assertEquals("Complex multiplication", of(m("(1+2i)(3−i)")).method)
     @Test fun complexPower() = assertEquals("Complex powers", of(m("(1+i)", Pow(m("8")))).method)
@@ -347,10 +388,10 @@ class LastStepsTest {
     private fun fn(name: String, vararg a: MathRow) = Func(name, a.toList())
     private fun integral(body: MathRow) = m(Integral(m(""), m(""), body, m("x")))
     private fun deep(ss: List<Steps.Step>, pre: String): List<String> = ss.flatMap { listOf(pre + it.title) + deep(it.substeps, "  ") }
-    private fun of(r: MathRow) = Steps.of(r)!!.also { s -> println(s.method + ": " + deep(s.steps, "")) }
+    private fun of(r: MathRow) = latexOk(Steps.of(r)!!).also { s -> println(s.method + ": " + deep(s.steps, "")) }
 
     @Test fun multipleAngles() = assertTrue(deep(of(integral(m(Frac(m(fn("sin", m("2x"))), m(fn("cos", m("x"))))))).steps, "").contains("Multiple angles"))
-    @Test fun oddComplexPower() = assertTrue(of(m("(1+i)", Pow(m("5")))).steps.any { it.title == "Times z" })
+    @Test fun oddComplexPower() = assertTrue(of(m("(1+i)", Pow(m("5")))).steps.any { it.title == "Times \$z\$" })
     @Test fun det5() {
         val cells = listOf("2", "1", "0", "0", "0", "1", "2", "1", "0", "0", "0", "1", "2", "1", "0", "0", "0", "1", "2", "1", "0", "0", "0", "1", "2").map { m(it) }
         val s = of(m(fn("det", m(com.example.cas.editor.Matrix(5, 5, cells)))))
@@ -369,7 +410,7 @@ class LargeDeterminantStepsTest {
         val s = Steps.of(m(Func("det", listOf(m(com.example.cas.editor.Matrix(n, n, cells))))))!!
         assertEquals("Row reduction", s.method)
         assertTrue(Formatter.plain(s.answer).endsWith("=11"))
-        assertTrue(s.steps.first().substeps.first().title.startsWith("R2 ← R2"))
+        assertTrue(s.steps.first().substeps.first().title.startsWith("\$R_{2} \\leftarrow R_{2}"))
         println(s.steps.first().substeps.map { it.title })
     }
 }
@@ -379,7 +420,7 @@ class SolverStepsTest {
     private fun fn(name: String, vararg a: MathRow) = Func(name, a.toList())
     private fun mat(n: Int, vararg v: String) = com.example.cas.editor.Matrix(n, n, v.map { m(it) })
     private fun deep(ss: List<Steps.Step>, pre: String): List<String> = ss.flatMap { listOf(pre + it.title) + deep(it.substeps, "  ") }
-    private fun of(r: MathRow) = Steps.of(r)!!.also { s -> println(s.method + ": " + deep(s.steps, "") + " → " + Formatter.plain(s.answer)) }
+    private fun of(r: MathRow) = latexOk(Steps.of(r)!!).also { s -> println(s.method + ": " + deep(s.steps, "") + " → " + Formatter.plain(s.answer)) }
 
     @Test fun eigenvalues() = assertEquals("Eigenvalues", of(m(fn("eigvals", m(mat(2, "2", "1", "1", "2"))))).method)
     @Test fun eigenvectors() = assertTrue(of(m(fn("eigvecs", m(mat(2, "2", "1", "1", "2"))))).steps.count { it.title.startsWith("Eigenvector for") } == 2)
@@ -387,7 +428,7 @@ class SolverStepsTest {
     @Test fun rref() = assertEquals("Gauss–Jordan elimination", of(m(fn("rref", m(mat(2, "1", "2", "3", "4"))))).method)
     @Test fun inverse() {
         val s = of(m(mat(2, "1", "2", "3", "4"), Pow(m("−1"))))
-        assertTrue(s.steps.first().title == "Augment with I")
+        assertTrue(s.steps.first().title == "Augment with \$I\$")
     }
     @Test fun odeSecondOrder() = assertEquals("Characteristic equation", of(m(fn("dsolve", m("y′′+3y′+2y=0")))).method)
     @Test fun odeLinear() = assertTrue(deep(of(m(fn("dsolve", m("y′=2y+x")))).steps, "").contains("Integrating factor"))

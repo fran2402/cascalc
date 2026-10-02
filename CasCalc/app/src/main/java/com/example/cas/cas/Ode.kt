@@ -22,7 +22,7 @@ object Ode {
 
     fun solve(equation: Expr, y: Sym, x: Sym, conditions: List<Condition>): Expr {
         val f = if (equation is Eq) sub(equation.lhs, equation.rhs) else equation
-        val order = (1..4).lastOrNull { !f.freeOf(derivativeSymbol(y, it)) } ?: throw MathError("There's no y′ in that equation")
+        val order = (1..4).lastOrNull { !f.freeOf(derivativeSymbol(y, it)) } ?: throw MathError("There's no \$y'\$ in that equation")
         val general: Expr = when (order) {
             1 -> firstOrder(f, y, x)
             2 -> secondOrder(f, y, x)
@@ -38,7 +38,7 @@ object Ode {
         val y1 = derivativeSymbol(y, 1)
         val rhs = when (val s = Algebra.solve(Eq(f, ZERO), y1)) {
             is Eq -> s.rhs
-            else -> throw MathError("Couldn't write the equation as y′ = …")
+            else -> throw MathError("Couldn't write the equation as \$y' = \\ldots\$")
         }
         // Linear: y′ = a(x) y + b(x).
         val cs = Algebra.coefficients(Algebra.expand(rhs), y)
@@ -75,14 +75,14 @@ object Ode {
         val y2 = derivativeSymbol(y, 2)
         val ex = Algebra.expand(f)
         fun coefficientOf(v: Sym, e: Expr): Pair<Expr, Expr> {
-            val cs = Algebra.coefficients(e, v) ?: throw MathError("The equation must be linear in y, y′ and y″")
-            if (cs.size > 2) throw MathError("The equation must be linear in y, y′ and y″")
+            val cs = Algebra.coefficients(e, v) ?: throw MathError("The equation must be linear in \$y\$, \$y'\$ and \$y''\$")
+            if (cs.size > 2) throw MathError("The equation must be linear in \$y\$, \$y'\$ and \$y''\$")
             return cs.getOrElse(1) { ZERO } to cs[0]
         }
         val (a, r1) = coefficientOf(y2, ex)
         val (b, r2) = coefficientOf(y1, r1)
         val (c, rest) = coefficientOf(y, r2)
-        if (!a.isConstant || !b.isConstant || !c.isConstant) throw MathError("Only constant coefficients are supported for y″")
+        if (!a.isConstant || !b.isConstant || !c.isConstant) throw MathError("Only constant coefficients are supported for \$y''\$")
         val g = neg(rest) // a y″ + b y′ + c y = g(x)
 
         val r = Sym("\u0001r")

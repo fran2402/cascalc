@@ -399,8 +399,8 @@ object Simplify {
             // Γ(1, x) = e^(−x); Γ(s, 0) = Γ(s).
             "gammainc" -> when { x == ONE -> power(E, product(listOf(MINUS_ONE, args[1]))); args[1] == ZERO -> function("gamma", listOf(x)); else -> Fn(name, args) }
             "polylog" -> polylogExact(args[0], args[1]) ?: Fn(name, args)
-            "hadamard" -> Matrices.hadamard(x as? Mat ?: throw MathError("∘ needs two matrices"), args[1] as? Mat ?: throw MathError("∘ needs two matrices"))
-            "kron" -> Matrices.kronecker(x as? Mat ?: throw MathError("⊗ needs two matrices"), args[1] as? Mat ?: throw MathError("⊗ needs two matrices"))
+            "hadamard" -> Matrices.hadamard(x as? Mat ?: throw MathError("\$\\circ\$ needs two matrices"), args[1] as? Mat ?: throw MathError("\$\\circ\$ needs two matrices"))
+            "kron" -> Matrices.kronecker(x as? Mat ?: throw MathError("\$\\otimes\$ needs two matrices"), args[1] as? Mat ?: throw MathError("\$\\otimes\$ needs two matrices"))
             "hermitian" -> Matrices.hermitian(x as? Mat ?: throw MathError("Aᴴ needs a matrix"))
             "det" -> Matrices.det(x)
             "trace" -> LinearAlgebra.trace(x)
@@ -526,7 +526,7 @@ object Simplify {
     private fun gammaExact(x: Expr): Expr? {
         val q = (x as? Num)?.q ?: return null
         if (q.isInteger) {
-            if (q.signum <= 0) throw MathError("Γ is undefined at 0 and negative integers")
+            if (q.signum <= 0) throw MathError("\$\\Gamma\$ is undefined at 0 and negative integers")
             if (q.num > java.math.BigInteger.valueOf(3000)) return null
             return factorial(Num(q - Rational.ONE))
         }
@@ -585,7 +585,7 @@ object Simplify {
         val n = q.num.toInt()
         if (q.num.bitLength() > 7) return null
         return when {
-            n == 1 -> throw MathError("ζ has a pole at 1")
+            n == 1 -> throw MathError("\$\\zeta\$ has a pole at 1")
             n == 0 -> Num(Rational.of(-1, 2))
             n < 0 -> Num(-Bernoulli.of(1 - n) / Rational.of((1 - n).toLong()))
             n % 2 == 0 -> {

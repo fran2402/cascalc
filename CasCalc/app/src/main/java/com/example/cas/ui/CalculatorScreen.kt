@@ -467,7 +467,7 @@ private fun InputPanel(vm: CalculatorViewModel) {
             val preview = vm.preview
             when {
                 vm.busy -> LinearProgressIndicator(Modifier.width(96.dp))
-                error != null -> Text(error, color = colors.error, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 16.sp))
+                error != null -> MathText(error, color = colors.error, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 16.sp))
                 preview != null -> Row(verticalAlignment = Alignment.CenterVertically) {
                     // Long exact numbers (or every answer, if decimals come first) preview as decimals.
                     val decimal = (vm.decimalFirst || preview.preferApprox) && preview.approx != null
@@ -1014,7 +1014,7 @@ private fun KeyHelpDialog(
                         }
                     }
                 }
-                if (help.about.isNotEmpty()) TextWithMaths(help.about, MaterialTheme.typography.bodyLarge, colors.onSurface)
+                if (help.about.isNotEmpty()) MathText(help.about, style = MaterialTheme.typography.bodyLarge, color = colors.onSurface)
                 // Pin, undefine and remove, as buttons on the card.
                 if (pinned != null || onUndefine != null || onRemove != null) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1038,7 +1038,7 @@ private fun KeyHelpDialog(
                 if (help.usage.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("How to use", style = MaterialTheme.typography.labelLarge, color = colors.primary)
-                        TextWithMaths(help.usage, MaterialTheme.typography.bodyMedium, colors.onSurfaceVariant)
+                        MathText(help.usage, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
                     }
                 }
                 help.link?.let { url ->
@@ -1064,36 +1064,6 @@ private fun KeyHelpDialog(
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Dismiss") } },
     )
-}
-
-/** Text with inline math written \( … \): words flow and wrap, the math is drawn in Computer Modern. */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun TextWithMaths(text: String, style: TextStyle, color: Color) {
-    FlowRow(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        LatexParser.inline(text).forEach { (isMaths, piece) ->
-            if (isMaths) {
-                val math = remember(piece) { LatexParser.parse(piece) }
-                MathView(math, style.fontSize * 1.15f, color, modifier = Modifier.align(Alignment.CenterVertically))
-            } else {
-                // One Text per word so lines can wrap between words.
-                val words = piece.split(" ")
-                val firstWord = words.indexOfFirst { it.isNotEmpty() }
-                words.forEachIndexed { k, word ->
-                    if (word.isNotEmpty()) {
-                        // Keep the space between math and the word after it ("… \(x\) here").
-                        val lead = if (k == firstWord && piece.startsWith(" ")) " " else ""
-                        Text(
-                            lead + if (k < words.lastIndex || piece.endsWith(" ")) "$word " else word,
-                            style = style,
-                            color = color,
-                            modifier = Modifier.align(Alignment.CenterVertically),
-                        )
-                    }
-                }
-            }
-        }
-    }
 }
 
 @Composable
@@ -1429,7 +1399,7 @@ private fun SettingsToggle(title: String, detail: String?, checked: Boolean, onC
                     BetaBadge(badge)
                 }
             }
-            if (detail != null) Text(detail, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+            if (detail != null) MathText(detail, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
         Switch(checked = checked, onCheckedChange = onChange)
     }
@@ -1445,7 +1415,7 @@ private fun SettingsLink(title: String, detail: String?, clickLabel: String, onC
     ) {
         Column(Modifier.weight(1f)) {
             Text(title, color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
-            if (detail != null) Text(detail, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+            if (detail != null) MathText(detail, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.onSurfaceVariant)
     }
@@ -1456,8 +1426,8 @@ private fun SettingsLink(title: String, detail: String?, clickLabel: String, onC
 private fun SettingsSlider(title: String, subtitle: String?, value: Int, range: IntRange, description: String, onChange: (Int) -> Unit) {
     val colors = MaterialTheme.colorScheme
     Column {
-        Text(title, color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
-        if (subtitle != null) Text(subtitle, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        MathText(title, color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
+        if (subtitle != null) MathText(subtitle, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         ExpressiveSlider(
             value = value.toFloat(),
             onValueChange = { v -> v.roundToInt().let { if (it != value) onChange(it) } },
@@ -1552,7 +1522,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsToggle("Continue from the answer", "An operator after = starts with Ans", AppSettings.continueFromAnswer, AppSettings::changeContinueFromAnswer)
             SettingsToggle("Explanations on long-press", "Formula, theory and how to use each key", AppSettings.keyHelp, AppSettings::changeKeyHelp)
             SettingsToggle(
-                "Show steps", "Worked steps for calculus (integrals, derivatives, limits, sums, series, ∮), algebra and complex numbers, matrices (determinants, inverses, eigenvalues, rref), differential equations, statistics and vector calculus: Steps on a history card. Still in beta, so steps may skip some algebra",
+                "Show steps", "Worked steps for calculus (integrals, derivatives, limits, sums, series, \$\\oint\$), algebra and complex numbers, matrices (determinants, inverses, eigenvalues, rref), differential equations, statistics and vector calculus: Steps on a history card. Still in beta, so steps may skip some algebra",
                 AppSettings.showSteps, AppSettings::changeShowSteps, badge = "Beta",
             )
         },
@@ -1570,14 +1540,14 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsChoice("Number format", listOf("Auto", "Scientific", "Engineering"), AppSettings.numberFormat) { AppSettings.changeNumberFormat(it); vm?.reformat() }
             SettingsSlider(
                 title = "Scientific notation past ${AppSettings.sciAfter} digits",
-                subtitle = if (AppSettings.numberFormat == 0) "Longer numbers, exact ones too, show as a × 10ⁿ" else "Longer whole numbers show as a × 10ⁿ",
+                subtitle = if (AppSettings.numberFormat == 0) "Longer numbers, exact ones too, show as \$a \\times 10^n\$" else "Longer whole numbers show as \$a \\times 10^n\$",
                 value = AppSettings.sciAfter,
                 range = 5..30,
                 description = "Digits before scientific notation",
             ) { AppSettings.changeSciAfter(it); vm?.reformat() }
             SettingsSlider(
-                title = "${AppSettings.sciDecimals} ${if (AppSettings.sciDecimals == 1) "decimal" else "decimals"} in a × 10ⁿ",
-                subtitle = "7361516178171161718 = ${java.math.BigDecimal("7.361516178171161718").setScale(AppSettings.sciDecimals, java.math.RoundingMode.HALF_UP).toPlainString()} × 10¹⁸",
+                title = "${AppSettings.sciDecimals} ${if (AppSettings.sciDecimals == 1) "decimal" else "decimals"} in \$a \\times 10^n\$",
+                subtitle = "\$7361516178171161718 = ${java.math.BigDecimal("7.361516178171161718").setScale(AppSettings.sciDecimals, java.math.RoundingMode.HALF_UP).toPlainString()} \\times 10^{18}\$",
                 value = AppSettings.sciDecimals,
                 range = 1..12,
                 description = "Decimals in scientific notation",

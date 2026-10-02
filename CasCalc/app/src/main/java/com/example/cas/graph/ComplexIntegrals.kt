@@ -37,7 +37,7 @@ object ComplexIntegrals {
     /** ∮ over |z − [center]| = [radius], counterclockwise. */
     fun circle(f: Expr, z: Sym, center: Expr, radius: Expr): Expr {
         if (!center.isConstant || !radius.isConstant) throw MathError("The circle's center and radius must be numbers")
-        if (!f.freeVars().all { it == z.name }) throw MathError("∮ needs a function of ${z.name} only")
+        if (!f.freeVars().all { it == z.name }) throw MathError("\$\\oint\$ needs a function of \$${z.name}\$ only")
         val c = Numeric.eval(center)
         val r = Numeric.real(radius)
         if (r <= 0) throw MathError("The radius must be positive")

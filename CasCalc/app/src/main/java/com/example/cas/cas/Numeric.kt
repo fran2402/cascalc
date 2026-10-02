@@ -179,7 +179,7 @@ object Numeric {
             "gammainc" -> CD(Special.gammaUpper(x.real("Γ"), a[1].real("Γ")))
             "ellipticf" -> CD(Special.ellipticF(x.real("F"), a[1].real("F")))
             "elliptice" -> CD(Special.ellipticE(x.real("E"), a[1].real("E")))
-            "polylog" -> ComplexMath.polylog(x, a[1]).also { if (it.re.isNaN()) throw MathError("The polylogarithm needs |z| ≤ 1") }
+            "polylog" -> ComplexMath.polylog(x, a[1]).also { if (it.re.isNaN()) throw MathError("The polylogarithm needs \$|z| \\le 1\$") }
             "zetaprime2" -> ComplexMath.zetaDerivative(x, 2)
             "lambertw" -> CD(Statistics.lambertW(r()))
             "besselj" -> CD(Statistics.besselJ(a[0].real("besselj"), a[1].real("besselj")))
@@ -202,7 +202,7 @@ object Numeric {
 
     /** Lanczos approximation of Γ(x). */
     fun gamma(x: Double): Double {
-        if (x == Math.rint(x) && x <= 0) throw MathError("Γ is undefined at 0 and negative integers")
+        if (x == Math.rint(x) && x <= 0) throw MathError("\$\\Gamma\$ is undefined at 0 and negative integers")
         if (x < 0.5) return PI / (sin(PI * x) * gamma(1 - x))
         val c = doubleArrayOf(
             0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,

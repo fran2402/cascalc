@@ -52,9 +52,9 @@ val CREDITS: List<CreditGroup> = listOf(
             "A variable font; the app always uses its fully rounded setting (ROND 100).", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Google+Sans+Flex"),
         Credit("Roboto", "Christian Robertson, Google", "Characters Google Sans Flex doesn't have",
             "Android's own typeface, used as the fallback.", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Roboto"),
-        Credit("MathJax TeX fonts", "The MathJax Consortium, after Donald Knuth's Computer Modern", "All the math: Main, Math Italic, Caligraphic, Fraktur and Size2 (the large ∫ and ∮)",
+        Credit("MathJax TeX fonts", "The MathJax Consortium, after Donald Knuth's Computer Modern", "All the math: Main, Math Italic, Caligraphic, Fraktur and Size2 (the large \$\\int\$ and \$\\oint\$)",
             "The fonts LaTeX documents are set in, so answers look as they would in print.", "SIL Open Font License 1.1", "https://github.com/mathjax/MathJax/tree/legacy-v2/fonts"),
-        Credit("New Computer Modern", "Antonis Tsolomitis, after Donald Knuth's Computer Modern", "Blackboard bold (ℝ, ℂ…), Hebrew letters, upright Greek, ħ and the Greek letters Computer Modern lacks",
+        Credit("New Computer Modern", "Antonis Tsolomitis, after Donald Knuth's Computer Modern", "Blackboard bold (\$\\mathbb{R}\$, \$\\mathbb{C}\$…), Hebrew letters, upright Greek, ħ and the Greek letters Computer Modern lacks",
             "Computer Modern extended with Unicode math and more scripts, so these match the rest of the math.", "GUST Font License", "https://ctan.org/pkg/newcomputermodern"),
         Credit("Material Symbols", "Google", "Icons",
             "Google's icon set, through Compose's extended icons.", "Apache License 2.0", "https://fonts.google.com/icons"),
@@ -81,12 +81,12 @@ val CREDITS: List<CreditGroup> = listOf(
         Credit("Durand–Kerner method", "Émile Durand, Immo Kerner", "Roots of polynomials of degree 3 and up that don't factor",
             "Finds all the roots at once, complex ones included.", "Published method", "https://en.wikipedia.org/wiki/Durand%E2%80%93Kerner_method"),
         Credit("Lanczos approximation", "Cornelius Lanczos", "The gamma function and factorials of non-integers",
-            "A short series that gives Γ(z) to about 15 digits.", "Published method", "https://en.wikipedia.org/wiki/Lanczos_approximation"),
+            "A short series that gives \$\\Gamma(z)\$ to about 15 digits.", "Published method", "https://en.wikipedia.org/wiki/Lanczos_approximation"),
         Credit("Borwein's algorithm", "Peter Borwein", "The Riemann zeta function",
-            "A fast-converging series for ζ(s), with the functional equation for Re s < 1/2.", "Published method", "https://en.wikipedia.org/wiki/Riemann_zeta_function"),
+            "A fast-converging series for \$\\zeta(s)\$, with the functional equation for \$\\operatorname{Re} s < \\frac{1}{2}\$.", "Published method", "https://en.wikipedia.org/wiki/Riemann_zeta_function"),
         Credit("Lentz's continued fraction", "William J. Lentz", "The error function far from 0 (and so the normal distribution)",
             "Evaluates continued fractions from the top down.", "Published method", "https://en.wikipedia.org/wiki/Error_function"),
-        Credit("Acklam's inverse normal", "Peter John Acklam", "Φ⁻¹, refined by Newton's method",
+        Credit("Acklam's inverse normal", "Peter John Acklam", "\$\\Phi^{-1}\$, refined by Newton's method",
             "A rational approximation to the normal quantile.", "Published method", "https://en.wikipedia.org/wiki/Normal_distribution"),
         Credit("Newton's method", "Isaac Newton, Joseph Raphson", "Lambert W, solving equations numerically",
             "Follows the tangent to a root, doubling the correct digits each step.", "Published method", "https://en.wikipedia.org/wiki/Newton%27s_method"),
@@ -170,8 +170,8 @@ private fun CreditCard(c: Credit, modifier: Modifier) {
             Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(16.dp))
         }
         if (c.by != "—") Text(c.by, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-        Text("Used for: " + c.use, style = MaterialTheme.typography.bodyMedium, color = colors.onSurface)
-        Text(c.about, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        MathText("Used for: " + c.use, style = MaterialTheme.typography.bodyMedium, color = colors.onSurface)
+        MathText(c.about, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
         if (c.license != "—") {
             Text(
                 c.license,

@@ -230,7 +230,7 @@ private fun Hero(mode: Mode, large: Boolean = false) {
         Column(Modifier.weight(1f).padding(end = if (large) 40.dp else 0.dp)) {
             Text(g.title, style = if (large) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.semantics { heading() })
             Spacer(Modifier.height(4.dp))
-            Text(g.tagline, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+            MathText(g.tagline, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
         }
     }
 }
@@ -277,7 +277,7 @@ private fun ExampleGrid(mode: Mode, examples: List<ModeGuides.Example>, columns:
                             MathView(e.row, 19.sp, colors.onSurface, modifier = Modifier.semantics { contentDescription = com.example.cas.engine.Formatter.plain(e.row) })
                         }
                         Spacer(Modifier.height(6.dp))
-                        Text(e.note, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.weight(1f))
+                        MathText(e.note, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.weight(1f))
                         Spacer(Modifier.height(8.dp))
                         Row(
                             Modifier.align(Alignment.End).height(30.dp).clip(CircleShape).background(colors.primaryContainer).padding(start = 12.dp, end = 10.dp),
@@ -315,7 +315,7 @@ private fun ColumnScope.Tips(title: String, tips: List<ModeGuides.Tip>, tertiary
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
                     Text(t.title, style = MaterialTheme.typography.titleSmall, color = colors.onSurface)
-                    Text(t.text, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                    MathText(t.text, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
                 }
             }
         }

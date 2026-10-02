@@ -59,7 +59,7 @@ sealed class PlotSpec {
                 e is Eq -> {
                     val f = sub(e.lhs, e.rhs)
                     // r and θ mixed with x and y: polar curves are written r = f(θ).
-                    if ((!f.freeOf(R) || !f.freeOf(THETA)) && (!f.freeOf(X) || !f.freeOf(Y)) && !f.freeOf(THETA)) throw MathError("Write polar curves as r = f(θ)")
+                    if ((!f.freeOf(R) || !f.freeOf(THETA)) && (!f.freeOf(X) || !f.freeOf(Y)) && !f.freeOf(THETA)) throw MathError("Write polar curves as \$r = f(\\theta)\$")
                     Implicit(f, params(XY, f))
                 }
                 // f(x, y) on its own: the field's value everywhere, as color.
@@ -95,7 +95,7 @@ sealed class PlotSpec3D {
         fun region(e: Rel): Region {
             val gs = e.ops.indices.map { k ->
                 val a = e.parts[k]; val b = e.parts[k + 1]
-                when (e.ops[k]) { "<", "≤" -> sub(a, b); ">", "≥" -> sub(b, a); else -> throw MathError("Use <, >, ≤ or ≥") }
+                when (e.ops[k]) { "<", "≤" -> sub(a, b); ">", "≥" -> sub(b, a); else -> throw MathError("Use \$<\$, \$>\$, \$\\le\$ or \$\\ge\$") }
             }
             val g = gs.reduce { a, b -> com.example.cas.cas.Fn("max", listOf(a, b)) }
             return Region(g, params(g), strict = e.ops.all { it == "<" || it == ">" })
@@ -107,7 +107,7 @@ sealed class PlotSpec3D {
                 e is Eq && e.lhs == z && e.rhs.freeOf(z) -> Explicit(e.rhs, params(e.rhs))
                 e is Eq -> sub(e.lhs, e.rhs).let { Implicit(it, params(it)) }
                 e is Rel -> region(e)
-                !e.freeOf(z) -> throw MathError("Add = … to make it an equation in x, y and z")
+                !e.freeOf(z) -> throw MathError("Add \$= \\ldots\$ to make it an equation in \$x\$, \$y\$ and \$z\$")
                 else -> Explicit(e, params(e))
             }
         }

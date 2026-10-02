@@ -586,7 +586,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             // "y = …" (or "z = …" in 3D) is the same as just "…".
             if (e is Eq) {
                 val lhs = e.lhs
-                e = if (lhs is Sym && lhs.name == outputVar) e.rhs else throw MathError("Write it as $outputVar = …")
+                e = if (lhs is Sym && lhs.name == outputVar) e.rhs else throw MathError("Write it as \$$outputVar = \\ldots\$")
             }
             val params = (e.freeVars() - plotVars.toSet()).sorted()
             params.forEach { if (it !in parameters) parameters[it] = 1.0 }
@@ -854,9 +854,9 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     /** a ≤ t ≤ b (or b ≥ t ≥ a) as (a, b). */
     private fun tRange(r: com.example.cas.cas.Rel): Pair<Double, Double> {
         val t = com.example.cas.cas.Sym("t")
-        if (r.parts.size != 3 || r.parts[1] != t) throw MathError("Write the range of t as a ≤ t ≤ b")
+        if (r.parts.size != 3 || r.parts[1] != t) throw MathError("Write the range of \$t\$ as \$a \\le t \\le b\$")
         val a = com.example.cas.cas.Numeric.real(r.parts[0]); val b = com.example.cas.cas.Numeric.real(r.parts[2])
-        if (!a.isFinite() || !b.isFinite() || a == b) throw MathError("Write the range of t as a ≤ t ≤ b")
+        if (!a.isFinite() || !b.isFinite() || a == b) throw MathError("Write the range of \$t\$ as \$a \\le t \\le b\$")
         return minOf(a, b) to maxOf(a, b)
     }
 
@@ -918,10 +918,10 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             if (single?.name == "contour") {
                 // Its circle, from the |z − a| = r written underneath, and its value.
                 val value = ev.evaluate(MathCodec.copy(f.editor.root))
-                val spec = ev.evaluate(MathCodec.copy(single.args[1])) as? com.example.cas.cas.Eq ?: throw MathError("Write the circle as |z − a| = r")
-                val inner = ((spec.lhs as? com.example.cas.cas.Fn)?.takeIf { it.name == "abs" } ?: throw MathError("Write the circle as |z − a| = r")).args[0]
+                val spec = ev.evaluate(MathCodec.copy(single.args[1])) as? com.example.cas.cas.Eq ?: throw MathError("Write the circle as \$|z - a| = r\$")
+                val inner = ((spec.lhs as? com.example.cas.cas.Fn)?.takeIf { it.name == "abs" } ?: throw MathError("Write the circle as \$|z - a| = r\$")).args[0]
                 val z = com.example.cas.cas.Sym("z")
-                val cs = com.example.cas.cas.Algebra.coefficients(com.example.cas.cas.Algebra.expand(inner), z) ?: throw MathError("Write the circle as |z − a| = r")
+                val cs = com.example.cas.cas.Algebra.coefficients(com.example.cas.cas.Algebra.expand(inner), z) ?: throw MathError("Write the circle as \$|z - a| = r\$")
                 val center = com.example.cas.cas.Numeric.eval(com.example.cas.cas.Algebra.simplify(com.example.cas.cas.neg(cs[0])))
                 f.contour = ContourCircle(center.re, center.im, com.example.cas.cas.Numeric.real(spec.rhs), value)
                 f.parameters = emptyList(); f.definition = null; f.error = null
@@ -943,8 +943,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             // [a, b, …]: points (joined with "Join the points").
             if ((items.firstOrNull() as? com.example.cas.editor.Sym)?.text == "[" && (items.lastOrNull() as? com.example.cas.editor.Sym)?.text == "]") {
                 val es = splitTopLevel(items.subList(1, items.size - 1)).filter { it.isNotEmpty() }.map { ev.evaluate(rowOf(it)) }
-                if (es.isEmpty()) throw MathError("Put points in the list, like [1 + i, 2, −i]")
-                if (es.any { !it.freeOf(zSym) }) throw MathError("Points are numbers, like [1 + i, 2 − 3i]")
+                if (es.isEmpty()) throw MathError("Put points in the list, like \$[1 + i, 2, -i]\$")
+                if (es.any { !it.freeOf(zSym) }) throw MathError("Points are numbers, like \$[1 + i, 2 - 3i]\$")
                 val params = es.flatMap { it.freeVars() }.distinct().sorted()
                 params.forEach { if (it !in parameters) parameters[it] = 1.0 }
                 f.complexPoints = es.map { com.example.cas.graph.ComplexCompiler.compile(it, listOf("z") + params) }
@@ -954,7 +954,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             // Conditions after a comma: the range of t for a curve (e^{it}, 0 ≤ t ≤ π).
             val segments = splitTopLevel(items)
             val conditions = segments.drop(1).filter { it.isNotEmpty() }.map { seg ->
-                ev.evaluate(rowOf(seg)) as? com.example.cas.cas.Rel ?: throw MathError("After a comma, write the range of t, like 0 ≤ t ≤ 1")
+                ev.evaluate(rowOf(seg)) as? com.example.cas.cas.Rel ?: throw MathError("After a comma, write the range of \$t\$, like \$0 \\le t \\le 1\$")
             }
             val curveRow = { rowOf(segments[0]) }
             // An integral with no closed form (∫ Γ(z) dz) is drawn as ∫₁^z, an antiderivative, worked
@@ -982,7 +982,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 val sample = { x: Double, y: Double, ps: DoubleArray -> c(com.example.cas.cas.CD(x, y), ps) }
                 val probe = DoubleArray(params.size) { 1.0 }
                 if (listOf(0.3 to 0.7, -1.1 to 0.4, 1.7 to -2.2).any { (x, y) -> sample(x, y, probe).let { v -> v.im.isFinite() && kotlin.math.abs(v.im) > 1e-9 * (1 + kotlin.math.abs(v.re)) } }) {
-                    throw MathError("Both sides must be real to draw a curve, like |z − 1| = 2")
+                    throw MathError("Both sides must be real to draw a curve, like \$|z - 1| = 2\$")
                 }
                 f.complexCurve = RealFunction { args -> sample(args[0], args[1], args.copyOfRange(2, args.size)).re }
                 f.parameters = params; f.definition = null; f.error = null
@@ -992,7 +992,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             val planeLetters = setOf("z", "x", "y", "r", "θ")
             if (e.freeVars().none { it in planeLetters } && e !is com.example.cas.cas.Mat) {
                 val path = "t" in e.freeVars()
-                if (!path && conditions.isNotEmpty()) throw MathError("A range after a comma is for curves in t, like e^{it}, 0 ≤ t ≤ π")
+                if (!path && conditions.isNotEmpty()) throw MathError("A range after a comma is for curves in \$t\$, like \$e^{it}, 0 \\le t \\le \\pi\$")
                 val params = (e.freeVars() - "t").sorted()
                 params.forEach { if (it !in parameters) parameters[it] = 1.0 }
                 if (path) {
@@ -1005,7 +1005,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 f.parameters = params; f.definition = null; f.error = null
                 return
             }
-            if (conditions.isNotEmpty()) throw MathError("A range after a comma is for curves in t, like e^{it}, 0 ≤ t ≤ π")
+            if (conditions.isNotEmpty()) throw MathError("A range after a comma is for curves in \$t\$, like \$e^{it}, 0 \\le t \\le \\pi\$")
             e = polar(e)
             val params = (e.freeVars() - plotLetters).sorted()
             params.forEach { if (it !in parameters) parameters[it] = 1.0 }

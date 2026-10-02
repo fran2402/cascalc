@@ -43,7 +43,7 @@ function stroke(d,sw,color){return `<path d="${d}" fill="none" stroke="${color||
 function rowBox(row,l){
   const active=ENV.cursorRow===row;const e=em(l);
   const parts=[];
-  if(row.length==0&&row.parent) parts.push({b:placeholder(row,l,active)});
+  if(row.length==0&&row.parent&&!window.NO_PLACEHOLDER) parts.push({b:placeholder(row,l,active)});
   row.forEach((n,i)=>parts.push(nodeBox(n,row,i,l)));
   const P=parts.map(p=>p.b?p:{b:p});
   // pass 1
@@ -57,7 +57,7 @@ function rowBox(row,l){
   let asc=R(e*.78),desc=R(e*.24);
   P.forEach((p,k)=>{if(!p.b.paren){asc=max(asc,axes[k]);desc=max(desc,p.b.h-axes[k])}});
   // Brackets sized pair by pair to what's between them, inner pairs first (as RowView in MathView.kt).
-  const off=(row.length==0&&row.parent)?1:0,br=k=>(row[k-off]||{}).s;
+  const off=(row.length==0&&row.parent&&!window.NO_PLACEHOLDER)?1:0,br=k=>(row[k-off]||{}).s;
   const partner=P.map(()=>-1),st=[];
   P.forEach((p,k)=>{if(!p.b.paren)return;const t=br(k);if('([{'.includes(t))st.push(k);else if(')]}'.includes(t)&&st.length){const j=st.pop();partner[j]=k;partner[k]=j}});
   const span=k=>{const q=partner[k];if(q>=0)return [Math.min(k,q)+1,Math.max(k,q)];return '([{'.includes(br(k))?[k+1,P.length]:[0,k]};
@@ -69,7 +69,7 @@ function rowBox(row,l){
   P.forEach((p,k)=>{if(p.b.paren){asc=max(asc,axes[k]);desc=max(desc,p.b.h-axes[k])}});
   const w=P.reduce((s,p)=>s+p.b.w,0);
   return {w,h:asc+desc,a:asc,paint(x,y,o){
-    let xx=x,cx=null;const off=(row.length==0&&row.parent)?1:0;
+    let xx=x,cx=null;const off=(row.length==0&&row.parent&&!window.NO_PLACEHOLDER)?1:0;
     P.forEach((p,k)=>{if(active&&k-off==ENV.cursorIndex&&row.length)cx=xx;p.b.paint(xx,y+asc-axes[k],o);xx+=p.b.w});
     if(active){if(row.length&&ENV.cursorIndex>=row.length)cx=xx;if(!row.length)cx=row.parent?x+R(e*.12):x+2;
       const ch=max(asc+desc,R(e*1.05));o.push(`<rect x="${cx-1}" y="${y+(asc+desc-ch)/2}" width="2" height="${ch}" fill="${ENV.accent}"/>`)}
@@ -123,17 +123,17 @@ function nodeBox(n,row,i,l){
     case 'int':return integral(n,l);
     case 'diff':return deriv(n,l);
     // A base with a subscript and/or superscript (Scripted in MathTree.kt).
-    case 'scr':return scripts(l,rowBox(n.base,l),n.sub.length?rowBox(n.sub,l+1):null,n.sup.length?rowBox(n.sup,l+1):null);
+    case 'scr':return scripts(l,rowBox(n.base,l),n.sub.length?rowBox(n.sub,l+1):null,n.sup.length?rowBox(n.sup,l+1):null,!n.base.length);
     case 'binom':{const cl=l==0?0:l+1;return fenced('paren',l,frac(l,false,rowBox(n.n,cl),rowBox(n.k,cl)))}
     case 'mat':return fenced('bracket',l,matrix(n,l));
   }
 }
-function scripts(l,b,sb,sp){
+function scripts(l,b,sb,sp,end){
   const e=em(l),subDrop=R(e*.22),supRise=R(e*.42);
   const asc=max(b.a,sp?supRise+sp.a:0,sb?sb.a-subDrop:0);
   const desc=max(b.h-b.a,sb?subDrop+sb.h-sb.a:0);
-  const w=b.w+max(sb?sb.w:0,sp?sp.w:0);
-  return {w,h:asc+desc,a:asc,paint(x,y,o){b.paint(x,y+asc-b.a,o);if(sb)sb.paint(x+b.w,y+asc+subDrop-sb.a,o);if(sp)sp.paint(x+b.w,y+asc-supRise-sp.a,o)}};
+  const sw=max(sb?sb.w:0,sp?sp.w:0),w=b.w+sw;
+  return {w,h:asc+desc,a:asc,paint(x,y,o){b.paint(x,y+asc-b.a,o);if(sb)sb.paint(x+b.w+(end&&!window.OLD_PRESCRIPTS?sw-sb.w:0),y+asc+subDrop-sb.a,o);if(sp)sp.paint(x+b.w+(end&&!window.OLD_PRESCRIPTS?sw-sp.w:0),y+asc-supRise-sp.a,o)}};
 }
 function powBox(p,l){
   const ex=rowBox(p.exp,l+1),raise=R(em(l)*.38),a=ex.a+raise,pad=R(em(l)*.04);

@@ -88,7 +88,7 @@ object MathScene {
         }
 
         /** [b] with an exponent and/or an index after it, as TeX places them. */
-        fun scripts(b: Box, sup: Box?, sub: Box?, size: Double): Box {
+        fun scripts(b: Box, sup: Box?, sub: Box?, size: Double, alignEnd: Boolean = false): Box {
             val supShift = sup?.let { maxOf(0.42 * size, b.ascent - 0.38 * size) } ?: 0.0
             val subShift = sub?.let { maxOf(0.2 * size, b.descent + 0.1 * size) } ?: 0.0
             val w = maxOf(sup?.width ?: 0.0, sub?.width ?: 0.0) + 0.05 * size
@@ -96,8 +96,9 @@ object MathScene {
             val desc = maxOf(b.descent, sub?.let { subShift + it.descent } ?: 0.0)
             return Box(b.width + w, asc, desc) { scene, x, y ->
                 b.draw(scene, x, y)
-                sup?.draw(scene, x + b.width + 0.03 * size, y - supShift)
-                sub?.draw(scene, x + b.width + 0.03 * size, y + subShift)
+                val sw = w - 0.05 * size
+                sup?.draw(scene, x + b.width + 0.03 * size + if (alignEnd) sw - sup.width else 0.0, y - supShift)
+                sub?.draw(scene, x + b.width + 0.03 * size + if (alignEnd) sw - sub.width else 0.0, y + subShift)
             }
         }
 
@@ -190,7 +191,7 @@ object MathScene {
             is Frac -> frac(row(n.num, size * 0.75), row(n.den, size * 0.75), size)
             is Sqrt -> radical(row(n.arg, size), null, size)
             is Root -> radical(row(n.arg, size), row(n.index, size * 0.55), size)
-            is Scripted -> scripts(row(n.base, size), if (n.sup.isEmpty) null else row(n.sup, size * 0.7), if (n.sub.isEmpty) null else row(n.sub, size * 0.7), size)
+            is Scripted -> scripts(row(n.base, size), if (n.sup.isEmpty) null else row(n.sup, size * 0.7), if (n.sub.isEmpty) null else row(n.sub, size * 0.7), size, n.base.isEmpty)
             is Func -> func(n, size)
             is com.example.cas.editor.Integral -> hbox(listOf(
                 integral(size, loop = false, lower = if (n.lower.isEmpty) null else row(n.lower, size * 0.7), upper = if (n.upper.isEmpty) null else row(n.upper, size * 0.7)),

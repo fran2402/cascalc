@@ -9,6 +9,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ModeGuidesTest {
+    /** Math in the notes and tips is LaTeX in $ … $, never Unicode in the prose. */
+    @Test fun notesUseLatex() {
+        for (g in ModeGuides.all) for (t in listOf(g.tagline) + g.examples.map { it.note } + (g.gestures + g.tips).map { it.text }) {
+            assertEquals("unbalanced $ in: $t", 0, t.count { it == '$' } % 2)
+            for ((isMath, piece) in com.example.cas.engine.LatexParser.inline(t)) {
+                if (isMath) assertEquals("unknown LaTeX in: $t", emptySet<String>(), com.example.cas.engine.LatexParser.unknownCommands(piece))
+                else assertTrue("Unicode math in prose: $t", piece.none { it in "²³ⁿ√∫∮Σ≤≥′⁻¹½∞∂∇±πθηρφ" })
+            }
+        }
+    }
+
     @Test fun everyExampleSurvivesSavingAndCopying() {
         for (g in ModeGuides.all) for (e in g.examples) {
             val code = MathCodec.encode(e.row)
