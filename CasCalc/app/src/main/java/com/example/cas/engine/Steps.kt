@@ -201,6 +201,7 @@ object Steps {
         val y = innerNode.variable.items.joinToString("") { (it as? SymNode)?.text ?: "" }
         val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
         val steps = ArrayList<Step>()
+        if (held.isEmpty()) coordinatesNote(n)?.let { steps += it }
         val constants = (held + x).map { "\$$it\$" }
         val heldText = if (constants.size == 1) "${constants[0]} is held constant" else constants.dropLast(1).joinToString(", ") + " and ${constants.last()} are held constant"
         // An indefinite inner integral: its constant can depend on the outer variables, so it's left out here.
@@ -218,7 +219,27 @@ object Steps {
         steps += Step("Outer integral, in \$$x\$", "Now integrate that result in \$$x\$." + if (held.isNotEmpty()) " " + held.joinToString(", ") { "\$$it\$" } + " still held constant." else "", outerMath, substeps = outerWork)
         val answer = line(question, "=", value)
         steps += Step("Answer", null, answer, Kind.Result)
-        return Solution("Iterated integral", steps, answer)
+        return Solution(steps.firstOrNull { it.kind == Kind.Note && it.title.endsWith("coordinates") }?.title ?: "Iterated integral", steps, answer)
+    }
+
+    /** Polar, cylindrical or spherical coordinates, read from the variables of an iterated integral: the area or volume element. */
+    private fun coordinatesNote(n: Integral): Step? {
+        val names = HashSet<String>()
+        var cur: Integral? = n
+        while (cur != null) {
+            names += cur.variable.items.joinToString("") { (it as? SymNode)?.text ?: "" }
+            cur = cur.body.items.firstOrNull { it is Integral } as? Integral
+        }
+        val (title, text, element) = when (names) {
+            setOf("r", "θ") -> Triple("Polar coordinates", "\$x = r\\cos\\theta\$, \$y = r\\sin\\theta\$. The area element is \$dA = r\\,dr\\,d\\theta\$: the extra \$r\$ is the Jacobian of the change to polar coordinates.", "dA = r\\,dr\\,d\\theta")
+            setOf("r", "θ", "z") -> Triple("Cylindrical coordinates", "\$x = r\\cos\\theta\$, \$y = r\\sin\\theta\$, \$z = z\$. The volume element is \$dV = r\\,dr\\,d\\theta\\,dz\$.", "dV = r\\,dr\\,d\\theta\\,dz")
+            setOf("ρ", "θ", "φ"), setOf("r", "θ", "φ") -> {
+                val rho = if ("ρ" in names) "\\rho" else "r"
+                Triple("Spherical coordinates", "\$x = $rho\\sin\\varphi\\cos\\theta\$, \$y = $rho\\sin\\varphi\\sin\\theta\$, \$z = $rho\\cos\\varphi\$. The volume element is \$dV = $rho^2\\sin\\varphi\\,d$rho\\,d\\varphi\\,d\\theta\$.", "dV = $rho^2\\sin\\varphi\\,d$rho\\,d\\varphi\\,d\\theta")
+            }
+            else -> return null
+        }
+        return Step(title, text, LatexParser.parse(element), Kind.Note)
     }
 
     private fun single(n: Integral, angle: AngleUnit): Solution? {
@@ -267,6 +288,10 @@ object Steps {
             return Solution(method, steps, answer)
         }
         val a = ev(n.lower); val b = ev(n.upper)
+        // An infinite limit, or an integrand that blows up at an end: worked as a limit.
+        if (absLogs == null) runCatching { improper(body, x, a, b, f) }.getOrNull()?.let { (work, answer) ->
+            return Solution(method, steps + work + Step("Answer", null, answer, Kind.Result), answer)
+        }
         val value = Calculus.definite(body, x, a, b)
         // A substitution: change the limits and finish in the new variable, with no back-substitution.
         if (absLogs == null && traced?.sub != null) changedLimits(body, x, a, b, value, traced)?.let { (work, method2) ->
@@ -282,6 +307,81 @@ object Steps {
         val answer = eq(int(body, x, a, b), value)
         steps += Step("Answer", null, answer, Kind.Result)
         return Solution(method, steps, answer)
+    }
+
+    /**
+     * An improper integral as a limit: an infinite end, or an end where the integrand blows up,
+     * is replaced by t, the integral up to t is found from the antiderivative, and t goes to the
+     * end. Two improper ends are split at a point between them. Ends with "converges to L" or
+     * "diverges". Null when the integral isn't improper (or a limit can't be found).
+     */
+    private fun improper(body: Expr, x: Sym, a: Expr, b: Expr, f: Expr): Pair<List<Step>, MathRow>? {
+        val others = body.freeVars() - x.name
+        fun blowsUp(end: Expr): Boolean {
+            if (Calculus.isInfinite(end) || others.isNotEmpty()) return false
+            val v = runCatching { Numeric.eval(Algebra.simplify(body.subst(x, end))) }.getOrNull() ?: return true
+            return !v.re.isFinite() || !v.im.isFinite()
+        }
+        val badA = Calculus.isInfinite(a) || blowsUp(a)
+        val badB = Calculus.isInfinite(b) || blowsUp(b)
+        if (!badA && !badB) return null
+        val t = Sym(listOf("t", "s", "T").first { it != x.name && it !in body.freeVars() })
+        fun why(end: Expr) = if (Calculus.isInfinite(end)) "\$${x.name} \\to ${lx(end)}\$" else "the integrand blows up at \$${x.name} = ${lx(end)}\$"
+        fun limRow(r: MathRow, end: Expr, side: Int): MathRow {
+            val spec = line(t.name, "→", end).also { if (side != 0) it.add(com.example.cas.editor.Pow(MathRow(mutableListOf(sym(if (side > 0) "+" else "−"))))) }
+            return MathRow(mutableListOf(Func("lim", listOf(r, spec))))
+        }
+        /** One improper end: the steps and the limit (null if it can't be found). */
+        fun oneEnd(lo: Expr, hi: Expr, upper: Boolean): Pair<List<Step>, Expr>? {
+            val end = if (upper) hi else lo
+            val fixed = if (upper) lo else hi
+            val side = when { Calculus.isInfinite(end) -> 0; upper -> -1; else -> 1 }
+            val ff = at(f, x, fixed, fromBelow = !upper)
+            val ft = Algebra.simplify(f.subst(x, t))
+            val diff = Algebra.simplify(if (upper) sub(ft, ff) else sub(ff, ft))
+            val partial = if (upper) int(body, x, lo, t) else int(body, x, t, hi)
+            val limit = runCatching { if (side == 0) Calculus.limit(diff, t, end) else Calculus.limit(diff, t, end, side) }.getOrNull() ?: return null
+            val finite = !limit.contains { it == com.example.cas.cas.INF } && runCatching { Numeric.eval(limit).re.isFinite() }.getOrDefault(false)
+            val steps = listOf(
+                Step(
+                    "As a limit", "${why(end).replaceFirstChar { it.uppercase() }}, so replace that end by \$${t.name}\$ and let \$${t.name} \\to ${lx(end)}\$" + (if (side > 0) " from above." else if (side < 0) " from below." else "."),
+                    line(int(body, x, lo, hi), "=", limRow(partial, end, side)),
+                ),
+                Step(
+                    if (upper) "Integrate up to \$${t.name}\$" else "Integrate from \$${t.name}\$", "With the antiderivative \$F = ${lx(f)}\$.",
+                    line(partial, "=", if (upper) ex(ft) else paren(ff), "−", if (upper) paren(ff) else ex(ft)),
+                ),
+                Step(
+                    "Take the limit", if (finite) "The limit is finite, so this integral converges." else "The limit is infinite, so the integral diverges.",
+                    line(limRow(ex(diff), end, side), "=", limit), Kind.Check,
+                ),
+            )
+            return steps to limit
+        }
+        val whole = int(body, x, a, b)
+        if (badA != badB) {
+            val (work, limit) = oneEnd(a, b, upper = badB) ?: return null
+            return work to line(whole, "=", limit)
+        }
+        // Both ends improper: split at a point c between them.
+        val c: Expr = when {
+            Calculus.isInfinite(a) && Calculus.isInfinite(b) -> if (blowsUp(ZERO)) com.example.cas.cas.ONE else ZERO
+            Calculus.isInfinite(a) -> sub(b, com.example.cas.cas.ONE)
+            Calculus.isInfinite(b) -> add(a, com.example.cas.cas.ONE)
+            else -> div(add(a, b), com.example.cas.cas.TWO)
+        }.let { Algebra.simplify(it) }
+        if (blowsUp(c)) return null
+        val (left, l1) = oneEnd(a, c, upper = false) ?: return null
+        val (right, l2) = oneEnd(c, b, upper = true) ?: return null
+        val total = Algebra.simplify(add(l1, l2))
+        val split = Step("Split the integral", "Both ends are improper, so split at \$${x.name} = ${lx(c)}\$ and take each limit on its own; it converges only if both do.", line(whole, "=", int(body, x, a, c), "+", int(body, x, c, b)))
+        val parts = listOf(
+            Step("Left part", null, int(body, x, a, c), substeps = left),
+            Step("Right part", null, int(body, x, c, b), substeps = right),
+        )
+        val diverges = listOf(l1, l2).any { it.contains { e -> e == com.example.cas.cas.INF } }
+        val end = Step(if (diverges) "Diverges" else "Add them", if (diverges) "One of the parts is infinite, so the whole integral diverges." else "Both parts converge.", line(l1, "+", paren(l2), "=", total), if (diverges) Kind.Note else Kind.Rule)
+        return (listOf(split) + parts + end) to line(whole, "=", total)
     }
 
     /**

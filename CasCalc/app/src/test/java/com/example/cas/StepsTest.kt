@@ -511,3 +511,39 @@ class ChangedLimitsStepsTest {
 
     @Test fun noSubstitutionKeepsFundamentalTheorem() = assertTrue(titles(of(m("x", Pow(m("2"))), m("0"), m("1"))).contains("Fundamental theorem"))
 }
+
+class ImproperAndPolarStepsTest {
+    private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
+    private fun I(body: MathRow, v: String, lo: MathRow, hi: MathRow) = Integral(lo, hi, body, m(v))
+    private fun all(st: List<Steps.Step>): List<Steps.Step> = st.flatMap { listOf(it) + all(it.substeps) }
+    private fun of(r: MathRow) = latexOk(Steps.of(r)!!)
+
+    @Test fun infiniteEnd() {
+        val s = of(m(I(m(Frac(m("1"), m("x", Pow(m("2"))))), "x", m("1"), m("∞"))))
+        val titles = all(s.steps).map { it.title }
+        assertTrue(titles.containsAll(listOf("As a limit", "Take the limit")))
+        assertTrue(Formatter.plain(s.answer).endsWith("=1"))
+    }
+
+    @Test fun singularEnd() = assertTrue(all(of(m(I(m(Frac(m("1"), m(Sqrt(m("x"))))), "x", m("0"), m("1")))).steps).any { it.text?.contains("blows up") == true })
+
+    @Test fun divergent() {
+        val s = of(m(I(m(Frac(m("1"), m("x"))), "x", m("1"), m("∞"))))
+        assertTrue(all(s.steps).any { it.text?.contains("diverges") == true })
+        assertTrue(Formatter.plain(s.answer).endsWith("=∞"))
+    }
+
+    @Test fun bothEnds() {
+        val s = of(m(I(m(Frac(m("1"), m("1+x", Pow(m("2"))))), "x", m("−∞"), m("∞"))))
+        assertTrue(all(s.steps).any { it.title == "Split the integral" })
+        assertTrue(Formatter.plain(s.answer).endsWith("=π"))
+    }
+
+    @Test fun polar() {
+        val s = of(m(I(m(I(m("r"), "r", m("0"), m("1"))), "θ", m("0"), m("2π"))))
+        assertEquals("Polar coordinates", s.method)
+        assertTrue(Formatter.plain(s.answer).endsWith("=π"))
+    }
+
+    @Test fun cylindrical() = assertEquals("Cylindrical coordinates", of(m(I(m(I(m(I(m("r"), "r", m("0"), m("1"))), "θ", m("0"), m("2π"))), "z", m("0"), m("1")))).method)
+}
