@@ -56,7 +56,7 @@ class UnitsTest {
         for (sym in Units.compatible(Units.parse("J").dims, Units.Bridges(), 200) + Units.compatible(Units.parse("m").dims, Units.Bridges(), 200)) Units.parse(sym)
     }
 
-    @Test fun unknown() { assertTrue(runCatching { Units.parse("furlong") }.exceptionOrNull() is Units.UnitError) }
+    @Test fun unknown() { assertTrue(runCatching { Units.parse("smoot") }.exceptionOrNull() is Units.UnitError) }
 
     @Test fun numberFormat() {
         assertEquals("2.26854 \\times 10^{-18}", Units.number(2.268544e-18))
@@ -100,4 +100,30 @@ class AbsoluteLogIntegralTest {
     @Test fun lnAbsSquared() = check(com.example.cas.cas.pow(lnAbs(x), com.example.cas.cas.TWO))
     @Test fun log10Abs() = check(com.example.cas.cas.fn("log", com.example.cas.cas.Num(10), com.example.cas.cas.fn("abs", x)))
     @Test fun lnAbsOverX() = check(com.example.cas.cas.div(lnAbs(x), x))
+}
+
+class MoreUnitsTest {
+    private fun conv(v: Double, from: String, to: String) = Units.convert(v, Units.parse(from), Units.target(to, Units.parse(from).dims)).value
+    private fun close(expected: Double, got: Double, rel: Double = 1e-9) = assertEquals(expected, got, kotlin.math.abs(expected) * rel)
+    @Test fun furlong() = close(201.168, conv(1.0, "furlong", "m"))
+    @Test fun troyOunce() = close(31.1034768, conv(1.0, "ozt", "g"))
+    @Test fun imperialGallon() = close(1.2009499, conv(1.0, "galUK", "gal"), 1e-7)
+    @Test fun barrel() = close(158.987294928, conv(1.0, "bbl", "L"))
+    @Test fun tnt() = close(4.184e15, conv(1.0, "MtTNT", "J"))
+    @Test fun metricHp() = close(735.49875, conv(1.0, "PS", "W"))
+    @Test fun milliAmpHour() = close(3.6, conv(1.0, "mAh", "C"))
+    @Test fun molar() = close(1.0, conv(1.0, "mM", "mol/m^3"))
+    @Test fun reaumur() = close(100.0, conv(80.0, "°Ré", "°C"))
+    @Test fun romer() = close(100.0, conv(60.0, "°Rø", "°C"))
+    @Test fun tsubo() = close(3.305785, conv(1.0, "tsubo", "m^2"), 1e-6)
+    @Test fun milliTorr() = close(101325.0 / 760 / 1000, conv(1.0, "mTorr", "Pa"))
+    /** \\mathrm{…} is read as plain text, so no command may sit inside it (it would show as written). */
+    @Test fun noCommandsInsideText() {
+        for (u in Units.ALL) org.junit.Assert.assertFalse(u.latex, Regex("""\\mathrm\{[^}]*\\""").containsMatchIn(u.latex))
+    }
+    @Test fun allPrefixes() {
+        for (p in listOf("Q", "R", "Y", "Z", "E", "P", "T", "G", "M", "k", "h", "da", "d", "c", "m", "µ", "n", "p", "f", "a", "z", "y", "r", "q"))
+            org.junit.Assert.assertNotNull(p, Units.lookup(p + "m"))
+        close(1e30, conv(1.0, "Qm", "m")); close(1e-30, conv(1.0, "qm", "m")); close(10.0, conv(1.0, "dam", "m"))
+    }
 }

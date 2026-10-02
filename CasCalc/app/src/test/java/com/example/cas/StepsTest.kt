@@ -547,3 +547,26 @@ class ImproperAndPolarStepsTest {
 
     @Test fun cylindrical() = assertEquals("Cylindrical coordinates", of(m(I(m(I(m(I(m("r"), "r", m("0"), m("1"))), "θ", m("0"), m("2π"))), "z", m("0"), m("1")))).method)
 }
+
+class InteriorSingularityTest {
+    private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
+    private fun I(body: MathRow, lo: String, hi: String) = m(Integral(m(lo), m(hi), body, m("x")))
+    private val ev = com.example.cas.engine.Evaluator()
+    private fun value(r: MathRow) = runCatching { Formatter.plain(Formatter.row(ev.evaluate(com.example.cas.editor.MathCodec.copy(r)))) }
+
+    @Test fun inverseSquareDiverges() {
+        val q = I(m(Frac(m("1"), m("x", Pow(m("2"))))), "−1", "1")
+        assertTrue("not −2", value(q).exceptionOrNull()?.message?.contains("diverges") == true)
+        val s = latexOk(Steps.of(q)!!)
+        assertTrue(s.steps.any { it.title == "Singular point inside" })
+        assertTrue(Formatter.plain(s.answer).contains("diverges"))
+    }
+    @Test fun shiftedPoleDiverges() = assertTrue(value(I(m(Frac(m("1"), m("(x−2)", Pow(m("2"))))), "0", "3")).exceptionOrNull()?.message?.contains("diverges") == true)
+    @Test fun tangentDiverges() = assertTrue(value(I(m(Func("tan", listOf(m("x")))), "0", "π")).exceptionOrNull()?.message?.contains("diverges") == true)
+    @Test fun cubeRootConverges() {
+        val q = I(m(Frac(m("1"), m(com.example.cas.editor.Root(m("3"), m("x"))))), "−1", "8")
+        assertEquals("9/2", value(q).getOrThrow().replace("(", "").replace(")", ""))
+        assertTrue(latexOk(Steps.of(q)!!).steps.any { it.title == "Add the parts" })
+    }
+    @Test fun smoothUnchanged() = assertEquals("1/3", value(I(m("x", Pow(m("2"))), "0", "1")).getOrThrow().replace("(", "").replace(")", ""))
+}

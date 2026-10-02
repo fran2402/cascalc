@@ -446,6 +446,11 @@ object Calculus {
     fun definite(body: Expr, x: Sym, a: Expr, b: Expr): Expr {
         if (body is Mat) return Mat(body.rows, body.cols, body.cells.map { definite(it, x, a, b) })
         val bothConstant = a.isConstant && b.isConstant && body.freeVars().all { it == x.name }
+        // A singularity inside the interval: split there and take each piece as a limit.
+        if (bothConstant) {
+            val inside = runCatching { singularities(body, x, a, b) }.getOrDefault(emptyList())
+            if (inside.isNotEmpty()) return acrossSingularities(body, x, a, b, inside)
+        }
         val numeric = if (bothConstant) runCatching { numericIntegral(body, x, a, b) }.getOrNull() else null
         val f = runCatching { antiderivative(body, x) }.getOrNull()
         if (f != null) {
@@ -464,6 +469,110 @@ object Calculus {
         // double integral): keep it as an integral, to be done numerically later.
         if (!bothConstant) return Fn("integral", listOf(body, x, a, b))
         throw MathError("Couldn't find this integral")
+    }
+
+    /**
+     * ∫ₐᵇ split at singular points inside: each piece is F(hi⁻) − F(lo⁺) with one-sided limits
+     * (or numerical, without an antiderivative). Any infinite piece makes the integral diverge.
+     */
+    private fun acrossSingularities(body: Expr, x: Sym, a: Expr, b: Expr, inside: List<Expr>): Expr {
+        val f = runCatching { antiderivative(body, x) }.getOrNull()
+        val points = listOf(a) + inside + listOf(b)
+        val parts = points.zipWithNext { lo, hi ->
+            if (f == null) Flt(numericIntegral(body, x, lo, hi))
+            else Algebra.simplify(sub(oneSided(f, x, hi, -1), oneSided(f, x, lo, 1)))
+        }
+        val bad = parts.indexOfFirst { p -> p.contains { it == INF } || runCatching { !Numeric.real(p).isFinite() }.getOrDefault(true) }
+        if (bad >= 0) {
+            val at = inside.joinToString(", ") { com.example.cas.engine.Latex.of(com.example.cas.engine.Formatter.row(it)) }
+            throw MathError("The integral diverges: the integrand blows up at \$${x.name} = $at\$, inside the interval")
+        }
+        return Algebra.simplify(add(parts))
+    }
+
+    /** F at an end, from one side: substituted when that's finite, else the one-sided limit (or the limit at ±∞). */
+    fun oneSided(f: Expr, x: Sym, end: Expr, side: Int): Expr {
+        if (isInfinite(end)) return limit(f, x, end)
+        val v = runCatching { Algebra.simplify(f.subst(x, end)) }.getOrNull()
+        if (v != null && !v.contains { it == INF } && runCatching { Numeric.eval(v).let { it.re.isFinite() && it.im.isFinite() } }.getOrDefault(false)) return v
+        return limit(f, x, end, side)
+    }
+
+    /**
+     * Points strictly inside (a, b) where [body] blows up: zeros of denominators, of the insides
+     * of logarithms, and of cos or sin under tan, sec, cot and csc. Found numerically, then
+     * written exactly when they're simple (2, 1/2, π/2, √3); an infinite end is searched to ±1000.
+     */
+    fun singularities(body: Expr, x: Sym, a: Expr, b: Expr): List<Expr> {
+        if ((body.freeVars() - x.name).isNotEmpty()) return emptyList()
+        val lo = if (isInfinite(a)) -1000.0 else Numeric.real(a)
+        val hi = if (isInfinite(b)) 1000.0 else Numeric.real(b)
+        if (!(lo < hi)) return emptyList()
+        val gs = LinkedHashSet<Expr>()
+        fun walk(z: Expr) {
+            when {
+                z is Pow && (z.exp as? Num)?.q?.signum == -1 && !z.base.freeOf(x) -> gs += z.base
+                z is Pow && z.exp is Flt && (z.exp as Flt).d < 0 && !z.base.freeOf(x) -> gs += z.base
+                z is Fn && z.name == "ln" && z.args.size == 1 && !z.args[0].freeOf(x) -> gs += z.args[0]
+                z is Fn && z.name == "log" && z.args.size == 2 && !z.args[1].freeOf(x) -> gs += z.args[1]
+                z is Fn && z.name in setOf("tan", "sec") && !z.args[0].freeOf(x) -> gs += fn("cos", z.args[0])
+                z is Fn && z.name in setOf("cot", "csc") && !z.args[0].freeOf(x) -> gs += fn("sin", z.args[0])
+            }
+            z.children.forEach { walk(it) }
+        }
+        walk(body)
+        val found = ArrayList<Double>()
+        for (g in gs) {
+            val gf = { t: Double -> runCatching { Numeric.eval(g, mapOf(x.name to t)).let { if (kotlin.math.abs(it.im) < 1e-12) it.re else Double.NaN } }.getOrDefault(Double.NaN) }
+            val n = 2000
+            val h = (hi - lo) / n
+            val ys = DoubleArray(n + 1) { gf(lo + it * h) }
+            for (k in 1..n) {
+                val prev = ys[k - 1]; val v = ys[k]
+                if (!prev.isFinite() || !v.isFinite()) continue
+                if (v == 0.0) found += lo + k * h
+                else if (prev * v < 0) {
+                    // Bisection to the root.
+                    var l = lo + (k - 1) * h; var r = lo + k * h; var fl = prev
+                    repeat(70) { val mdl = (l + r) / 2; val fm = gf(mdl); if (fl * fm <= 0) r = mdl else { l = mdl; fl = fm } }
+                    found += (l + r) / 2
+                }
+            }
+            // Double roots (no sign change): local minima of |g| that reach zero.
+            for (k in 1 until n) {
+                val a0 = kotlin.math.abs(ys[k - 1]); val a1 = kotlin.math.abs(ys[k]); val a2 = kotlin.math.abs(ys[k + 1])
+                if (a1.isFinite() && a1 <= a0 && a1 <= a2 && a1 < 1e-2 && ys[k - 1] * ys[k + 1] > 0) {
+                    var l = lo + (k - 1) * h; var r = lo + (k + 1) * h
+                    repeat(80) { val m1 = l + (r - l) / 3; val m2 = r - (r - l) / 3; if (kotlin.math.abs(gf(m1)) < kotlin.math.abs(gf(m2))) r = m2 else l = m1 }
+                    val m = (l + r) / 2
+                    if (kotlin.math.abs(gf(m)) < 1e-12) found += m
+                }
+            }
+        }
+        val eps = 1e-9 * maxOf(1.0, hi - lo)
+        val roots = found.filter { it > lo + eps && it < hi - eps }.sorted()
+            .fold(ArrayList<Double>()) { acc, r -> if (acc.isEmpty() || r - acc.last() > 1e-7 * maxOf(1.0, kotlin.math.abs(r))) acc += r; acc }
+        // Only points where the integrand really blows up.
+        val blows = roots.filter { r ->
+            val near = listOf(r - 1e-7 * maxOf(1.0, kotlin.math.abs(r)), r + 1e-7 * maxOf(1.0, kotlin.math.abs(r)))
+            near.any { t -> runCatching { kotlin.math.abs(Numeric.real(body.subst(x, Flt(t)))) }.getOrDefault(Double.POSITIVE_INFINITY) > 1e5 }
+        }
+        return blows.map { exactPoint(it, gs, x) }
+    }
+
+    /** A root as an exact number when one is simple and checks out: p/q, p/q·π, √(p/q); else the decimal. */
+    private fun exactPoint(r: Double, gs: Collection<Expr>, x: Sym): Expr {
+        fun ok(c: Expr) = runCatching { kotlin.math.abs(Numeric.real(c) - r) < 1e-7 * maxOf(1.0, kotlin.math.abs(r)) }.getOrDefault(false)
+        val candidates = ArrayList<Expr>()
+        for (q in 1..12) {
+            val p = Math.round(r * q)
+            candidates += Num(Rational.of(p, q.toLong()))
+            val pp = Math.round(r / kotlin.math.PI * q)
+            if (pp != 0L) candidates += mul(Num(Rational.of(pp, q.toLong())), PI)
+            val s2 = Math.round(r * r * q)
+            if (r != 0.0 && s2 > 0) candidates += mul(Num(if (r < 0) -1 else 1), pow(Num(Rational.of(s2, q.toLong())), HALF))
+        }
+        return candidates.firstOrNull { ok(it) } ?: Flt(r)
     }
 
     /** Gauss–Kronrod, with infinite ends mapped onto a finite interval: x = a + t/(1 − t) and so on. */

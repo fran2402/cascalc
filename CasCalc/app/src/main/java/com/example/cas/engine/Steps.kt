@@ -322,9 +322,10 @@ object Steps {
             val v = runCatching { Numeric.eval(Algebra.simplify(body.subst(x, end))) }.getOrNull() ?: return true
             return !v.re.isFinite() || !v.im.isFinite()
         }
+        val inside = runCatching { Calculus.singularities(body, x, a, b) }.getOrDefault(emptyList())
         val badA = Calculus.isInfinite(a) || blowsUp(a)
         val badB = Calculus.isInfinite(b) || blowsUp(b)
-        if (!badA && !badB) return null
+        if (!badA && !badB && inside.isEmpty()) return null
         val t = Sym(listOf("t", "s", "T").first { it != x.name && it !in body.freeVars() })
         fun why(end: Expr) = if (Calculus.isInfinite(end)) "\$${x.name} \\to ${lx(end)}\$" else "the integrand blows up at \$${x.name} = ${lx(end)}\$"
         fun limRow(r: MathRow, end: Expr, side: Int): MathRow {
@@ -349,7 +350,7 @@ object Steps {
                 ),
                 Step(
                     if (upper) "Integrate up to \$${t.name}\$" else "Integrate from \$${t.name}\$", "With the antiderivative \$F = ${lx(f)}\$.",
-                    line(partial, "=", if (upper) ex(ft) else paren(ff), "−", if (upper) paren(ff) else ex(ft)),
+                    line(partial, "=", if (upper) ex(ft) else ex(ff), "−", if (upper) paren(ff) else paren(ft)),
                 ),
                 Step(
                     "Take the limit", if (finite) "The limit is finite, so this integral converges." else "The limit is infinite, so the integral diverges.",
@@ -359,6 +360,42 @@ object Steps {
             return steps to limit
         }
         val whole = int(body, x, a, b)
+        if (inside.isNotEmpty()) {
+            // Singular points inside: split there; each part is improper at its singular ends.
+            val points = listOf(a) + inside + listOf(b)
+            val bad = { e: Expr -> Calculus.isInfinite(e) || blowsUp(e) || inside.any { same(it, e) } }
+            fun piece(lo: Expr, hi: Expr): Pair<List<Step>, Expr>? {
+                val bl = bad(lo); val bh = bad(hi)
+                return when {
+                    bl && bh -> {
+                        val c = Algebra.simplify(div(add(lo, hi), com.example.cas.cas.TWO)).let { if (Calculus.isInfinite(lo)) sub(hi, com.example.cas.cas.ONE) else if (Calculus.isInfinite(hi)) add(lo, com.example.cas.cas.ONE) else it }.let { Algebra.simplify(it) }
+                        val (l, v1) = oneEnd(lo, c, upper = false) ?: return null
+                        val (r, v2) = oneEnd(c, hi, upper = true) ?: return null
+                        (l + r) to Algebra.simplify(add(v1, v2))
+                    }
+                    bl || bh -> oneEnd(lo, hi, upper = bh)
+                    else -> {
+                        val v = Algebra.simplify(sub(at(f, x, hi, fromBelow = true), at(f, x, lo, fromBelow = false)))
+                        listOf(Step("Fundamental theorem", null, line(int(body, x, lo, hi), "=", v))) to v
+                    }
+                }
+            }
+            val pieces = points.zipWithNext { lo, hi -> Triple(lo, hi, piece(lo, hi) ?: return null) }
+            val where = inside.joinToString(", ") { lx(it) }
+            val split = Step(
+                "Singular point inside", "The integrand blows up at \$${x.name} = $where\$, inside the interval, so the antiderivative can't be used across it: split there. The integral converges only if every part does.",
+                line(whole, "=", *pieces.flatMapIndexed { k, (lo, hi, _) -> (if (k > 0) listOf<Any>("+") else emptyList()) + listOf<Any>(int(body, x, lo, hi)) }.toTypedArray()),
+                Kind.Note,
+            )
+            val parts = pieces.mapIndexed { k, (lo, hi, work) -> Step("Part ${k + 1}", null, int(body, x, lo, hi), substeps = work.first) }
+            val values = pieces.map { it.third.second }
+            val diverges = values.any { v -> v.contains { it == com.example.cas.cas.INF } || runCatching { !Numeric.real(v).isFinite() }.getOrDefault(true) }
+            val total = if (diverges) null else Algebra.simplify(add(values))
+            val end = if (diverges) Step("Diverges", "A part is infinite, so the integral diverges; using the antiderivative straight across \$${x.name} = $where\$ would give a wrong, finite number.", null, Kind.Note)
+            else Step("Add the parts", "Every part converges.", line(*values.flatMapIndexed { k, v -> (if (k > 0) listOf<Any>("+") else emptyList()) + listOf<Any>(paren(v)) }.toTypedArray(), "=", total!!), Kind.Check)
+            val answer = if (total != null) line(whole, "=", total) else line(whole, "  ", "diverges")
+            return (listOf(split) + parts + end) to answer
+        }
         if (badA != badB) {
             val (work, limit) = oneEnd(a, b, upper = badB) ?: return null
             return work to line(whole, "=", limit)

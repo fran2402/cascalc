@@ -622,7 +622,8 @@ private fun ToggleChip(math: String, name: String, on: Boolean, onChange: (Boole
     }
 }
 
-private val PICKER_PREFIXES = listOf("T", "G", "M", "k", "", "c", "m", "µ", "n", "p", "f")
+/** Every SI prefix, quetta to quecto, with no prefix in the middle. */
+private val PICKER_PREFIXES = listOf("Q", "R", "Y", "Z", "E", "P", "T", "G", "M", "k", "h", "da", "", "d", "c", "m", "µ", "n", "p", "f", "a", "z", "y", "r", "q")
 
 /**
  * The unit picker, in the style of the constants sheet: the unit being built at the top (in
@@ -819,4 +820,8 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
     }
 }
 
-private fun prefixName(p: String) = mapOf("T" to "tera", "G" to "giga", "M" to "mega", "k" to "kilo", "c" to "centi", "m" to "milli", "µ" to "micro", "n" to "nano", "p" to "pico", "f" to "femto")[p] ?: ""
+private fun prefixName(p: String) = mapOf(
+    "Q" to "quetta", "R" to "ronna", "Y" to "yotta", "Z" to "zetta", "E" to "exa", "P" to "peta", "T" to "tera", "G" to "giga", "M" to "mega", "k" to "kilo",
+    "h" to "hecto", "da" to "deca", "d" to "deci", "c" to "centi", "m" to "milli", "µ" to "micro", "n" to "nano", "p" to "pico", "f" to "femto",
+    "a" to "atto", "z" to "zepto", "y" to "yocto", "r" to "ronto", "q" to "quecto",
+)[p] ?: ""

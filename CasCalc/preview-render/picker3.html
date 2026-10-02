@@ -1,0 +1,36 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px;display:flex;gap:40px}
+.light{--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sc:#E2E4C4;--onsc:#1B1D0A;--ter:#3C6A5A;--onter:#fff;--tc:#BEECDB;--ontc:#002019}
+.dark{--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--c:#1F2018;--ch:#292A22;--chh:#34352C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sc:#45483A;--onsc:#E2E4C4;--ter:#A2D0BF;--onter:#05372B;--tc:#214E41;--ontc:#BEECDB}
+.phone{position:relative;width:412px;height:900px;border-radius:44px;overflow:hidden;background:#000;color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.sheet{position:absolute;inset:40px 0 0;background:var(--low);border-radius:28px 28px 0 0;padding-top:10px}
+.mi{display:inline-block;vertical-align:middle}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px}
+</style></head><body><div id="a"></div><div id="b"></div>
+<script src="gsf_cmap.js"></script><script src="cm_cmap.js"></script><script src="mathlayout.js"></script><script src="picker3_data.js"></script>
+<script>
+const PAL={light:{on:'#1C1C16',onv:'#47473B',pri:'#5B6133',onpc:'#1A1E00',onpri:'#fff'},dark:{on:'#E5E3D6',onv:'#C8C7B5',pri:'#C5CB86',onpc:'#E1E7A0',onpri:'#2F3300'}};let P;
+const mv=(c,s,col)=>MT.render(MT.decode(c),{size:s,color:col||P.on,accent:P.pri,faint:'rgba(128,128,128,.5)'});
+function sheet(theme,list,preview,cat,pre,qname){P=PAL[theme];const big=20,sm=6,n=list.length;
+return `<div class="phone ${theme}"><div class="sheet"><div style="width:32px;height:4px;border-radius:2px;background:#77786A;margin:0 auto 14px"></div>
+<div style="display:flex;align-items:center;padding:0 16px 0 24px"><span style="flex:1;font:400 22px GSF">Convert from</span><span style="height:40px;border-radius:20px;background:var(--pri);color:var(--onpri);display:inline-flex;align-items:center;padding:0 20px;font:600 14px GSF">Done</span></div>
+<div style="margin:12px 16px;border-radius:28px;background:var(--pc);padding:14px 18px;display:flex;flex-direction:column;gap:12px">
+ <div style="display:flex;align-items:center;min-height:40px"><span style="flex:1">${mv(preview,28,P.onpc)}</span><span style="font:600 12px GSF;background:var(--sc);color:var(--onsc);border-radius:20px;padding:4px 10px">${qname}</span></div>
+ <div style="display:flex;gap:2px">${PK3.ops.map((o,k)=>`<span style="flex:1;height:44px;border-radius:${k==0?'22px 6px 6px 22px':'6px'};background:color-mix(in srgb,${theme=='light'?'#fff':'#0D0F08'} 75%,transparent);display:flex;align-items:center;justify-content:center">${mv(o,17,P.onpc)}</span>`).join('')}<span style="flex:1.2;height:44px;border-radius:6px 22px 22px 6px;background:var(--ter);color:var(--onter);display:flex;align-items:center;justify-content:center;font-size:18px">⌫</span></div>
+ <div style="display:flex;gap:4px;align-items:center;overflow:hidden"><span style="font:500 12px GSF;color:var(--onpc);margin-right:6px">Prefix</span>${['Q','R','Y','Z','E','P','T','G','M','k','h','da','none','d','c','m','µ','n','p','f','a','z','y','r','q'].map(p=>`<span style="flex:none;height:34px;min-width:38px;border-radius:${p==pre?17:8}px;background:${p==pre?'var(--pri)':'color-mix(in srgb,'+(theme=='light'?'#fff':'#0D0F08')+' 75%,transparent)'};color:${p==pre?'var(--onpri)':'var(--onpc)'};display:inline-flex;align-items:center;justify-content:center;padding:0 10px;font:600 14px GSF">${p}</span>`).join('')}</div></div>
+<div style="margin:0 16px 12px;height:52px;border-radius:26px;background:var(--chh);display:flex;align-items:center;gap:12px;padding:0 18px;font:16px GSF;color:var(--onv)">⌕ Search units</div>
+<div style="display:flex;gap:8px;padding:0 16px;overflow:hidden">${['All',cat,'Typography','Data','Light'].map(c=>`<span style="flex:none;height:32px;border-radius:8px;border:${c==cat?'0':'1px solid #77786A'};background:${c==cat?'var(--sc)':'transparent'};display:inline-flex;align-items:center;gap:6px;padding:0 12px;font:500 14px GSF;color:var(--on)">${c==cat?'✓ ':''}${c}</span>`).join('')}</div>
+<div style="padding:4px 12px"><div style="font:600 14px GSF;color:var(--pri);padding:14px 12px 6px">${cat}</div>
+${list.map(([t,name,size,syms,pre],i)=>`<div style="display:flex;align-items:center;gap:14px;background:var(--c);margin-bottom:2px;padding:10px 4px 10px 10px;border-radius:${i==0?big:sm}px ${i==0?big:sm}px ${i==n-1?big:sm}px ${i==n-1?big:sm}px">
+<span style="width:56px;height:56px;border-radius:16px;background:var(--pc);display:flex;align-items:center;justify-content:center;flex:none">${mv(t,20,P.onpc)}</span>
+<div style="flex:1;min-width:0"><div style="font:16px GSF;display:flex;gap:8px;align-items:center">${name}${pre?'<span style="font:600 11px GSF;background:var(--tc);color:var(--ontc);border-radius:10px;padding:2px 8px">prefixes</span>':''}</div>
+<div style="display:flex;align-items:center;gap:8px;white-space:nowrap;overflow:hidden">${size?mv(size,15):''}<span style="font:12px GSF;color:var(--onv)">${syms}</span></div></div>
+<span style="color:var(--pri);font-size:24px;width:40px;text-align:center">+</span></div>`).join('')}</div></div></div>`}
+document.getElementById('a').innerHTML=sheet('light',PK3.trad,PK3.previewA,'Traditional','none','area')+`<div class="cap">${PK3.count} units now, from many systems: here the traditional Japanese, Chinese and Russian ones. The prefix row has every SI prefix, quetta to quecto.</div>`;
+document.getElementById('b').innerHTML=sheet('dark',PK3.energy,PK3.previewB,'Energy','M','energy')+'<div class="cap">The prefix M (mega) is chosen, so the units that take prefixes show as MeV, MtTNT, MWh…, each with its size in SI.</div>';
+document.title='ready';
+</script></body></html>
