@@ -373,13 +373,15 @@ object DomainColoring {
         height: Int,
         o: ColoringOptions,
         shouldStop: () -> Boolean = { false },
+        /** Log axes: the view is in log₁₀ of Re z or Im z there (see AxisScale). */
+        scale: AxisScale = AxisScale(),
     ): IntArray? {
         val px = IntArray(width * height)
         for (j in 0 until height) {
             if (j % 16 == 0 && shouldStop()) return null
-            val y = view.yMax - (j + 0.5) / height * view.height
+            val y = scale.realY(view.yMax - (j + 0.5) / height * view.height)
             for (i in 0 until width) {
-                val x = view.xMin + (i + 0.5) / width * view.width
+                val x = scale.realX(view.xMin + (i + 0.5) / width * view.width)
                 val w = try { f(CD(x, y), params) } catch (e: RuntimeException) { CD(Double.NaN) }
                 px[j * width + i] = color(w, o)
             }

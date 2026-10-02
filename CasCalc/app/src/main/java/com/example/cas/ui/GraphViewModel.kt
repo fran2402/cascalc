@@ -225,6 +225,10 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     val ranges = mutableStateMapOf<String, Pair<Double, Double>>()
     /** Sliders that move through integers only (the rest through real numbers). */
     val integerSliders = mutableStateMapOf<String, Boolean>()
+    /** Logarithmic axes, each separately (the 2D graph and the complex plane; see AxisScale). */
+    var logX by mutableStateOf(false)
+    var logY by mutableStateOf(false)
+    val scale get() = com.example.cas.graph.AxisScale(logX, logY)
     /** Where a playing integer slider really is, between the whole numbers it shows. */
     private val animationPosition = HashMap<String, Double>()
     /** Saved projects of this kind of graph, newest first. (Declared before init, which loads them.) */
@@ -332,6 +336,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             if (bits.size == 3) { val lo = bits[1].toDoubleOrNull(); val hi = bits[2].toDoubleOrNull(); if (lo != null && hi != null && lo < hi) ranges[bits[0]] = lo to hi }
         }
         get("integers").orEmpty().split(",").filter { it.isNotEmpty() }.forEach { integerSliders[it] = true }
+        get("logaxes").orEmpty().split(",").let { logX = "x" in it; logY = "y" in it }
         get("parameters").orEmpty().lines().filter { '\t' in it }.forEach { line ->
             val (k, v) = line.split('\t'); v.toDoubleOrNull()?.let { parameters[k] = it }
         }
@@ -349,7 +354,24 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         "ranges" to ranges.entries.joinToString("\n") { "${it.key}\t${it.value.first}\t${it.value.second}" },
         "parameters" to parameters.entries.joinToString("\n") { "${it.key}\t${it.value}" },
         "integers" to integerSliders.keys.joinToString(","),
+        "logaxes" to logAxesText(),
     )
+
+    private fun logAxesText() = listOfNotNull("x".takeIf { logX }, "y".takeIf { logY }).joinToString(",")
+
+    /**
+     * Linear or log for each axis. The view moves to the same part of the plane in the new scale
+     * ([onScaleChanged]), and every line is drawn again.
+     */
+    fun setLogAxes(x: Boolean, y: Boolean) {
+        val from = scale
+        logX = x; logY = y
+        prefs.edit().putString("${key}_logaxes", logAxesText()).apply()
+        if (from != scale) { onScaleChanged(from, scale); version++ }
+    }
+
+    /** The scale changed from [from] to [to] (by the settings or an opened project): convert the view. */
+    protected open fun onScaleChanged(from: com.example.cas.graph.AxisScale, to: com.example.cas.graph.AxisScale) {}
 
     // ---- Saved projects ---------------------------------------------------------------------
 
@@ -415,7 +437,9 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         ranges.clear()
         integerSliders.clear()
         playing.clear()
+        val before = scale
         applyData({ p.data[it] })
+        if (before != scale) onScaleChanged(before, scale)
         functions.forEach { recompile(it) }
         version++
         save()
@@ -423,6 +447,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             .putString("${key}_parameters", parameters.entries.joinToString("\n") { "${it.key}\t${it.value}" })
             .putString("${key}_ranges", ranges.entries.joinToString("\n") { "${it.key}\t${it.value.first}\t${it.value.second}" })
             .putString("${key}_integers", integerSliders.keys.joinToString(","))
+            .putString("${key}_logaxes", logAxesText())
             .apply()
     }
 
@@ -1641,6 +1666,13 @@ class Graph2DViewModel(app: Application) : GraphViewModel(app, "g2", listOf("x")
     /** Draw a polar grid (circles and rays) instead of the square grid, and read points as (r, θ). */
     var polarGrid by mutableStateOf(false)
 
+    override fun onScaleChanged(from: com.example.cas.graph.AxisScale, to: com.example.cas.graph.AxisScale) {
+        view = view?.let { com.example.cas.graph.AxisScale.convert(it, from, to) }
+        // Circles of constant r mean nothing on log axes.
+        if (!to.linear) polarGrid = false
+        clearArea()
+    }
+
     /** Equal scales on both axes (a circle looks round), keeping the center and the x range. */
     fun zoomSquare(width: Int, height: Int) {
         val v = view ?: return
@@ -1732,6 +1764,12 @@ class ComplexViewModel(app: Application) : GraphViewModel(app, "gc", listOf("z")
     var options by mutableStateOf(com.example.cas.graph.ColoringOptions())
     /** Circles of constant |z| and rays of constant arg z over the coloring. */
     var polarGrid by mutableStateOf(false)
+
+    override fun onScaleChanged(from: com.example.cas.graph.AxisScale, to: com.example.cas.graph.AxisScale) {
+        view = view?.let { com.example.cas.graph.AxisScale.convert(it, from, to) }
+        if (!to.linear) polarGrid = false
+        clearContour(); complexArea = null; areaFrom = null
+    }
     /** Drawing a loop for ∮ f dz instead of moving the view. */
     var contourMode by mutableStateOf(false)
     var contour by mutableStateOf<List<com.example.cas.cas.CD>>(emptyList())

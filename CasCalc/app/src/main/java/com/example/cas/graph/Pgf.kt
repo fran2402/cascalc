@@ -109,11 +109,23 @@ object Pgf {
     fun sx(v: Viewport, f: Frame, x: Double) = f.left + (x - v.xMin) / v.width * f.width
     fun sy(v: Viewport, f: Frame, y: Double) = f.top + (v.yMax - y) / v.height * f.height
 
-    /** The grid at the major ticks, drawn under the plot. */
-    fun grid(scene: Scene, v: Viewport, f: Frame, style: Style) {
-        val lines = Plot2D.ticks(v.xMin, v.xMax, 6).map { x -> doubleArrayOf(sx(v, f, x), f.top, sx(v, f, x), f.bottom) } +
-            Plot2D.ticks(v.yMin, v.yMax, 6).map { y -> doubleArrayOf(f.left, sy(v, f, y), f.right, sy(v, f, y)) }
+    /** The grid at the major ticks, drawn under the plot (on a log axis, fainter lines at 2–9 of each decade too). */
+    fun grid(scene: Scene, v: Viewport, f: Frame, style: Style, scale: AxisScale = AxisScale()) {
+        val tx = scale.ticks(v.xMin, v.xMax, 6, scale.logX)
+        val ty = scale.ticks(v.yMin, v.yMax, 6, scale.logY)
+        val lines = tx.major.map { x -> doubleArrayOf(sx(v, f, x), f.top, sx(v, f, x), f.bottom) } +
+            ty.major.map { y -> doubleArrayOf(f.left, sy(v, f, y), f.right, sy(v, f, y)) }
         scene.add(Scene.Stroke(lines, style.grid, 0.5))
+        val minor = (if (scale.logX) tx.minor.map { x -> doubleArrayOf(sx(v, f, x), f.top, sx(v, f, x), f.bottom) } else emptyList()) +
+            (if (scale.logY) ty.minor.map { y -> doubleArrayOf(f.left, sy(v, f, y), f.right, sy(v, f, y)) } else emptyList())
+        if (minor.isNotEmpty()) scene.add(Scene.Stroke(minor, style.grid, 0.3))
+    }
+
+    /** A tick label on a log axis: written out, or 10 with a raised exponent as pgfplots prints it. */
+    private fun logLabel(x: Double, y: Double, label: Pair<String, String?>, anchor: Scene.Anchor, style: Style, suffix: String = "", italic: Set<Char> = emptySet()): Scene.Label {
+        val (base, exp) = label
+        val spans = exp?.let { listOf(Scene.Span(base, false), Scene.Span(it, false, 1)) + if (suffix.isNotEmpty()) listOf(Scene.Span(suffix, true)) else emptyList() }
+        return Scene.Label(x, y, base + (exp ?: "") + suffix, TICK_SIZE, style.ink, anchor, Scene.Font.Roman, italic = italic, spans = spans)
     }
 
     /**
@@ -125,23 +137,31 @@ object Pgf {
         nameFont: Scene.Font = Scene.Font.Italic,
         /** Letters in math italic inside roman names and labels (z in "Re z", i in "2i"). */
         italic: Set<Char> = emptySet(),
+        /** Log axes: decades labeled 10ⁿ (or written out near 1), short minor ticks between them. */
+        scale: AxisScale = AxisScale(),
     ) {
         val stepX = Plot2D.niceStep(v.width, 6)
         val stepY = Plot2D.niceStep(v.height, 6)
         val ticks = ArrayList<DoubleArray>()
-        for (x in Plot2D.ticks(v.xMin, v.xMax, 6)) {
+        val tx = scale.ticks(v.xMin, v.xMax, 6, scale.logX)
+        val ty = scale.ticks(v.yMin, v.yMax, 6, scale.logY)
+        tx.major.forEachIndexed { k, x ->
             val px = sx(v, f, x)
             ticks += doubleArrayOf(px, f.bottom, px, f.bottom - TICK_LENGTH)
             ticks += doubleArrayOf(px, f.top, px, f.top + TICK_LENGTH)
-            scene.add(Scene.Label(px, f.bottom + 11, tick(x, stepX), TICK_SIZE, style.ink, Scene.Anchor.Middle, Scene.Font.Roman))
+            scene.add(if (scale.logX) logLabel(px, f.bottom + 11, tx.labels[k], Scene.Anchor.Middle, style) else Scene.Label(px, f.bottom + 11, tick(x, stepX), TICK_SIZE, style.ink, Scene.Anchor.Middle, Scene.Font.Roman))
         }
-        for (y in Plot2D.ticks(v.yMin, v.yMax, 6)) {
+        ty.major.forEachIndexed { k, y ->
             val py = sy(v, f, y)
             ticks += doubleArrayOf(f.left, py, f.left + TICK_LENGTH, py)
             ticks += doubleArrayOf(f.right, py, f.right - TICK_LENGTH, py)
+            if (scale.logY) { scene.add(logLabel(f.left - 5, py, ty.labels[k], Scene.Anchor.End, style, ySuffix, italic)); return@forEachIndexed }
             val text = tick(y, stepY).let { if (ySuffix.isNotEmpty() && it != "0") (if (it == "1") "" else if (it == "−1") "−" else it) + ySuffix else it }
             scene.add(Scene.Label(f.left - 5, py, text, TICK_SIZE, style.ink, Scene.Anchor.End, Scene.Font.Roman, italic = italic))
         }
+        // Minor ticks on a log axis, half as long.
+        if (scale.logX) for (x in tx.minor) { val px = sx(v, f, x); ticks += doubleArrayOf(px, f.bottom, px, f.bottom - TICK_LENGTH / 2); ticks += doubleArrayOf(px, f.top, px, f.top + TICK_LENGTH / 2) }
+        if (scale.logY) for (y in ty.minor) { val py = sy(v, f, y); ticks += doubleArrayOf(f.left, py, f.left + TICK_LENGTH / 2, py); ticks += doubleArrayOf(f.right, py, f.right - TICK_LENGTH / 2, py) }
         scene.add(Scene.Stroke(ticks, style.ink, FRAME_WIDTH * 0.9))
         scene.add(Scene.Stroke(listOf(doubleArrayOf(f.left, f.top, f.right, f.top, f.right, f.bottom, f.left, f.bottom, f.left, f.top)), style.ink, FRAME_WIDTH))
         scene.add(Scene.Label((f.left + f.right) / 2, f.bottom + 32, xName, NAME_SIZE, style.ink, Scene.Anchor.Middle, nameFont, italic = italic))

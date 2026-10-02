@@ -2394,3 +2394,83 @@ fun ResultCard(
         }
     }
 }
+
+/**
+ * A graph settings dialog's limits and axis scales: the limits are typed as values (0.01 to 1000
+ * on a log axis, not −2 to 3). Until a limit is typed, switching an axis to log or back shows
+ * where the view will go in the new scale.
+ */
+internal class RangeFields(private val base: com.example.cas.graph.Viewport, private val baseScale: com.example.cas.graph.AxisScale) {
+    var logX by mutableStateOf(baseScale.logX)
+        private set
+    var logY by mutableStateOf(baseScale.logY)
+        private set
+    private var edited by mutableStateOf(false)
+    val fields = androidx.compose.runtime.mutableStateListOf<String>().apply { addAll(shown()) }
+
+    private fun text(v: Double) = shortNumber(v).replace("−", "-")
+    private fun num(t: String) = t.trim().replace("−", "-").replace(",", ".").toDoubleOrNull()?.takeIf { it.isFinite() }
+
+    private fun shown(): List<String> {
+        val sc = com.example.cas.graph.AxisScale(logX, logY)
+        val v = sc.realView(com.example.cas.graph.AxisScale.convert(base, baseScale, sc))
+        return listOf(v.xMin, v.xMax, v.yMin, v.yMax).map { text(it) }
+    }
+
+    fun setLog(x: Boolean, y: Boolean) {
+        logX = x; logY = y
+        if (!edited) shown().forEachIndexed { k, t -> fields[k] = t }
+    }
+
+    fun edit(k: Int, t: String) { fields[k] = t; edited = true }
+
+    private val numbers get() = fields.map { num(it) }
+
+    /** Each "from" below its "to", and above 0 on a log axis. */
+    val valid: Boolean get() {
+        val n = numbers
+        if (n.any { it == null }) return false
+        return n[0]!! < n[1]!! && n[2]!! < n[3]!! && (!logX || n[0]!! > 0) && (!logY || n[2]!! > 0)
+    }
+
+    /** Sets the scales (which moves the view to match) and then the typed limits, if any were typed. */
+    fun apply(vm: GraphViewModel, setView: (com.example.cas.graph.Viewport) -> Unit) {
+        vm.setLogAxes(logX, logY)
+        if (!edited) return
+        val n = numbers.map { it!! }
+        val sc = com.example.cas.graph.AxisScale(logX, logY)
+        setView(com.example.cas.graph.Viewport(sc.x(n[0]), sc.x(n[1]), sc.y(n[2]), sc.y(n[3])))
+    }
+}
+
+/** The limits typed exactly, then Linear | Log for each axis, as Material 3 segmented buttons. */
+@Composable
+internal fun RangeAndScaleSettings(state: RangeFields, xName: String, yName: String) {
+    val colors = MaterialTheme.colorScheme
+    listOf(0 to xName, 2 to yName).forEach { (k, name) ->
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(state.fields[k], { state.edit(k, it) }, singleLine = true, label = { Text("$name from") }, modifier = Modifier.weight(1f))
+            OutlinedTextField(state.fields[k + 1], { state.edit(k + 1, it) }, singleLine = true, label = { Text("$name to") }, modifier = Modifier.weight(1f))
+        }
+    }
+    if (!state.valid) Text(
+        "Each “from” must be a number below its “to”" + if (state.logX || state.logY) ", and above 0 on a log axis." else ".",
+        color = colors.error, style = MaterialTheme.typography.bodySmall,
+    )
+    Text("Axis scale", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+    listOf(xName to state.logX, yName to state.logY).forEachIndexed { k, (name, log) ->
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.width(64.dp))
+            SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
+                listOf(false to "Linear", true to "Log").forEachIndexed { i, (value, label) ->
+                    SegmentedButton(
+                        selected = log == value,
+                        onClick = { if (k == 0) state.setLog(value, state.logY) else state.setLog(state.logX, value) },
+                        shape = SegmentedButtonDefaults.itemShape(i, 2),
+                        label = { Text(label) },
+                    )
+                }
+            }
+        }
+    }
+}

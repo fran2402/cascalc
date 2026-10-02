@@ -188,7 +188,8 @@ object CasFonts {
     val NcmMath = FontFamily(Font(R.font.ncm_math))
     val NcmHebrew = FontFamily(Font(R.font.ncm_hebrew))
     val NcmItalic = FontFamily(Font(R.font.ncm_italic))
-    /** New Computer Modern's roman for what Computer Modern lacks: Latin-1 and Latin Extended-A (Å, é, ø, µ), ‰, ℃, ℉, Å, ☉, ☽ ☾. */
+    /** New Computer Modern (Book, thickened to Computer Modern's stems: see preview-render/embolden.py).
+     * Its roman for what Computer Modern lacks: Latin-1 and Latin Extended-A (Å, é, ø, µ), ‰, ℃, ℉, Å, ☉, ☽ ☾. */
     val NcmRoman = FontFamily(Font(R.font.ncm_roman))
     /** New Computer Modern's italic for the same Latin letters, in italic runs. */
     val NcmLatinItalic = FontFamily(Font(R.font.ncm_latin_italic))

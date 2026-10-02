@@ -1,0 +1,118 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:NCMR;src:url(../app/src/main/res/font/ncm_roman.otf)}
+@font-face{font-family:NCMI;src:url(../app/src/main/res/font/ncm_latin_italic.otf)}
+@font-face{font-family:NCMM;src:url(../app/src/main/res/font/ncm_math.otf)}
+@font-face{font-family:NCMH;src:url(../app/src/main/res/font/ncm_italic.otf)}
+/* The fonts before this change, for the comparison (OLD_FONTS is set by the render script). */
+@font-face{font-family:OLDR;src:url(OLD_FONTS/ncm_roman.otf)}
+@font-face{font-family:OLDI;src:url(OLD_FONTS/ncm_latin_italic.otf)}
+@font-face{font-family:OLDM;src:url(OLD_FONTS/ncm_math.otf)}
+@font-face{font-family:OLDH;src:url(OLD_FONTS/ncm_italic.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px;width:1800px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1500px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px;line-height:1.4}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sc:#E2E4C4;--onsc:#1B1D0A;--outv:#C8C7B5;--out:#77786A}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--c:#1F2018;--ch:#292A22;--chh:#34352C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sc:#45483A;--onsc:#E2E4C4;--outv:#47473B;--out:#919283}
+.card{background:#fff;border-radius:28px;padding:26px 30px;box-shadow:0 10px 30px rgba(0,0,0,.15)}
+.cmp{display:grid;grid-template-columns:120px repeat(6,auto);gap:14px 34px;align-items:baseline;font-size:44px}
+.cmp .h{font:600 13px GSF;color:#5B6133;align-self:end}
+.phone{position:relative;width:412px;height:880px;border-radius:44px;overflow:hidden;background:var(--bg);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font:500 14px GSF}
+.dlg{width:400px;background:var(--c);color:var(--on);border-radius:28px;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.dlg h3{font:400 24px GSF;margin:0 0 16px}
+.tf{border:1px solid var(--out);border-radius:6px;height:56px;padding:0 14px;display:flex;align-items:center;font:16px GSF;position:relative;flex:1}
+.tf span{position:absolute;top:-9px;left:10px;background:var(--c);padding:0 4px;font:12px GSF;color:var(--onv)}
+.seg{display:flex;border:1px solid var(--out);border-radius:20px;overflow:hidden;height:40px;flex:1}
+.seg div{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;font:500 14px GSF}
+.seg div+div{border-left:1px solid var(--out)}.seg .on{background:var(--sc);color:var(--onsc)}
+.sw{width:52px;height:32px;border-radius:16px;background:var(--pri);position:relative}.sw::after{content:"";position:absolute;right:4px;top:4px;width:24px;height:24px;border-radius:12px;background:var(--onpri)}
+.sw.off{background:var(--chh);border:2px solid var(--out)}.sw.off::after{left:6px;top:6px;width:16px;height:16px;background:var(--out)}
+.lbl{font:500 14px GSF;color:var(--onv);margin:14px 0 8px}
+.kind{height:30px;border-radius:15px;background:var(--ch);padding:2px;display:inline-flex;gap:2px}
+.kind div{height:26px;display:flex;align-items:center;gap:5px;padding:0 10px;font:500 12px GSF;color:var(--onv);border-radius:9px}
+.kind .on{background:var(--sc);color:var(--onsc);border-radius:13px}
+.kind b{font-weight:400;font-size:17px}
+</style></head><body>
+<script src="round20_data.js"></script>
+
+<h2>New Computer Modern at Computer Modern's weight</h2>
+<p class="note">The characters Computer Modern lacks (Å, é, ø, ō, ‰, ħ, ℝ ℤ ℂ, Hebrew) come from New Computer Modern subsets. Those were cut from its Regular weight, which is noticeably lighter than the app's Computer Modern. They're now cut from NCM's Book weight and thickened by 4 font units on each side (5 for italic), measured so the stems and hairlines match Computer Modern's: l 81 vs 80, n 84 vs 84, o 98 vs 97, hairlines 37 vs 37, in thousandths of an em. The thickening is done by <code>preview-render/embolden.py</code>.</p>
+<div class="row"><div class="card"><div class="cmp" id="cmp"></div></div></div>
+
+<h2>ℝ and ℤ in the slider switch</h2>
+<p class="note">In the app, ℝ and ℤ already came from New Computer Modern's blackboard bold (the Computer Modern family), not Roboto. The sans-looking ℝ/ℤ in the last mockup was the mockup's own fault: its CSS listed fonts without those letters, so the browser fell back to a sans font. Here they're drawn as the app draws them, at the new weight.</p>
+<div class="row" id="kinds"></div>
+
+<h2>Log axes in the 2D graph and on the complex plane</h2>
+<p class="note">Graph settings (the wrench) now have <b>Axis scale: Linear | Log</b> for each axis separately. Limits are still typed as values (0.01 to 1000). Switching moves the view to the same part of the plane: the positive part, down to a thousandth of the top if it reached 0. On a log axis, decades are labeled 0.01 … 1000, then 10ⁿ further out. The 2 to 9 of each decade are fainter lines, and there's no axis line, so the numbers sit along the edge. Every kind of line works: functions, points and tables (error bars lopsided, as they should be), parametric and polar curves, equations, inequalities, fields and vector fields, areas, tracing, and the export. Values at or below 0 just leave a gap. The polar grid needs linear axes, so turning it on switches back.</p>
+<div class="row" id="graphs"></div>
+<div class="row" id="more"></div>
+
+<script>
+const L=LG;
+/* ---------- weight comparison ---------- */
+const rows=[['Å','R','ø','I'],['é','R','‰','R'],['ℝ','M','ℤ','M'],['ħ','H','ō','R']];
+const samples=[['1.5','CMR','Å','R'],['80 °R','CMR','é','R'],['x ∈ ','CMI','ℝ','M'],['n ∈ ','CMI','ℤ','M'],['','','ħ','H'],['5 ','CMR','‰','R']];
+function fam(kind,old){return {R:old?'OLDR':'NCMR',I:old?'OLDI':'NCMI',M:old?'OLDM':'NCMM',H:old?'OLDH':'NCMH'}[kind]}
+document.getElementById('cmp').innerHTML='<div class="h"></div>'+samples.map(()=>'<div class="h"></div>').join('')+
+ [['Before',true],['Now',false]].map(([name,old])=>`<div style="font:600 15px GSF;color:#47473B">${name}</div>`+samples.map(([pre,pf,ch,k])=>`<div><span style="font-family:${pf||'CMR'}">${pre}</span><span style="font-family:${fam(k,old)}">${ch}</span></div>`).join('')).join('');
+
+/* ---------- ℝ/ℤ switch ---------- */
+function kind(int,th){return `<div class="${th}" style="background:var(--low);border-radius:20px;padding:18px 22px;display:flex;flex-direction:column;gap:14px;align-items:flex-start">
+ <div style="transform:scale(1.6);transform-origin:left center;margin:8px 0 8px 0;width:300px"><div class="kind"><div class="${int?'':'on'}"><b style="font-family:NCMM">ℝ</b>real</div><div class="${int?'on':''}"><b style="font-family:NCMM">ℤ</b>integer</div></div></div></div>`}
+document.getElementById('kinds').innerHTML=`<div>${kind(false,'light')}</div><div>${kind(true,'light')}</div><div>${kind(true,'dark')}</div>`;
+
+/* ---------- graphs ---------- */
+const COLORS=['#3F6CB8','#B5482C','#3E8E57'];
+function plot(d,th,W,H,cap){
+ const [x0,x1,y0,y1]=d.v, sx=x=>(x-x0)/(x1-x0)*W, sy=y=>(y1-y)/(y1-y0)*H;
+ const grid=th=='dark'?'#47473B':'#C8C7B5', axis=th=='dark'?'#C8C7B5':'#47473B';
+ let s=`<svg width="${W}" height="${H}" style="display:block">`;
+ const logX=d.tx.labels.some(l=>l[0]=='0.01'||l[1])||d===L.loglog||d===L.zoom||d===L.wide, logY=d!==L.wide;
+ d.tx.minor.forEach(x=>s+=`<line x1="${sx(x)}" x2="${sx(x)}" y1="0" y2="${H}" stroke="${grid}" stroke-opacity=".35"/>`);
+ d.ty.minor.forEach(y=>s+=`<line y1="${sy(y)}" y2="${sy(y)}" x1="0" x2="${W}" stroke="${grid}" stroke-opacity=".35"/>`);
+ d.tx.major.forEach(x=>s+=`<line x1="${sx(x)}" x2="${sx(x)}" y1="0" y2="${H}" stroke="${grid}" stroke-width="1.2" stroke-opacity=".9"/>`);
+ d.ty.major.forEach(y=>s+=`<line y1="${sy(y)}" y2="${sy(y)}" x1="0" x2="${W}" stroke="${grid}" stroke-width="1.2" stroke-opacity=".9"/>`);
+ if(!logY&&!logX){}
+ if(!logX && 0>=x0&&0<=x1) s+=`<line x1="${sx(0)}" x2="${sx(0)}" y1="0" y2="${H}" stroke="${axis}" stroke-width="2"/>`;
+ if(!logY && 0>=y0&&0<=y1) s+=`<line y1="${sy(0)}" y2="${sy(0)}" x1="0" x2="${W}" stroke="${axis}" stroke-width="2"/>`;
+ d.lines.forEach((f,k)=>f.forEach(line=>{s+=`<polyline fill="none" stroke="${COLORS[k]}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" points="${line.map(([x,y])=>sx(x).toFixed(1)+','+sy(y).toFixed(1)).join(' ')}"/>`}));
+ const lab=(l)=>`${l[0].replace('-','−')}${l[1]?`<tspan font-size="8" dy="-5">${l[1]}</tspan>`:''}`;
+ const halo=th=='dark'?'#12130C':'#FCF9EE';
+ const ly=logY?H-16+3+11: Math.min(Math.max(sy(0),2),H-16)+14;
+ d.tx.major.forEach((x,k)=>{ if(!logX&&!logY&&Math.abs(x)<1e-9)return; s+=`<text x="${sx(x)}" y="${ly}" text-anchor="middle" font-family="GSF" font-size="11" fill="${axis}" paint-order="stroke" stroke="${halo}" stroke-width="3">${lab(d.tx.labels[k])}</text>`});
+ const lx=logX?6:Math.min(Math.max(sx(0),2),W-40)+6;
+ d.ty.major.forEach((y,k)=>{ if(!logX&&!logY&&Math.abs(y)<1e-9)return; s+=`<text x="${lx}" y="${sy(y)+4}" font-family="GSF" font-size="11" fill="${axis}" paint-order="stroke" stroke="${halo}" stroke-width="3">${lab(d.ty.labels[k])}</text>`});
+ return s+'</svg>';
+}
+function eq(tex){return `<span style="font:italic 19px CMI">${tex}</span>`}
+function phone(th,d,list,cap){return `<div><div class="phone ${th}"><div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div>
+ ${plot(d,th,412,560)}
+ <div style="position:absolute;left:0;right:0;top:592px;bottom:0;background:var(--low);border-radius:28px 28px 0 0;padding:14px 12px;display:flex;flex-direction:column;gap:6px">
+ ${list.map((t,k)=>`<div style="display:flex;align-items:center;gap:12px;background:var(--c);border-radius:${k==0?'20px 20px 6px 6px':k==list.length-1?'6px 6px 20px 20px':'6px'};height:54px;padding:0 14px"><span style="width:14px;height:14px;border-radius:7px;background:${COLORS[k]}"></span>${t}</div>`).join('')}
+ </div></div><div class="cap">${cap}</div></div>`}
+function dlg(th,xn,yn,lims,lx,ly,extra,cap){return `<div><div class="dlg ${th}"><h3>Graph settings</h3>
+ <div style="display:flex;gap:8px;margin-bottom:14px"><div class="tf"><span>${xn} from</span>${lims[0]}</div><div class="tf"><span>${xn} to</span>${lims[1]}</div></div>
+ <div style="display:flex;gap:8px"><div class="tf"><span>${yn} from</span>${lims[2]}</div><div class="tf"><span>${yn} to</span>${lims[3]}</div></div>
+ <div class="lbl">Axis scale</div>
+ ${[[xn,lx],[yn,ly]].map(([n,l])=>`<div style="display:flex;align-items:center;margin-bottom:8px"><span style="width:64px;font:16px GSF">${n.replace(/ z$/,' <i style="font-family:CMI">z</i>')}</span><div class="seg"><div class="${l?'':'on'}">${l?'':'✓ '}Linear</div><div class="${l?'on':''}">${l?'✓ ':''}Log</div></div></div>`).join('')}
+ ${extra}
+ <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;font:600 14px GSF;color:var(--pri)"><span style="padding:10px 12px">Cancel</span><span style="padding:10px 12px">Done</span></div>
+ </div><div class="cap" style="width:400px">${cap}</div></div>`}
+const sw=(t,on)=>`<div style="display:flex;align-items:center;margin-top:10px;font:16px GSF"><span style="flex:1">${t}</span><div class="sw ${on?'':'off'}"></div></div>`;
+document.getElementById('graphs').innerHTML=
+ phone('light',L.loglog,[eq('y = x<span style="font:13px CMR;vertical-align:8px">2</span>'),eq('y = 1/x'),eq('y = √x')],'Log–log: powers become straight lines (x² rises two decades per decade, 1/x falls one). Decades are labeled along the bottom and left edges, with 2–9 of each as faint lines.')+
+ phone('dark',L.semilog,[eq('y = e<span style="font:13px CMI;vertical-align:8px">x</span>'),eq('y = x<span style="font:13px CMR;vertical-align:8px">2</span>'),eq('y = x + 1 + ½ sin 2x')],'Semi-log, dark theme: x linear, y log. eˣ is a straight line; x² is cut off where it would reach 0 (at x = 0), leaving a gap.')+
+ dlg('light','x','y',['0.01','1000','0.001','10000'],true,true,sw('Grid lines',true)+sw('Numbers on the axes',true)+sw('Degrees',false),'The 2D settings: limits typed as values, then Linear | Log for x and y. On a log axis, "from" must be above 0.');
+document.getElementById('more').innerHTML=
+ `<div><div class="light" style="background:var(--bg);border-radius:28px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.2)">${plot(L.zoom,'light',412,300)}</div><div class="cap">Zoomed in to less than a decade (1.1 to 9 across): 2 and 5 are labeled, every digit gets a line.</div></div>`+
+ `<div><div class="light" style="background:var(--bg);border-radius:28px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.2)">${plot(L.wide,'light',412,300)}</div><div class="cap">Forty decades across, y linear: every fifth decade is labeled 10ⁿ, the others are faint lines. The linear y-axis keeps its own ticks, and since x has no 0, its numbers sit at the left edge.</div></div>`+
+ dlg('dark','Re z','Im z','0.1 10 −3 3'.split(' '),true,false,'<div class="lbl">Plot quality</div><div style="display:flex"><div class="seg"><div>Low</div><div class="on">✓ Standard</div><div>High</div></div></div>','The complex plane: the same choice for Re z and Im z. The domain coloring, curves, points, loops and areas all follow the scale.');
+document.title='ready';
+</script></body></html>

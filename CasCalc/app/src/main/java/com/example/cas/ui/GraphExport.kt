@@ -300,19 +300,23 @@ fun ExportDialog(
     /** The graph as a CasCalc graph file (.g2d, .g3d, .gcp), shared (true) or saved. */
     graphFile: com.example.cas.graph.GraphFile.Kind? = null,
     onGraphFile: (Boolean) -> Unit = {},
+    /** Log axes: the limits are typed as values (0.01 to 1000) and the view is in log₁₀ of them. */
+    scale: com.example.cas.graph.AxisScale = com.example.cas.graph.AxisScale(),
 ) {
     val colors = MaterialTheme.colorScheme
     val context = LocalContext.current
     var format by remember { mutableStateOf(ExportFormat.PDF) }
     var dark by remember { mutableStateOf(colors.surface.luminance() < 0.5f) }
     fun text(v: Double) = String.format(Locale.US, "%.4g", v).let { if ('e' in it) it else if ('.' in it) it.trimEnd('0').trimEnd('.') else it }
-    val fields = remember { mutableStateListOf(text(view.xMin), text(view.xMax), text(view.yMin), text(view.yMax), text(z?.first ?: 0.0), text(z?.second ?: 0.0)) }
+    val shown = scale.realView(view)
+    val fields = remember { mutableStateListOf(text(shown.xMin), text(shown.xMax), text(shown.yMin), text(shown.yMax), text(z?.first ?: 0.0), text(z?.second ?: 0.0)) }
     fun num(t: String) = t.trim().replace("−", "-").replace(",", ".").toDoubleOrNull()?.takeIf { it.isFinite() }
     val limits = fields.map { num(it) }
     val pairs = listOf(0 to 1, 2 to 3) + if (z != null) listOf(4 to 5) else emptyList()
-    val valid = pairs.all { (a, b) -> limits[a] != null && limits[b] != null && limits[a]!! < limits[b]!! }
+    val valid = pairs.all { (a, b) -> limits[a] != null && limits[b] != null && limits[a]!! < limits[b]!! } &&
+        (!scale.logX || (limits[0] ?: 0.0) > 0) && (!scale.logY || (limits[2] ?: 0.0) > 0)
     fun request(preview: Boolean = false) = ExportRequest(
-        format, Viewport(limits[0]!!, limits[1]!!, limits[2]!!, limits[3]!!), dark,
+        format, Viewport(scale.x(limits[0]!!), scale.x(limits[1]!!), scale.y(limits[2]!!), scale.y(limits[3]!!)), dark,
         z = if (z != null) limits[4]!! to limits[5]!! else null, preview = preview,
     )
     // The preview: redrawn a moment after anything changes, off the main thread.
