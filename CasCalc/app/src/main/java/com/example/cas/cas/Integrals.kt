@@ -48,6 +48,24 @@ object Integrals {
 
     // ---- The patterns -------------------------------------------------------------------------
 
+    /**
+     * Which of the methods here integrates [e], and its result, tried in the integrator's order
+     * (for the steps, which name and explain the method).
+     */
+    fun identify(e: Expr, x: Sym, depth: Int = 0): Pair<String, Expr>? {
+        val methods: List<Pair<String, () -> Expr?>> = listOf(
+            "rationalFull" to { rationalFull(e, x) }, "gaussian" to { gaussian(e, x) }, "overLinear" to { overLinear(e, x) },
+            "fresnel" to { fresnel(e, x) }, "logIntegral" to { logIntegral(e, x) }, "incompleteGamma" to { incompleteGamma(e, x) },
+            "dilog" to { dilog(e, x) }, "elliptic" to { elliptic(e, x) }, "sqrtQuadratic" to { sqrtQuadratic(e, x) },
+            "sinCos" to { sinCos(e, x) }, "expTrig" to { expTrig(e, x) }, "quartic" to { quartic(e, x) },
+            "parts" to { parts(e, x, depth) }, "multipleAngles" to { multipleAngles(e, x, depth) }, "radical" to { radical(e, x, depth) },
+            "powerSub" to { powerSub(e, x, depth) }, "expSub" to { expSub(e, x, depth) }, "logSub" to { logSub(e, x, depth) },
+            "productToSum" to { productToSum(e, x, depth) }, "weierstrass" to { weierstrass(e, x, depth) }, "hyperbolic" to { hyperbolic(e, x, depth) },
+        )
+        for ((name, f) in methods) runCatching { f() }.getOrNull()?.let { return name to it }
+        return null
+    }
+
     fun special(e: Expr, x: Sym, depth: Int): Expr? =
         rationalFull(e, x) ?: gaussian(e, x) ?: overLinear(e, x) ?: fresnel(e, x) ?: logIntegral(e, x) ?: incompleteGamma(e, x) ?: dilog(e, x) ?:
             elliptic(e, x) ?: sqrtQuadratic(e, x) ?: sinCos(e, x) ?: expTrig(e, x) ?: quartic(e, x)

@@ -72,3 +72,20 @@ class MoreAutoSimplifyTest {
     @Test fun lonelyProductStays() = assertEquals("cos(x)sin(x)", cas(m(f("sin", m("x")), f("cos", m("x")))))
     @Test fun singleLogStays() = assertEquals("ln(x)", cas(m(f("ln", m("x")))))
 }
+
+class EvenMoreAutoSimplifyTest {
+    private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
+    private fun sq() = Pow(m("2"))
+    private fun f(n: String, vararg a: MathRow) = Func(n, a.toList())
+    private fun cas(r: MathRow) = Printer.plain(Evaluator().evaluate(r)).also { println(it) }
+
+    @Test fun logExpansionCancels() = assertEquals("0", cas(m(f("ln", m("x", sq())), "−2", f("ln", m("x")))))
+    @Test fun logExpansionLeaves() = assertEquals("ln(y)", cas(m(f("ln", m("xy")), "−", f("ln", m("x")))))
+    @Test fun angleSumSine() = assertEquals("sin(x+y)", cas(m(f("sin", m("x")), f("cos", m("y")), "+", f("cos", m("x")), f("sin", m("y")))))
+    @Test fun angleSumCosine() = assertEquals("cos(x+y)", cas(m(f("cos", m("x")), f("cos", m("y")), "−", f("sin", m("x")), f("sin", m("y")))))
+    @Test fun angleExpansionCancels() = assertEquals("cos(x)sin(y)", cas(m(f("sin", m("x+y")), "−", f("sin", m("x")), f("cos", m("y")))))
+    @Test fun halfAngle() = assertEquals("1", cas(m("2", f("sin", m(Frac(m("x"), m("2")))), sq(), "+", f("cos", m("x")))))
+    @Test fun commonFactor() = assertEquals("xy(x+y)", cas(m("x", sq(), "y+xy", sq())))
+    @Test fun polynomialStays() = assertEquals("x^2+2x+1", cas(m("x", sq(), "+2x+1")))
+    @Test fun lonelyLogStays() = assertEquals("ln(x^2)", cas(m(f("ln", m("x", sq())))))
+}

@@ -46,7 +46,96 @@ object AutoSimplify {
         runCatching { powerReduction(e) }.getOrNull(),
         runCatching { tangent(e) }.getOrNull(),
         runCatching { hyperbolic(e) }.getOrNull(),
+        runCatching { expandLogs(e) }.getOrNull(),
+        runCatching { angleSum(e) }.getOrNull(),
+        runCatching { expandAngles(e) }.getOrNull(),
+        runCatching { commonFactor(e) }.getOrNull(),
     )
+
+    /** ln(uv) = ln u + ln v and ln(uᵃ) = a ln u, then like terms: ln(x²) − 2 ln x = 0. */
+    private fun expandLogs(e: Expr): Move? {
+        var changed = false
+        fun split(z: Expr): Expr = when {
+            z is Fn && z.name == "ln" && z.args[0] is Mul -> { changed = true; add((z.args[0] as Mul).factors.map { split(fn("ln", it)) }) }
+            z is Fn && z.name == "ln" && z.args[0] is Pow && (z.args[0] as Pow).exp.freeVars().isEmpty() -> {
+                changed = true; mul((z.args[0] as Pow).exp, split(fn("ln", (z.args[0] as Pow).base)))
+            }
+            z is Add -> add(z.terms.map { split(it) })
+            z is Mul -> mul(z.factors.map { split(it) })
+            else -> z
+        }
+        val r = Algebra.expand(split(e))
+        return if (changed) Move("Expand logarithms", "ln(uv) = ln u + ln v and ln(uᵃ) = a ln u, then collect.", r) else null
+    }
+
+    /** sin A cos B ± cos A sin B = sin(A ± B), cos A cos B ∓ sin A sin B = cos(A ± B). */
+    private fun angleSum(e: Expr): Move? {
+        if (e !is Add) return null
+        // Each term as coefficient · f(A) · g(B), f and g sin or cos.
+        class T(val c: Expr, val f: String, val a: Expr, val g: String, val b: Expr)
+        fun read(t: Expr): T? {
+            val (c, m) = Simplify.splitCoefficient(t)
+            val fs = (m as? Mul)?.factors ?: return null
+            if (fs.size != 2 || fs.any { it !is Fn || (it.name != "sin" && it.name != "cos") }) return null
+            val (p, q) = fs.map { it as Fn }
+            return T(c, p.name, p.args[0], q.name, q.args[0])
+        }
+        val terms = e.terms
+        for (i in terms.indices) for (j in terms.indices) {
+            if (i >= j) continue
+            val s = read(terms[i]) ?: continue; val t = read(terms[j]) ?: continue
+            // Put each as (name of A's function, A, B's function, B) with A, B matched across both.
+            fun pick(x: T, a: Expr): Pair<String, String>? = when (a) { x.a -> x.f to x.g; x.b -> x.g to x.f; else -> null }
+            val a = s.a; val b = s.b
+            if (a == b) continue
+            val p1 = pick(s, a) ?: continue; val p2 = pick(t, a) ?: continue
+            if (t.a != b && t.b != b) continue
+            val c1 = s.c; val c2 = t.c
+            val same = Algebra.simplify(sub(c1, c2)) == ZERO; val opposite = Algebra.simplify(add(c1, c2)) == ZERO
+            val pair = setOf(p1, p2)
+            val r: Expr = when {
+                pair == setOf("sin" to "cos", "cos" to "sin") && same -> mul(c1, fn("sin", add(a, b)))
+                pair == setOf("sin" to "cos", "cos" to "sin") && opposite -> mul(c1, fn("sin", if (p1 == ("sin" to "cos")) sub(a, b) else sub(b, a)))
+                pair == setOf("cos" to "cos", "sin" to "sin") && opposite -> mul(if (p1 == ("cos" to "cos")) c1 else c2, fn("cos", add(a, b)))
+                pair == setOf("cos" to "cos", "sin" to "sin") && same -> mul(c1, fn("cos", sub(a, b)))
+                else -> continue
+            }
+            val rest = terms.filterIndexed { k, _ -> k != i && k != j }
+            return Move("Angle sum", "sin(A ± B) = sin A cos B ± cos A sin B, cos(A ± B) = cos A cos B ∓ sin A sin B.", add(rest + r))
+        }
+        return null
+    }
+
+    /** sin(A ± B), cos(A ± B), sin 2u and cos 2u written out, then like terms (when that lets things cancel). */
+    private fun expandAngles(e: Expr): Move? {
+        var changed = false
+        fun walk(z: Expr): Expr = when {
+            z is Fn && (z.name == "sin" || z.name == "cos") && z.args[0] is Add && (z.args[0] as Add).terms.size == 2 -> {
+                changed = true
+                val (a, b) = (z.args[0] as Add).terms
+                if (z.name == "sin") add(mul(fn("sin", a), fn("cos", b)), mul(fn("cos", a), fn("sin", b)))
+                else sub(mul(fn("cos", a), fn("cos", b)), mul(fn("sin", a), fn("sin", b)))
+            }
+            z is Fn && (z.name == "sin" || z.name == "cos") && z.args[0] is Mul && (z.args[0] as Mul).factors.first() == TWO -> {
+                changed = true
+                val u = mul((z.args[0] as Mul).factors.drop(1))
+                if (z.name == "sin") mul(TWO, fn("sin", u), fn("cos", u)) else sub(pow(fn("cos", u), TWO), pow(fn("sin", u), TWO))
+            }
+            z is Add -> add(z.terms.map { walk(it) })
+            z is Mul -> mul(z.factors.map { walk(it) })
+            z is Pow -> pow(walk(z.base), z.exp)
+            else -> z
+        }
+        val r = Algebra.expand(walk(e))
+        return if (changed) Move("Angle formulas", "Write out sin(A ± B), cos(A ± B), sin 2u = 2 sin u cos u and cos 2u = cos²u − sin²u, then collect.", r) else null
+    }
+
+    /** The numbers and powers every term shares, taken out: x²y + xy² = xy(x + y). */
+    private fun commonFactor(e: Expr): Move? {
+        if (e !is Add) return null
+        val r = Algebra.commonFactor(e)
+        return if (Printer.plain(r) == Printer.plain(e)) null else Move("Common factor", "Take out what every term shares.", r)
+    }
 
     // ---- Logarithms -----------------------------------------------------------------------------
 

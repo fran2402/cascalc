@@ -286,7 +286,7 @@ object Algebra {
     }
 
     /** Pulls out the numeric content and lowest powers shared by every term: 2xy + 4x = 2x(y + 2). */
-    private fun commonFactor(e: Expr): Expr {
+    fun commonFactor(e: Expr): Expr {
         if (e !is Add) return e
         val parts = e.terms.map { Simplify.splitCoefficient(it) }
         var g = BigInteger.ZERO

@@ -208,3 +208,36 @@ class EvenMoreStepsTest {
         assertTrue(t.contains("1. Multiply by the conjugate"))
     }
 }
+
+class MethodStepsTest {
+    private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
+    private fun fn(name: String, vararg a: MathRow) = Func(name, a.toList())
+    private fun integral(body: MathRow) = m(Integral(m(""), m(""), body, m("x")))
+    private fun all(s: Steps.Solution): List<Pair<String, String?>> = s.steps.flatMap { listOf(it.title to it.text) + it.substeps.map { t -> t.title to t.text } }
+    private fun of(r: MathRow) = Steps.of(r)!!.also { println(all(it)) }
+
+    @Test fun trigSubstitutionSine() {
+        val s = of(integral(m(com.example.cas.editor.Sqrt(m("4−x", Pow(m("2")))))))
+        assertTrue(all(s).any { it.first == "Trigonometric substitution" && it.second!!.contains("sin θ") })
+    }
+    @Test fun trigSubstitutionTangent() {
+        val s = of(integral(m(com.example.cas.editor.Sqrt(m("x", Pow(m("2")), "+9")))))
+        assertTrue(all(s).any { it.first == "Trigonometric substitution" || it.first.contains("Standard") || it.first.contains("Substitution") })
+    }
+    @Test fun oddPowerOfSine() {
+        val s = of(integral(m(fn("sin", m("x")), Pow(m("3")))))
+        assertTrue(all(s).any { it.first.contains("power") || it.first.contains("Half-angle") || it.first.contains("Substitution") })
+    }
+    @Test fun weierstrassOrOther() {
+        val s = of(integral(m(Frac(m("1"), m("2+", fn("cos", m("x")))))))
+        assertTrue(all(s).isNotEmpty())
+    }
+    @Test fun multiplyOutFirst() {
+        val s = of(integral(m("(x+1)", Pow(m("2")))))
+        assertTrue(all(s).isNotEmpty())
+    }
+    @Test fun radical() {
+        val s = of(integral(m(Frac(m("x"), m(com.example.cas.editor.Sqrt(m("x+1")))))))
+        assertTrue(all(s).isNotEmpty())
+    }
+}

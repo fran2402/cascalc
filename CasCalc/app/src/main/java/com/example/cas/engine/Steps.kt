@@ -17,6 +17,7 @@ import com.example.cas.cas.Seq
 import com.example.cas.cas.ZERO
 import com.example.cas.cas.add
 import com.example.cas.cas.contains
+import com.example.cas.cas.children
 import com.example.cas.cas.div
 import com.example.cas.cas.freeOf
 import com.example.cas.cas.freeVars
@@ -251,17 +252,120 @@ object Steps {
         partialFractions(e, x, depth)?.let { return it }
         byParts(e, x, depth)?.let { return it }
         substitution(e, x, depth)?.let { return it }
+        multiplyOut(e, x, depth)?.let { return it }
         return blackBox(e, x)
     }
 
     /** A result the integrator finds by a method too involved to spell out here. */
+    /** Multiplied out first, then term by term. */
+    private fun multiplyOut(e: Expr, x: Sym, depth: Int): Traced? {
+        val ex = Algebra.expand(e)
+        if (ex !is Add || same(ex, e)) return null
+        val inner = trace(ex, x, depth + 1) ?: return null
+        return Traced(inner.result, listOf(Step("Multiply out", "Expand first: a sum is easier to integrate term by term.", eq(ex(e), ex(ex)))) + inner.steps)
+    }
+
+    /** A result from one of the integrator's other methods, named and explained. */
     private fun blackBox(e: Expr, x: Sym): Traced? {
-        val f = Calculus.integrate(e, x) ?: return null
-        val special = f.contains { it is Fn && it.name in SPECIAL }
-        return Traced(f, listOf(
-            if (special) Step("Special function", "This has no antiderivative in elementary functions; it's written with a function defined by this very integral.", eq(int(e, x), f))
-            else Step("Rewrite and integrate", "Rewrite the integrand (identities, a substitution) and integrate the pieces.", eq(int(e, x), f)),
-        ))
+        val found = runCatching { com.example.cas.cas.Integrals.identify(e, x) }.getOrNull()
+        val f = found?.second ?: Calculus.integrate(e, x) ?: return null
+        val (title, text) = found?.first?.let { describe(it, e, x) }
+            ?: if (f.contains { it is Fn && it.name in SPECIAL }) "Special function" to "This has no antiderivative in elementary functions; it's written with a function defined by this very integral."
+            else "Rewrite and integrate" to "Rewrite the integrand (identities, a substitution) and integrate the pieces."
+        return Traced(f, listOf(Step(title, text, eq(int(e, x), f))))
+    }
+
+    /** The name and explanation of an integration method, with the substitution it makes where there is one. */
+    private fun describe(method: String, e: Expr, x: Sym): Pair<String, String> {
+        val v = x.name
+        return when (method) {
+            "rationalFull" -> "Partial fractions" to "Factor the denominator into linear and quadratic pieces and split the fraction; linear pieces give logarithms, quadratic ones ln and atan (after completing the square)."
+            "gaussian" -> "Complete the square" to "The exponent is quadratic: write it as −a($v − h)² + k, so the integral becomes the Gaussian one, √π/2 · erf."
+            "overLinear" -> "Special function" to "A sine, cosine or exponential over a linear term: substitute u = the linear term; the result is Si, Ci, Shi, Chi or Ei, functions defined by these integrals."
+            "fresnel" -> "Fresnel integrals" to "sin or cos of a quadratic: complete the square, then u = √(2/π)($v − h) gives the Fresnel integrals S and C."
+            "logIntegral" -> "Logarithmic integral" to "Substitute u = ln $v: ${v}ᵏ/ln $v becomes e^((k+1)u)/u, whose integral is Ei (li when k = 0)."
+            "incompleteGamma" -> "Incomplete gamma function" to "Substitute u = a$v: ${v}ᵖ e^(−a$v) becomes uᵖ e^(−u), the integrand of Γ(p + 1, u)."
+            "dilog" -> "Dilogarithm" to "A logarithm over a linear term: the integral of −ln(1 − u)/u defines Li₂(u)."
+            "elliptic" -> "Elliptic integral" to "√(c₀ + c₁ sin²u): written as an elliptic integral F or E with parameter m = −c₁/c₀."
+            "sqrtQuadratic" -> trigSubstitution(e, x)
+            "sinCos" -> sinCosMethod(e, x)
+            "expTrig" -> "By parts twice" to "Integrate eᵃ$v sin b$v by parts twice: the same integral comes back on the right, so solve for it."
+            "quartic" -> "Factor the quartic" to "$v⁴ + p$v² + q = ($v² + s$v + r)($v² − s$v + r) with r = √q, s = √(2r − p); then partial fractions."
+            "parts" -> "Integration by parts" to "u = the logarithm or inverse function (simpler once differentiated), dv = the rest: ∫ u dv = uv − ∫ v du."
+            "multipleAngles" -> "Multiple angles" to "Write sin k$v and cos k$v with sin $v and cos $v (sin 2u = 2 sin u cos u, cos 2u = 2cos²u − 1, …), then integrate."
+            "radical" -> radicalSubstitution(e, x)
+            "powerSub" -> "Substitution u = ${v}ⁿ" to "${v}ⁿ⁻¹ d$v appears beside a function of ${v}ⁿ: with u = ${v}ⁿ, du = n${v}ⁿ⁻¹ d$v."
+            "expSub" -> "Substitution u = eᵍ$v" to "Everything is a function of eᵍ$v: with u = eᵍ$v, d$v = du/(g u), the integrand becomes a rational function of u."
+            "logSub" -> "Substitution $v = eᵘ" to "A function of ln $v: with u = ln $v, $v = eᵘ and d$v = eᵘ du."
+            "productToSum" -> "Product-to-sum" to "sin A cos B = ½[sin(A + B) + sin(A − B)] (and the like) turn products of sines and cosines into single ones."
+            "weierstrass" -> "Weierstrass substitution" to "t = tan(u/2): sin u = 2t/(1 + t²), cos u = (1 − t²)/(1 + t²), du = 2 dt/(1 + t²); a rational function of t, by partial fractions."
+            "hyperbolic" -> "Exponential form" to "Write sinh, cosh and tanh with eᵘ and e⁻ᵘ, then integrate the exponentials."
+            else -> "Rewrite and integrate" to "Rewrite the integrand and integrate the pieces."
+        }
+    }
+
+    /** √Q, Q quadratic: complete the square, then x = h + r sin θ, r tan θ or r sec θ. */
+    private fun trigSubstitution(e: Expr, x: Sym): Pair<String, String> {
+        val v = x.name
+        var found: Expr? = null
+        fun walk(z: Expr) {
+            if (z is Pow && z.exp is Num && !(z.exp as Num).q.isInteger && (z.exp as Num).q.den.toInt() == 2 && !z.base.freeOf(x)) found = z.base
+            z.children.forEach { walk(it) }
+        }
+        walk(e)
+        val q = found ?: return "Trigonometric substitution" to "Complete the square under the root and substitute a sine, tangent or secant."
+        val cs = Algebra.coefficients(Algebra.expand(q), x)?.map { (it as? Num)?.q }
+        if (cs == null || cs.size != 3 || cs.any { it == null }) return "Substitution" to "R($v, √Q): rationalize the root with a substitution."
+        val (c0, c1, c2) = cs.map { it!! }
+        val h = -c1 / (c2 * com.example.cas.math.Rational.of(2))
+        val k = c0 - c1 * c1 / (c2 * com.example.cas.math.Rational.of(4))
+        val shift = if (h.signum == 0) v else "$v ${if (h.signum > 0) "−" else "+"} ${Printer.plain(Num(h.abs()))}"
+        val square = "${if (c2 == com.example.cas.math.Rational.ONE) "" else Printer.plain(Num(c2))}($shift)² ${if (k.signum >= 0) "+" else "−"} ${Printer.plain(Num(k.abs()))}"
+        val r = Printer.plain(Algebra.simplify(com.example.cas.cas.sqrt(Num((k / c2).abs())))).replace("-", "−")
+        val rk = Printer.plain(Algebra.simplify(com.example.cas.cas.sqrt(Num(k.abs()))))
+        val (sub, identity, rest) = when {
+            c2.signum < 0 && k.signum > 0 -> Triple("$shift = $r sin θ", "1 − sin²θ = cos²θ", "the root becomes $rk cos θ and d$v = $r cos θ dθ")
+            c2.signum > 0 && k.signum > 0 -> Triple("$shift = $r tan θ", "1 + tan²θ = sec²θ", "the root becomes $rk sec θ and d$v = $r sec²θ dθ")
+            c2.signum > 0 && k.signum < 0 -> Triple("$shift = $r sec θ", "sec²θ − 1 = tan²θ", "the root becomes $rk tan θ and d$v = $r sec θ tan θ dθ")
+            else -> return "Substitution" to "Complete the square: $square."
+        }
+        val completed = if (c1.signum == 0) "" else "Complete the square: Q = $square. "
+        return "Trigonometric substitution" to "${completed}Let $sub. Since $identity, $rest. Integrate in θ, then put θ back in terms of $v."
+    }
+
+    /** sinᵐ cosⁿ: an odd power gives a substitution, even powers the half-angle formulas. */
+    private fun sinCosMethod(e: Expr, x: Sym): Pair<String, String> {
+        var m = 0; var n = 0
+        fun walk(z: Expr) {
+            when {
+                z is Fn && z.name == "sin" -> m = maxOf(m, 1)
+                z is Fn && z.name == "cos" -> n = maxOf(n, 1)
+                z is Pow && z.base is Fn && z.exp is Num -> {
+                    val k = (z.exp as Num).q.num.toInt()
+                    if ((z.base as Fn).name == "sin") m = k else if ((z.base as Fn).name == "cos") n = k
+                }
+            }
+            z.children.forEach { walk(it) }
+        }
+        walk(e)
+        return when {
+            m % 2 != 0 && m > 0 -> "Odd power of sine" to "Keep one sin u, write the rest with sin²u = 1 − cos²u, then substitute w = cos u (dw = −sin u du)."
+            n % 2 != 0 && n > 0 -> "Odd power of cosine" to "Keep one cos u, write the rest with cos²u = 1 − sin²u, then substitute w = sin u (dw = cos u du)."
+            else -> "Half-angle formulas" to "Even powers: sin²u = (1 − cos 2u)/2 and cos²u = (1 + cos 2u)/2 lower the powers until each piece integrates directly."
+        }
+    }
+
+    /** (ax + b)^(p/q) inside: u = (ax + b)^(1/q). */
+    private fun radicalSubstitution(e: Expr, x: Sym): Pair<String, String> {
+        var found: Pow? = null
+        fun walk(z: Expr) {
+            if (z is Pow && z.exp is Num && !(z.exp as Num).q.isInteger && !z.base.freeOf(x)) found = z
+            z.children.forEach { walk(it) }
+        }
+        walk(e)
+        val p = found ?: return "Substitution" to "Substitute the root to get a rational function."
+        val q = (p.exp as Num).q.den
+        return "Rationalizing substitution" to "Let u = (${Printer.plain(p.base)})^(1/$q), so ${Printer.plain(p.base)} = u^$q and every root becomes a power of u; the integrand is then a rational function of u."
     }
 
     private val SPECIAL = setOf("si", "ci", "ei", "li", "shi", "chi", "erf", "erfi", "fresnels", "fresnelc", "gammainc", "ellipticf", "elliptice", "polylog")
