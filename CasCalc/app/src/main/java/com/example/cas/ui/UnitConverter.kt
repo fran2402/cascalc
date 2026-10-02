@@ -775,7 +775,7 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
                     selected = category == c,
                     onClick = { category = c },
                     label = { Text(c ?: "All") },
-                    leadingIcon = if (category == c) ({ Icon(androidx.compose.material.icons.Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }) else null,
+                    leadingIcon = null,
                 )
             }
         }

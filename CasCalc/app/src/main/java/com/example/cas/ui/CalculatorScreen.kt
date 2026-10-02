@@ -1340,7 +1340,7 @@ private fun ConstantsSheet(units: UnitSystem, onPick: (String) -> Unit, onDismis
                     selected = category == c,
                     onClick = { category = c },
                     label = { Text(c ?: "All") },
-                    leadingIcon = if (category == c) ({ Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }) else null,
+                    leadingIcon = null,
                 )
             }
         }

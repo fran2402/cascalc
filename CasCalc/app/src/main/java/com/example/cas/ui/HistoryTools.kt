@@ -213,7 +213,7 @@ private fun ExportHistoryDialog(items: List<HistoryItem>, onDismiss: () -> Unit)
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf(true to "PDF", false to "LaTeX").forEachIndexed { k, (isPdf, label) ->
-                        SegmentedButton(selected = pdf == isPdf, onClick = { pdf = isPdf }, shape = SegmentedButtonDefaults.itemShape(k, 2), label = { Text(label) })
+                        SegmentedButton(icon = {}, selected = pdf == isPdf, onClick = { pdf = isPdf }, shape = SegmentedButtonDefaults.itemShape(k, 2), label = { Text(label) })
                     }
                 }
                 OutlinedTextField(title, { title = it }, singleLine = true, label = { Text("Title") }, modifier = Modifier.fillMaxWidth())

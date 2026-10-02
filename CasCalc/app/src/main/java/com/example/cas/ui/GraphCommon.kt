@@ -1331,7 +1331,7 @@ private fun SliderDialog(name: String, value: Double, min: Double, max: Double, 
                 // Real numbers or integers only, as a Material 3 segmented button.
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf(false to "Real numbers", true to "Integers").forEachIndexed { k, (ints, label) ->
-                        SegmentedButton(
+                        SegmentedButton(icon = {}, 
                             selected = integers == ints,
                             onClick = { integers = ints },
                             shape = SegmentedButtonDefaults.itemShape(k, 2),
@@ -2643,7 +2643,7 @@ internal fun RangeAndScaleSettings(state: RangeFields, xName: String, yName: Str
             Text(name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.width(64.dp))
             SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
                 listOf(false to "Linear", true to "Log").forEachIndexed { i, (value, label) ->
-                    SegmentedButton(
+                    SegmentedButton(icon = {}, 
                         selected = log == value,
                         onClick = { if (k == 0) state.setLog(value, state.logY) else state.setLog(state.logX, value) },
                         shape = SegmentedButtonDefaults.itemShape(i, 2),
@@ -2707,7 +2707,7 @@ internal fun FitDialog(t: com.example.cas.graph.DataTable, onAdd: (String) -> Un
                     (com.example.cas.graph.FitModel.entries.map { it to it.title } + (null to "Custom")).forEach { (m, title) ->
                         androidx.compose.material3.FilterChip(
                             selected = model == m, onClick = { model = m }, label = { Text(title) },
-                            leadingIcon = if (model == m) ({ Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp)) }) else null,
+                            leadingIcon = null,
                         )
                     }
                 }
