@@ -806,7 +806,7 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
                             }
                             Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
                                 if (size != null) MathText(size, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 15.sp), color = colors.onSurface, mathScale = 1f)
-                                Text((if (size != null) "  " else "") + (listOf(u.symbol) + u.aliases.take(1)).joinToString(" · "), color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                                Text((if (size != null) "  " else "") + (listOf(u.symbol) + u.aliases).filter { t -> t.all { it.code < 128 } || t == u.symbol && '_' !in t }.distinct().take(2).joinToString(" · "), color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                             }
                         }
                         IconButton(onClick = { add(p + symbol) }) {
