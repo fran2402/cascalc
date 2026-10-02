@@ -232,7 +232,7 @@ object Steps {
 
     /** The steps to ∫ [e] d[x], following the integrator's methods; null if it can't follow them. */
     private fun trace(e: Expr, x: Sym, depth: Int): Traced? {
-        if (depth > 5) return blackBox(e, x)
+        if (depth > 5) return blackBox(e, x, depth)
         if (e.freeOf(x)) return Traced(mul(e, x), listOf(Step("Constant", "The integral of a constant c is c·${x.name}.", eq(int(e, x), mul(e, x)))))
         if (e is Add) {
             val parts = e.terms.map { trace(it, x, depth + 1) ?: return null }
@@ -253,7 +253,7 @@ object Steps {
         byParts(e, x, depth)?.let { return it }
         substitution(e, x, depth)?.let { return it }
         multiplyOut(e, x, depth)?.let { return it }
-        return blackBox(e, x)
+        return blackBox(e, x, depth)
     }
 
     /** A result the integrator finds by a method too involved to spell out here. */
@@ -266,13 +266,243 @@ object Steps {
     }
 
     /** A result from one of the integrator's other methods, named and explained. */
-    private fun blackBox(e: Expr, x: Sym): Traced? {
+    private fun blackBox(e: Expr, x: Sym, depth: Int = 0): Traced? {
         val found = runCatching { com.example.cas.cas.Integrals.identify(e, x) }.getOrNull()
+        // A substitution, carried out step by step when it can be.
+        if (found != null && depth < 4) runCatching { substitutionFor(found.first, e, x) }.getOrNull()?.let { sub ->
+            runCatching { substitutionSteps(e, x, sub, depth) }.getOrNull()?.let { return it }
+        }
         val f = found?.second ?: Calculus.integrate(e, x) ?: return null
         val (title, text) = found?.first?.let { describe(it, e, x) }
             ?: if (f.contains { it is Fn && it.name in SPECIAL }) "Special function" to "This has no antiderivative in elementary functions; it's written with a function defined by this very integral."
             else "Rewrite and integrate" to "Rewrite the integrand (identities, a substitution) and integrate the pieces."
         return Traced(f, listOf(Step(title, text, eq(int(e, x), f))))
+    }
+
+    // ---- Substitutions written out ----------------------------------------------------------------
+
+    /**
+     * A substitution: its name and why, the new variable, the integrand in it (dx included), the
+     * new variable in terms of x (to put back), and the substitution itself as a line of math.
+     */
+    private class Sub(val title: String, val text: String, val t: Sym, val integrand: Expr, val back: Expr, val setup: MathRow)
+
+    /** ∫ f dx = ∫ g dt, then ∫ g dt traced, then t put back, checked by differentiating. */
+    private fun substitutionSteps(e: Expr, x: Sym, sub: Sub, depth: Int): Traced? {
+        val g = Algebra.simplify(sub.integrand)
+        if (!g.freeOf(x)) return null
+        val inner = trace(g, sub.t, depth + 1) ?: return null
+        val back = Algebra.simplify(inner.result.subst(sub.t, sub.back))
+        if (!agrees(Algebra.simplify(Calculus.diff(back, x)), e, x)) return null
+        return Traced(back, listOf(
+            Step(sub.title, sub.text, sub.setup),
+            Step("The new integral", "Everything in terms of ${sub.t.name}, d${x.name} included.", eq(int(e, x), int(g, sub.t)), substeps = inner.steps),
+            Step("Back-substitute", "Put ${sub.t.name} = ${Printer.plain(sub.back).replace("-", "−")} back.", eq(inner.result, back)),
+        ))
+    }
+
+    /** A fresh letter for the new variable. */
+    private fun fresh(e: Expr, vararg names: String): Sym = Sym(names.first { it !in e.freeVars() })
+
+    /** [e] with every part matching [pred] replaced by [repl] of it, rebuilt through the simplifying builders. */
+    private fun replace(e: Expr, pred: (Expr) -> Boolean, repl: (Expr) -> Expr): Expr = when {
+        pred(e) -> repl(e)
+        e is Add -> add(e.terms.map { replace(it, pred, repl) })
+        e is Mul -> mul(e.factors.map { replace(it, pred, repl) })
+        e is Pow -> com.example.cas.cas.pow(replace(e.base, pred, repl), replace(e.exp, pred, repl))
+        e is Fn -> com.example.cas.cas.Simplify.function(e.name, e.args.map { replace(it, pred, repl) })
+        else -> e
+    }
+
+    private fun substitutionFor(method: String, e: Expr, x: Sym): Sub? = when (method) {
+        "sqrtQuadratic" -> trigSub(e, x)
+        "weierstrass" -> weierstrassSub(e, x)
+        "radical" -> radicalSub(e, x)
+        "powerSub" -> powerSub(e, x)
+        "expSub" -> expSub(e, x)
+        "logSub" -> logSub(e, x)
+        "sinCos" -> oddPowerSub(e, x)
+        else -> null
+    }
+
+    /** √Q: x − h = r sin θ, r tan θ or r sec θ, every Q^(p/2) becoming (√k cos θ)^p and so on. */
+    private fun trigSub(e: Expr, x: Sym): Sub? {
+        var q: Expr? = null
+        fun walk(z: Expr) {
+            if (z is Pow && z.exp is Num && (z.exp as Num).q.den.toInt() == 2 && !z.base.freeOf(x)) q = z.base
+            z.children.forEach { walk(it) }
+        }
+        walk(e)
+        val quad = q ?: return null
+        val cs = Algebra.coefficients(Algebra.expand(quad), x)?.map { (it as? Num)?.q } ?: return null
+        if (cs.size != 3 || cs.any { it == null }) return null
+        val (c0, c1, c2) = cs.map { it!! }
+        val two = com.example.cas.math.Rational.of(2)
+        val h = Num(-c1 / (c2 * two))
+        val k = c0 - c1 * c1 / (c2 * com.example.cas.math.Rational.of(4))
+        val r = Algebra.simplify(com.example.cas.cas.sqrt(Num((k / c2).abs())))
+        val rk = Algebra.simplify(com.example.cas.cas.sqrt(Num(k.abs())))
+        val th = fresh(e, "θ", "φ")
+        val (trig, root, dx, back, name) = when {
+            c2.signum < 0 && k.signum > 0 -> Quint(com.example.cas.cas.fn("sin", th), mul(rk, com.example.cas.cas.fn("cos", th)), mul(r, com.example.cas.cas.fn("cos", th)),
+                com.example.cas.cas.fn("asin", div(sub(x, h), r)), "sine")
+            c2.signum > 0 && k.signum > 0 -> Quint(com.example.cas.cas.fn("tan", th), mul(rk, com.example.cas.cas.pow(com.example.cas.cas.fn("cos", th), MINUS_ONE)),
+                mul(r, com.example.cas.cas.pow(com.example.cas.cas.fn("cos", th), Num(-2))), com.example.cas.cas.fn("atan", div(sub(x, h), r)), "tangent")
+            c2.signum > 0 && k.signum < 0 -> Quint(com.example.cas.cas.pow(com.example.cas.cas.fn("cos", th), MINUS_ONE), mul(rk, com.example.cas.cas.fn("tan", th)),
+                mul(r, com.example.cas.cas.fn("tan", th), com.example.cas.cas.pow(com.example.cas.cas.fn("cos", th), MINUS_ONE)), com.example.cas.cas.fn("acos", div(r, sub(x, h))), "secant")
+            else -> return null
+        }
+        val xOf = add(h, mul(r, trig))
+        val target = Algebra.expand(quad)
+        // Q^(p/2) → root^p; x elsewhere → h + r·trig.
+        val replaced = replace(e, { z -> z is Pow && z.exp is Num && (z.exp as Num).q.den.toInt() == 2 && Printer.plain(Algebra.expand(z.base)) == Printer.plain(target) }) { z ->
+            com.example.cas.cas.pow(root, Num((z as Pow).exp.let { (it as Num).q * two }))
+        }
+        val integrand = mul(replaced.subst(x, xOf), dx)
+        val (_, identity) = when (name) { "sine" -> 0 to "1 − sin²θ = cos²θ"; "tangent" -> 0 to "1 + tan²θ = sec²θ"; else -> 0 to "sec²θ − 1 = tan²θ" }
+        val shift = if (h == ZERO) ex(x) else ex(sub(x, h))
+        return Sub(
+            "Trigonometric substitution", "A $name substitution, since $identity: the root becomes ${Printer.plain(root).replace("-", "−")}.",
+            th, integrand, back,
+            line(shift, "=", mul(r, trig), ",", "  ", "d", x.name, "=", dx, " ", "d", th.name),
+        )
+    }
+
+    private data class Quint(val a: Expr, val b: Expr, val c: Expr, val d: Expr, val e: String)
+
+    /** t = tan(u/2) for a rational function of sin u and cos u. */
+    private fun weierstrassSub(e: Expr, x: Sym): Sub? {
+        var u: Expr? = null
+        fun walk(z: Expr) { if (z is Fn && z.name in setOf("sin", "cos", "tan") && !z.args[0].freeOf(x)) u = z.args[0]; z.children.forEach { walk(it) } }
+        walk(e)
+        val arg = u ?: return null
+        val a = linear(arg, x) ?: return null
+        val t = fresh(e, "t", "s")
+        val one = com.example.cas.cas.ONE
+        val den = add(one, com.example.cas.cas.pow(t, com.example.cas.cas.TWO))
+        val replaced = replace(e, { z -> z is Fn && z.args.singleOrNull() == arg && z.name in setOf("sin", "cos", "tan") }) { z ->
+            when ((z as Fn).name) {
+                "sin" -> div(mul(com.example.cas.cas.TWO, t), den)
+                "cos" -> div(sub(one, com.example.cas.cas.pow(t, com.example.cas.cas.TWO)), den)
+                else -> div(mul(com.example.cas.cas.TWO, t), sub(one, com.example.cas.cas.pow(t, com.example.cas.cas.TWO)))
+            }
+        }
+        if (!replaced.freeOf(x)) return null
+        val integrand = mul(replaced, div(com.example.cas.cas.TWO, mul(a, den)))
+        return Sub(
+            "Weierstrass substitution", "sin u = 2t/(1 + t²), cos u = (1 − t²)/(1 + t²): the integrand becomes a rational function of t.",
+            t, integrand, com.example.cas.cas.fn("tan", div(arg, com.example.cas.cas.TWO)),
+            line(t, "=", com.example.cas.cas.fn("tan", div(arg, com.example.cas.cas.TWO)), ",", "  ", "d", x.name, "=", div(com.example.cas.cas.TWO, mul(a, den)), " ", "d", t.name),
+        )
+    }
+
+    /** u = (ax + b)^(1/q): x = (u^q − b)/a. */
+    private fun radicalSub(e: Expr, x: Sym): Sub? {
+        var base: Expr? = null; var q = 1
+        fun walk(z: Expr) {
+            if (z is Pow && z.exp is Num && !(z.exp as Num).q.isInteger && linear(z.base, x) != null) { base = z.base; q = maxOf(q, (z.exp as Num).q.den.toInt()) }
+            z.children.forEach { walk(it) }
+        }
+        walk(e)
+        val b = base ?: return null
+        val a = linear(b, x)!!
+        val c = Algebra.simplify(b.subst(x, ZERO))
+        val u = fresh(e, "u", "w")
+        val xOf = div(sub(com.example.cas.cas.pow(u, Num(q.toLong())), c), a)
+        val replaced = replace(e, { z -> z is Pow && z.base == b && z.exp is Num }) { z -> com.example.cas.cas.pow(u, mul((z as Pow).exp, Num(q.toLong()))) }
+        val dx = div(mul(Num(q.toLong()), com.example.cas.cas.pow(u, Num((q - 1).toLong()))), a)
+        return Sub(
+            "Rationalizing substitution", "Every root of ${Printer.plain(b)} becomes a power of u, so the integrand is a rational function of u.",
+            u, mul(replaced.subst(x, xOf), dx), com.example.cas.cas.pow(b, Num(com.example.cas.math.Rational.of(1, q.toLong()))),
+            line(u, "=", com.example.cas.cas.pow(b, Num(com.example.cas.math.Rational.of(1, q.toLong()))), ",", "  ", x.name, "=", xOf, ",", "  ", "d", x.name, "=", dx, " ", "d", u.name),
+        )
+    }
+
+    /** u = xⁿ when x^(n−1) dx sits beside a function of xⁿ. */
+    private fun powerSub(e: Expr, x: Sym): Sub? {
+        val u = fresh(e, "u", "w")
+        for (n in 2..6) {
+            val g = Algebra.simplify(div(e, mul(Num(n.toLong()), com.example.cas.cas.pow(x, Num((n - 1).toLong())))))
+            val inU = replace(g, { z -> z is Pow && z.base == x && z.exp is Num && (z.exp as Num).q.isInteger && (z.exp as Num).q.num.toInt() % n == 0 }) { z ->
+                com.example.cas.cas.pow(u, Num((z as Pow).exp.let { (it as Num).q.num.toLong() / n }))
+            }
+            if (inU.freeOf(x)) return Sub(
+                "Substitution u = ${x.name}^$n", "${x.name}^${n - 1} d${x.name} is there beside a function of ${x.name}^$n.",
+                u, inU, com.example.cas.cas.pow(x, Num(n.toLong())),
+                line(u, "=", com.example.cas.cas.pow(x, Num(n.toLong())), ",", "  ", "d", u.name, "=", mul(Num(n.toLong()), com.example.cas.cas.pow(x, Num((n - 1).toLong()))), " ", "d", x.name),
+            )
+        }
+        return null
+    }
+
+    /** u = e^(gx) when everything is a function of exponentials of x. */
+    private fun expSub(e: Expr, x: Sym): Sub? {
+        val coefficients = ArrayList<com.example.cas.math.Rational>()
+        fun walk(z: Expr) { if (z is Pow && z.base == E) linear(z.exp, x)?.let { (it as? Num)?.q?.let { q -> coefficients += q.abs() } }; z.children.forEach { walk(it) } }
+        walk(e)
+        val g = coefficients.filter { it.signum > 0 }.minOrNull() ?: return null
+        val u = fresh(e, "u", "w")
+        val gx = mul(Num(g), x)
+        val replaced = replace(e, { z -> z is Pow && z.base == E && linear(z.exp, x) != null }) { z ->
+            val exp = (z as Pow).exp
+            val k = div(linear(exp, x)!!, Num(g))
+            mul(com.example.cas.cas.pow(E, Algebra.simplify(exp.subst(x, ZERO))), com.example.cas.cas.pow(u, k))
+        }
+        if (!replaced.freeOf(x)) return null
+        val integrand = div(replaced, mul(Num(g), u))
+        return Sub(
+            "Substitution u = e^(${Printer.plain(gx)})", "Everything is a function of e^(${Printer.plain(gx)}); dx = du/(${Printer.plain(Num(g))}u).",
+            u, integrand, com.example.cas.cas.pow(E, gx),
+            line(u, "=", com.example.cas.cas.pow(E, gx), ",", "  ", "d", x.name, "=", div(com.example.cas.cas.ONE, mul(Num(g), u)), " ", "d", u.name),
+        )
+    }
+
+    /** x = eᵘ for a function of ln x. */
+    private fun logSub(e: Expr, x: Sym): Sub? {
+        val u = fresh(e, "u", "w")
+        val replaced = replace(e, { z -> z is Fn && z.name == "ln" && z.args[0] == x }) { u }
+        val integrand = mul(replaced.subst(x, com.example.cas.cas.pow(E, u)), com.example.cas.cas.pow(E, u))
+        return Sub(
+            "Substitution x = eᵘ", "A function of ln ${x.name}: with u = ln ${x.name}, d${x.name} = eᵘ du.",
+            u, integrand, com.example.cas.cas.fn("ln", x),
+            line(u, "=", com.example.cas.cas.fn("ln", x), ",", "  ", x.name, "=", com.example.cas.cas.pow(E, u), ",", "  ", "d", x.name, "=", com.example.cas.cas.pow(E, u), " ", "d", u.name),
+        )
+    }
+
+    /** An odd power of sin (cos): keep one, the rest through cos² (sin²), then w = cos u (sin u). */
+    private fun oddPowerSub(e: Expr, x: Sym): Sub? {
+        var arg: Expr? = null; var m = 0; var n = 0
+        fun walk(z: Expr) {
+            when {
+                z is Fn && z.name == "sin" -> { arg = z.args[0]; m = maxOf(m, 1) }
+                z is Fn && z.name == "cos" -> { arg = z.args[0]; n = maxOf(n, 1) }
+                z is Pow && z.base is Fn && z.exp is Num && (z.exp as Num).q.isInteger -> {
+                    val k = (z.exp as Num).q.num.toInt(); arg = (z.base as Fn).args[0]
+                    if ((z.base as Fn).name == "sin") m = k else if ((z.base as Fn).name == "cos") n = k
+                }
+            }
+            if (!(z is Pow && z.base is Fn)) z.children.forEach { walk(it) }
+        }
+        walk(e)
+        val u = arg ?: return null
+        val a = linear(u, x) ?: return null
+        val w = fresh(e, "w", "s")
+        val sinOdd = m % 2 != 0 && m > 0
+        if (!sinOdd && !(n % 2 != 0 && n > 0)) return null
+        val (keep, other) = if (sinOdd) "sin" to "cos" else "cos" to "sin"
+        val keepFn = com.example.cas.cas.fn(keep, u)
+        // f = keep(u)·g(other(u)): divide out one keep, write keep² as 1 − other², put w for other(u).
+        val rest = Algebra.simplify(div(e, keepFn))
+        val inW = replace(rest, { z -> z is Pow && z.base == keepFn && z.exp is Num }) { z ->
+            com.example.cas.cas.pow(sub(com.example.cas.cas.ONE, com.example.cas.cas.pow(w, com.example.cas.cas.TWO)), div((z as Pow).exp, com.example.cas.cas.TWO))
+        }.let { replace(it, { z -> z == com.example.cas.cas.fn(other, u) }) { w } }
+        if (!inW.freeOf(x)) return null
+        val integrand = mul(inW, if (sinOdd) neg(div(com.example.cas.cas.ONE, a)) else div(com.example.cas.cas.ONE, a))
+        return Sub(
+            "Odd power of ${if (sinOdd) "sine" else "cosine"}", "Keep one $keep u, write the others with $keep²u = 1 − $other²u, then substitute w = $other u.",
+            w, integrand, com.example.cas.cas.fn(other, u),
+            line(w, "=", com.example.cas.cas.fn(other, u), ",", "  ", "d", w.name, "=", mul(if (sinOdd) neg(a) else a, keepFn), " ", "d", x.name),
+        )
     }
 
     /** The name and explanation of an integration method, with the substitution it makes where there is one. */

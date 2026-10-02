@@ -218,7 +218,7 @@ class MethodStepsTest {
 
     @Test fun trigSubstitutionSine() {
         val s = of(integral(m(com.example.cas.editor.Sqrt(m("4−x", Pow(m("2")))))))
-        assertTrue(all(s).any { it.first == "Trigonometric substitution" && it.second!!.contains("sin θ") })
+        assertTrue(all(s).any { it.first == "Trigonometric substitution" && it.second!!.contains("sine") })
     }
     @Test fun trigSubstitutionTangent() {
         val s = of(integral(m(com.example.cas.editor.Sqrt(m("x", Pow(m("2")), "+9")))))
@@ -239,5 +239,35 @@ class MethodStepsTest {
     @Test fun radical() {
         val s = of(integral(m(Frac(m("x"), m(com.example.cas.editor.Sqrt(m("x+1")))))))
         assertTrue(all(s).isNotEmpty())
+    }
+}
+
+class WrittenSubstitutionTest {
+    private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
+    private fun fn(name: String, vararg a: MathRow) = Func(name, a.toList())
+    private fun integral(body: MathRow) = m(Integral(m(""), m(""), body, m("x")))
+    private fun titles(s: Steps.Solution) = s.steps.flatMap { listOf(it.title) + it.substeps.map { t -> "  " + t.title } }
+    private fun of(r: MathRow) = Steps.of(r)!!.also { s -> println(titles(s)); s.steps.forEach { st -> st.math?.let { println("   " + st.title + ": " + Formatter.plain(it)) } } }
+
+    @Test fun trigSubstitutionWrittenOut() {
+        val s = of(integral(m(com.example.cas.editor.Sqrt(m("4−x", Pow(m("2")))))))
+        assertTrue(titles(s).contains("The new integral"))
+        assertTrue(titles(s).contains("Back-substitute"))
+    }
+    @Test fun oneOverRoot() {
+        val s = of(integral(m(Frac(m("x", Pow(m("2"))), m(com.example.cas.editor.Sqrt(m("4−x", Pow(m("2")))))))))
+        assertTrue(titles(s).isNotEmpty())
+    }
+    @Test fun oddSine() {
+        val s = of(integral(m(fn("sin", m("x")), Pow(m("3")))))
+        assertTrue(titles(s).contains("The new integral"))
+    }
+    @Test fun rationalizing() {
+        val s = of(integral(m(Frac(m("1"), m("1+", com.example.cas.editor.Sqrt(m("x")))))))
+        assertTrue(titles(s).isNotEmpty())
+    }
+    @Test fun exponential() {
+        val s = of(integral(m(Frac(m("1"), m("e", Pow(m("x")), "+1")))))
+        assertTrue(titles(s).isNotEmpty())
     }
 }
