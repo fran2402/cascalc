@@ -1,5 +1,6 @@
 package com.example.cas.ui
 
+import com.example.cas.engine.Readout
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
@@ -1111,7 +1112,7 @@ private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable andro
                 Text("Filled", modifier = Modifier.weight(1f), color = colors.onSurface)
                 androidx.compose.material3.Switch(checked = filled, onCheckedChange = { vm.setOptions(f, shape = current.filled(it).ordinal) })
             }
-            Text("Size: ${String.format(java.util.Locale.US, "%.1f", f.pointSize)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+            MathText("Size: \$${String.format(java.util.Locale.US, "%.1f", f.pointSize)}\$ dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
             // In tenths of a dp.
             ExpressiveSlider(value = f.pointSize, onValueChange = { vm.setOptions(f, size = kotlin.math.round(it * 10f) / 10f) }, valueRange = 2f..16f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Point size" })
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1182,8 +1183,8 @@ private fun androidx.compose.foundation.layout.ColumnScope.ArrowOptions(vm: Grap
                 .clickable(onClickLabel = "Change the colormap") { pickingMap = true },
             contentAlignment = Alignment.CenterStart,
         ) {
-            Text(
-                f.colormap.label + (if (f.colormapReversed) " (reversed)" else "") + " · short → long",
+            MathText(
+                f.colormap.label + (if (f.colormapReversed) " (reversed)" else "") + " · short \$\\to\$ long",
                 style = MaterialTheme.typography.labelLarge, color = Color.White,
                 modifier = Modifier.padding(start = 10.dp).clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(alpha = 0.35f)).padding(horizontal = 8.dp, vertical = 2.dp),
             )
@@ -1191,7 +1192,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.ArrowOptions(vm: Grap
     }
     Text("Length", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
     Segments(com.example.cas.graph.VectorField.Length.entries.map { it.label }, f.arrowLength, "Arrow length") { vm.setArrows(f, length = it) }
-    Text("Scale: ×${String.format(java.util.Locale.US, "%.2f", f.arrowScale)}", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    MathText("Scale: \$\\times ${String.format(java.util.Locale.US, "%.2f", f.arrowScale)}\$", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
     ExpressiveSlider(value = f.arrowScale, onValueChange = { vm.setArrows(f, scale = kotlin.math.round(it * 20f) / 20f) }, valueRange = 0.2f..3f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Arrow scale" })
     Text("Arrowhead", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
     androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1224,12 +1225,12 @@ private fun androidx.compose.foundation.layout.ColumnScope.ArrowOptions(vm: Grap
         }
     }
     if (f.arrowTip != com.example.cas.graph.VectorField.Tip.None.ordinal) {
-        Text("Head size: ×${String.format(java.util.Locale.US, "%.1f", f.arrowTipSize)}", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+        MathText("Head size: \$\\times ${String.format(java.util.Locale.US, "%.1f", f.arrowTipSize)}\$", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
         ExpressiveSlider(value = f.arrowTipSize, onValueChange = { vm.setArrows(f, tipSize = kotlin.math.round(it * 10f) / 10f) }, valueRange = 0.4f..3f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Arrowhead size" })
     }
-    Text("${f.arrowDensity} arrows across", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    MathText("\$${f.arrowDensity}\$ arrows across", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
     ExpressiveSlider(value = f.arrowDensity.toFloat(), onValueChange = { vm.setArrows(f, density = it.roundToInt()) }, valueRange = 6f..50f, steps = 43, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Number of arrows across" })
-    Text("Thickness: ${String.format(java.util.Locale.US, "%.1f", f.thickness)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    MathText("Thickness: \$${String.format(java.util.Locale.US, "%.1f", f.thickness)}\$ dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
     ExpressiveSlider(value = f.thickness, onValueChange = { vm.setStyle(f, f.lineStyle, kotlin.math.round(it * 10f) / 10f) }, valueRange = 1f..8f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Arrow thickness" })
 }
 
@@ -1271,12 +1272,9 @@ private fun ParameterSlider(vm: GraphViewModel, name: String) {
             // so the number doesn't jitter as the slider moves.
             val decimals = sliderDecimals(lo, hi)
             val widest = maxOf(sliderText(lo, decimals).length, sliderText(hi, decimals).length)
-            Text(
-                sliderText(value, decimals),
-                color = colors.onSurface,
-                style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, textAlign = androidx.compose.ui.text.style.TextAlign.End),
-                modifier = Modifier.widthIn(min = (widest * 9).dp),
-            )
+            Box(Modifier.widthIn(min = (widest * 9).dp), contentAlignment = Alignment.CenterEnd) {
+                MathText(Readout.markdown(sliderText(value, decimals)), color = colors.onSurface, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp), mathScale = 1f)
+            }
         }
     }
 }
@@ -2164,13 +2162,12 @@ private fun PointCard(color: Color?, kind: String?, name: String?, rows: List<Ca
                     Box(Modifier.widthIn(min = 22.dp), contentAlignment = Alignment.Center) { MathView(letter, 20.sp, colors.onSurfaceVariant) }
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f).padding(end = 12.dp)) {
-                        Text(
-                            v.text,
+                        MathText(
+                            Readout.markdown(v.text),
                             color = colors.onSurface,
                             style = valueStyle.copy(fontSize = remember(v.text, room) { fitted(v.text) }),
-                            maxLines = 2,
                         )
-                        if (v.detail != null) Text(v.detail, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                        if (v.detail != null) MathText(Readout.markdown(v.detail), color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                     }
                     if (v.onUse != null) Row(
                         Modifier.height(34.dp).clip(CircleShape).background(colors.primaryContainer)
@@ -2251,14 +2248,14 @@ fun ResultCard(
                 Column(Modifier.padding(end = 10.dp)) {
                     if (math != null) Box(Modifier.horizontalScroll(rememberScrollState())) { MathView(math, 14.sp, colors.onSurfaceVariant, computerModern = true) }
                     Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            value,
+                        MathText(
+                            Readout.markdown(value),
                             color = colors.onSurface,
                             style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 22.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, fontFeatureSettings = "tnum"),
                         )
                     }
-                    if (stats.isNotEmpty()) Text(
-                        stats.joinToString("  ·  ") { (label, v) -> "$label $v" },
+                    if (stats.isNotEmpty()) MathText(
+                        stats.joinToString("  ·  ") { (label, v) -> "$label ${Readout.markdown(v)}" },
                         style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
                     )
                     else if (note != null && value == "—") Text(note, style = MaterialTheme.typography.bodySmall, color = colors.error)
@@ -2284,8 +2281,8 @@ fun ResultCard(
             }
             Column(Modifier.padding(end = 8.dp)) {
                 if (math != null) Box(Modifier.padding(top = 6.dp).horizontalScroll(rememberScrollState())) { MathView(math, 17.sp, colors.onSurfaceVariant, computerModern = true) }
-                Text(
-                    value,
+                MathText(
+                    Readout.markdown(value),
                     color = colors.onSurface,
                     style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 30.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, fontFeatureSettings = "tnum"),
                     modifier = Modifier.padding(top = 4.dp),
@@ -2294,7 +2291,7 @@ fun ResultCard(
                     stats.forEach { (label, v) ->
                         Column(Modifier.clip(RoundedCornerShape(12.dp)).background(colors.surfaceContainerHighest).padding(horizontal = 10.dp, vertical = 6.dp)) {
                             Text(label, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
-                            Text(v, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, fontFeatureSettings = "tnum"), color = colors.onSurface)
+                            MathText(Readout.markdown(v), style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, fontFeatureSettings = "tnum"), color = colors.onSurface)
                         }
                     }
                 }

@@ -471,7 +471,7 @@ private fun InputPanel(vm: CalculatorViewModel) {
                 preview != null -> Row(verticalAlignment = Alignment.CenterVertically) {
                     // Long exact numbers (or every answer, if decimals come first) preview as decimals.
                     val decimal = (vm.decimalFirst || preview.preferApprox) && preview.approx != null
-                    if (!preview.isStatement) Text(if (preview.isApproximate || decimal) "≈ " else "= ", color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = MathSizes.preview))
+                    if (!preview.isStatement) MathText(if (preview.isApproximate || decimal) "\$\\approx\$ " else "\$=\$ ", color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = MathSizes.preview), mathScale = 1f)
                     MathView(if (decimal) preview.approx!! else preview.exact, MathSizes.preview, colors.onSurfaceVariant)
                 }
             }
@@ -541,7 +541,7 @@ private fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (Gr
         // The answer, large, to the right.
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
             if (!item.answer.isStatement) {
-                Text(if (item.answer.isApproximate || item.showApprox) "≈" else "=", color = colors.primary, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = answerSize))
+                MathText(if (item.answer.isApproximate || item.showApprox) "\$\\approx\$" else "\$=\$", color = colors.primary, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = answerSize), mathScale = 1f)
                 Spacer(Modifier.width(12.dp))
             }
             Box(Modifier.weight(1f, fill = false).horizontalScroll(rememberScrollState())) {
@@ -572,7 +572,7 @@ private fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (Gr
                 ) {
                     Icon(Icons.Default.SwapVert, contentDescription = null, tint = colors.primary, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(if (item.showApprox) "= " else "≈ ", color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = MathSizes.historyInput))
+                    MathText(if (item.showApprox) "\$=\$ " else "\$\\approx\$ ", color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = MathSizes.historyInput), mathScale = 1f)
                     Box(Modifier.widthIn(max = 260.dp).horizontalScroll(rememberScrollState())) { MathView(other, MathSizes.historyInput, colors.onSurfaceVariant) }
                 }
             }
@@ -1218,7 +1218,7 @@ private fun MatrixPickerDialog(onPick: (Int, Int) -> Unit, onDismiss: () -> Unit
         title = { Text("Matrix size") },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                Text("$rows × $cols", style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 20.sp), color = colors.onSurface)
+                MathText("\$$rows \\times $cols\$", style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 20.sp), color = colors.onSurface)
                 Spacer(Modifier.height(16.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     for (r in 1..5) {
@@ -1490,7 +1490,7 @@ private fun SettingsChoice(title: String, options: List<String>, selected: Int, 
                     onClick = { onChange(k) },
                     shape = SegmentedButtonDefaults.itemShape(k, options.size),
                     icon = {},
-                    label = { Text(name, maxLines = 1) },
+                    label = { MathText(name, maxLines = 1) },
                 )
             }
         }
@@ -1566,7 +1566,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsToggle("Grid lines", "The axes always show", AppSettings.showGrid, AppSettings::changeShowGrid)
             SettingsToggle("Legend", "Each line's name in the corner, and in exports. Hold a line to rename it", AppSettings.showLegend, AppSettings::changeShowLegend)
             SettingsToggle("Mark points on curves", "Zeros, extrema and crossings of the tapped curve", AppSettings.specialPoints, AppSettings::changeSpecialPoints)
-            SettingsChoice("Starting view", listOf("±5", "±10", "±20"), when (AppSettings.viewHalfWidth) { 5 -> 0; 20 -> 2; else -> 1 }) {
+            SettingsChoice("Starting view", listOf("\$\\pm 5\$", "\$\\pm 10\$", "\$\\pm 20\$"), when (AppSettings.viewHalfWidth) { 5 -> 0; 20 -> 2; else -> 1 }) {
                 AppSettings.changeViewHalfWidth(listOf(5, 10, 20)[it])
             }
             SettingsChoice("Complex plot quality", listOf("Low", "Standard", "High"), when (AppSettings.complexQuality) { 2 -> 0; 1 -> 2; else -> 1 }) {

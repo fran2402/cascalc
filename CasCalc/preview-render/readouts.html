@@ -1,0 +1,41 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:36px;color:#1C1C16}
+h2{font:600 26px GSF;margin:0 0 6px}p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 24px;max-width:1300px}
+.row{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+.card{background:#EBE9DC;border-radius:24px;padding:10px 12px 14px 16px;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.hd{display:flex;align-items:center;gap:8px;font:500 13px GSF;color:#47473B;margin-bottom:4px}
+.chip{background:#C9E9D9;color:#00210F;border-radius:20px;padding:3px 10px;font:600 12px GSF}
+.dot{width:12px;height:12px;border-radius:50%}
+.v{display:flex;align-items:center;min-height:44px;gap:10px}.v .l{width:26px;text-align:center}
+.use{margin-left:auto;background:#DEE5A0;color:#1A1E00;border-radius:17px;padding:7px 13px;font:600 13px GSF}
+.det{font:13px GSF;color:#47473B}
+.cap{font:500 14px GSF;color:#47473B;margin-top:12px;width:300px}
+.pill{background:#F1EEE2;border-radius:30px;display:flex;align-items:center;gap:6px;padding:6px 16px;font:20px GSF}
+.seg{display:flex;border:1px solid #77786A;border-radius:22px;overflow:hidden;width:330px}.seg div{flex:1;text-align:center;padding:9px 0;border-left:1px solid #77786A;font:600 14px GSF}.seg div:first-child{border-left:0}.seg .on{background:#E2E4C4}
+.mi{display:inline-block;vertical-align:middle}
+</style></head><body>
+<h2>Number readouts in LaTeX</h2>
+<p class="note">Point cards, result cards, slider values, the 3D range pill, settings chips, the matrix size and the = / ≈ signs are now LaTeX drawn by the app's math renderer (Computer Modern), like the answers. Scientific notation reads as × 10ⁿ, polar angles as fractions of π, and words in a readout stay words.</p>
+<div class="row" id="r"></div>
+<script src="gsf_cmap.js"></script><script src="cm_cmap.js"></script><script src="mathlayout.js"></script><script src="readouts_data.js"></script>
+<script>
+const mv=(c,size,color='#1C1C16')=>MT.render(MT.decode(c),{size,color,accent:'#5B6133',faint:'rgba(0,0,0,.4)'});
+const rt=(s,size,color)=>s.split(/[\u0001\u0002]/).map((p,k)=>k%2?`<span class="mi">${mv(p,size,color)}</span>`:`<span style="font-size:${size*0.86}px">${p}</span>`).join('');
+const L=(t)=>mv(t,20,'#47473B');
+const val=(letter,i,det)=>`<div class="v"><div class="l">${L(letter)}</div><div><div>${rt(RD[i],22)}</div>${det!=null?`<div class="det">${rt(RD[det],14,'#47473B')}</div>`:''}</div><div class="use">↵ Use</div></div>`;
+const cap=(c,t)=>`<div>${c}<div class="cap">${t}</div></div>`;
+document.getElementById('r').innerHTML=
+ cap(`<div class="card" style="width:290px"><div class="hd"><div class="dot" style="background:#5B6133"></div><span class="chip">Maximum</span></div>${val("'x;",0)}${val("'y;",7)}</div>`,'2D point card')+
+ cap(`<div class="card" style="width:300px"><div class="hd"><span class="chip">Point</span></div>${val("'z;",3,2)}${val("'w;",1)}</div>`,'Complex point: a + bi with the polar form under it; tiny values as × 10ⁿ')+
+ cap(`<div class="card" style="width:260px"><div class="hd">∮ Loop integral</div><div style="margin:6px 0">${rt(RD[4],24)}</div><div class="det">Signed ${rt(RD[6],13,'#47473B')} · From ${rt(RD[14],13,'#47473B')}</div></div>`,'Result card: value and figures')+
+ cap(`<div style="display:flex;flex-direction:column;gap:18px"><div class="pill">− ${rt(RD[11],17)} +</div>
+  <div style="display:flex;align-items:center;gap:10px"><span class="mi">${mv("'a;'=;",18)}</span><div style="width:150px;height:6px;background:#5B6133;border-radius:3px"></div><div style="background:#F1EEE2;border-radius:12px;padding:6px 10px">${rt(RD[7],17)}</div></div>
+  <div class="seg"><div>${rt("\u0001'±;'5;\u0002",15)}</div><div class="on">${rt(RD[10],15)}</div><div>${rt("\u0001'±;'2;'0;\u0002",15)}</div></div>
+  <div style="background:#F1EEE2;border-radius:20px;padding:12px 20px;width:220px;text-align:center">${rt(RD[9],22)}<div class="det" style="margin-top:4px">Matrix size</div></div>
+  <div class="det">${rt(RD[13],15,'#47473B')} · ${rt(RD[8],15,'#47473B')} · θ = ${rt(RD[5],15,'#47473B')}</div></div>`,'3D range pill, a slider value, the starting-view chips, the matrix size, field options');
+document.title='ready';
+</script></body></html>

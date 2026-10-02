@@ -31,6 +31,8 @@ fun MathText(
     style: TextStyle = LocalTextStyle.current,
     color: Color = Color.Unspecified,
     maxLines: Int = Int.MAX_VALUE,
+    /** The math's size relative to the text (Computer Modern runs small beside the UI font). */
+    mathScale: Float = 1.1f,
 ) {
     val ink = color.takeOrElse { style.color.takeOrElse { LocalContentColor.current } }
     val parts = remember(text) { LatexParser.inline(text) }
@@ -48,7 +50,7 @@ fun MathText(
                 val glued = next?.second?.substringBefore(' ')
                 Row(Modifier.align(Alignment.CenterVertically), verticalAlignment = Alignment.CenterVertically) {
                     val math = remember(piece) { LatexParser.parse(piece) }
-                    MathView(math, style.fontSize * 1.1f, ink)
+                    MathView(math, style.fontSize * mathScale, ink)
                     if (glued != null) Text(glued + if (next.second.length > glued.length) " " else "", style = style, color = ink)
                 }
                 if (next != null) {

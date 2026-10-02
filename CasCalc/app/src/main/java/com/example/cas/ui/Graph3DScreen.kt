@@ -1,5 +1,6 @@
 package com.example.cas.ui
 
+import com.example.cas.engine.Readout
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -128,12 +129,11 @@ fun Graph3DScreen(vm: Graph3DViewModel, onUseValue: (Double) -> Unit = {}, modif
     }
 }
 
-/** "x ∈ [a, b],  y ∈ [c, d]" with the letters in italic Computer Modern, like the math. */
-private fun limitsText(vm: Graph3DViewModel): AnnotatedString = buildAnnotatedString {
-    fun letter(v: String) = withStyle(SpanStyle(fontFamily = CasFonts.CmItalic)) { append(v) }
+/** "x ∈ [a, b], y ∈ [c, d]" in LaTeX, for MathText. */
+private fun limitsText(vm: Graph3DViewModel): String {
     val (lx, ly) = vm.letters3D.getValue(Coordinates3D.Mode.Cartesian)
-    letter(lx); append(" ∈ [${shortNumber(vm.xMin)}, ${shortNumber(vm.xMax)}],  ")
-    letter(ly); append(" ∈ [${shortNumber(vm.yMin)}, ${shortNumber(vm.yMax)}]")
+    fun n(v: Double) = Readout.latex(shortNumber(v))
+    return "\$$lx \\in [${n(vm.xMin)}, ${n(vm.xMax)}]\$, \$$ly \\in [${n(vm.yMin)}, ${n(vm.yMax)}]\$"
 }
 
 /** − and + zoom the ranges; tapping the ranges opens the limits. */
@@ -147,10 +147,11 @@ private fun RangeControl(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
         IconButton(onClick = { tap(); vm.scaleRanges(0.5) }) {
             Icon(Icons.Default.Remove, contentDescription = "Zoom in", tint = colors.onSurface)
         }
-        Text(
+        MathText(
             limitsText(vm),
             color = colors.onSurface,
             style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 15.sp),
+            mathScale = 1f,
             modifier = Modifier.clickable(onClickLabel = "Set the limits") { editing = true }.padding(vertical = 8.dp),
         )
         IconButton(onClick = { tap(); vm.scaleRanges(2.0) }) {
