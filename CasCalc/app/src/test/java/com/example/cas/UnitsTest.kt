@@ -7,6 +7,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.example.cas.cas.subst
 
 class UnitsTest {
     private fun conv(v: Double, from: String, to: String) = Units.convert(v, Units.parse(from), Units.target(to, Units.parse(from).dims)).value
@@ -77,4 +78,26 @@ class UnitsTest {
         }
         for (u in Units.ALL) assertNotNull(u.symbol, Units.quantityName(u.dims) ?: "")
     }
+}
+
+class AbsoluteLogIntegralTest {
+    private val x = com.example.cas.cas.Sym("x")
+    private fun lnAbs(u: com.example.cas.cas.Expr) = com.example.cas.cas.fn("ln", com.example.cas.cas.fn("abs", u))
+    /** F′ = f at a few points, negative ones included. */
+    private fun check(f: com.example.cas.cas.Expr) {
+        val big = com.example.cas.cas.Calculus.integrate(f, x)
+        org.junit.Assert.assertNotNull(f.toString(), big)
+        val d = com.example.cas.cas.Calculus.diff(big!!, x)
+        for (v in listOf(-2.5, -0.7, 0.4, 3.1)) {
+            val a = com.example.cas.cas.Numeric.eval(d.subst(x, com.example.cas.cas.Flt(v))).re
+            val b = com.example.cas.cas.Numeric.eval(f.subst(x, com.example.cas.cas.Flt(v))).re
+            org.junit.Assert.assertEquals("$f at $v", b, a, 1e-9 * (1 + kotlin.math.abs(b)))
+        }
+    }
+    @Test fun lnAbsX() = check(lnAbs(x))
+    @Test fun xLnAbsX() = check(com.example.cas.cas.mul(x, lnAbs(x)))
+    @Test fun lnAbsLinear() = check(lnAbs(com.example.cas.cas.add(com.example.cas.cas.mul(com.example.cas.cas.TWO, x), com.example.cas.cas.ONE)))
+    @Test fun lnAbsSquared() = check(com.example.cas.cas.pow(lnAbs(x), com.example.cas.cas.TWO))
+    @Test fun log10Abs() = check(com.example.cas.cas.fn("log", com.example.cas.cas.Num(10), com.example.cas.cas.fn("abs", x)))
+    @Test fun lnAbsOverX() = check(com.example.cas.cas.div(lnAbs(x), x))
 }

@@ -45,6 +45,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Category
@@ -621,9 +625,10 @@ private fun ToggleChip(math: String, name: String, on: Boolean, onChange: (Boole
 private val PICKER_PREFIXES = listOf("T", "G", "M", "k", "", "c", "m", "µ", "n", "p", "f")
 
 /**
- * The unit picker: builds a unit by tapping. Search or browse a category, choose a prefix,
- * tap units, and put ×, ÷ and powers between them (km ÷ s ÷ Mpc); the unit so far is drawn
- * in LaTeX at the top. Done puts it in the field.
+ * The unit picker, in the style of the constants sheet: the unit being built at the top (in
+ * LaTeX, with what it measures and Done), the ways to join units (× ÷ powers brackets ⌫) and a
+ * prefix row; then a search pill, a chip per category, and every unit in rounded groups, each
+ * on a tile with its name and its size in SI units. Tap a unit to add it.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -632,7 +637,7 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
     val tap = rememberKeyTap()
     var expr by rememberSaveable { mutableStateOf(initial) }
     var query by rememberSaveable { mutableStateOf("") }
-    var category by rememberSaveable { mutableStateOf(Units.CATEGORIES.first()) }
+    var category by rememberSaveable { mutableStateOf<String?>(null) }
     var prefix by rememberSaveable { mutableStateOf("") }
     val sheet = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val parsed = remember(expr) { runCatching { Units.parse(expr) } }
@@ -657,109 +662,156 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
         val m = Regex("""[^\s/()]+$""").find(t)
         expr = if (m != null) t.substring(0, m.range.first).trimEnd() else t.dropLast(1).trimEnd()
     }
+    val shown = remember(query, category) {
+        val q = query.trim().lowercase()
+        Units.ALL.filter { u ->
+            (category == null || u.category == category) &&
+                (q.isEmpty() || u.name.lowercase().contains(q) || u.symbol.lowercase().startsWith(q) || u.aliases.any { it.lowercase().startsWith(q) })
+        }.groupBy { it.category }
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = colors.surfaceContainerLow) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(title, style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.weight(1f))
-                Box(
-                    Modifier.height(44.dp).clip(CircleShape).background(colors.primary)
-                        .clickable(onClickLabel = "Use this unit") { tap(); onDone(expr.trim()) }.padding(horizontal = 22.dp),
-                    contentAlignment = Alignment.Center,
-                ) { Text("Done", style = MaterialTheme.typography.labelLarge, color = colors.onPrimary) }
-            }
-            // The unit so far, in LaTeX.
+        Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(title, style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.weight(1f))
             Box(
-                Modifier.fillMaxWidth().heightIn(min = 64.dp).clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainerHighest).padding(horizontal = 20.dp, vertical = 10.dp),
-                contentAlignment = Alignment.CenterStart,
-            ) {
+                Modifier.height(40.dp).clip(CircleShape).background(colors.primary)
+                    .clickable(onClickLabel = "Use this unit") { tap(); onDone(expr.trim()) }.padding(horizontal = 20.dp),
+                contentAlignment = Alignment.Center,
+            ) { Text("Done", style = MaterialTheme.typography.labelLarge, color = colors.onPrimary) }
+        }
+        // The unit so far: large, on the primary container, with what it measures.
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).clip(RoundedCornerShape(28.dp)).background(colors.primaryContainer).padding(horizontal = 18.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(Modifier.fillMaxWidth().heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
                 val q = parsed.getOrNull()
-                when {
-                    expr.isBlank() -> Text("Tap units below to build one", style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
-                    q != null -> Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.weight(1f, fill = false).horizontalScroll(rememberScrollState())) {
-                            MathText("\$${q.latex()}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 26.sp), color = colors.onSurface, mathScale = 1f)
-                        }
-                        Units.quantityName(q.dims)?.let {
-                            Spacer(Modifier.width(10.dp))
-                            Text(it, style = MaterialTheme.typography.labelMedium, color = colors.onSecondaryContainer, modifier = Modifier.clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 10.dp, vertical = 3.dp))
-                        }
+                Box(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
+                    when {
+                        expr.isBlank() -> Text("Tap units below", style = MaterialTheme.typography.bodyLarge, color = colors.onPrimaryContainer.copy(alpha = 0.7f))
+                        q != null -> MathText("\$${q.latex()}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 28.sp), color = colors.onPrimaryContainer, mathScale = 1f)
+                        else -> Text(expr, style = MaterialTheme.typography.titleMedium, color = colors.onPrimaryContainer)
                     }
-                    else -> Text(expr, style = MaterialTheme.typography.titleMedium, color = colors.onSurfaceVariant)
+                }
+                parsed.getOrNull()?.let { q -> Units.quantityName(q.dims)?.takeIf { expr.isNotBlank() } }?.let {
+                    Text(it, style = MaterialTheme.typography.labelMedium, color = colors.onSecondaryContainer, modifier = Modifier.clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 10.dp, vertical = 4.dp))
                 }
             }
-            // ×, ÷, powers, brackets and backspace.
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("\$\\times\$" to " ", "\$\\div\$" to "/", "\$x^{2}\$" to "^2", "\$x^{3}\$" to "^3", "\$x^{-1}\$" to "^-1", "\$(\$" to "(", "\$)\$" to ")").forEach { (label, text) ->
+            // ×, ÷, powers, brackets and backspace, as one connected row.
+            val ops = listOf("\$\\times\$" to " ", "\$\\div\$" to "/", "\$x^{2}\$" to "^2", "\$x^{3}\$" to "^3", "\$x^{-1}\$" to "^-1", "\$(\$" to "(", "\$)\$" to ")")
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                ops.forEachIndexed { k, (label, text) ->
                     Box(
-                        Modifier.weight(1f).height(44.dp).clip(RoundedCornerShape(14.dp)).background(colors.secondaryContainer)
+                        Modifier.weight(1f).height(44.dp)
+                            .clip(if (k == 0) RoundedCornerShape(topStart = 22.dp, bottomStart = 22.dp, topEnd = 6.dp, bottomEnd = 6.dp) else RoundedCornerShape(6.dp))
+                            .background(colors.surfaceContainerLowest.copy(alpha = 0.75f))
                             .clickable(onClickLabel = when (text) { " " -> "Times"; "/" -> "Divided by"; "(" -> "Open bracket"; ")" -> "Close bracket"; else -> "To the power ${text.drop(1)}" }) { op(text) },
                         contentAlignment = Alignment.Center,
-                    ) { MathText(label, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp), color = colors.onSecondaryContainer, mathScale = 1f) }
+                    ) { MathText(label, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp), color = colors.onPrimaryContainer, mathScale = 1f) }
                 }
                 Box(
-                    Modifier.weight(1.2f).height(44.dp).clip(RoundedCornerShape(14.dp)).background(colors.tertiaryContainer)
+                    Modifier.weight(1.2f).height(44.dp).clip(RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 22.dp, bottomEnd = 22.dp)).background(colors.tertiary)
                         .clickable(onClickLabel = "Delete the last unit") { backspace() },
                     contentAlignment = Alignment.Center,
-                ) { Text("⌫", style = MaterialTheme.typography.titleMedium, color = colors.onTertiaryContainer) }
+                ) { Text("⌫", style = MaterialTheme.typography.titleMedium, color = colors.onTertiary) }
             }
-            // Search.
-            Box(Modifier.fillMaxWidth().height(48.dp).clip(CircleShape).background(colors.surfaceContainerHigh).padding(horizontal = 18.dp), contentAlignment = Alignment.CenterStart) {
-                if (query.isEmpty()) Text("Search units: parsec, erg, °F…", style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
-                BasicTextField(
-                    query, { query = it },
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface),
-                    singleLine = true,
-                    cursorBrush = SolidColor(colors.primary),
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Search units" },
-                )
-            }
-            if (query.isBlank()) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Units.CATEGORIES.forEach { c ->
-                    val on = c == category
-                    Box(
-                        Modifier.height(36.dp).clip(if (on) CircleShape else RoundedCornerShape(10.dp)).background(if (on) colors.primary else colors.surfaceContainerHighest)
-                            .clickable(onClickLabel = "Show $c") { category = c }.padding(horizontal = 14.dp),
-                        contentAlignment = Alignment.Center,
-                    ) { Text(c, style = MaterialTheme.typography.labelLarge, color = if (on) colors.onPrimary else colors.onSurface) }
-                }
-            }
-            // Prefixes, for units that take them: the chosen one goes on the next unit tapped.
+            // Prefixes: the chosen one goes on the next unit tapped (if it takes prefixes).
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Prefix", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(end = 6.dp))
+                Text("Prefix", style = MaterialTheme.typography.labelMedium, color = colors.onPrimaryContainer, modifier = Modifier.padding(end = 6.dp))
                 PICKER_PREFIXES.forEach { p ->
                     val on = p == prefix
                     Box(
                         Modifier.height(34.dp).widthIn(min = 38.dp).clip(if (on) CircleShape else RoundedCornerShape(8.dp))
-                            .background(if (on) colors.tertiary else colors.surfaceContainerHigh)
-                            .clickable(onClickLabel = if (p.isEmpty()) "No prefix" else "Prefix $p") { prefix = p }.padding(horizontal = 10.dp),
+                            .background(if (on) colors.primary else colors.surfaceContainerLowest.copy(alpha = 0.75f))
+                            .clickable(onClickLabel = if (p.isEmpty()) "No prefix" else "Prefix ${prefixName(p)}") { prefix = p }.padding(horizontal = 10.dp),
                         contentAlignment = Alignment.Center,
-                    ) { Text(if (p.isEmpty()) "none" else p, style = MaterialTheme.typography.labelLarge, color = if (on) colors.onTertiary else colors.onSurface) }
+                    ) { Text(if (p.isEmpty()) "none" else p, style = MaterialTheme.typography.labelLarge, color = if (on) colors.onPrimary else colors.onPrimaryContainer) }
                 }
             }
-            val shown = remember(query, category) {
-                val q = query.trim().lowercase()
-                if (q.isEmpty()) Units.ALL.filter { it.category == category }
-                else Units.ALL.filter { u -> u.name.lowercase().contains(q) || u.symbol.lowercase().startsWith(q) || u.aliases.any { it.lowercase().startsWith(q) } }
+        }
+        // The search, as a pill.
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 12.dp).height(52.dp).clip(CircleShape).background(colors.surfaceContainerHighest).padding(horizontal = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(androidx.compose.material.icons.Icons.Default.Search, contentDescription = null, tint = colors.onSurfaceVariant)
+            Spacer(Modifier.width(12.dp))
+            Box(Modifier.weight(1f)) {
+                if (query.isEmpty()) Text("Search units", color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
+                BasicTextField(
+                    query, { query = it }, singleLine = true,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface),
+                    cursorBrush = SolidColor(colors.primary),
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Search units" },
+                )
             }
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 360.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                items(shown, key = { it.symbol }) { u ->
+            if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(androidx.compose.material.icons.Icons.Default.Close, contentDescription = "Clear the search", tint = colors.onSurfaceVariant) }
+        }
+        // A chip for each category.
+        Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            (listOf<String?>(null) + Units.CATEGORIES).forEach { c ->
+                androidx.compose.material3.FilterChip(
+                    selected = category == c,
+                    onClick = { category = c },
+                    label = { Text(c ?: "All") },
+                    leadingIcon = if (category == c) ({ Icon(androidx.compose.material.icons.Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }) else null,
+                )
+            }
+        }
+        LazyColumn(contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 32.dp)) {
+            if (shown.isEmpty()) item {
+                Text("No unit matches “$query”. You can still type it in the field.", color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(24.dp))
+            }
+            shown.forEach { (section, list) ->
+                item(key = "h$section") {
+                    Text(section, style = MaterialTheme.typography.labelLarge, color = colors.primary, modifier = Modifier.padding(start = 12.dp, top = 14.dp, bottom = 6.dp))
+                }
+                items(list, key = { it.symbol }) { u ->
+                    val i = list.indexOf(u)
+                    // One rounded group per category: big corners at its ends, small between rows.
+                    val big = 20.dp; val small = 6.dp
+                    val shape = RoundedCornerShape(
+                        topStart = if (i == 0) big else small, topEnd = if (i == 0) big else small,
+                        bottomStart = if (i == list.lastIndex) big else small, bottomEnd = if (i == list.lastIndex) big else small,
+                    )
                     val p = if (u.prefixes) prefix else ""
-                    val symbol = (if (u.symbol == "fl oz") "floz" else u.symbol)
-                    val latex = remember(p, u.symbol) { runCatching { Units.parse(p + symbol).latex() }.getOrDefault(u.latex) }
+                    val symbol = if (u.symbol == "fl oz") "floz" else u.symbol
+                    val q = remember(p, u.symbol) { runCatching { Units.parse(p + symbol) }.getOrNull() }
                     Row(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainer)
-                            .clickable(onClickLabel = "Add ${u.name}") { add(p + symbol) }
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        Modifier.fillMaxWidth().padding(bottom = 2.dp).clip(shape).background(colors.surfaceContainer)
+                            .clickable(onClickLabel = "Add ${prefixName(p)}${u.name}") { add(p + symbol) }
+                            .padding(start = 10.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Box(Modifier.widthIn(min = 72.dp)) { MathText("\$$latex\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 20.sp), color = colors.onSurface, mathScale = 1f) }
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text((if (p.isNotEmpty()) prefixName(p) else "") + u.name, style = MaterialTheme.typography.bodyLarge, color = colors.onSurface)
-                            Text(u.category + (if (u.prefixes) " · takes prefixes" else ""), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                        Box(Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(colors.primaryContainer).padding(6.dp), contentAlignment = Alignment.Center) {
+                            FitInside { MathText("\$${q?.latex() ?: u.latex}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 22.sp), color = colors.onPrimaryContainer, mathScale = 1f) }
                         }
-                        Text("+", style = MaterialTheme.typography.titleLarge, color = colors.primary)
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f)) {
+                            FlowRow(verticalArrangement = Arrangement.Center, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(prefixName(p) + u.name, color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
+                                if (u.prefixes) Text(
+                                    "prefixes",
+                                    color = colors.onTertiaryContainer,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    modifier = Modifier.align(Alignment.CenterVertically).clip(CircleShape).background(colors.tertiaryContainer).padding(horizontal = 8.dp, vertical = 2.dp),
+                                )
+                            }
+                            Spacer(Modifier.height(3.dp))
+                            // Its size in SI base units, unless it's an SI base unit itself.
+                            val size = q?.let { qq ->
+                                val base = Units.inSystem(qq.dims, "base")
+                                if (qq.affine != null || (qq.factor / base.factor).let { kotlin.math.abs(it - 1) < 1e-12 }) null
+                                else "\$= ${Units.number(qq.factor / base.factor, 5)}\\;${base.latex().takeIf { it != "1" } ?: ""}\$"
+                            }
+                            Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+                                if (size != null) MathText(size, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 15.sp), color = colors.onSurface, mathScale = 1f)
+                                Text((if (size != null) "  " else "") + (listOf(u.symbol) + u.aliases.take(1)).joinToString(" · "), color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        IconButton(onClick = { add(p + symbol) }) {
+                            Icon(androidx.compose.material.icons.Icons.Default.Add, contentDescription = "Add ${u.name}", tint = colors.primary)
+                        }
                     }
                 }
             }

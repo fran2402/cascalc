@@ -183,7 +183,41 @@ object Steps {
 
     private class Traced(val result: Expr, val steps: List<Step>)
 
-    private fun integral(n: Integral, angle: AngleUnit): Solution? {
+    /**
+     * An integral's working. A double or triple integral is worked from the inside out: the
+     * inner integral first, in full, with the outer variables held constant, then the next one
+     * out on its result, each as a step with its own working underneath.
+     */
+    private fun integral(n: Integral, angle: AngleUnit, held: List<String> = emptyList()): Solution? {
+        val innerNode = n.body.items.firstOrNull { it is Integral } as? Integral ?: return single(n, angle)
+        val xName = n.variable.items.joinToString("") { (it as? SymNode)?.text ?: "" }
+        val inner = integral(innerNode, angle, held + xName) ?: return single(n, angle)
+        val outer = single(n, angle) ?: return null
+        val x = n.variable.items.joinToString("") { (it as? SymNode)?.text ?: "" }
+        val y = innerNode.variable.items.joinToString("") { (it as? SymNode)?.text ?: "" }
+        val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
+        val steps = ArrayList<Step>()
+        val constants = (held + x).map { "\$$it\$" }
+        val heldText = if (constants.size == 1) "${constants[0]} is held constant" else constants.dropLast(1).joinToString(", ") + " and ${constants.last()} are held constant"
+        // An indefinite inner integral: its constant can depend on the outer variables, so it's left out here.
+        val innerAnswer = MathRow(inner.answer.items.toMutableList()).also { r ->
+            val k = r.items.size
+            if (k >= 2 && (r.items[k - 1] as? SymNode)?.text == "C" && (r.items[k - 2] as? SymNode)?.text == "+") { r.items.removeAt(k - 1); r.items.removeAt(k - 2) }
+        }
+        steps += Step(
+            "Inner integral, in \$$y\$", "Integrate in \$$y\$ first; $heldText." + if (inner.steps.any { it.title.startsWith("Inner integral") }) " It is itself an iterated integral, worked the same way." else "",
+            innerAnswer, substeps = inner.steps.filter { it.kind != Kind.Result },
+        )
+        val outerWork = outer.steps.filter { it.kind != Kind.Result }
+        val value = outer.answer.items.indexOfLast { (it as? SymNode)?.text == "=" }.let { k -> MathRow(outer.answer.items.drop(k + 1).toMutableList()) }
+        val outerMath = outerWork.lastOrNull { it.math != null && it.kind != Kind.Check }?.math
+        steps += Step("Outer integral, in \$$x\$", "Now integrate that result in \$$x\$." + if (held.isNotEmpty()) " " + held.joinToString(", ") { "\$$it\$" } + " still held constant." else "", outerMath, substeps = outerWork)
+        val answer = line(question, "=", value)
+        steps += Step("Answer", null, answer, Kind.Result)
+        return Solution("Iterated integral", steps, answer)
+    }
+
+    private fun single(n: Integral, angle: AngleUnit): Solution? {
         val name = n.variable.items.joinToString("") { (it as? SymNode)?.text ?: "" }
         if (name.length != 1) return null
         val x = Sym(name)
@@ -201,13 +235,23 @@ object Steps {
             steps += Step("No closed form", "No antiderivative in standard functions was found, so the area is computed numerically.", eq(int(body, x, a, b), value), Kind.Note)
             return Solution("Numerical integration", steps, eq(int(body, x, a, b), value))
         }
-        val traced = trace(body, x, 0)
+        // ln|u|: the working is with ln u (the same derivative, u′/u), then the bars go back on.
+        val absLogs = Calculus.absoluteLogs(body, x)
+        val traced = if (absLogs != null) trace(absLogs.first, x, 0) else trace(body, x, 0)
+        if (absLogs != null) steps += Step(
+            "Absolute values", "\$\\frac{d}{d${x.name}}\\ln|u| = \\frac{u'}{u}\$, just like \$\\ln u\$: integrate with \$\\ln u\$, then put the absolute values back.",
+            eq(int(body, x), int(absLogs.first, x)),
+        )
         steps += traced?.steps ?: listOf(Step("Integrate", "Found by rewriting the integrand.", eq(int(body, x), f)))
-        if (traced != null && !same(traced.result, f)) steps += Step("Simplify", null, eq(traced.result, f))
+        if (absLogs != null && traced != null) {
+            val back = absLogs.second(traced.result)
+            steps += Step("Put the absolute values back", "Each \$\\ln\$ of the answer becomes \$\\ln|\\cdot|\$, so it holds for negative values too.", eq(traced.result, back))
+            if (!same(back, f)) steps += Step("Simplify", null, eq(back, f))
+        } else if (traced != null && !same(traced.result, f)) steps += Step("Simplify", null, eq(traced.result, f))
         val method = methodOf(steps)
         if (!definite) {
             // The check: differentiating gives the integrand back.
-            val back = Algebra.simplify(Calculus.diff(f, x))
+            val back = Calculus.evenAbsPowers(Algebra.simplify(Calculus.diff(f, x))).let { Algebra.simplify(it) }
             if (agrees(back, body, x)) {
                 steps += Step(
                     "Check", "Differentiating the answer gives the integrand back.",
@@ -263,7 +307,7 @@ object Steps {
             "Complete the square", "Multiple angles", "Product-to-sum", "Power reduction", "Special function", "Integration by parts", "Substitution",
             "Divide, then split", "Partial fractions", "Power rule", "Sum rule",
         )
-            .firstOrNull { it in titles } ?: titles.firstOrNull() ?: "Integration"
+            .firstOrNull { it in titles } ?: titles.firstOrNull { it != "Absolute values" && it != "Put the absolute values back" } ?: "Integration"
     }
 
     /** The steps to ∫ [e] d[x], following the integrator's methods; null if it can't follow them. */

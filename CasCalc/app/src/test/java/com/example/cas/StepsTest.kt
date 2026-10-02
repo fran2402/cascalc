@@ -439,3 +439,44 @@ class SolverStepsTest {
     @Test fun gradient() = assertEquals("Gradient", of(m(fn("grad", m("x", Pow(m("2")), "y"), m("")))).method)
     @Test fun curl() = assertEquals("Curl", of(m(fn("curl", m(com.example.cas.editor.Matrix(3, 1, listOf(m("−y"), m("x"), m("0"))))))).method)
 }
+
+class IteratedStepsTest {
+    private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
+    private fun I(body: MathRow, v: String, lo: String = "", hi: String = "") = Integral(m(lo), m(hi), body, m(v))
+    private fun of(r: MathRow) = latexOk(Steps.of(r)!!)
+
+    @Test fun double() {
+        val s = of(m(I(m(I(m("xy"), "y", "0", "x")), "x", "0", "1")))
+        assertEquals("Iterated integral", s.method)
+        assertTrue(s.steps[0].title.startsWith("Inner integral"))
+        fun all(steps: List<Steps.Step>): List<Steps.Step> = steps.flatMap { listOf(it) + all(it.substeps) }
+        assertTrue("the inner working is shown", all(s.steps[0].substeps).any { it.title == "Power rule" })
+        assertTrue(s.steps[1].title.startsWith("Outer integral"))
+        assertTrue(Formatter.plain(s.answer).endsWith("=1/8") || Formatter.plain(s.answer).endsWith("=(1)/(8)"))
+    }
+
+    @Test fun triple() {
+        val s = of(m(I(m(I(m(I(m("x", Pow(m("2")), "yz"), "z", "0", "1")), "y", "0", "2")), "x", "0", "3")))
+        assertTrue("innermost integral inside the middle one", s.steps[0].substeps.any { it.title.startsWith("Inner integral") && it.text!!.contains("are held constant") })
+        assertTrue(Formatter.plain(s.answer).endsWith("=9"))
+    }
+
+    @Test fun indefiniteInnerHasNoConstant() {
+        val s = of(m(I(m(I(m("x+y"), "y")), "x")))
+        assertFalse(Formatter.plain(s.steps[0].math!!).endsWith("+C"))
+    }
+}
+
+class AbsoluteLogStepsTest {
+    private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
+    private fun abs(r: MathRow) = Func("abs", listOf(r))
+    private fun ln(r: MathRow) = Func("ln", listOf(r))
+    private fun integral(body: MathRow) = m(Integral(m(""), m(""), body, m("x")))
+
+    @Test fun lnAbs() {
+        val s = latexOk(Steps.of(integral(m(ln(m(abs(m("x")))))))!!)
+        assertEquals("Standard integral", s.method)
+        assertTrue(s.steps.any { it.title == "Put the absolute values back" })
+        assertTrue(s.steps.any { it.kind == Steps.Kind.Check })
+    }
+}

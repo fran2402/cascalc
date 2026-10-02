@@ -160,6 +160,7 @@ object Calculus {
         }
         if (depth > 6) return null
         if (e.freeOf(x)) return mul(e, x)
+        absoluteLogs(e, x)?.let { (plain, back) -> return integrate(plain, x, depth)?.let(back) }
         if (e is Add) return add(e.terms.map { integrate(it, x, depth) ?: return null })
         if (e is Mul) {
             val (consts, rest) = e.factors.partition { it.freeOf(x) }
@@ -172,6 +173,55 @@ object Calculus {
             ?: substitution(e, x, depth)
             ?: expandFirst(e, x, depth)
             ?: Integrals.rewrites(e, x, depth)
+    }
+
+    /**
+     * Logarithms of absolute values: ln|u| has the same derivative as ln u (u′/u), so the
+     * integrand is integrated with ln u in its place and every logarithm in the answer gets its
+     * absolute value back: ∫ ln|x| dx = x ln|x| − x. log_b|u| is ln|u|/ln b, and |u|² is u².
+     * Returns the plain integrand and the map back, or null when there's nothing to do.
+     */
+    fun absoluteLogs(e: Expr, x: Sym): Pair<Expr, (Expr) -> Expr>? {
+        fun isAbsLog(z: Expr) = z is Fn && ((z.name == "ln" && z.args.size == 1 && (z.args[0] as? Fn)?.name == "abs") ||
+            (z.name == "log" && z.args.size == 2 && (z.args[1] as? Fn)?.name == "abs"))
+        fun evenAbs(z: Expr) = z is Pow && (z.base as? Fn)?.name == "abs" && (z.exp as? Num)?.q?.let { it.isInteger && it.num.toLong() % 2 == 0L } == true
+        if (!e.contains { isAbsLog(it) && !it.freeOf(x) } && !e.contains { evenAbs(it) && !it.freeOf(x) }) return null
+        val plain = mapExpr(e) { z ->
+            when {
+                z is Fn && z.name == "ln" && z.args.size == 1 && (z.args[0] as? Fn)?.name == "abs" -> fn("ln", (z.args[0] as Fn).args[0])
+                z is Fn && z.name == "log" && z.args.size == 2 && (z.args[1] as? Fn)?.name == "abs" -> div(fn("ln", (z.args[1] as Fn).args[0]), fn("ln", z.args[0]))
+                evenAbs(z) -> pow(((z as Pow).base as Fn).args[0], z.exp)
+                else -> null
+            }
+        }
+        if (plain == e) return null
+        val back = { r: Expr ->
+            mapExpr(r) { z ->
+                when {
+                    z is Fn && z.name == "ln" && z.args.size == 1 && (z.args[0] as? Fn)?.name != "abs" && !z.args[0].freeOf(x) -> fn("ln", fn("abs", z.args[0]))
+                    evenAbs(z) -> pow(((z as Pow).base as Fn).args[0], z.exp)
+                    else -> null
+                }
+            }
+        }
+        return plain to back
+    }
+
+    /** |u|² as u², |u|⁴ as u⁴ (for real u), for showing a derivative of ln|u|. */
+    fun evenAbsPowers(e: Expr): Expr = mapExpr(e) { z ->
+        if (z is Pow && (z.base as? Fn)?.name == "abs" && (z.exp as? Num)?.q?.let { it.isInteger && it.num.toLong() % 2 == 0L } == true) pow((z.base as Fn).args[0], z.exp) else null
+    }
+
+    /** [e] rebuilt bottom-up, with [f] replacing any node it returns a value for. */
+    private fun mapExpr(e: Expr, f: (Expr) -> Expr?): Expr {
+        val inner = when (e) {
+            is Add -> add(e.terms.map { mapExpr(it, f) })
+            is Mul -> mul(e.factors.map { mapExpr(it, f) })
+            is Pow -> pow(mapExpr(e.base, f), mapExpr(e.exp, f))
+            is Fn -> Simplify.function(e.name, e.args.map { mapExpr(it, f) })
+            else -> e
+        }
+        return f(inner) ?: inner
     }
 
     /** u = a·x + b: the linear coefficient a, or null if u isn't linear in x. */
