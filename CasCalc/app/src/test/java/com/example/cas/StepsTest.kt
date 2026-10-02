@@ -358,3 +358,18 @@ class LastStepsTest {
         assertTrue(Formatter.plain(s.answer).endsWith("=6"))
     }
 }
+
+class LargeDeterminantStepsTest {
+    private fun m(vararg parts: Any): MathRow = MathRow(parts.flatMap { p -> when (p) { is String -> p.map { Sym(it.toString()) }; is Node -> listOf(p); else -> error("") } }.toMutableList())
+
+    @Test fun tenByTen() {
+        // Tridiagonal 2, 1: its determinant is n + 1 = 11.
+        val n = 10
+        val cells = (0 until n * n).map { k -> val r = k / n; val c = k % n; m(when { r == c -> "2"; kotlin.math.abs(r - c) == 1 -> "1"; else -> "0" }) }
+        val s = Steps.of(m(Func("det", listOf(m(com.example.cas.editor.Matrix(n, n, cells))))))!!
+        assertEquals("Row reduction", s.method)
+        assertTrue(Formatter.plain(s.answer).endsWith("=11"))
+        assertTrue(s.steps.first().substeps.first().title.startsWith("R2 ← R2"))
+        println(s.steps.first().substeps.map { it.title })
+    }
+}

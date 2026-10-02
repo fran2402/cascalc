@@ -1501,7 +1501,7 @@ object Steps {
 
     private fun determinant(n: Func, angle: AngleUnit): Solution? {
         val mat = Evaluator(angle).evaluate(n.args.firstOrNull() ?: return null) as? com.example.cas.cas.Mat ?: return null
-        if (mat.rows != mat.cols || mat.rows !in 2..8) return null
+        if (mat.rows != mat.cols || mat.rows < 2 || mat.rows > 20) return null
         if (mat.rows >= 5) return rowReduction(n, mat, angle)
         val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
         val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
@@ -1551,14 +1551,23 @@ object Steps {
                 sign = -sign
                 steps += Step("Swap rows ${col + 1} and ${pivotRow + 1}", "A swap changes the determinant's sign.", ex(current()))
             }
-            var changed = false
+            val operations = ArrayList<Step>()
             for (r in col + 1 until size) {
                 if (a[r][col] == ZERO) continue
-                val factor = Algebra.simplify(div(a[r][col], a[col][col]))
+                val entry = a[r][col]
+                val factor = Algebra.simplify(div(entry, a[col][col]))
                 for (c in col until size) a[r][c] = Algebra.simplify(sub(a[r][c], mul(factor, a[col][c])))
-                changed = true
+                // Each row operation, with the multiplier m = (entry)/(pivot) and the new row.
+                operations += Step(
+                    "R${r + 1} ← R${r + 1} − ${Printer.plain(factor).replace("-", "−")} · R${col + 1}",
+                    "m = ${Printer.plain(entry).replace("-", "−")} ÷ ${Printer.plain(a[col][col]).replace("-", "−")} (the entry over the pivot), so row ${r + 1} gets 0 in column ${col + 1}.",
+                    line("R", "${r + 1}", "=", "(", *a[r].flatMapIndexed { k, v -> (if (k > 0) listOf<Any>(",", " ") else emptyList()) + listOf<Any>(v) }.toTypedArray(), ")"),
+                )
             }
-            if (changed) steps += Step("Clear column ${col + 1}", "Subtract multiples of row ${col + 1} from the rows below (R ← R − m·R${col + 1}); this doesn't change the determinant.", ex(current()))
+            if (operations.isNotEmpty()) steps += Step(
+                "Clear column ${col + 1}", "Subtract multiples of row ${col + 1} from the rows below; this doesn't change the determinant.",
+                ex(current()), substeps = operations,
+            )
         }
         val diagonal = (0 until size).map { a[it][it] }
         steps += Step("Multiply the diagonal", "The matrix is now triangular: its determinant is the product of the diagonal" + if (sign < 0) ", times −1 for the odd number of swaps." else ".",
