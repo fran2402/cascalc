@@ -38,6 +38,17 @@ class HistoryItem(val expression: MathRow, val answer: Answer, decimalFirst: Boo
 
     /** What this result would add to a graph, if anything ("graph this"). */
     val graph: GraphRequest? by lazy { runCatching { Graphing.request(expression, answer.value) }.getOrNull() }
+
+    /** Pinned: kept whatever the history limit, and listed under Pinned. */
+    var pinned by mutableStateOf(false)
+    /** The folder it's filed in, if any. */
+    var folder by mutableStateOf<String?>(null)
+
+    /** The question and answer as plain text, lowercase without spaces, for searching. */
+    val searchText: String by lazy {
+        (Formatter.plain(expression) + "=" + Formatter.plain(answer.exact) + "≈" + (answer.approx?.let { Formatter.plain(it) } ?: ""))
+            .lowercase().replace(" ", "")
+    }
 }
 
 class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost {
@@ -125,6 +136,51 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
 
     fun deleteHistory(item: HistoryItem) {
         history.remove(item)
+        save()
+    }
+
+    // ---- Finding things in the history -------------------------------------------------
+
+    /** Text to find in questions and answers (as typed: "sin", "x^2", "3.14"). */
+    var historyQuery by mutableStateOf("")
+    /** What's listed: null for everything, [PINNED] for pinned calculations, or a folder's name. */
+    var historyFilter by mutableStateOf<String?>(null)
+
+    /** The folders in use, in alphabetical order. */
+    val historyFolders: List<String> get() = history.mapNotNull { it.folder }.distinct().sortedBy { it.lowercase() }
+
+    /** The calculations the search and filter leave, oldest first. */
+    fun visibleHistory(): List<HistoryItem> {
+        val q = historyQuery.trim().lowercase().replace(" ", "").replace("−", "-").replace("*", "×")
+        val f = historyFilter
+        if (q.isEmpty() && f == null) return history
+        return history.filter { item ->
+            (f == null || (f == PINNED && item.pinned) || (f != PINNED && item.folder == f)) &&
+                (q.isEmpty() || item.searchText.replace("−", "-").contains(q))
+        }
+    }
+
+    fun togglePin(item: HistoryItem) { item.pinned = !item.pinned; save() }
+
+    /** Files [item] in folder [name] (null or blank takes it out of its folder). */
+    fun moveToFolder(item: HistoryItem, name: String?) {
+        item.folder = name?.trim()?.takeIf { it.isNotEmpty() }
+        if (historyFilter != null && historyFilter != PINNED && historyFilter !in historyFolders) historyFilter = null
+        save()
+    }
+
+    /** Renames a folder, for every calculation in it. */
+    fun renameFolder(from: String, to: String) {
+        val name = to.trim().takeIf { it.isNotEmpty() } ?: return
+        history.filter { it.folder == from }.forEach { it.folder = name }
+        if (historyFilter == from) historyFilter = name
+        save()
+    }
+
+    /** Empties a folder: its calculations stay in the history, outside any folder. */
+    fun removeFolder(name: String) {
+        history.filter { it.folder == name }.forEach { it.folder = null }
+        if (historyFilter == name) historyFilter = null
         save()
     }
 
@@ -230,10 +286,14 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
         reuse(row)
     }
 
+    /** Clears the history, except pinned calculations and those in folders. */
     fun clearHistory() {
-        history.clear()
+        history.removeAll { !it.pinned && it.folder == null }
         save()
     }
+
+    /** How many calculations Clear history would remove. */
+    val clearableCount: Int get() = history.count { !it.pinned && it.folder == null }
 
     fun clearVariables() {
         variables.clear()
@@ -322,11 +382,17 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
     // ---- Saving -----------------------------------------------------------------
 
     private fun save() {
-        val text = history.takeLast(if (AppSettings.historyLimit > 0) AppSettings.historyLimit else Int.MAX_VALUE).joinToString("\n") { item ->
+        // The limit counts the loose calculations; pinned ones and those in folders are kept.
+        val limit = if (AppSettings.historyLimit > 0) AppSettings.historyLimit else Int.MAX_VALUE
+        val loose = history.filter { !it.pinned && it.folder == null }
+        val dropped = loose.take(maxOf(0, loose.size - limit)).toHashSet()
+        val text = history.filter { it !in dropped }.joinToString("\n") { item ->
             listOf(
                 MathCodec.encode(item.expression),
                 MathCodec.encode(item.answer.exact),
                 item.answer.approx?.let { MathCodec.encode(it) } ?: "",
+                if (item.pinned) "p" else "",
+                item.folder?.replace("\t", " ")?.replace("\n", " ") ?: "",
             ).joinToString("\t")
         }
         val vars = variables.entries.joinToString("\n") { (k, v) -> k + "\t" + MathCodec.encode(Formatter.row(v)) }
@@ -342,7 +408,10 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
                 val approx = parts.getOrNull(2)?.takeIf { it.isNotEmpty() }?.let { MathCodec.decode(it) }
                 // Answers are saved as 2D rows; parsing one back gives the value again.
                 val value = Evaluator().evaluate(exact)
-                history += HistoryItem(expr, Answer(value, exact, approx), decimalFirst)
+                history += HistoryItem(expr, Answer(value, exact, approx), decimalFirst).also { item ->
+                    item.pinned = parts.getOrNull(3) == "p"
+                    item.folder = parts.getOrNull(4)?.takeIf { it.isNotEmpty() }
+                }
             }
         }
         prefs.getString("variables", "").orEmpty().lines().filter { it.isNotBlank() }.forEach { line ->
@@ -354,8 +423,10 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
         lastValue = history.lastOrNull()?.answer?.value
     }
 
-    private companion object {
-        const val MAX_HISTORY = 100
+    companion object {
+        private const val MAX_HISTORY = 100
+        /** [historyFilter] for the pinned calculations. */
+        const val PINNED = "\u0000pinned"
     }
 }
 

@@ -94,6 +94,21 @@ object SceneExport {
         }
     }
 
+    /** Several scenes as the pages of one PDF (each page the size of its scene). */
+    fun pdfPages(context: Context, scenes: List<Scene>): ByteArray {
+        val doc = PdfDocument()
+        val fonts = font(context)
+        scenes.forEachIndexed { k, scene ->
+            val page = doc.startPage(PdfDocument.PageInfo.Builder(scene.width.toInt(), scene.height.toInt(), k + 1).create())
+            draw(page.canvas, scene, 1f, fonts)
+            doc.finishPage(page)
+        }
+        val out = java.io.ByteArrayOutputStream()
+        doc.writeTo(out)
+        doc.close()
+        return out.toByteArray()
+    }
+
     private fun pdf(context: Context, scene: Scene): ByteArray {
         val doc = PdfDocument()
         val w = (scene.width * PDF_SCALE).toInt().coerceAtLeast(1)

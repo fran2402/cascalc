@@ -33,6 +33,8 @@ import com.example.cas.graph.Viewport
 /** One function on a graph: its editor, and the compiled version ready to plot. */
 class PlotFunction(initial: MathRow, val colorIndex: Int) {
     val editor = Editor(initial)
+    /** A slope field's starting points: a solution curve is drawn through each. */
+    val seeds = androidx.compose.runtime.mutableStateListOf<Pair<Double, Double>>()
     var version by mutableIntStateOf(0)
     var visible by mutableStateOf(true)
     var compiled: RealFunction? = null
@@ -159,6 +161,8 @@ sealed class Plot2DKind {
     class PointList(val xs: DoubleArray, val ys: DoubleArray) : Plot2DKind() { override val label: String? = null }
     /** A vector field (P(x, y), Q(x, y)), drawn as arrows on a grid. */
     class VectorField(val p: RealFunction, val q: RealFunction) : Plot2DKind() { override val label: String? = null }
+    /** dy/dx = f(x, y): a slope field, with solution curves through the points tapped on it. */
+    class SlopeField(val f: RealFunction) : Plot2DKind() { override val label: String? = null }
     /** A column vector, drawn as an arrow from the origin (or from [fromX], [fromY]). */
     class Vector(val x: RealFunction, val y: RealFunction, val fromX: RealFunction? = null, val fromY: RealFunction? = null) : Plot2DKind() { override val label: String? = null }
 }
@@ -329,6 +333,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 val f = functions.getOrNull(i) ?: continue
                 if (o.has("name")) f.name = o.optString("name")
                 if (o.has("table")) f.table = com.example.cas.graph.DataTable.decode(o.optString("table"))
+                if (o.has("seeds")) o.optString("seeds").split(";").mapNotNull { pair -> pair.split(",").takeIf { it.size == 2 }?.let { (a, b) -> a.toDoubleOrNull()?.let { x -> b.toDoubleOrNull()?.let { y -> x to y } } } }.let { f.seeds.clear(); f.seeds.addAll(it) }
             }
         }
         get("ranges").orEmpty().lines().forEach { line ->
@@ -696,6 +701,15 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 f.compiled = null; f.parameters = emptyList(); f.restrictions = emptyList(); f.definition = null; f.error = null
                 return
             }
+            // y′ = f(x, y) or dy/dx = f(x, y): a slope field.
+            slopeFieldRight(items)?.let { right ->
+                val e = ev.evaluate(rowOf(right))
+                val params = e.freeVars().filter { it != "x" && it != "y" }.distinct().sorted()
+                params.forEach { if (it !in parameters) parameters[it] = 1.0 }
+                f.plot = Plot2DKind.SlopeField(Compiler.compile(e, listOf("x", "y") + params))
+                f.compiled = null; f.parameters = params; f.restrictions = emptyList(); f.definition = null; f.error = null
+                return
+            }
             // Conditions after commas restrict where the line is drawn: y = x², 0 < x < 2.
             val segments = splitTopLevel(items)
             val curve = segments[0]
@@ -812,6 +826,39 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         }
         return true
     }
+
+    /**
+     * The right side of y′ = … or dy/dx = … (also y' with a power-style prime, or the d/dx key
+     * with y in it), or null when the line isn't a differential equation like that.
+     */
+    private fun slopeFieldRight(items: List<com.example.cas.editor.Node>): List<com.example.cas.editor.Node>? {
+        val eq = items.indexOfFirst { (it as? com.example.cas.editor.Sym)?.text == "=" }
+        if (eq <= 0) return null
+        val left = items.subList(0, eq)
+        fun text(n: com.example.cas.editor.Node): String = when (n) {
+            // Letters and primes only (upright markers and spaces dropped).
+            is com.example.cas.editor.Sym -> n.text.filter { it.isLetter() || it == '′' || it == '\'' }
+            is com.example.cas.editor.Pow -> n.exp.items.joinToString("") { text(it) }
+            else -> "?"
+        }
+        val flat = left.joinToString("") { text(it) }.replace("'", "′").replace(" ", "")
+        val isPrime = flat == "y′"
+        val isFrac = left.singleOrNull()?.let { n -> n is com.example.cas.editor.Frac && n.num.items.joinToString("") { text(it) }.replace(" ", "") == "dy" && n.den.items.joinToString("") { text(it) }.replace(" ", "") == "dx" } == true
+        val isKey = left.singleOrNull()?.let { n -> n is com.example.cas.editor.Derivative && !n.partial && n.order.isEmpty && n.variable.items.joinToString("") { text(it) } == "x" && n.body.items.joinToString("") { text(it) } == "y" } == true
+        if (!isPrime && !isFrac && !isKey) return null
+        return items.subList(eq + 1, items.size).takeIf { it.isNotEmpty() }
+    }
+
+    /** A solution curve through (x, y) on a slope field. */
+    fun addSeed(f: PlotFunction, x: Double, y: Double) { f.seeds += x to y; version++; save() }
+
+    /** Removes the solution through the starting point nearest (x, y). */
+    fun removeSeedNear(f: PlotFunction, x: Double, y: Double) {
+        f.seeds.minByOrNull { (a, b) -> (a - x) * (a - x) + (b - y) * (b - y) }?.let { f.seeds.remove(it) }
+        version++; save()
+    }
+
+    fun clearSeeds(f: PlotFunction) { f.seeds.clear(); version++; save() }
 
     /** Splits items at top-level commas (not inside brackets). */
     private fun splitTopLevel(items: List<com.example.cas.editor.Node>): List<List<com.example.cas.editor.Node>> {
@@ -1315,8 +1362,11 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     /** Names and tables, by position (null for lines with neither). */
     private fun extrasJson(): String = org.json.JSONArray().apply {
         functions.forEach { f ->
-            if (f.name == null && f.table == null) put(org.json.JSONObject.NULL)
-            else put(org.json.JSONObject().apply { f.name?.let { put("name", it) }; f.table?.let { put("table", it.encode()) } })
+            if (f.name == null && f.table == null && f.seeds.isEmpty()) put(org.json.JSONObject.NULL)
+            else put(org.json.JSONObject().apply {
+                f.name?.let { put("name", it) }; f.table?.let { put("table", it.encode()) }
+                if (f.seeds.isNotEmpty()) put("seeds", f.seeds.joinToString(";") { "${it.first},${it.second}" })
+            })
         }
     }.toString()
 
@@ -1574,6 +1624,11 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         return shown
     }
 
+    /** Adds a line written in LaTeX (a tangent, a fitted curve…) at the end of the list. */
+    fun addLatexLine(latex: String) {
+        show(listOf(com.example.cas.engine.LatexParser.parse(latex)))
+    }
+
     override var unitSystem by mutableStateOf(runCatching { com.example.cas.engine.UnitSystem.valueOf(prefs.getString("units", "SI")!!) }.getOrDefault(com.example.cas.engine.UnitSystem.SI))
         private set
 
@@ -1683,7 +1738,7 @@ class Graph2DViewModel(app: Application) : GraphViewModel(app, "g2", listOf("x")
     }
 
     /** Where an area starts: the curve (and, from a crossing, the second curve) and x = a. The next tap gives b. */
-    data class AreaStart(val f: PlotFunction, val g: PlotFunction?, val a: Double)
+    data class AreaStart(val f: PlotFunction, val g: PlotFunction?, val a: Double, val arc: Boolean = false)
 
     /** The first point picked with "Area" (or "Area between curves"). */
     var areaStart by mutableStateOf<AreaStart?>(null)
@@ -1719,10 +1774,15 @@ class Graph2DViewModel(app: Application) : GraphViewModel(app, "g2", listOf("x")
         val gn = spec.g?.let { (it.plot as? Plot2DKind.Explicit)?.f }
         if (spec.g != null && gn == null) return@derivedStateOf null
         runCatching {
+            // The arc's length instead of the area under it.
+            if (spec.arc) {
+                val len = com.example.cas.graph.Plot2D.arcLength({ x: Double -> call(spec.f, fn, x) }, spec.a, b)
+                return@runCatching AreaResult(spec.f, null, spec.a, b, len, len, arc = true)
+            }
             val h = { x: Double -> call(spec.f, fn, x) - if (gn != null) call(spec.g!!, gn, x) else 0.0 }
             val (signed, total) = com.example.cas.graph.Plot2D.area(h, spec.a, b)
             AreaResult(spec.f, spec.g, spec.a, b, signed, total)
-        }.getOrElse { AreaResult(spec.f, spec.g, spec.a, b, Double.NaN, Double.NaN) }
+        }.getOrElse { AreaResult(spec.f, spec.g, spec.a, b, Double.NaN, Double.NaN, arc = spec.arc) }
     }
 
     /** The curve last tapped; its zeros, extrema and crossings are marked. */
@@ -1852,4 +1912,4 @@ class PlaneArea(val f: PlotFunction, val kind: Int, val total: Double, val signe
  * The area picked on the 2D graph: [signed] = ∫ₐᵇ f dx, [total] = ∫ₐᵇ |f| dx, or with [g] the same for
  * f − g, the area between the curves (NaN if it couldn't be computed).
  */
-class AreaResult(val f: PlotFunction, val g: PlotFunction?, val a: Double, val b: Double, val signed: Double, val total: Double)
+class AreaResult(val f: PlotFunction, val g: PlotFunction?, val a: Double, val b: Double, val signed: Double, val total: Double, val arc: Boolean = false)

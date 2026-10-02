@@ -182,6 +182,24 @@ object Plot2D {
         }
         return (a + b) / 2
     }
+    /** f′(x) by central differences. */
+    fun derivative(f: (Double) -> Double, x: Double): Double {
+        val h = 1e-5 * maxOf(1.0, abs(x))
+        return (f(x + h) - f(x - h)) / (2 * h)
+    }
+
+    /** The length of y = f(x) from [a] to [b], ∫ √(1 + f′²) dx by Simpson's rule (NaN where f isn't defined). */
+    fun arcLength(f: (Double) -> Double, a: Double, b: Double, n: Int = 2000): Double {
+        if (a == b) return 0.0
+        val lo = minOf(a, b); val hi = maxOf(a, b)
+        val m = if (n % 2 == 0) n else n + 1
+        val h = (hi - lo) / m
+        fun g(x: Double) = kotlin.math.sqrt(1 + derivative(f, x).let { it * it })
+        var sum = g(lo) + g(hi)
+        for (k in 1 until m) sum += (if (k % 2 == 1) 4 else 2) * g(lo + k * h)
+        return sum * h / 3
+    }
+
 }
 
 /**

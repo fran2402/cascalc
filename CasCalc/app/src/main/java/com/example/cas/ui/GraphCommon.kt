@@ -132,6 +132,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.graphics.Path
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.material3.Button
@@ -1826,6 +1828,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     var roleSx by remember(f) { mutableStateOf(start.sigmaX) }
     var roleSy by remember(f) { mutableStateOf(start.sigmaY) }
     var preview by remember { mutableStateOf(false) }
+    var fitting by remember { mutableStateOf(false) }
     val rows = cells.maxOfOrNull { it.size } ?: 0
     fun table() = com.example.cas.graph.DataTable(names.toList(), cells.map { it.toList() }, roleX, roleY, roleSx, roleSy)
     val current = table()
@@ -1877,6 +1880,12 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     val across = rememberScrollState()
     val scope = rememberCoroutineScope()
     val cellWidth = 112.dp
+    // The fit uses the table as it is now (saving it first, so the points match the curve).
+    if (fitting) FitDialog(current, onAdd = { latex ->
+        vm.setTable(f, table()); vm.addLatexLine(latex)
+        android.widget.Toast.makeText(context, "Fitted curve added to the graph", android.widget.Toast.LENGTH_SHORT).show()
+        fitting = false
+    }, onDismiss = { fitting = false })
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
@@ -1956,6 +1965,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     IconButton(onClick = { paste() }) { Icon(Icons.Default.ContentPaste, contentDescription = "Paste a table from the clipboard") }
                                     IconButton(onClick = { addColumn(); scope.launch { across.animateScrollTo(across.maxValue + 10_000) } }) { Icon(Icons.Default.ViewColumn, contentDescription = "Add a column") }
                                     IconButton(onClick = { removeEmptyRows() }) { Icon(Icons.Default.CleaningServices, contentDescription = "Remove empty rows") }
+                                    IconButton(onClick = { fitting = true }, enabled = points >= 2) { Icon(Icons.AutoMirrored.Filled.ShowChart, contentDescription = "Fit a curve to the points") }
                                     if (!wide) androidx.compose.material3.IconToggleButton(checked = preview, onCheckedChange = { preview = it }) {
                                         Icon(Icons.Default.ScatterPlot, contentDescription = if (preview) "Hide the preview" else "Preview the points", tint = if (preview) colors.primary else colors.onSurfaceVariant)
                                     }
@@ -2640,6 +2650,137 @@ internal fun RangeAndScaleSettings(state: RangeFields, xName: String, yName: Str
                         label = { Text(label) },
                     )
                 }
+            }
+        }
+    }
+}
+
+/** A fitted value with its standard error, both rounded to the error's two significant figures (1.991 ± 0.039). */
+internal fun withError(v: Double, e: Double?): String {
+    if (e == null || !e.isFinite() || e <= 0) return shortNumber(v)
+    val place = kotlin.math.floor(kotlin.math.log10(e)).toInt() - 1
+    fun r(x: Double) = java.math.BigDecimal(x).setScale(-place, java.math.RoundingMode.HALF_EVEN).let { if (place < 0) it.toPlainString() else it.toBigInteger().toString() }
+    return if (place in -8..6) "${r(v)} ± ${r(e)}".replace("-", "−") else shortNumber(v) + " ± " + shortNumber(e)
+}
+
+/**
+ * Fit a curve to a table's points: a line, a polynomial, an exponential, a power, a logarithm or
+ * a formula of your own; weighted by σ(y) when the table has it. Shows each parameter with its
+ * standard error, R² (and χ²/dof when weighted), the curve over the points and the residuals,
+ * and adds the fitted curve to the graph.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun FitDialog(t: com.example.cas.graph.DataTable, onAdd: (String) -> Unit, onDismiss: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val pts = remember(t) { t.points() }
+    val sig = remember(t) { t.errors().second }
+    var model by remember { mutableStateOf<com.example.cas.graph.FitModel?>(com.example.cas.graph.FitModel.Linear) }
+    var custom by remember { mutableStateOf("a\\sin(bx)+c") }
+    val xs = remember(pts) { pts.map { it.first }.toDoubleArray() }
+    val ys = remember(pts) { pts.map { it.second }.toDoubleArray() }
+    val weighted = sig != null && sig.any { it.isFinite() && it > 0 }
+    // The fit: its function, parameter names, result and equation.
+    class Fitted(val value: (Double) -> Double, val names: List<String>, val r: com.example.cas.graph.Fit.Result, val latex: String)
+    val fitted: Fitted? = remember(model, custom, pts) {
+        runCatching {
+            val m = model
+            if (m != null) {
+                val r = com.example.cas.graph.Fit.leastSquares(m::value, xs, ys, m.start(xs, ys), sigmas = sig) ?: return@runCatching null
+                Fitted({ x -> m.value(x, r.parameters) }, m.params, r, m.equation(r.parameters) { v -> com.example.cas.engine.Units.number(v, 5) })
+            } else {
+                val c = com.example.cas.graph.CustomFitModel.of(custom) ?: return@runCatching null
+                val r = com.example.cas.graph.Fit.leastSquares(c::value, xs, ys, DoubleArray(c.params.size) { 1.0 }, sigmas = sig) ?: return@runCatching null
+                Fitted({ x -> c.value(x, r.parameters) }, c.params, r, c.equation(r.parameters))
+            }
+        }.getOrNull()
+    }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        androidx.compose.material3.Surface(shape = RoundedCornerShape(28.dp), color = colors.surfaceContainerHigh, modifier = Modifier.padding(16.dp).widthIn(max = 600.dp).fillMaxWidth()) {
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column {
+                    Text("Fit a curve", style = MaterialTheme.typography.headlineSmall)
+                    Text("${pts.size} points" + if (weighted) " · weighted by σ(y)" else "", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                }
+                // The models, as chips; Custom takes a formula with any letters as parameters.
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    (com.example.cas.graph.FitModel.entries.map { it to it.title } + (null to "Custom")).forEach { (m, title) ->
+                        androidx.compose.material3.FilterChip(
+                            selected = model == m, onClick = { model = m }, label = { Text(title) },
+                            leadingIcon = if (model == m) ({ Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp)) }) else null,
+                        )
+                    }
+                }
+                if (model == null) OutlinedTextField(
+                    custom, { custom = it }, singleLine = true, label = { Text("y =") },
+                    supportingText = { Text("Any letters other than x are fitted, e.g. a\\sin(bx)+c or A e^{-x/τ}") },
+                    modifier = Modifier.fillMaxWidth(),
+                ) else MathText("\$${model!!.latex}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 18.sp), color = colors.onSurfaceVariant, mathScale = 1f)
+                if (fitted == null) {
+                    Text(if (pts.size < 2) "Add at least two points." else "This model doesn't fit these points (too few points, or values it can't take, like ln of a negative x).", color = colors.error, style = MaterialTheme.typography.bodyMedium)
+                } else {
+                    // The result: the equation large, then each parameter ± its standard error.
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.primaryContainer).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(Modifier.horizontalScroll(rememberScrollState())) {
+                            MathText("\$${fitted.latex}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 22.sp), color = colors.onPrimaryContainer, mathScale = 1f)
+                        }
+                        fitted.names.forEachIndexed { k, n ->
+                            MathText("\$${if (n.length == 1) n else "\\\\mathrm{$n}"} = ${Readout.latex(withError(fitted.r.parameters[k], fitted.r.errors?.get(k)))}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp), color = colors.onPrimaryContainer, mathScale = 1f)
+                        }
+                    }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        @Composable fun stat(math: String, v: String) = Row(
+                            Modifier.clip(RoundedCornerShape(12.dp)).background(colors.secondaryContainer).padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) { MathText("\$$math = $v\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 15.sp), color = colors.onSecondaryContainer, mathScale = 1f) }
+                        if (fitted.r.rSquared.isFinite()) stat("R^{2}", Readout.latex(java.math.BigDecimal(fitted.r.rSquared).round(java.math.MathContext(5)).toPlainString()))
+                        stat("\\mathrm{RMSE}", Readout.latex(shortNumber(fitted.r.rmse)))
+                        fitted.r.reducedChiSquared?.let { stat("\\chi^{2}/\\nu", Readout.latex(shortNumber(it))) }
+                        stat("\\nu", fitted.r.dof.toString())
+                    }
+                    FitPlot(xs, ys, sig, fitted.value, Modifier.fillMaxWidth().height(220.dp))
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text("Close") }
+                    Spacer(Modifier.width(8.dp))
+                    Button(enabled = fitted != null, onClick = { fitted?.let { onAdd(it.latex) } }) {
+                        Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Add to graph")
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** The points (with their σ(y) bars) and the fitted curve, and under them the residuals about 0. */
+@Composable
+private fun FitPlot(xs: DoubleArray, ys: DoubleArray, sig: DoubleArray?, f: (Double) -> Double, modifier: Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Column(modifier.clip(RoundedCornerShape(20.dp)).background(colors.surfaceContainer).padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        val residuals = remember(xs, ys, f) { DoubleArray(xs.size) { ys[it] - f(xs[it]) } }
+        val x0 = xs.min(); val x1 = xs.max().let { if (it > x0) it else x0 + 1 }
+        val curve = remember(xs, f) { (0..200).map { k -> val x = x0 + (x1 - x0) * k / 200; x to f(x) } }
+        androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().weight(3f)) {
+            val ylo = minOf(ys.indices.minOf { ys[it] - (sig?.get(it)?.takeIf { s -> s.isFinite() } ?: 0.0) }, curve.filter { it.second.isFinite() }.minOfOrNull { it.second } ?: 0.0)
+            val yhi = maxOf(ys.indices.maxOf { ys[it] + (sig?.get(it)?.takeIf { s -> s.isFinite() } ?: 0.0) }, curve.filter { it.second.isFinite() }.maxOfOrNull { it.second } ?: 1.0)
+            val ya = ylo - (yhi - ylo) * 0.06 - 1e-12; val yb = yhi + (yhi - ylo) * 0.06 + 1e-12
+            fun sx(x: Double) = ((x - x0) / (x1 - x0) * size.width).toFloat()
+            fun sy(y: Double) = (size.height - (y - ya) / (yb - ya) * size.height).toFloat()
+            sig?.forEachIndexed { i, s -> if (s.isFinite() && s > 0) drawLine(colors.tertiary, Offset(sx(xs[i]), sy(ys[i] - s)), Offset(sx(xs[i]), sy(ys[i] + s)), 2f) }
+            val path = Path(); var pen = false
+            curve.forEach { (x, y) -> if (!y.isFinite() || y < ya - (yb - ya) || y > yb + (yb - ya)) pen = false else { if (pen) path.lineTo(sx(x), sy(y)) else path.moveTo(sx(x), sy(y)); pen = true } }
+            drawPath(path, colors.primary, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round))
+            xs.indices.forEach { i -> drawCircle(colors.onSurface, 3.5.dp.toPx(), Offset(sx(xs[i]), sy(ys[i]))) }
+        }
+        Text("Residuals", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+        androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().weight(1f)) {
+            val m = residuals.maxOfOrNull { kotlin.math.abs(it) }?.takeIf { it > 0 } ?: 1.0
+            fun sx(x: Double) = ((x - x0) / (x1 - x0) * size.width).toFloat()
+            fun sy(r: Double) = (size.height / 2 - r / m * size.height / 2 * 0.9).toFloat()
+            drawLine(colors.outline, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), 1.5f)
+            xs.indices.forEach { i ->
+                drawLine(colors.tertiary.copy(alpha = 0.6f), Offset(sx(xs[i]), size.height / 2), Offset(sx(xs[i]), sy(residuals[i])), 2f)
+                drawCircle(colors.tertiary, 3.dp.toPx(), Offset(sx(xs[i]), sy(residuals[i])))
             }
         }
     }

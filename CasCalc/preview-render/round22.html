@@ -1,0 +1,127 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:NCMR;src:url(../app/src/main/res/font/ncm_roman.otf)}
+@font-face{font-family:NCMI;src:url(../app/src/main/res/font/ncm_latin_italic.otf)}
+@font-face{font-family:NCMM;src:url(../app/src/main/res/font/ncm_math.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px;width:1900px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1650px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px;line-height:1.4}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--lowest:#fff;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sec:#5E6045;--sc:#E2E4C4;--onsc:#1B1D0A;--ter:#3C6A5A;--onter:#fff;--tc:#BEECDB;--ontc:#002019;--outv:#C8C7B5;--out:#77786A;--err:#BA1A1A;--grid:#C8C7B5;--axis:#47473B}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--lowest:#0D0F08;--c:#1F2018;--ch:#292A22;--chh:#34352C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sec:#C6C8A9;--sc:#45483A;--onsc:#E2E4C4;--ter:#A2D0BF;--onter:#05372B;--tc:#214E41;--ontc:#BEECDB;--outv:#47473B;--out:#919283;--err:#FFB4AB;--grid:#47473B;--axis:#C8C7B5}
+.phone{position:relative;width:412px;height:900px;border-radius:44px;overflow:hidden;background:var(--bg);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font:500 14px GSF}
+.mi{display:inline-block;vertical-align:middle}
+.chip{height:32px;border-radius:8px;border:1px solid var(--out);display:inline-flex;align-items:center;gap:6px;padding:0 12px;font:500 14px GSF;color:var(--onv)}
+.chip.on{background:var(--sc);color:var(--onsc);border-color:transparent}
+.stat{border-radius:12px;background:var(--sc);padding:6px 12px;display:inline-flex}
+.btn{height:40px;border-radius:20px;display:inline-flex;align-items:center;gap:6px;padding:0 20px;font:600 14px GSF}
+.card{position:absolute;border-radius:24px;background:var(--chh);box-shadow:0 8px 24px rgba(0,0,0,.25);padding:14px 16px}
+.act{height:36px;border-radius:12px;background:var(--sc);color:var(--onsc);display:inline-flex;align-items:center;gap:6px;padding:0 12px;font:600 13px GSF}
+.hcard{border-radius:22px;background:var(--c);padding:12px 16px 12px 20px}
+.tag{font:600 11px GSF;border-radius:10px;background:var(--sc);color:var(--onsc);padding:2px 8px}
+</style></head><body>
+<script src="gsf_cmap.js"></script><script src="cm_cmap.js"></script><script src="ncm_cmap.js"></script><script src="mathlayout.js"></script><script src="round22_data.js"></script>
+
+<h2>Curve fitting in the data table</h2>
+<p class="note">The table's toolbar has a new Fit button. Choose a line, quadratic, cubic, exponential, power, logarithm, or a formula of your own (every letter other than <i style="font-family:CMI">x</i> is fitted). With a σ(<i style="font-family:CMI">y</i>) column the fit is weighted. Each parameter comes with its standard error, plus R², RMSE, χ²/ν (when weighted) and the degrees of freedom. The curve is drawn over the points with their error bars, the residuals go below, and "Add to graph" adds the fitted line. Every number here is the engine's output for the table's sample data.</p>
+<div class="row" id="fit"></div>
+
+<h2>Tangent, normal and arc length · slope fields</h2>
+<p class="note">A point on a function now offers Tangent and Normal, which add that line to the graph, and Arc length, which measures to the next tap, like the area tools. A line like <i style="font-family:CMI">y′</i> = <i style="font-family:CMI">x</i> − <i style="font-family:CMI">y</i> (or d<i style="font-family:CMI">y</i>/d<i style="font-family:CMI">x</i> = …) draws a slope field. Tap anywhere to draw the solution through that point (RK4, forwards and backwards). Tap a solution to remove it or clear them all. They're saved with the graph, and work on log axes and in exports.</p>
+<div class="row" id="calc"></div>
+
+<h2>History: search, pins, folders, export</h2>
+<p class="note">In full-screen history there's now a search pill (it matches questions and answers as typed), chips for All, Pinned and each folder (hold a folder to rename or empty it), and an Export button. A card's actions add Pin and Folder. Pinned calculations and those in folders are kept whatever the history limit, and Clear history leaves them. Export writes what's listed as a PDF (A4, typeset in Computer Modern, numbered, answers on the right) or a LaTeX document.</p>
+<div class="row" id="hist"></div>
+
+<script>
+const PAL={dark:{on:'#E5E3D6',onv:'#C8C7B5',pri:'#C5CB86',onpc:'#E1E7A0',onsc:'#E2E4C4'},light:{on:'#1C1C16',onv:'#47473B',pri:'#5B6133',onpc:'#1A1E00',onsc:'#1B1D0A'}};
+let P=PAL.light;
+const mv=(c,size,color)=>MT.render(MT.decode(c),{size,color:color||P.on,accent:P.pri,faint:'rgba(128,128,128,.5)'});
+const rt=(s,size,color)=>s.split(/[\u0001\u0002]/).map((p,k)=>k%2?`<span class="mi">${mv(p,size,color)}</span>`:p).join('');
+const R=R22;
+const X=[0.5,1.0,1.5,2.0,2.5,3.0,3.5,4.0,4.5,5.0,5.5,6.0],Y=[1.21,2.05,2.88,4.12,4.9,6.15,6.8,8.02,9.1,10.2,10.9,12.1],S=[0.12,0.10,0.15,0.11,0.20,0.13,0.18,0.12,0.16,0.14,0.2,0.15];
+
+function fitDialog(){P=PAL.light;const W=316,H=170;const sx=x=>(x-0.3)/(6.2-0.3)*W,sy=y=>H-(y-0)/(13-0)*H;
+ let plot=`<svg width="${W}" height="${H}">`+X.map((x,i)=>`<line x1="${sx(x)}" x2="${sx(x)}" y1="${sy(Y[i]-S[i])}" y2="${sy(Y[i]+S[i])}" stroke="var(--ter)" stroke-width="2"/>`).join('')+`<line x1="${sx(0.5)}" y1="${sy(R.a*0.5+R.b)}" x2="${sx(6)}" y2="${sy(R.a*6+R.b)}" stroke="var(--pri)" stroke-width="3" stroke-linecap="round"/>`+X.map((x,i)=>`<circle cx="${sx(x)}" cy="${sy(Y[i])}" r="3.5" fill="var(--on)"/>`).join('')+`</svg>`;
+ const m=Math.max(...R.resid.map(Math.abs));let res=`<svg width="${W}" height="60"><line x1="0" x2="${W}" y1="30" y2="30" stroke="var(--out)" stroke-width="1.5"/>`+X.map((x,i)=>{const y=30-R.resid[i]/m*27;return `<line x1="${sx(x)}" x2="${sx(x)}" y1="30" y2="${y}" stroke="var(--ter)" stroke-opacity=".6" stroke-width="2"/><circle cx="${sx(x)}" cy="${y}" r="3" fill="var(--ter)"/>`}).join('')+`</svg>`;
+ return `<div><div class="phone light"><div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div><div style="position:absolute;inset:32px 0 0;background:rgba(0,0,0,.32)"></div>
+ <div style="position:absolute;left:16px;right:16px;top:60px;border-radius:28px;background:var(--chh);padding:22px;display:flex;flex-direction:column;gap:12px">
+ <div><div style="font:400 24px GSF">Fit a curve</div><div style="font:14px GSF;color:var(--onv)">12 points · weighted by σ(y)</div></div>
+ <div style="display:flex;flex-wrap:wrap;gap:8px">${['✓ Line','Quadratic','Cubic','Exponential','Power','Logarithm','Custom'].map((c,k)=>`<span class="chip ${k==0?'on':''}">${c}</span>`).join('')}</div>
+ <div>${rt(R.model,17,P.onv)}</div>
+ <div style="border-radius:20px;background:var(--pc);padding:14px 16px;display:flex;flex-direction:column;gap:6px">${rt(R.eq,21,P.onpc)}${R.params.map(p=>`<div>${rt(p,16,P.onpc)}</div>`).join('')}</div>
+ <div style="display:flex;flex-wrap:wrap;gap:8px">${R.stats.map(s=>`<span class="stat">${rt(s,14,P.onsc)}</span>`).join('')}</div>
+ <div style="border-radius:20px;background:var(--c);padding:12px">${plot}<div style="font:500 12px GSF;color:var(--onv);margin:4px 0">Residuals</div>${res}</div>
+ <div style="display:flex;justify-content:flex-end;gap:8px"><span class="btn" style="color:var(--pri)">Close</span><span class="btn" style="background:var(--pri);color:var(--onpri)">＋ Add to graph</span></div>
+ </div></div><div class="cap">The fit dialog over the data table (weighted by the σ(y) column). <i>a</i> = 1.995 ± 0.023, and χ²/ν ≈ 0.83 says the error bars match the scatter.</div></div>`}
+function customDialog(){P=PAL.dark;return `<div><div class="dark" style="width:412px;border-radius:28px;background:var(--chh);color:var(--on);padding:22px;display:flex;flex-direction:column;gap:12px;box-shadow:0 10px 30px rgba(0,0,0,.3)">
+ <div style="font:400 24px GSF">Fit a curve</div>
+ <div style="display:flex;flex-wrap:wrap;gap:8px">${['Line','Quadratic','Cubic','Exponential','Power','Logarithm','✓ Custom'].map((c,k)=>`<span class="chip ${k==6?'on':''}">${c}</span>`).join('')}</div>
+ <div style="border:2px solid var(--pri);border-radius:6px;height:56px;display:flex;align-items:center;padding:0 14px;font:16px GSF;position:relative"><span style="position:absolute;top:-9px;left:10px;background:var(--chh);padding:0 4px;font:12px GSF;color:var(--pri)">y =</span>a\\sin(bx)+c</div>
+ <div style="font:12px GSF;color:var(--onv);margin-top:-6px;padding-left:14px">Any letters other than x are fitted, e.g. a\\sin(bx)+c or A e^{-x/τ}</div>
+ </div><div class="cap">Custom (dark theme): any formula, with its letters fitted. Starting values are 1, and the result shows ± for each letter, as for the presets.</div></div>`}
+document.getElementById('fit').innerHTML=fitDialog()+customDialog();
+
+/* graphs */
+function axes(sx,sy,x0,x1,y0,y1,W,H){let s='';for(let x=Math.ceil(x0);x<=x1;x++)s+=`<line x1="${sx(x)}" x2="${sx(x)}" y1="0" y2="${H}" stroke="var(--grid)" stroke-width="${x==0?0:1}" stroke-opacity=".8"/>`;for(let y=Math.ceil(y0);y<=y1;y++)s+=`<line y1="${sy(y)}" y2="${sy(y)}" x1="0" x2="${W}" stroke="var(--grid)" stroke-opacity=".8"/>`;
+ s+=`<line x1="${sx(0)}" x2="${sx(0)}" y1="0" y2="${H}" stroke="var(--axis)" stroke-width="2"/><line y1="${sy(0)}" y2="${sy(0)}" x1="0" x2="${W}" stroke="var(--axis)" stroke-width="2"/>`;return s}
+function tangentPhone(){P=PAL.light;const W=412,H=560,x0=-2.5,x1=3,y0=-1.6,y1=5.9;const sx=x=>(x-x0)/(x1-x0)*W,sy=y=>(y1-y)/(y1-y0)*H;
+ const curve=(f,a,b)=>{let d='';for(let k=0;k<=200;k++){const x=a+(b-a)*k/200;d+=(k?'L':'M')+sx(x).toFixed(1)+' '+sy(f(x)).toFixed(1)}return d};
+ let s=`<svg width="${W}" height="${H}">${axes(sx,sy,x0,x1,y0,y1,W,H)}`;
+ s+=`<path d="${curve(x=>x*x/2,-1,1.5)}" stroke="#3F6CB8" stroke-opacity=".35" stroke-width="10" fill="none" stroke-linecap="round"/>`;
+ s+=`<path d="${curve(x=>x*x/2,x0,x1)}" stroke="#3F6CB8" stroke-width="3" fill="none"/><path d="${curve(x=>x-0.5,x0,x1)}" stroke="#B5482C" stroke-width="3" fill="none"/><path d="${curve(x=>-x+1.5,x0,x1)}" stroke="#3E8E57" stroke-width="3" fill="none"/>`;
+ [[-1,0.5],[1.5,1.125]].forEach(([x,y])=>s+=`<circle cx="${sx(x)}" cy="${sy(y)}" r="8" fill="var(--bg)" stroke="#3F6CB8" stroke-width="2.5"/>`);
+ s+=`<circle cx="${sx(1)}" cy="${sy(0.5)}" r="7" fill="#3F6CB8"/></svg>`;
+ return `<div><div class="phone light"><div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div>${s}
+ <div class="card" style="left:14px;top:46px;width:270px"><div style="display:flex;align-items:center;gap:8px;font:600 14px GSF;color:var(--onv)">📏 Arc length</div><div style="margin-top:6px">${rt(R.arcMath,15)}</div><div style="font:34px CMR;margin-top:4px">≈ ${R.arc.toFixed(5)}</div></div>
+ <div class="card" style="left:150px;top:300px;width:250px"><div style="font:600 13px GSF;color:var(--onv)">● <i style="font-family:CMI">y</i> = <i style="font-family:CMI">x</i>²/2</div><div style="font:20px CMR;margin:6px 0"><i style="font-family:CMI">x</i> = 1 &nbsp; <i style="font-family:CMI">y</i> = 0.5</div>
+ <div style="display:flex;flex-wrap:wrap;gap:6px"><span class="act">◩ Area from here</span><span class="act">↗ Tangent</span><span class="act">↑ Normal</span><span class="act">📏 Arc length</span></div></div>
+ <div style="position:absolute;left:0;right:0;top:592px;bottom:0;background:var(--low);border-radius:28px 28px 0 0;padding:14px 12px;display:flex;flex-direction:column;gap:6px">
+ ${[['#3F6CB8','y = x²/2'],['#B5482C','y = x − 0.5'],['#3E8E57','y = −x + 1.5']].map(([c,t],k)=>`<div style="display:flex;align-items:center;gap:12px;background:var(--c);border-radius:${k==0?'20px 20px 6px 6px':k==2?'6px 6px 20px 20px':'6px'};height:54px;padding:0 14px"><span style="width:14px;height:14px;border-radius:7px;background:${c}"></span><span style="font:italic 19px CMI">${t}</span></div>`).join('')}
+ </div></div><div class="cap">At x = 1 the point card offers Tangent (red, added as y = x − 0.5) and Normal (green). Arc length from x = −1 to 1.5 is highlighted on the curve, with its value in the card at the top.</div></div>`}
+function slopePhone(){P=PAL.dark;const W=412,H=494,x0=-3,x1=3,y0=-3,y1=4.2;const sx=x=>(x-x0)/(x1-x0)*W,sy=y=>(y1-y)/(y1-y0)*H;
+ let s=`<svg width="${W}" height="${H}">${axes(sx,sy,x0,x1,y0,y1,W,H)}`;
+ s+=R.segs.map(g=>`<line x1="${sx(g[0])}" y1="${sy(g[1])}" x2="${sx(g[2])}" y2="${sy(g[3])}" stroke="#C5CB86" stroke-opacity=".55" stroke-width="1.6" stroke-linecap="round"/>`).join('');
+ s+=R.sols.map(l=>`<polyline fill="none" stroke="#C5CB86" stroke-width="3" points="${l.map(([x,y])=>sx(x).toFixed(1)+','+sy(y).toFixed(1)).join(' ')}"/>`).join('');
+ [[0,2],[-1,-2],[1,3.5]].forEach(([x,y])=>s+=`<circle cx="${sx(x)}" cy="${sy(y)}" r="5" fill="#12130C" stroke="#C5CB86" stroke-width="2"/>`);
+ s+='</svg>';
+ return `<div><div class="phone dark"><div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div>${s}
+ <div style="position:absolute;left:0;right:0;top:530px;bottom:0;background:var(--low);border-radius:28px 28px 0 0;padding:14px 12px;display:flex;flex-direction:column;gap:6px">
+ <div style="display:flex;align-items:center;gap:12px;background:var(--c);border-radius:20px;height:58px;padding:0 14px"><span style="width:14px;height:14px;border-radius:7px;background:#C5CB86"></span>${rt(R.fieldEq,19,P.on)}</div>
+ <div style="font:13px GSF;color:var(--onv);padding:8px 14px">Tap the field to draw a solution through that point.</div></div>
+ </div><div class="cap">Dark theme: y′ = x − y. Three taps give three solutions, all approaching y = x − 1, with their starting points marked.</div></div>`}
+document.getElementById('calc').innerHTML=tangentPhone()+slopePhone();
+
+/* history */
+function histPhone(){P=PAL.light;return `<div><div class="phone light"><div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div>
+ <div style="padding:6px 12px;display:flex;flex-direction:column;gap:8px">
+  <div style="display:flex;gap:6px"><div style="flex:1;height:52px;border-radius:26px;background:var(--chh);display:flex;align-items:center;padding:0 16px;gap:10px;font:16px GSF;color:var(--on)">⌕ <span>sin</span><span style="display:inline-block;width:2px;height:20px;background:var(--pri)"></span></div><div style="width:52px;height:52px;border-radius:16px;background:var(--sc);display:flex;align-items:center;justify-content:center;font-size:20px">⇪</div></div>
+  <div style="display:flex;gap:8px"><span class="chip">All</span><span class="chip">📌 Pinned</span><span class="chip on" style="border-radius:18px">📁 Homework 3</span><span class="chip">📁 Exam prep</span></div>
+  <div style="font:500 12px GSF;color:var(--onv);padding-left:8px">2 of 41</div>
+ </div>
+ <div style="padding:0 12px;display:flex;flex-direction:column;gap:8px;margin-top:6px">
+ ${R.hist.slice(0,2).map(([q,a],k)=>`<div class="hcard" style="${k==1?'background:var(--chh);border-radius:28px':''}"><div style="display:flex;gap:6px;margin-bottom:4px">${k==1?'<span style="color:var(--pri)">📌</span>':''}<span class="tag">Homework 3</span></div><div>${mv(q,17,P.onv)}</div><div style="text-align:right;margin-top:6px"><span style="color:var(--pri);font:22px CMR">=</span> ${mv(a,22)}</div>
+ ${k==1?`<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:10px">${['↵ Use','⧉ Copy','📌 Unpin','📁 Homework 3','⇪ Share'].map((t,i)=>`<span class="act" style="${i==0?'':'background:transparent;border:1px solid var(--outv);color:var(--onv)'}">${t}</span>`).join('')}</div>`:''}</div>`).join('')}
+ </div>
+ <div style="position:absolute;left:12px;right:12px;bottom:20px;border-radius:24px;background:var(--c);height:120px;display:flex;align-items:center;justify-content:center;color:var(--onv);font:14px GSF">(the line being typed)</div>
+ </div><div class="cap">The history full screen, searched for "sin" within the Homework 3 folder. The second card is pinned and focused, with Pin and Folder among its actions.</div></div>`}
+function exportDlg(){P=PAL.light;return `<div><div class="light" style="width:412px;border-radius:28px;background:var(--chh);color:var(--on);padding:24px;display:flex;flex-direction:column;gap:14px;box-shadow:0 10px 30px rgba(0,0,0,.25)">
+ <div style="text-align:center;font-size:22px">⇪</div><div style="font:400 24px GSF;text-align:center">Export 2 calculations</div>
+ <div style="display:flex;border:1px solid var(--out);border-radius:20px;overflow:hidden;height:40px"><div style="flex:1;display:flex;align-items:center;justify-content:center;background:var(--sc);font:500 14px GSF">✓ PDF</div><div style="flex:1;display:flex;align-items:center;justify-content:center;border-left:1px solid var(--out);font:500 14px GSF">LaTeX</div></div>
+ <div style="border:1px solid var(--out);border-radius:6px;height:56px;display:flex;align-items:center;padding:0 14px;font:16px GSF;position:relative"><span style="position:absolute;top:-9px;left:10px;background:var(--chh);padding:0 4px;font:12px GSF;color:var(--onv)">Title</span>Homework 3</div>
+ <div style="font:13px GSF;color:var(--onv)">A4 pages in Computer Modern: each question with its answer on the right, numbered.</div>
+ <div style="display:flex;justify-content:flex-end;gap:4px;font:600 14px GSF;color:var(--pri)"><span style="padding:10px 12px">Cancel</span><span style="padding:10px 12px">Share</span><span style="padding:10px 12px">Save</span></div>
+ </div><div class="cap">Export what's listed: a PDF or a .tex file, saved or shared.</div></div>`}
+function page(){P=PAL.light;return `<div><div style="width:412px;height:583px;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:40px;color:#000">
+ <div style="font:22px CMR">Homework 3</div><div style="font:11px CMR;color:#5c5c5c;margin:4px 0 26px">4 calculations · 2 October 2026, 14:05 · CasCalc</div>
+ ${R.hist.map(([q,a],k)=>`<div style="border-bottom:${k<3?'0.5px solid #d9d9d9':'none'};padding:8px 0"><div style="display:flex;gap:10px;align-items:center"><span style="font:11px CMR;color:#5c5c5c">${k+1}.</span>${mv(q,14,'#5c5c5c')}</div><div style="text-align:right;margin-top:6px">${mv('\'=;\' ;'+a,16,'#000')}</div></div>`).join('')}
+ </div><div class="cap">A PDF page (A4, shown smaller), typeset with the graph exports' Computer Modern layout. The LaTeX export is a .tex file with one numbered align equation per calculation.</div></div>`}
+document.getElementById('hist').innerHTML=histPhone()+exportDlg()+page();
+document.title='ready';
+</script></body></html>

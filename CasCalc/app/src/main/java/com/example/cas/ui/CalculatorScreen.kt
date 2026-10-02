@@ -112,6 +112,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.layout.onPlaced
@@ -316,7 +317,7 @@ fun CalculatorTrailingAction(vm: CalculatorViewModel) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
             title = { Text("Clear the history?") },
-            text = { Text("All ${vm.history.size} calculations will be removed. This can't be undone.") },
+            text = { Text("${vm.clearableCount} calculation${if (vm.clearableCount == 1) "" else "s"} will be removed" + (if (vm.clearableCount < vm.history.size) "; pinned ones and those in folders stay" else "") + ". This can't be undone.") },
             confirmButton = { TextButton(onClick = { confirmClear = false; vm.clearHistory() }) { Text("Clear") } },
             dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } },
         )
@@ -377,16 +378,19 @@ private fun Display(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, mo
     val list = rememberLazyListState()
     LaunchedEffect(vm.history.size) { list.animateScrollToItem(0) }
 
-    Box(modifier.fillMaxWidth()) {
+    Column(modifier.fillMaxWidth()) {
+        // Full-screen history: search, pinned and folders, export.
+        AnimatedVisibility(vm.historyMode, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) { HistoryToolbar(vm) }
+        val shownHistory = if (vm.historyMode) vm.visibleHistory() else vm.history
         LazyColumn(
             state = list,
             reverseLayout = true,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxWidth().weight(1f),
             contentPadding = PaddingValues(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item(key = "input") { InputPanel(vm) }
-            items(vm.history.asReversed(), key = { System.identityHashCode(it) }) { item ->
+            items(shownHistory.asReversed(), key = { System.identityHashCode(it) }) { item ->
                 var confirm by remember { mutableStateOf(false) }
                 if (confirm) {
                     AlertDialog(
@@ -505,6 +509,8 @@ private fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (Gr
     var shareMenu by remember { mutableStateOf(false) }
     var confirm by remember { mutableStateOf(false) }
     var showingSteps by remember { mutableStateOf(false) }
+    var movingToFolder by remember { mutableStateOf(false) }
+    if (movingToFolder) MoveToFolderDialog(item.folder, vm.historyFolders, onPick = { vm.moveToFolder(item, it); movingToFolder = false }, onDismiss = { movingToFolder = false })
     if (showingSteps) StepsView(item.expression, vm.angleUnit, onDismiss = { showingSteps = false })
     val latex = { Latex.of(item.expression) + (if (item.answer.isStatement) "\\quad " else " = ") + Latex.of(shown) }
     val copy = { text: String, what: String ->
@@ -528,6 +534,11 @@ private fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (Gr
             .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow))
             .padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = if (focused) 12.dp else 14.dp),
     ) {
+        // Pinned, and its folder, as small marks above the question.
+        if (item.pinned || item.folder != null) Row(Modifier.padding(bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (item.pinned) Icon(Icons.Default.PushPin, contentDescription = "Pinned", tint = colors.primary, modifier = Modifier.size(14.dp))
+            item.folder?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = colors.onSecondaryContainer, modifier = Modifier.clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 8.dp, vertical = 2.dp)) }
+        }
         // The question: small and muted, tap to use it again, hold to copy it.
         Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
             MathView(
@@ -603,6 +614,8 @@ private fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (Gr
                 }
                 action(Icons.AutoMirrored.Filled.KeyboardReturn, "Use", "Use this answer", tonal = item.graph == null) { vm.reuse(shown) }
                 action(Icons.Default.ContentCopy, "Copy", "Copy the answer") { copy(Formatter.plain(shown), "Answer") }
+                action(if (item.pinned) Icons.Default.PushPin else Icons.Outlined.PushPin, if (item.pinned) "Unpin" else "Pin", if (item.pinned) "Unpin" else "Pin: keep it whatever the history limit") { vm.togglePin(item) }
+                action(Icons.Default.Folder, item.folder ?: "Folder", "Move to a folder") { movingToFolder = true }
                 Box {
                     action(Icons.Default.Share, "Share", "Share or delete") { shareMenu = true }
                     DropdownMenu(expanded = shareMenu, onDismissRequest = { shareMenu = false }) {
