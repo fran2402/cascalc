@@ -521,7 +521,9 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
             }
         }
         // The legend, top left (each drawn line's name, in list order), and under it the area card.
-        Column(Modifier.align(Alignment.TopStart).padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // (Beside the construct rail, when it stands on this side of a tablet's graph.)
+        val railHere = vm.constructing && AppSettings.geometry && isTabletLayout() && AppSettings.keypadSide == 0
+        Column(Modifier.align(Alignment.TopStart).padding(start = if (railHere) 138.dp else 10.dp, top = 10.dp, end = 10.dp, bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             GraphLegend(
             remember(version, palette) {
                 vm.functions.filter { it.visible && !it.isText && (it.plot != null || it.family.isNotEmpty()) && legendSource(it).isNotBlank() }
@@ -534,8 +536,16 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
         if (AppSettings.geometry) {
             if (!vm.constructing) ConstructButton(onClick = { vm.constructing = true }, modifier = Modifier.align(Alignment.TopEnd).padding(10.dp))
             else {
-                ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 12.dp, end = 12.dp))
-                ConstructPalette(vm, Modifier.align(Alignment.BottomCenter).padding(bottom = 78.dp, start = 10.dp, end = 10.dp))
+                // On a tablet the tools stand in a rail at the graph's edge by the list, always open
+                // (GeoGebra's tablet toolbar); on a phone they're a sheet at the bottom that folds away.
+                if (isTabletLayout()) {
+                    val byList = if (AppSettings.keypadSide == 0) Alignment.TopStart else Alignment.TopEnd
+                    ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 140.dp, end = 140.dp))
+                    ConstructRail(vm, Modifier.align(byList).padding(top = 10.dp, bottom = 84.dp, start = 10.dp, end = 10.dp))
+                } else {
+                    ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 12.dp, end = 12.dp))
+                    ConstructPalette(vm, Modifier.align(Alignment.BottomCenter).padding(bottom = 78.dp, start = 10.dp, end = 10.dp))
+                }
             }
         }
         if (vm.areaStart != null) {
@@ -1705,6 +1715,33 @@ private fun ConstructPalette(vm: Graph2DViewModel, modifier: Modifier) {
         if (vm.recentTools.isNotEmpty()) {
             Text("Recent", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 6.dp, top = 2.dp, bottom = 6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { vm.recentTools.forEach { t -> ToolChip(vm, t, compact = true) } }
+        }
+    }
+}
+
+/**
+ * The tools on a tablet: a rail at the graph's edge, each group under a small heading, its
+ * tools as round icon buttons two abreast (the tool's name shows in the card on top). Scrolls
+ * when the graph is short.
+ */
+@Composable
+private fun ConstructRail(vm: Graph2DViewModel, modifier: Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Column(
+        modifier.width(118.dp).shadow(6.dp, RoundedCornerShape(26.dp)).clip(RoundedCornerShape(26.dp)).background(colors.surfaceContainer)
+            .verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 8.dp, vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        GeometryCategory.entries.forEachIndexed { k, c ->
+            if (k > 0) Spacer(Modifier.height(8.dp))
+            Text(c.label, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant, maxLines = 1, modifier = Modifier.fillMaxWidth().padding(start = 4.dp, bottom = 4.dp))
+            val tools = (if (c == GeometryCategory.Points) listOf(GeometryTool.Move) else emptyList()) + GeometryTool.entries.filter { it.category == c && it != GeometryTool.Move }
+            tools.chunked(2).forEach { pair ->
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 6.dp)) {
+                    pair.forEach { t -> ToolChip(vm, t, compact = true) }
+                    if (pair.size == 1) Spacer(Modifier.size(44.dp))
+                }
+            }
         }
     }
 }
