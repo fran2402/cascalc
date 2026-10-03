@@ -130,8 +130,11 @@ object OpenedGraphFile {
  * is also kept in the saved graphs.
  */
 @Composable
-fun OpenGraphFileEffect(graphs: Map<Mode, GraphViewModel>, onSwitch: (Mode) -> Unit) {
+fun OpenGraphFileEffect(graphs0: Map<Mode, GraphViewModel>, onSwitch0: (Mode) -> Unit) {
     val context = LocalContext.current
+    // The latest of each, for the long-running effect below.
+    val graphs by androidx.compose.runtime.rememberUpdatedState(graphs0)
+    val onSwitch by androidx.compose.runtime.rememberUpdatedState(onSwitch0)
     var pending by remember { mutableStateOf<GraphFile.Contents?>(null) }
     fun plot(c: GraphFile.Contents) {
         val vm = graphs[c.kind.mode] ?: return
@@ -148,21 +151,27 @@ fun OpenGraphFileEffect(graphs: Map<Mode, GraphViewModel>, onSwitch: (Mode) -> U
             dismissButton = { androidx.compose.material3.TextButton(onClick = { pending = null }) { androidx.compose.material3.Text("Cancel") } },
         )
     }
-    val uri = OpenedGraphFile.uri ?: return
-    androidx.compose.runtime.LaunchedEffect(uri) {
-        OpenedGraphFile.uri = null
-        runCatching {
-            withContext(Dispatchers.IO) {
-                val name = runCatching {
-                    context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
-                }.getOrNull() ?: uri.lastPathSegment
-                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: error("the file couldn't be opened")
-                GraphFile.read(bytes, name)
-            }
-        }.onSuccess { c ->
-            val vm = graphs[c.kind.mode] ?: return@onSuccess
-            // Ask before replacing lines that are there; an empty graph is simply filled.
-            if (vm.hasContent()) { onSwitch(c.kind.mode); pending = c } else plot(c)
-        }.onFailure { e -> Toast.makeText(context, e.message ?: "Couldn't open the graph file", Toast.LENGTH_LONG).show() }
+    // Watched for the life of the screen: the link is taken (and cleared) and the file read in
+    // the same coroutine. (Keying an effect on the link and clearing it ended that effect before
+    // the file was read: "The coroutine scope left the composition".)
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        androidx.compose.runtime.snapshotFlow { OpenedGraphFile.uri }.collect { uri ->
+            if (uri == null) return@collect
+            OpenedGraphFile.uri = null
+            val read = try {
+                Result.success(withContext(Dispatchers.IO) {
+                    val name = runCatching {
+                        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+                    }.getOrNull() ?: uri.lastPathSegment
+                    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: error("the file couldn't be opened")
+                    GraphFile.read(bytes, name)
+                })
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Result.failure(e) }
+            read.onSuccess { c ->
+                val vm = graphs[c.kind.mode] ?: return@onSuccess
+                // Ask before replacing lines that are there; an empty graph is simply filled.
+                if (vm.hasContent()) { onSwitch(c.kind.mode); pending = c } else plot(c)
+            }.onFailure { e -> Toast.makeText(context, e.message ?: "Couldn't open the graph file", Toast.LENGTH_LONG).show() }
+        }
     }
 }
