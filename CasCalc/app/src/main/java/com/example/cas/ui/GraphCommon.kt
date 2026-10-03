@@ -934,7 +934,7 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             onPick = { vm.setColor(f, it?.toArgb()); picking = false },
             onDismiss = { picking = false },
             // 2D lines also get style and thickness (points and lists of points don't).
-            lineStyle = if (vm.plotVars == listOf("x") && f.plot !is Plot2DKind.Point && f.plot !is Plot2DKind.PointList && f.plot !is Plot2DKind.VectorField) f.lineStyle else null,
+            lineStyle = if (vm.plotVars == listOf("x") && f.plot !is Plot2DKind.Point && f.plot !is Plot2DKind.PointList && f.plot !is Plot2DKind.VectorField && !isGeometryPoint(vm, f)) f.lineStyle else null,
             thickness = f.thickness,
             onStyle = { st, w -> vm.setStyle(f, st, w) },
             extra = lineOptions(vm, f),
@@ -1142,30 +1142,8 @@ private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable andro
     return {
         val colors = MaterialTheme.colorScheme
         if (points) {
-            // The mark: its shape (each chip draws it), filled or hollow, and its size.
-            val current = com.example.cas.graph.Marker.of(f.pointShape)
-            val filled = !current.hollow
             Text("Point", style = MaterialTheme.typography.labelLarge, color = colors.primary)
-            androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                com.example.cas.graph.Marker.bases.forEach { b ->
-                    val m = b.filled(filled)
-                    val chosen = current.base == b
-                    Box(
-                        Modifier.size(36.dp).clip(RoundedCornerShape(10.dp))
-                            .background(if (chosen) colors.secondaryContainer else colors.surfaceContainerHigh)
-                            .clickable(onClickLabel = b.label) { vm.setOptions(f, shape = m.ordinal) }
-                            .semantics { contentDescription = b.label + if (chosen) ", chosen" else "" },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        val tint = if (chosen) colors.onSecondaryContainer else colors.onSurfaceVariant
-                        androidx.compose.foundation.Canvas(Modifier.size(20.dp)) { drawMarker(m, center, size.minDimension * 0.36f, tint) }
-                    }
-                }
-            }
-            if (current.fillable) Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Filled", modifier = Modifier.weight(1f), color = colors.onSurface)
-                androidx.compose.material3.Switch(checked = filled, onCheckedChange = { vm.setOptions(f, shape = current.filled(it).ordinal) })
-            }
+            MarkChooser(vm, f)
             Text("Size: ${String.format(java.util.Locale.US, "%.1f", f.pointSize)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
             // In tenths of a dp.
             ExpressiveSlider(value = f.pointSize, onValueChange = { vm.setOptions(f, size = kotlin.math.round(it * 10f) / 10f) }, valueRange = 1f..16f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Point size" })
@@ -1201,6 +1179,42 @@ private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable andro
     }
 }
 
+/** A geometry construction that is a point (or points): it has a mark, not a line style. */
+private fun isGeometryPoint(vm: GraphViewModel, f: PlotFunction): Boolean {
+    if (f.geometry == null) return false
+    val o = vm.geometryOf(f)
+    return o is com.example.cas.graph.Geometry.Point || o is com.example.cas.graph.Geometry.Many && o.items.isNotEmpty() && o.items.all { it is com.example.cas.graph.Geometry.Point }
+}
+
+/** A point's mark: its shape (each chip draws it), and filled or hollow. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MarkChooser(vm: GraphViewModel, f: PlotFunction) {
+    val colors = MaterialTheme.colorScheme
+    val current = com.example.cas.graph.Marker.of(f.pointShape)
+    val filled = !current.hollow
+    androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        com.example.cas.graph.Marker.bases.forEach { b ->
+            val m = b.filled(filled)
+            val chosen = current.base == b
+            Box(
+                Modifier.size(36.dp).clip(RoundedCornerShape(10.dp))
+                    .background(if (chosen) colors.secondaryContainer else colors.surfaceContainerHigh)
+                    .clickable(onClickLabel = b.label) { vm.setOptions(f, shape = m.ordinal) }
+                    .semantics { contentDescription = b.label + if (chosen) ", chosen" else "" },
+                contentAlignment = Alignment.Center,
+            ) {
+                val tint = if (chosen) colors.onSecondaryContainer else colors.onSurfaceVariant
+                androidx.compose.foundation.Canvas(Modifier.size(20.dp)) { drawMarker(m, center, size.minDimension * 0.36f, tint) }
+            }
+        }
+    }
+    if (current.fillable) Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Filled", modifier = Modifier.weight(1f), color = colors.onSurface)
+        androidx.compose.material3.Switch(checked = filled, onCheckedChange = { vm.setOptions(f, shape = current.filled(it).ordinal) })
+    }
+}
+
 /**
  * A construction's options: for points, the mark and its size, its name and coordinates shown,
  * and (on a path) moving by itself; for filled shapes (polygons, sectors, angles), the fill.
@@ -1209,10 +1223,11 @@ private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable andro
 private fun androidx.compose.foundation.layout.ColumnScope.GeometryOptions(vm: GraphViewModel, f: PlotFunction) {
     val colors = MaterialTheme.colorScheme
     val o = vm.geometryOf(f)
-    val isPoint = o is com.example.cas.graph.Geometry.Point || o is com.example.cas.graph.Geometry.Many && o.items.all { it is com.example.cas.graph.Geometry.Point }
+    val isPoint = isGeometryPoint(vm, f)
     val filled = o is com.example.cas.graph.Geometry.Polygon || o is com.example.cas.graph.Geometry.Angle || o is com.example.cas.graph.Geometry.Arc && o.sector
     if (isPoint) {
         Text("Point", style = MaterialTheme.typography.labelLarge, color = colors.primary)
+        MarkChooser(vm, f)
         Text("Size: ${String.format(java.util.Locale.US, "%.1f", f.pointSize)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
         ExpressiveSlider(value = f.pointSize, onValueChange = { vm.setOptions(f, size = kotlin.math.round(it * 10f) / 10f) }, valueRange = 1f..16f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Point size" })
         if (f.geometry?.name != null) Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1473,11 +1488,14 @@ fun mathLabel(text: String): androidx.compose.ui.text.AnnotatedString = androidx
  * [onGesture] gets the centroid, the pan, and separate zoom factors for x and y.
  */
 suspend fun androidx.compose.ui.input.pointer.PointerInputScope.detectAxisTransformGestures(
+    /** A touch to leave alone (one that began on a card over the graph). */
+    skip: (androidx.compose.ui.input.pointer.PointerInputChange) -> Boolean = { false },
     onGesture: (centroid: Offset, pan: Offset, zoomX: Double, zoomY: Double) -> Unit,
 ) {
     val minSpread = 48.dp.toPx()
     awaitEachGesture {
-        awaitFirstDown(requireUnconsumed = false)
+        val first = awaitFirstDown(requireUnconsumed = false)
+        if (skip(first)) return@awaitEachGesture
         do {
             val event = awaitPointerEvent()
             if (event.changes.any { it.isConsumed }) break
@@ -2574,7 +2592,8 @@ private fun TableCell(
         cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.primary),
         // With formulas, a keyboard with letters, = and brackets.
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-            keyboardType = if (formulas) androidx.compose.ui.text.input.KeyboardType.Ascii else androidx.compose.ui.text.input.KeyboardType.Decimal,
+            // The whole keyboard (letters too: words, units, a formula's =), not just a number pad.
+            keyboardType = if (formulas) androidx.compose.ui.text.input.KeyboardType.Ascii else androidx.compose.ui.text.input.KeyboardType.Text,
             capitalization = if (formulas) androidx.compose.ui.text.input.KeyboardCapitalization.Characters else androidx.compose.ui.text.input.KeyboardCapitalization.None,
             imeAction = androidx.compose.ui.text.input.ImeAction.Next,
         ),
@@ -2683,17 +2702,14 @@ fun GraphScaffold(vm: GraphViewModel, outputLabel: String, modifier: Modifier = 
         else if (imeVisible) imeSeen = true
         else if (imeSeen && vm.active == null) vm.typingFocus = false
     }
+    // Editing a line gets the room too (the keyboard's handle, or Enter, brings the graph back).
+    androidx.compose.runtime.LaunchedEffect(vm.active) { if (vm.active != null) vm.typingFocus = true }
     // The graph's last height, kept while it's away so it doesn't redraw at another size.
     val lastPlot = remember { intArrayOf(0) }
     androidx.compose.ui.layout.Layout(
         contents = listOf(
             { Box(Modifier.fillMaxSize()) { canvas() } },
-            {
-                if (!listAway) Column {
-                    if (focus) ShowGraphPill(onShow = { vm.typingFocus = false })
-                    FunctionList(vm, outputLabel)
-                }
-            },
+            { if (!listAway) FunctionList(vm, outputLabel) },
             {
                 androidx.compose.animation.AnimatedVisibility(
                     visible = vm.active != null && !vm.keypadHidden,
@@ -2723,30 +2739,6 @@ fun GraphScaffold(vm: GraphViewModel, outputLabel: String, modifier: Modifier = 
             lp.forEach { it.place(0, y); y += it.height }
             kp.forEach { it.place(0, y); y += it.height }
         }
-    }
-}
-
-/**
- * Over the list while the graph is away for typing: a pill to pull down (or tap) to bring the
- * graph back, as the keyboard's own handle does.
- */
-@Composable
-private fun ShowGraphPill(onShow: () -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    var pulled by remember { mutableStateOf(0f) }
-    Box(
-        Modifier.fillMaxWidth().height(28.dp)
-            .pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onDragStart = { pulled = 0f },
-                    onVerticalDrag = { _, dy -> pulled += dy },
-                    onDragEnd = { if (pulled > 24.dp.toPx()) onShow() },
-                )
-            }
-            .clickable(onClickLabel = "Show the graph", onClick = onShow),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(Modifier.size(width = 36.dp, height = 4.dp).clip(CircleShape).background(colors.onSurfaceVariant.copy(alpha = 0.4f)))
     }
 }
 

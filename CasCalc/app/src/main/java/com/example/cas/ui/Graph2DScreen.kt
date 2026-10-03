@@ -205,7 +205,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
             .pointerInput(Unit) {
                 // Drag to move; pinch to zoom around your fingers. A sideways pinch stretches only x,
                 // an up-and-down pinch only y.
-                detectAxisTransformGestures { centroid, pan, zoomX, zoomY ->
+                detectAxisTransformGestures(skip = { OverlayTouch.owns(it) }) { centroid, pan, zoomX, zoomY ->
                     val v = vm.view ?: return@detectAxisTransformGestures
                     val w = size.width.toDouble(); val h = size.height.toDouble()
                     vm.view = v.panBy(pan.x / w, pan.y / h).zoomAxes(zoomX, zoomY, centroid.x / w, centroid.y / h)
@@ -243,7 +243,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 // Drag an edge of the shaded area along the graph; its value follows the finger.
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
-                    if (down.isConsumed) return@awaitEachGesture
+                    if (OverlayTouch.owns(down)) return@awaitEachGesture
                     val ar = vm.area ?: return@awaitEachGesture
                     val v0 = vm.view ?: return@awaitEachGesture
                     val reach = 28.dp.toPx()
@@ -269,7 +269,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 // the view's own drag, which gives way when this one takes the gesture.
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
-                    if (down.isConsumed) return@awaitEachGesture
+                    if (OverlayTouch.owns(down)) return@awaitEachGesture
                     val v0 = vm.view ?: return@awaitEachGesture
                     val reach = 28.dp.toPx()
                     val hit = plotted.asSequence().mapNotNull { p -> vm.movableLetters(p.f)?.let { letters -> p to letters } }
@@ -304,7 +304,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 awaitEachGesture {
                     val plotted = latestPlotted
                     val down = awaitFirstDown(requireUnconsumed = false)
-                    if (!AppSettings.geometry || down.isConsumed) return@awaitEachGesture
+                    if (!AppSettings.geometry || OverlayTouch.owns(down)) return@awaitEachGesture
                     val v0 = vm.view ?: return@awaitEachGesture
                     val reach = 28.dp.toPx()
                     val hit = plotted.asSequence().filter { it.f.geometry?.isFree == true || it.f.geometry?.onPath == true }
@@ -1607,14 +1607,23 @@ private fun polylineDistance(line: List<Offset>, p: Offset): Float {
 
 
 /**
- * Keeps touches on a card or rail floating over the graph from reaching the graph: every
- * change is consumed once the card's own buttons and scrolling have had it, so the graph
- * neither pans nor takes a tap through it.
+ * Keeps touches on a card or rail floating over the graph from reaching the graph. Only the
+ * touch's first contact is marked (its id noted, the down consumed), after the card's own
+ * buttons and scrolling have seen it; the graph's gestures then leave that touch alone. Moves
+ * aren't consumed, so the rail's scrolling isn't cancelled by it.
  */
 private fun Modifier.blockGraphTouches(): Modifier = pointerInput(Unit) {
-    awaitPointerEventScope {
-        while (true) awaitPointerEvent().changes.forEach { it.consume() }
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        OverlayTouch.id = down.id
+        down.consume()
     }
+}
+
+/** The touch that began on a card over the graph, if the latest one did. */
+private object OverlayTouch {
+    @Volatile var id: androidx.compose.ui.input.pointer.PointerId? = null
+    fun owns(down: androidx.compose.ui.input.pointer.PointerInputChange) = down.id == id
 }
 
 /** Starts construct mode (geometry mode's tools). */

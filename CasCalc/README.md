@@ -203,6 +203,16 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (3 October, fixes)
+- **Dragging points works again:** free points, points on paths, slider points and an area's
+  edges can be dragged again (a check meant for the construct rail had stopped every drag).
+- **Tablet construct rail:** scrolling through the tools is reliable. A touch that starts on
+  the rail or the status card is left alone by the graph instead of fighting the scroll.
+- **Phones:** editing a line also hides the graph while you type; Enter or the keyboard's handle
+  brings it back. The extra pill above the list is gone.
+- **Geometry options:** points get mark shapes (and no line style); lines get line styles.
+- **Data tables:** cells open the full keyboard, not just a number pad.
+
 ## Latest changes (3 October, typing room and construct polish)
 - **Room to type (phones, all three graph modes):** adding a line, note or folder hides the graph
   and its buttons so the list gets the screen. Enter, pulling down the keyboard's handle, the
