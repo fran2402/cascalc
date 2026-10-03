@@ -50,6 +50,20 @@ object LatexParser {
 
     fun parse(latex: String): MathRow = Reader(latex).row(stopAt = null).also { absoluteBars(it); scriptedSymbols(it) }
 
+    private fun accentOf(name: String) = when (name) {
+        "hat", "widehat" -> com.example.cas.cas.Accent.Hat
+        "dot" -> com.example.cas.cas.Accent.Dot
+        "ddot" -> com.example.cas.cas.Accent.DoubleDot
+        "tilde", "widetilde" -> com.example.cas.cas.Accent.Tilde
+        "bar", "overline" -> com.example.cas.cas.Accent.Bar
+        "vec" -> com.example.cas.cas.Accent.Vector
+        "check" -> com.example.cas.cas.Accent.Check
+        "breve" -> com.example.cas.cas.Accent.Breve
+        "acute" -> com.example.cas.cas.Accent.Acute
+        "mathring" -> com.example.cas.cas.Accent.Ring
+        else -> com.example.cas.cas.Accent.Grave
+    }
+
     /**
      * A letter with a plain subscript (x_1, \hat{x}_{1}, v_{0}^{2}) as one symbol, as the symbol
      * builder makes it, so a formula sent to a graph or pasted keeps it whole: the subscript is
@@ -228,23 +242,31 @@ object LatexParser {
                 }
                 "binom" -> out.add(Binom(argument(), argument()))
                 // Accents on a letter (\hat{x}, \vec{v}, \dot{\theta}): the same symbols the symbol builder makes.
-                "hat", "widehat", "dot", "ddot", "tilde", "widetilde", "bar", "overline", "vec", "check", "breve", "acute", "grave" -> {
+                "hat", "widehat", "dot", "ddot", "tilde", "widetilde", "bar", "overline", "vec", "check", "breve", "acute", "grave", "mathring" -> {
                     val arg = argument()
-                    val t = (arg.items.singleOrNull() as? Sym)?.text?.removePrefix(UPRIGHT)
-                    val accent = when (name) {
-                        "hat", "widehat" -> com.example.cas.cas.Accent.Hat
-                        "dot" -> com.example.cas.cas.Accent.Dot
-                        "ddot" -> com.example.cas.cas.Accent.DoubleDot
-                        "tilde", "widetilde" -> com.example.cas.cas.Accent.Tilde
-                        "bar", "overline" -> com.example.cas.cas.Accent.Bar
-                        "vec" -> com.example.cas.cas.Accent.Vector
-                        "check" -> com.example.cas.cas.Accent.Check
-                        "breve" -> com.example.cas.cas.Accent.Breve
-                        "acute" -> com.example.cas.cas.Accent.Acute
-                        else -> com.example.cas.cas.Accent.Grave
+                    val inner = (arg.items.singleOrNull() as? Sym)?.text
+                    // Over a built symbol (\hat{\boldsymbol{x}}): the same symbol, with the accent.
+                    val built = inner?.let { com.example.cas.cas.CustomSymbol.decode(it) }
+                    val t = inner?.removePrefix(UPRIGHT)
+                    val upright = if (inner?.startsWith(UPRIGHT) == true) "u" else ""
+                    when {
+                        built != null && built.accent == null -> out.add(Sym(built.copy(accent = accentOf(name)).encode()))
+                        built == null && t != null && t.isNotEmpty() -> out.add(Sym(com.example.cas.cas.CustomSymbol(t, accentOf(name), upright = upright).encode()))
+                        else -> out.items.addAll(arg.items)
                     }
-                    if (t != null && t.isNotEmpty()) out.add(Sym(com.example.cas.cas.CustomSymbol(t, accent).encode()))
-                    else out.items.addAll(arg.items)
+                }
+                // A bold letter (\boldsymbol{v}, \mathbf{v}): a built symbol, as the symbol builder makes it.
+                "boldsymbol", "mathbf", "bm" -> {
+                    val arg = argument()
+                    val inner = (arg.items.singleOrNull() as? Sym)?.text
+                    val built = inner?.let { com.example.cas.cas.CustomSymbol.decode(it) }
+                    val letter = inner?.removePrefix(UPRIGHT)
+                    when {
+                        built != null -> out.add(Sym(built.copy(bold = true).encode()))
+                        letter != null && letter.isNotEmpty() && (letter.length == 1 && letter[0].isLetter() || com.example.cas.editor.MathAlphabets.isMathLetter(letter)) ->
+                            out.add(Sym(com.example.cas.cas.CustomSymbol(letter, bold = true, upright = if (inner.startsWith(UPRIGHT) || name == "mathbf") "u" else "").encode()))
+                        else -> out.items.addAll(arg.items)
+                    }
                 }
                 "text", "mathrm", "operatorname", "textrm", "mathit" -> {
                     skipSpaces()

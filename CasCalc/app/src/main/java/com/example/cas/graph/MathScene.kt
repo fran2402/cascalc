@@ -162,8 +162,11 @@ object MathScene {
                 // letter or bracket gets a thin space, as TeX gives 2 sin x.
                 val opName = n is Func && n.name !in UNSPACED || n is Sym && n.text.length > 1 && n.text.all { it.isLetter() }
                 if (opName && before != null && (before !is Sym || before.text.lastOrNull()?.let { it.isLetterOrDigit() || it in ")]" } == true)) parts += gap(0.1667 * size)
-                var b = node(n, size)
                 var j = k + 1
+                // A power on a built symbol with a subscript (v₀²) stacks over it, as v_0^2 does in TeX.
+                val built = (n as? Sym)?.text?.let { com.example.cas.cas.CustomSymbol.decode(it) }
+                var b = if (built != null && built.sup.isEmpty() && built.sub.isNotEmpty() && items.getOrNull(j) is Pow) custom(built, size, row((items[j++] as Pow).exp, size * 0.7))
+                    else node(n, size)
                 while (j < items.size && items[j] is Pow) { b = scripts(b, row((items[j] as Pow).exp, size * 0.7), null, size); j++ }
                 parts += b
                 k = j
@@ -219,7 +222,44 @@ object MathScene {
             t == "," -> hbox(listOf(text(",", false, size), gap(0.1667 * size)))
             t == com.example.cas.engine.Formatter.THIN_SPACE -> gap(0.1667 * size)
             italicLetter(t) -> text(t, true, size)
-            else -> com.example.cas.cas.CustomSymbol.decode(t)?.let { text(it.plain, true, size) } ?: text(t, false, size)
+            else -> com.example.cas.cas.CustomSymbol.decode(t)?.let { custom(it, size) } ?: text(t, false, size)
+        }
+
+        /**
+         * A symbol from the symbol builder, as its LaTeX sets it: the letter (math italic, or
+         * upright), bold by a second pass a hair to the right, the accent centered over it, and
+         * its scripts after it and, right-aligned, before it.
+         */
+        fun custom(s: com.example.cas.cas.CustomSymbol, size: Double, power: Box? = null): Box {
+            val letter = text(s.base, !s.isUpright('u') && s.base.length == 1, size)
+            val bold = if (!s.bold) letter else Box(letter.width + 0.04 * size, letter.ascent, letter.descent) { scene, x, y ->
+                letter.draw(scene, x, y); letter.draw(scene, x + 0.035 * size, y)
+            }
+            val core = s.accent?.let { accent(bold, it, s.base, size) } ?: bold
+            fun script(t: String, slot: Char): Box? = t.takeIf { it.isNotEmpty() }?.let { str ->
+                if (s.isUpright(slot)) text(str, false, size * 0.7)
+                else hbox(str.map { c -> c.toString() }.map { c -> text(if (c == "-") "−" else c, italicLetter(c), size * 0.7) })
+            }
+            val after = scripts(core, script(s.sup, 'p') ?: power, script(s.sub, 's'), size)
+            val preSup = script(s.preSup, 'q'); val preSub = script(s.preSub, 'l')
+            if (preSup == null && preSub == null) return after
+            return hbox(listOf(scripts(EMPTY, preSup, preSub, size, alignEnd = true), after))
+        }
+
+        /** An accent over [b]: higher over capitals and tall letters, nudged right for the italic's slant. */
+        private fun accent(b: Box, a: com.example.cas.cas.Accent, base: String, size: Double): Box {
+            val tall = base.any { it.isUpperCase() || it in "bdfhklt" || it.isDigit() || it in "βδζθλξ" }
+            val lift = if (tall) 0.24 * size else 0.0
+            val arrow = a == com.example.cas.cas.Accent.Vector
+            val glyphSize = if (arrow) size * 0.62 else size
+            val glyph = if (arrow) "→" else a.glyph
+            val w = m.width(glyph, false, glyphSize)
+            return Box(b.width, maxOf(b.ascent, 0.72 * size + lift + 0.12 * size), b.descent) { scene, x, y ->
+                b.draw(scene, x, y)
+                val gx = x + (b.width - w) / 2 + 0.06 * size
+                val gy = if (arrow) y - 0.47 * size - lift else y - lift
+                scene.add(Scene.Label(gx, gy, glyph, glyphSize, color, Scene.Anchor.Start, Scene.Font.Roman, baseline = true))
+            }
         }
 
         /**

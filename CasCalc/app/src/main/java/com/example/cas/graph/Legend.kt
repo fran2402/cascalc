@@ -64,6 +64,12 @@ object Legend {
     // ---- As runs of text, for exported graphs -------------------------------------------------
 
     private val SPACED = mapOf("=" to " = ", "+" to " + ", "−" to " − ", "-" to " − ", "<" to " < ", ">" to " > ", "≤" to " ≤ ", "≥" to " ≥ ", "×" to " × ", "·" to " · ", "," to ", ", ":=" to " := ", "→" to " → ")
+    private val COMBINING = mapOf(
+        com.example.cas.cas.Accent.Dot to "\u0307", com.example.cas.cas.Accent.DoubleDot to "\u0308", com.example.cas.cas.Accent.Hat to "\u0302",
+        com.example.cas.cas.Accent.Tilde to "\u0303", com.example.cas.cas.Accent.Bar to "\u0304", com.example.cas.cas.Accent.Vector to "\u20D7",
+        com.example.cas.cas.Accent.Check to "\u030C", com.example.cas.cas.Accent.Breve to "\u0306", com.example.cas.cas.Accent.Acute to "\u0301",
+        com.example.cas.cas.Accent.Grave to "\u0300", com.example.cas.cas.Accent.Ring to "\u030A",
+    )
     private val INVERSE = mapOf("asin" to "sin", "acos" to "cos", "atan" to "tan", "asinh" to "sinh", "acosh" to "cosh", "atanh" to "tanh")
 
     /**
@@ -121,7 +127,14 @@ object Legend {
                     italicLetter(t) -> add(t, true, shift)
                     else -> {
                         val custom = com.example.cas.cas.CustomSymbol.decode(t)
-                        if (custom != null) add(custom.plain, true, shift) else add(t, false, shift)
+                        if (custom == null) add(t, false, shift) else {
+                            // Its scripts raised and lowered, not written _1^2.
+                            if (custom.preSup.isNotEmpty()) add(custom.preSup, false, up)
+                            if (custom.preSub.isNotEmpty()) add(custom.preSub, false, down)
+                            add(custom.base + (custom.accent?.let { COMBINING[it] } ?: ""), !custom.isUpright('u') && custom.base.length == 1, shift)
+                            if (custom.sub.isNotEmpty()) add(custom.sub, false, down)
+                            if (custom.sup.isNotEmpty()) add(custom.sup, false, up)
+                        }
                     }
                 }
             }
