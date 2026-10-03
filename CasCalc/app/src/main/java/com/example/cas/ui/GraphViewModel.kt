@@ -1045,13 +1045,35 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     /** What the tool's next tap should be on: a point, an object (a line, circle, conic…), a straight line, a circle or conic, or anything. */
     val geometryNeeds: Char? get() = geometryTool?.let { tool -> if (tool == GeometryTool.Polygon) 'P' else tool.slots.getOrNull(geometryPicks.size) }
 
+    /** Construct mode: the tool palette is open (with Move, nothing is built by tapping). */
+    var constructing by mutableStateOf(false)
+
+    /** Tools used lately, newest first (shown first in the palette). */
+    val recentTools = mutableStateListOf<GeometryTool>()
+
+    /** Picks a tool (Move for none), starting its picks over. */
+    fun selectTool(tool: GeometryTool) {
+        geometryPicks.clear()
+        geometryTool = if (tool == GeometryTool.Move) null else tool
+        if (tool != GeometryTool.Move) { recentTools.remove(tool); recentTools.add(0, tool); while (recentTools.size > 4) recentTools.removeAt(recentTools.lastIndex) }
+    }
+
+    /** Leaves construct mode. */
+    fun stopConstructing() { geometryPicks.clear(); geometryTool = null; constructing = false }
+
+    /** Takes back the last pick (a point made by tapping stays). */
+    fun undoPick() { if (geometryPicks.isNotEmpty()) geometryPicks.removeAt(geometryPicks.lastIndex) }
+
+    /** Closes the polygon being built (three corners or more). */
+    fun closePolygon() { if (geometryTool == GeometryTool.Polygon && geometryPicks.size >= 3) finishTool(GeometryTool.Polygon, geometryPicks.toList()) }
+
     /**
      * A tap with a tool on [name] (a point tapped or just made there, or an object). When the
      * tool has what it needs, its line is added (named as GeoGebra would) and the picks start over.
      */
     fun pickForTool(name: String) {
         val tool = geometryTool ?: return
-        if (tool == GeometryTool.Point) return
+        if (tool == GeometryTool.Point || tool == GeometryTool.Move) return
         if (tool == GeometryTool.Polygon && geometryPicks.size >= 3 && name == geometryPicks.first()) {
             finishTool(tool, geometryPicks.toList()); return
         }
@@ -2290,38 +2312,53 @@ class PlaneArea(val f: PlotFunction, val kind: Int, val total: Double, val signe
  */
 class AreaResult(val f: PlotFunction, val g: PlotFunction?, val a: Double, val b: Double, val signed: Double, val total: Double, val arc: Boolean = false)
 
+/** The groups of construction tools, as GeoGebra's toolbar has them. */
+enum class GeometryCategory(val label: String) { Points("Points"), Lines("Lines"), Shapes("Circles & shapes"), Conics("Conics"), Measure("Measure & more") }
+
 /**
  * Tools for building on the 2D graph by tapping (geometry, alpha). [slots] says what each tap
  * is on: P a point (tapped, or made where you tap), O an object (a line, circle, conic, polygon,
- * arc or function graph), L a straight line, C a circle or conic, X anything. [makes] is what the
- * new line holds, for its name: P a point, A an angle, O anything else.
+ * arc or function graph), L a straight line, C a circle or conic, X anything. [steps] names each
+ * tap's role (shown while building). [makes] is what the new line holds, for its name: P a
+ * point, A an angle, O anything else.
  */
-enum class GeometryTool(val label: String, val command: String, val slots: String, val makes: Char, val hint: String) {
-    Point("Point", "", "P", 'P', "Tap to place a point"),
-    PointOn("Point on object", "Point", "O", 'P', "Tap a line, circle or curve to put a point on it"),
-    Intersect("Intersect", "Intersect", "OO", 'P', "Tap two objects to mark where they cross"),
-    Midpoint("Midpoint", "Midpoint", "PP", 'P', "Tap two points"),
-    Segment("Segment", "Segment", "PP", 'O', "Tap two points for the segment"),
-    Line("Line", "Line", "PP", 'O', "Tap two points for the line"),
-    Ray("Ray", "Ray", "PP", 'O', "Tap the start, then a point it passes through"),
-    Vector("Vector", "Vector", "PP", 'O', "Tap where the arrow starts and ends"),
-    Perpendicular("Perpendicular line", "PerpendicularLine", "PL", 'O', "Tap a point, then a line"),
-    Parallel("Parallel line", "ParallelLine", "PL", 'O', "Tap a point, then a line"),
-    Bisector("Perpendicular bisector", "PerpendicularBisector", "PP", 'O', "Tap two points"),
-    AngleBisector("Angle bisector", "AngleBisector", "PPP", 'O', "Tap a point, the corner, then another point"),
-    Tangent("Tangent", "Tangent", "PC", 'O', "Tap a point, then a circle or conic"),
-    Polygon("Polygon", "Polygon", "", 'O', "Tap the corners, then the first one again"),
-    Circle("Circle", "Circle", "PP", 'O', "Tap the center, then a point on the circle"),
-    Circle3("Circle (3 points)", "Circle", "PPP", 'O', "Tap three points on the circle"),
-    Semicircle("Semicircle", "Semicircle", "PP", 'O', "Tap the two ends"),
-    Arc("Arc", "CircularArc", "PPP", 'O', "Tap the center, the start, then where it ends"),
-    Sector("Sector", "CircularSector", "PPP", 'O', "Tap the center, the start, then where it ends"),
-    Ellipse("Ellipse", "Ellipse", "PPP", 'O', "Tap the two foci, then a point on the ellipse"),
-    Hyperbola("Hyperbola", "Hyperbola", "PPP", 'O', "Tap the two foci, then a point on the hyperbola"),
-    Parabola("Parabola", "Parabola", "PL", 'O', "Tap the focus, then the directrix (a line)"),
-    Conic("Conic (5 points)", "Conic", "PPPPP", 'O', "Tap five points on the conic"),
-    Reflect("Reflect", "Reflect", "XL", 'O', "Tap what to reflect, then the mirror line"),
-    Locus("Locus", "Locus", "PP", 'O', "Tap the tracing point, then the one on an object"),
-    Angle("Angle", "Angle", "PPP", 'A', "Tap a point, the corner, then another point"),
-    Distance("Distance", "Distance", "PP", 'O', "Tap two points"),
+enum class GeometryTool(val label: String, val command: String, val slots: String, val makes: Char, val category: GeometryCategory, val steps: List<String>) {
+    Move("Move", "", "", 'O', GeometryCategory.Points, emptyList()),
+    Point("Point", "", "P", 'P', GeometryCategory.Points, listOf("Place it")),
+    PointOn("Point on object", "Point", "O", 'P', GeometryCategory.Points, listOf("The object")),
+    Intersect("Intersect", "Intersect", "OO", 'P', GeometryCategory.Points, listOf("First object", "Second object")),
+    Midpoint("Midpoint", "Midpoint", "PP", 'P', GeometryCategory.Points, listOf("First point", "Second point")),
+    Segment("Segment", "Segment", "PP", 'O', GeometryCategory.Lines, listOf("Start", "End")),
+    Line("Line", "Line", "PP", 'O', GeometryCategory.Lines, listOf("First point", "Second point")),
+    Ray("Ray", "Ray", "PP", 'O', GeometryCategory.Lines, listOf("Start", "Through")),
+    Vector("Vector", "Vector", "PP", 'O', GeometryCategory.Lines, listOf("Start", "End")),
+    Perpendicular("Perpendicular", "PerpendicularLine", "PL", 'O', GeometryCategory.Lines, listOf("Through", "The line")),
+    Parallel("Parallel", "ParallelLine", "PL", 'O', GeometryCategory.Lines, listOf("Through", "The line")),
+    Bisector("Perpendicular bisector", "PerpendicularBisector", "PP", 'O', GeometryCategory.Lines, listOf("First point", "Second point")),
+    AngleBisector("Angle bisector", "AngleBisector", "PPP", 'O', GeometryCategory.Lines, listOf("Point", "Corner", "Point")),
+    Tangent("Tangent", "Tangent", "PC", 'O', GeometryCategory.Lines, listOf("From", "Circle or conic")),
+    Polygon("Polygon", "Polygon", "", 'O', GeometryCategory.Shapes, listOf("Corners")),
+    Circle("Circle", "Circle", "PP", 'O', GeometryCategory.Shapes, listOf("Center", "On the circle")),
+    Circle3("Circle through 3", "Circle", "PPP", 'O', GeometryCategory.Shapes, listOf("Point", "Point", "Point")),
+    Semicircle("Semicircle", "Semicircle", "PP", 'O', GeometryCategory.Shapes, listOf("Start", "End")),
+    Arc("Arc", "CircularArc", "PPP", 'O', GeometryCategory.Shapes, listOf("Center", "Start", "End")),
+    Sector("Sector", "CircularSector", "PPP", 'O', GeometryCategory.Shapes, listOf("Center", "Start", "End")),
+    Ellipse("Ellipse", "Ellipse", "PPP", 'O', GeometryCategory.Conics, listOf("Focus", "Focus", "On it")),
+    Hyperbola("Hyperbola", "Hyperbola", "PPP", 'O', GeometryCategory.Conics, listOf("Focus", "Focus", "On it")),
+    Parabola("Parabola", "Parabola", "PL", 'O', GeometryCategory.Conics, listOf("Focus", "Directrix")),
+    Conic("Conic through 5", "Conic", "PPPPP", 'O', GeometryCategory.Conics, listOf("Point", "Point", "Point", "Point", "Point")),
+    Angle("Angle", "Angle", "PPP", 'A', GeometryCategory.Measure, listOf("Point", "Corner", "Point")),
+    Distance("Distance", "Distance", "PP", 'O', GeometryCategory.Measure, listOf("Point", "Point")),
+    Reflect("Reflect", "Reflect", "XL", 'O', GeometryCategory.Measure, listOf("What to reflect", "Mirror line")),
+    Locus("Locus", "Locus", "PP", 'O', GeometryCategory.Measure, listOf("Tracing point", "Moving point"));
+
+    /** What to tap for a step, from its slot. */
+    fun instruction(slot: Char?): String = when (slot) {
+        'P' -> if (this == Polygon) "Tap the corners, then the first again to close" else "Tap a point, or an empty spot to make one"
+        'O' -> "Tap a line, circle, polygon or curve"
+        'L' -> "Tap a line, segment or ray"
+        'C' -> "Tap a circle or conic"
+        'X' -> "Tap a point or an object"
+        else -> "Drag points to move them"
+    }
 }

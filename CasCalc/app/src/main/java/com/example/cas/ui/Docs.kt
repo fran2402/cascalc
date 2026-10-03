@@ -592,7 +592,8 @@ object Docs {
                 ),
                 section(
                     "Building by tapping",
-                    para("Construct, top right of the graph, opens the tools, as GeoGebra's toolbar does: points (on their own, on an object, where two objects cross, midpoints), lines (segment, line, ray, vector, perpendicular, parallel, bisectors, tangents), circles and arcs, polygons, conics, Reflect, Angle and Distance. Tap points, or empty space to make one there; tools that need a line, circle or curve take a tap on it (what's picked is highlighted). A polygon closes when you tap its first corner again. New lines are named as GeoGebra names them (A, B… for points, f, g… for others, α, β… for angles). Tap the hint at the bottom, or Construct, to stop."),
+                    para("Construct, top right of the graph, starts building. The tool palette at the bottom groups the tools as GeoGebra does (points, lines, circles and shapes, conics, measure and more), each with an icon; Move, the first, just drags points. Picking a tool folds the palette to a bar of recent tools, and a card at the top shows each step (its dots, what it's for, what to tap) and what you've picked, with Undo, Close for a polygon, and Done."),
+                    para("Tap points, or empty space to make one there; tools that need a line, circle or curve take a tap on it, and whatever the next tap can take glows. New lines are named as GeoGebra names them (A, B… for points, f, g… for others, α, β… for angles)."),
                     para("＋ › Geometry lists every command; tap one to start a line with it."),
                     para("A construction's options (tap its color dot) set a point's size, whether its name and coordinates show, a shape's fill, and for a point on an object, Move along its path: it goes round once in 10 seconds, or back and forth, and everything built on it moves too, a locus included."),
                 ),

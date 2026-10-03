@@ -26,6 +26,10 @@ import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.North
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.Apps
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.filled.Hexagon
 import androidx.compose.ui.text.font.FontWeight
@@ -164,10 +168,11 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
     val measurer = rememberTextMeasurer()
     var size by remember { mutableStateOf(IntSize.Zero) }
     var trace by remember { mutableStateOf<Special?>(null) }
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     // A free point's drag has moved it (the first move is the undo step).
     var moved by remember { mutableStateOf(false) }
     // Lines are read again when geometry is turned on or off in settings.
-    androidx.compose.runtime.LaunchedEffect(AppSettings.geometry) { vm.refreshAll(); if (!AppSettings.geometry) vm.geometryTool = null }
+    androidx.compose.runtime.LaunchedEffect(AppSettings.geometry) { vm.refreshAll(); if (!AppSettings.geometry) vm.stopConstructing() }
     val themeColors = (0 until GraphViewModel.PLOT_COLOR_COUNT).map { plotColor(it) }
     // Colors picked by long-pressing a function's dot replace the theme's.
     val picked = vm.functions.mapNotNull { f -> f.customColor?.let { f.colorIndex to Color(it) } }.toMap()
@@ -351,7 +356,9 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                             }
                             val snapX = Plot2D.niceStep(v.width, 100); val snapY = Plot2D.niceStep(v.height, 100)
                             fun newPoint() = vm.addFreePoint(Math.round(wx / snapX) * snapX, Math.round(wy / snapY) * snapY)
+                            haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
                             when (tool) {
+                                GeometryTool.Move -> {}
                                 GeometryTool.Point -> if (pointNear() == null) newPoint()
                                 GeometryTool.PointOn -> objectNear('O')?.let { vm.addPointOn(it, wx, wy) }
                                 else -> when (val need = vm.geometryNeeds ?: 'P') {
@@ -472,6 +479,28 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                     drawText(t, topLeft = at)
                 }
             }
+            // What the next tap can take, softly lit: objects of the kind wanted, or the points to choose from.
+            vm.geometryNeeds?.let { need ->
+                val glow = colors.primary.copy(alpha = 0.14f)
+                plotted.forEach { p ->
+                    val o = if (p.f.geometry != null) vm.geometryOf(p.f) else null
+                    val isFunction = p.f.geometry == null && com.example.cas.engine.UserFunction.definition(p.f.editor.root.items)?.second?.size == 1
+                    val fits = when (need) {
+                        'L' -> o is com.example.cas.graph.Geometry.Line || o is com.example.cas.graph.Geometry.Segment || o is com.example.cas.graph.Geometry.Ray || o is com.example.cas.graph.Geometry.Vector
+                        'C' -> o is com.example.cas.graph.Geometry.Circle || o is com.example.cas.graph.Geometry.Conic || o is com.example.cas.graph.Geometry.Arc
+                        'O', 'X' -> isFunction || o != null && o !is com.example.cas.graph.Geometry.Point && o !is com.example.cas.graph.Geometry.Number && o !is com.example.cas.graph.Geometry.Angle && o !is com.example.cas.graph.Geometry.Bool
+                        else -> false
+                    }
+                    if (fits) p.lines.forEach { line ->
+                        val path = Path()
+                        line.forEachIndexed { k, (x, y) -> val q = toScreen(v, x, y); if (k == 0) path.moveTo(q.x, q.y) else path.lineTo(q.x, q.y) }
+                        drawPath(path, glow, style = Stroke(12.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    }
+                    if ((need == 'P' || need == 'X') && o is com.example.cas.graph.Geometry.Point) p.points.firstOrNull()?.let { s ->
+                        drawCircle(glow, radius = 13.dp.toPx(), center = toScreen(v, s.x, s.y))
+                    }
+                }
+            }
             // What's picked so far with a tool: points ringed, objects drawn over in a broad band.
             if (vm.geometryTool != null) vm.geometryPicks.forEach { name ->
                 val p = plotted.firstOrNull { it.f.geometry?.name == name || it.f.geometry == null && com.example.cas.engine.UserFunction.definition(it.f.editor.root.items)?.first == name } ?: return@forEach
@@ -501,16 +530,13 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
             )
             vm.area?.let { ar -> AreaCard(ar, onClose = { vm.clearArea() }, onUse = { v -> onUseValue(v) }) }
         }
-        if (AppSettings.geometry) GeometryToolbar(vm, Modifier.align(Alignment.TopEnd).padding(10.dp))
-        vm.geometryTool?.let { tool ->
-            val step = if (tool.slots.length > 1) " (${vm.geometryPicks.size + 1} of ${tool.slots.length})" else if (tool == GeometryTool.Polygon && vm.geometryPicks.isNotEmpty()) " (${vm.geometryPicks.size} so far)" else ""
-            Text(
-                tool.hint + step,
-                color = colors.inverseOnSurface,
-                style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp),
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 92.dp).clip(CircleShape).background(colors.inverseSurface)
-                    .clickable(onClickLabel = "Stop building") { vm.geometryTool = null; vm.geometryPicks.clear() }.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
+        // Construct mode: a button to start it; then a status card on top and the tool palette below.
+        if (AppSettings.geometry) {
+            if (!vm.constructing) ConstructButton(onClick = { vm.constructing = true }, modifier = Modifier.align(Alignment.TopEnd).padding(10.dp))
+            else {
+                ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 12.dp, end = 12.dp))
+                ConstructPalette(vm, Modifier.align(Alignment.BottomCenter).padding(bottom = 78.dp, start = 10.dp, end = 10.dp))
+            }
         }
         if (vm.areaStart != null) {
             Text(
@@ -1532,53 +1558,6 @@ private fun areaRow(between: Boolean, lo: String, hi: String): com.example.cas.e
 }
 
 
-/**
- * Building by tapping (geometry, alpha): a button that opens the tools, GeoGebra's toolbar in
- * short; the tool in use is shown filled. Tapping it again puts the tools away.
- */
-@Composable
-private fun GeometryToolbar(vm: Graph2DViewModel, modifier: Modifier) {
-    val colors = MaterialTheme.colorScheme
-    var open by remember { mutableStateOf(false) }
-    Column(modifier, horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(
-            Modifier.clip(CircleShape).background(if (vm.geometryTool != null || open) colors.primary else colors.secondaryContainer)
-                .clickable(onClickLabel = if (open) "Hide the geometry tools" else "Show the geometry tools") { open = !open; if (!open) { vm.geometryTool = null; vm.geometryPicks.clear() } }
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            val ink = if (vm.geometryTool != null || open) colors.onPrimary else colors.onSecondaryContainer
-            Icon(Icons.Default.Hexagon, contentDescription = null, tint = ink, modifier = Modifier.size(18.dp))
-            Text(vm.geometryTool?.label ?: "Construct", color = ink, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp, fontWeight = FontWeight.Medium))
-            Text("α", color = ink.copy(alpha = 0.7f), style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 12.sp))
-        }
-        // Two columns, as there are many tools; scrolls when the graph is short.
-        if (open) Column(
-            Modifier.widthIn(max = 340.dp).heightIn(max = 460.dp).clip(RoundedCornerShape(18.dp)).background(colors.surfaceContainerHigh).verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(6.dp),
-        ) {
-            GeometryTool.entries.chunked(2).forEach { pair ->
-                Row {
-                    pair.forEach { tool ->
-                        val on = vm.geometryTool == tool
-                        Text(
-                            tool.label,
-                            color = if (on) colors.onSecondaryContainer else colors.onSurface,
-                            style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp),
-                            maxLines = 1,
-                            modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(if (on) colors.secondaryContainer else Color.Transparent)
-                                .clickable(onClickLabel = "Use the ${tool.label} tool") { vm.geometryPicks.clear(); vm.geometryTool = if (on) null else tool; if (!on) open = false }
-                                .padding(horizontal = 10.dp, vertical = 8.dp),
-                        )
-                    }
-                    if (pair.size == 1) Spacer(Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}
-
-
 /** How far [p] is from a polyline (in screen pixels). */
 private fun polylineDistance(line: List<Offset>, p: Offset): Float {
     var best = Float.MAX_VALUE
@@ -1592,4 +1571,227 @@ private fun polylineDistance(line: List<Offset>, p: Offset): Float {
     }
     if (line.size == 1) best = (line[0] - p).getDistance()
     return best
+}
+
+
+/** Starts construct mode: GeoGebra's toolbar, in short. */
+@Composable
+private fun ConstructButton(onClick: () -> Unit, modifier: Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        modifier.shadow(4.dp, CircleShape).clip(CircleShape).background(colors.secondaryContainer)
+            .clickable(onClickLabel = "Start constructing", onClick = onClick).padding(start = 12.dp, end = 14.dp, top = 9.dp, bottom = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Icon(Icons.Default.Hexagon, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(18.dp))
+        Text("Construct", color = colors.onSecondaryContainer, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp, fontWeight = FontWeight.Medium))
+        BetaBadge("Alpha")
+    }
+}
+
+/**
+ * What's being built: the tool, which step it's on (dots, and the step's role), what to tap
+ * next, the picks so far as chips, and Undo, Close (a polygon) and Done.
+ */
+@Composable
+private fun ConstructStatus(vm: Graph2DViewModel, modifier: Modifier) {
+    val colors = MaterialTheme.colorScheme
+    val tool = vm.geometryTool ?: GeometryTool.Move
+    val picks = vm.geometryPicks
+    Column(
+        modifier.widthIn(max = 460.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp))
+            .background(colors.surfaceContainerHigh).padding(start = 14.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(colors.primaryContainer), contentAlignment = Alignment.Center) {
+                val ink = colors.onPrimaryContainer; val accent = colors.primary
+                androidx.compose.foundation.Canvas(Modifier.size(24.dp)) { drawToolIcon(tool, ink, accent) }
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                val stepName = when {
+                    tool == GeometryTool.Move -> "Pick a tool below"
+                    tool == GeometryTool.Polygon -> if (picks.isEmpty()) "Corners" else "${picks.size} corner" + (if (picks.size == 1) "" else "s")
+                    else -> "Step ${picks.size + 1} of ${tool.slots.length} · " + tool.steps.getOrElse(picks.size) { "" }
+                }
+                Text(tool.label, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 16.sp, fontWeight = FontWeight.Medium), color = colors.onSurface)
+                Text(stepName, style = MaterialTheme.typography.labelMedium, color = colors.primary)
+            }
+            if (picks.isNotEmpty()) IconButton(onClick = { vm.undoPick() }) {
+                Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Take back the last pick", tint = colors.onSurfaceVariant)
+            }
+            if (tool == GeometryTool.Polygon && picks.size >= 3) androidx.compose.material3.FilledTonalButton(onClick = { vm.closePolygon() }, contentPadding = PaddingValues(horizontal = 14.dp)) { Text("Close") }
+            androidx.compose.material3.TextButton(onClick = { vm.stopConstructing() }) { Text("Done") }
+        }
+        // Progress: a dot per step, filled when done, ringed for the current one.
+        if (tool != GeometryTool.Move && tool != GeometryTool.Polygon && tool.slots.length > 1) Row(Modifier.padding(start = 48.dp, top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            repeat(tool.slots.length) { k ->
+                val done = k < picks.size; val now = k == picks.size
+                Box(Modifier.size(if (now) 10.dp else 8.dp).clip(CircleShape).background(if (done) colors.primary else if (now) colors.primary.copy(alpha = 0.35f) else colors.outlineVariant))
+            }
+        }
+        Text(
+            tool.instruction(vm.geometryNeeds),
+            style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
+            modifier = Modifier.padding(start = 48.dp, top = 4.dp, end = 8.dp),
+        )
+        if (picks.isNotEmpty()) Row(Modifier.padding(start = 48.dp, top = 8.dp).horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            picks.forEachIndexed { k, name ->
+                Row(
+                    Modifier.clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(tool.steps.getOrElse(k) { tool.steps.firstOrNull() ?: "" } + " ", style = MaterialTheme.typography.labelSmall, color = colors.onSecondaryContainer.copy(alpha = 0.7f))
+                    Text(geometryLabel(name), style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 15.sp), color = colors.onSecondaryContainer)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The tools, GeoGebra's toolbar as an M3 sheet: groups as tabs, each tool a tile with a drawn
+ * icon; recent tools first. While a tool is in use it folds to one row (the tool, recent ones,
+ * and a button to open it again), so the graph stays clear for tapping.
+ */
+@Composable
+private fun ConstructPalette(vm: Graph2DViewModel, modifier: Modifier) {
+    val colors = MaterialTheme.colorScheme
+    var open by remember { mutableStateOf(true) }
+    var category by remember { mutableStateOf(GeometryCategory.Points) }
+    // A tool picked folds the sheet; Move (or none) opens it.
+    androidx.compose.runtime.LaunchedEffect(vm.geometryTool) { open = vm.geometryTool == null }
+    Column(
+        modifier.widthIn(max = 520.dp).fillMaxWidth().shadow(8.dp, RoundedCornerShape(28.dp)).clip(RoundedCornerShape(28.dp))
+            .background(colors.surfaceContainer).padding(10.dp),
+    ) {
+        if (!open) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                (listOf(GeometryTool.Move) + vm.recentTools).distinct().take(5).forEach { t -> ToolChip(vm, t, compact = true) }
+                Spacer(Modifier.weight(1f))
+                Row(
+                    Modifier.clip(CircleShape).background(colors.secondaryContainer).clickable(onClickLabel = "All tools") { open = true }.padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Default.Apps, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Tools", style = MaterialTheme.typography.labelLarge, color = colors.onSecondaryContainer)
+                }
+            }
+            return@Column
+        }
+        // The groups, as tabs.
+        Row(Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            GeometryCategory.entries.forEach { c ->
+                val on = c == category
+                Text(
+                    c.label,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant,
+                    modifier = Modifier.clip(CircleShape).background(if (on) colors.secondaryContainer else Color.Transparent)
+                        .clickable(onClickLabel = "Show ${c.label}") { category = c }.padding(horizontal = 14.dp, vertical = 8.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        val tools = (if (category == GeometryCategory.Points) listOf(GeometryTool.Move) else emptyList()) + GeometryTool.entries.filter { it.category == category && it != GeometryTool.Move }
+        tools.chunked(4).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+                row.forEach { t -> Box(Modifier.weight(1f)) { ToolChip(vm, t, compact = false) } }
+                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+        if (vm.recentTools.isNotEmpty()) {
+            Text("Recent", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 6.dp, top = 2.dp, bottom = 6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { vm.recentTools.forEach { t -> ToolChip(vm, t, compact = true) } }
+        }
+    }
+}
+
+/** A tool: its drawn icon, and its name under it (or, compact, just the icon in a round button). */
+@Composable
+private fun ToolChip(vm: Graph2DViewModel, tool: GeometryTool, compact: Boolean) {
+    val colors = MaterialTheme.colorScheme
+    val on = (vm.geometryTool ?: GeometryTool.Move) == tool
+    val bg = if (on) colors.primary else if (compact) colors.surfaceContainerHigh else colors.surfaceContainerLow
+    val ink = if (on) colors.onPrimary else colors.onSurface
+    val accent = if (on) colors.onPrimary else colors.primary
+    if (compact) {
+        Box(
+            Modifier.size(44.dp).clip(CircleShape).background(bg).clickable(onClickLabel = tool.label) { vm.selectTool(tool) }
+                .semantics { contentDescription = tool.label + if (on) ", in use" else "" },
+            contentAlignment = Alignment.Center,
+        ) { androidx.compose.foundation.Canvas(Modifier.size(26.dp)) { drawToolIcon(tool, ink, accent) } }
+    } else {
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(bg).clickable(onClickLabel = "Use ${tool.label}") { vm.selectTool(tool) }
+                .padding(vertical = 10.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            androidx.compose.foundation.Canvas(Modifier.size(30.dp)) { drawToolIcon(tool, ink, accent) }
+            Spacer(Modifier.height(4.dp))
+            Text(tool.label, style = MaterialTheme.typography.labelSmall, color = ink, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 13.sp)
+        }
+    }
+}
+
+/**
+ * A tool's icon, drawn: what it makes in [accent], what it's made from in [ink] (points as
+ * dots), like GeoGebra's tool icons.
+ */
+internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawToolIcon(tool: GeometryTool, ink: Color, accent: Color) {
+    val w = size.minDimension
+    fun o(x: Float, y: Float) = Offset(x * w, y * w)
+    val thin = w * 0.065f; val bold = w * 0.09f
+    fun dot(x: Float, y: Float, c: Color = ink) = drawCircle(c, w * 0.085f, o(x, y))
+    fun line(x1: Float, y1: Float, x2: Float, y2: Float, c: Color = accent, width: Float = bold) = drawLine(c, o(x1, y1), o(x2, y2), width, StrokeCap.Round)
+    fun stroke(path: Path, c: Color = accent, width: Float = bold) = drawPath(path, c, style = Stroke(width, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    fun arc(cx: Float, cy: Float, r: Float, start: Float, sweep: Float, c: Color = accent, fill: Boolean = false) =
+        drawArc(c, start, sweep, fill, topLeft = o(cx - r, cy - r), size = androidx.compose.ui.geometry.Size(2 * r * w, 2 * r * w), style = if (fill) androidx.compose.ui.graphics.drawscope.Fill else Stroke(bold, cap = StrokeCap.Round))
+    fun poly(vararg p: Float, closed: Boolean = true): Path = Path().apply { moveTo(p[0] * w, p[1] * w); var k = 2; while (k < p.size) { lineTo(p[k] * w, p[k + 1] * w); k += 2 }; if (closed) close() }
+    when (tool) {
+        GeometryTool.Move -> drawPath(poly(0.28f, 0.14f, 0.28f, 0.8f, 0.44f, 0.64f, 0.56f, 0.9f, 0.66f, 0.85f, 0.54f, 0.6f, 0.76f, 0.6f), accent)
+        GeometryTool.Point -> { dot(0.5f, 0.5f, accent); drawCircle(accent.copy(alpha = 0.3f), w * 0.2f, o(0.5f, 0.5f)) }
+        GeometryTool.PointOn -> { arc(0.5f, 0.5f, 0.32f, 0f, 360f, ink); drawCircle(ink, w * 0.32f, o(0.5f, 0.5f), style = Stroke(thin)); dot(0.73f, 0.27f, accent) }
+        GeometryTool.Intersect -> { line(0.12f, 0.8f, 0.88f, 0.25f, ink, thin); line(0.12f, 0.25f, 0.88f, 0.8f, ink, thin); dot(0.5f, 0.525f, accent) }
+        GeometryTool.Midpoint -> { line(0.14f, 0.7f, 0.86f, 0.3f, ink, thin); dot(0.14f, 0.7f); dot(0.86f, 0.3f); dot(0.5f, 0.5f, accent) }
+        GeometryTool.Segment -> { line(0.18f, 0.74f, 0.82f, 0.26f); dot(0.18f, 0.74f); dot(0.82f, 0.26f) }
+        GeometryTool.Line -> { line(0.02f, 0.88f, 0.98f, 0.12f); dot(0.32f, 0.65f); dot(0.68f, 0.37f) }
+        GeometryTool.Ray -> { line(0.2f, 0.75f, 0.98f, 0.15f); dot(0.2f, 0.75f); dot(0.55f, 0.48f) }
+        GeometryTool.Vector -> { line(0.18f, 0.78f, 0.78f, 0.24f); drawPath(poly(0.86f, 0.16f, 0.62f, 0.24f, 0.78f, 0.4f), accent); dot(0.18f, 0.78f) }
+        GeometryTool.Perpendicular -> { line(0.06f, 0.72f, 0.94f, 0.72f, ink, thin); line(0.5f, 0.06f, 0.5f, 0.94f); dot(0.5f, 0.3f); drawRect(ink, o(0.5f, 0.6f), androidx.compose.ui.geometry.Size(0.12f * w, 0.12f * w), style = Stroke(thin * 0.8f)) }
+        GeometryTool.Parallel -> { line(0.06f, 0.78f, 0.94f, 0.52f, ink, thin); line(0.06f, 0.46f, 0.94f, 0.2f); dot(0.4f, 0.36f) }
+        GeometryTool.Bisector -> { line(0.12f, 0.7f, 0.88f, 0.7f, ink, thin); dot(0.12f, 0.7f); dot(0.88f, 0.7f); line(0.5f, 0.08f, 0.5f, 0.94f) }
+        GeometryTool.AngleBisector -> { line(0.14f, 0.82f, 0.9f, 0.82f, ink, thin); line(0.14f, 0.82f, 0.62f, 0.12f, ink, thin); line(0.14f, 0.82f, 0.94f, 0.36f); dot(0.14f, 0.82f) }
+        GeometryTool.Tangent -> { drawCircle(ink, w * 0.26f, o(0.42f, 0.6f), style = Stroke(thin)); line(0.04f, 0.34f, 0.96f, 0.34f); dot(0.86f, 0.34f) }
+        GeometryTool.Polygon -> { drawPath(poly(0.2f, 0.78f, 0.12f, 0.36f, 0.5f, 0.12f, 0.88f, 0.4f, 0.74f, 0.82f), accent.copy(alpha = 0.25f)); stroke(poly(0.2f, 0.78f, 0.12f, 0.36f, 0.5f, 0.12f, 0.88f, 0.4f, 0.74f, 0.82f), width = thin); dot(0.5f, 0.12f) ; dot(0.2f, 0.78f); dot(0.88f, 0.4f) }
+        GeometryTool.Circle -> { drawCircle(accent, w * 0.34f, o(0.5f, 0.5f), style = Stroke(bold)); dot(0.5f, 0.5f); dot(0.74f, 0.26f) }
+        GeometryTool.Circle3 -> { drawCircle(accent, w * 0.34f, o(0.5f, 0.5f), style = Stroke(bold)); dot(0.16f, 0.5f); dot(0.74f, 0.26f); dot(0.7f, 0.79f) }
+        GeometryTool.Semicircle -> { arc(0.5f, 0.62f, 0.36f, 180f, 180f); line(0.14f, 0.62f, 0.86f, 0.62f, ink, thin); dot(0.14f, 0.62f); dot(0.86f, 0.62f) }
+        GeometryTool.Arc -> { arc(0.3f, 0.7f, 0.56f, -80f, 70f); dot(0.3f, 0.7f); line(0.3f, 0.7f, 0.86f, 0.62f, ink, thin * 0.8f) }
+        GeometryTool.Sector -> { drawArc(accent.copy(alpha = 0.3f), -75f, 75f, true, topLeft = o(-0.32f, 0.12f), size = androidx.compose.ui.geometry.Size(1.24f * w, 1.24f * w)); drawArc(accent, -75f, 75f, true, topLeft = o(-0.32f, 0.12f), size = androidx.compose.ui.geometry.Size(1.24f * w, 1.24f * w), style = Stroke(thin, join = StrokeJoin.Round)); dot(0.3f, 0.74f) }
+        GeometryTool.Ellipse -> { drawOval(accent, o(0.06f, 0.26f), androidx.compose.ui.geometry.Size(0.88f * w, 0.48f * w), style = Stroke(bold)); dot(0.3f, 0.5f); dot(0.7f, 0.5f) }
+        GeometryTool.Hyperbola -> {
+            fun branch(sign: Float) = Path().apply { for (k in 0..20) { val u = -1.4f + 2.8f * k / 20; val x = 0.5f + sign * 0.16f * kotlin.math.cosh(u); val y = 0.5f + 0.2f * kotlin.math.sinh(u); if (k == 0) moveTo(x * w, y * w) else lineTo(x * w, y * w) } }
+            stroke(branch(1f)); stroke(branch(-1f))
+        }
+        GeometryTool.Parabola -> {
+            // A cup opening upward, its focus inside and the directrix under it.
+            stroke(Path().apply { for (k in 0..20) { val x = 0.12f + 0.76f * k / 20; val y = 0.66f - 2.4f * (x - 0.5f) * (x - 0.5f); if (k == 0) moveTo(x * w, y * w) else lineTo(x * w, y * w) } })
+            line(0.08f, 0.88f, 0.92f, 0.88f, ink, thin); dot(0.5f, 0.46f)
+        }
+        GeometryTool.Conic -> { rotate(-25f) { drawOval(accent, o(0.08f, 0.28f), androidx.compose.ui.geometry.Size(0.84f * w, 0.44f * w), style = Stroke(bold)) }; dot(0.12f, 0.62f); dot(0.5f, 0.2f); dot(0.88f, 0.38f); dot(0.5f, 0.8f); dot(0.8f, 0.66f) }
+        GeometryTool.Angle -> { line(0.14f, 0.82f, 0.92f, 0.82f, ink, thin); line(0.14f, 0.82f, 0.7f, 0.18f, ink, thin); arc(0.14f, 0.82f, 0.38f, -49f, 49f); dot(0.14f, 0.82f) }
+        GeometryTool.Distance -> { line(0.14f, 0.5f, 0.86f, 0.5f); line(0.14f, 0.34f, 0.14f, 0.66f, ink, thin); line(0.86f, 0.34f, 0.86f, 0.66f, ink, thin); for (k in 1..5) line(0.14f + 0.12f * k, 0.5f, 0.14f + 0.12f * k, 0.6f, ink, thin * 0.6f) }
+        GeometryTool.Reflect -> {
+            drawLine(ink, o(0.5f, 0.06f), o(0.5f, 0.94f), thin, pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(w * 0.08f, w * 0.06f)))
+            stroke(poly(0.1f, 0.74f, 0.4f, 0.74f, 0.4f, 0.3f), ink, thin); drawPath(poly(0.9f, 0.74f, 0.6f, 0.74f, 0.6f, 0.3f), accent.copy(alpha = 0.35f)); stroke(poly(0.9f, 0.74f, 0.6f, 0.74f, 0.6f, 0.3f), width = thin)
+        }
+        GeometryTool.Locus -> {
+            val path = Path().apply { for (k in 0..24) { val t = k / 24f * 6.283f; val x = 0.5f + 0.36f * kotlin.math.cos(t); val y = 0.5f + 0.22f * kotlin.math.sin(2 * t); if (k == 0) moveTo(x * w, y * w) else lineTo(x * w, y * w) } }
+            drawPath(path, accent, style = Stroke(bold, cap = StrokeCap.Round, pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(w * 0.02f, w * 0.1f))))
+            dot(0.86f, 0.5f, accent)
+        }
+    }
 }
