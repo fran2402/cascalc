@@ -32,7 +32,6 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.material.icons.filled.Hexagon
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.size
@@ -174,6 +173,9 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
     var moved by remember { mutableStateOf(false) }
     // Lines are read again when geometry is turned on or off in settings.
     androidx.compose.runtime.LaunchedEffect(AppSettings.geometry) { vm.refreshAll(); if (!AppSettings.geometry) vm.stopConstructing() }
+    // On a phone, editing a line (or a table opened) closes construct mode, which needs the room.
+    val phone = !isTabletLayout()
+    androidx.compose.runtime.LaunchedEffect(vm.active, vm.tableFor, phone) { if (phone && (vm.active != null || vm.tableFor != null)) vm.stopConstructing() }
     val themeColors = (0 until GraphViewModel.PLOT_COLOR_COUNT).map { plotColor(it) }
     // Colors picked by long-pressing a function's dot replace the theme's.
     val picked = vm.functions.mapNotNull { f -> f.customColor?.let { f.colorIndex to Color(it) } }.toMap()
@@ -198,7 +200,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 val old = size
                 size = new
                 // A height change (the tool palette opening, say) keeps the scale, about the middle.
-                if (vm.view == null) vm.resetView(new) else if (old.height > 0 && old.width == new.width && old.height != new.height) vm.keepScale(old.height, new.height)
+                if (vm.view == null) vm.resetView(new) else if (old.height > 0 && new.height > 0 && old.width == new.width && old.height != new.height) vm.keepScale(old.height, new.height)
             }
             .pointerInput(Unit) {
                 // Drag to move; pinch to zoom around your fingers. A sideways pinch stretches only x,
@@ -241,6 +243,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 // Drag an edge of the shaded area along the graph; its value follows the finger.
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
+                    if (down.isConsumed) return@awaitEachGesture
                     val ar = vm.area ?: return@awaitEachGesture
                     val v0 = vm.view ?: return@awaitEachGesture
                     val reach = 28.dp.toPx()
@@ -266,6 +269,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 // the view's own drag, which gives way when this one takes the gesture.
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
+                    if (down.isConsumed) return@awaitEachGesture
                     val v0 = vm.view ?: return@awaitEachGesture
                     val reach = 28.dp.toPx()
                     val hit = plotted.asSequence().mapNotNull { p -> vm.movableLetters(p.f)?.let { letters -> p to letters } }
@@ -300,7 +304,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 awaitEachGesture {
                     val plotted = latestPlotted
                     val down = awaitFirstDown(requireUnconsumed = false)
-                    if (!AppSettings.geometry) return@awaitEachGesture
+                    if (!AppSettings.geometry || down.isConsumed) return@awaitEachGesture
                     val v0 = vm.view ?: return@awaitEachGesture
                     val reach = 28.dp.toPx()
                     val hit = plotted.asSequence().filter { it.f.geometry?.isFree == true || it.f.geometry?.onPath == true }
@@ -1602,6 +1606,17 @@ private fun polylineDistance(line: List<Offset>, p: Offset): Float {
 }
 
 
+/**
+ * Keeps touches on a card or rail floating over the graph from reaching the graph: every
+ * change is consumed once the card's own buttons and scrolling have had it, so the graph
+ * neither pans nor takes a tap through it.
+ */
+private fun Modifier.blockGraphTouches(): Modifier = pointerInput(Unit) {
+    awaitPointerEventScope {
+        while (true) awaitPointerEvent().changes.forEach { it.consume() }
+    }
+}
+
 /** Starts construct mode (geometry mode's tools). */
 @Composable
 private fun ConstructButton(onClick: () -> Unit, modifier: Modifier) {
@@ -1612,7 +1627,7 @@ private fun ConstructButton(onClick: () -> Unit, modifier: Modifier) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Icon(Icons.Default.Hexagon, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(18.dp))
+        Icon(PlotIcons.Geometry, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(20.dp))
         Text("Construct", color = colors.onSecondaryContainer, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp, fontWeight = FontWeight.Medium))
         BetaBadge("Alpha")
     }
@@ -1629,7 +1644,7 @@ private fun ConstructStatus(vm: Graph2DViewModel, modifier: Modifier) {
     val picks = vm.geometryPicks
     Column(
         modifier.widthIn(max = 460.dp).fillMaxWidth().shadow(6.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp))
-            .background(colors.surfaceContainerHigh).padding(start = 14.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+            .background(colors.surfaceContainerHigh).blockGraphTouches().padding(start = 14.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(colors.primaryContainer), contentAlignment = Alignment.Center) {
@@ -1679,36 +1694,18 @@ private fun ConstructStatus(vm: Graph2DViewModel, modifier: Modifier) {
 }
 
 /**
- * The tools, as an M3 sheet: groups as tabs, each tool a tile with a drawn
- * icon; recent tools first. While a tool is in use it folds to one row (the tool, recent ones,
- * and a button to open it again), so the graph stays clear for tapping.
+ * The tools on a phone, as an M3 sheet under the graph: groups as tabs, each tool a tile of the
+ * same size with a drawn icon. Every group's grid is the same height (it scrolls when a group
+ * has more tools), so the sheet, and the graph above it, never change size.
  */
 @Composable
 private fun ConstructPalette(vm: Graph2DViewModel, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
-    var open by remember { mutableStateOf(true) }
     var category by remember { mutableStateOf(GeometryCategory.Points) }
-    // A tool picked folds the sheet; Move (or none) opens it.
-    androidx.compose.runtime.LaunchedEffect(vm.geometryTool) { open = vm.geometryTool == null }
     Column(
         modifier.fillMaxWidth().wrapContentWidth().widthIn(max = 520.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(28.dp)).clip(RoundedCornerShape(28.dp))
             .background(colors.surfaceContainer).padding(10.dp),
     ) {
-        if (!open) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                (listOf(GeometryTool.Move) + vm.recentTools).distinct().take(5).forEach { t -> ToolChip(vm, t, compact = true) }
-                Spacer(Modifier.weight(1f))
-                Row(
-                    Modifier.clip(CircleShape).background(colors.secondaryContainer).clickable(onClickLabel = "All tools") { open = true }.padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Default.Apps, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text("Tools", style = MaterialTheme.typography.labelLarge, color = colors.onSecondaryContainer)
-                }
-            }
-            return@Column
-        }
         // The groups, as tabs.
         Row(Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             GeometryCategory.entries.forEach { c ->
@@ -1724,8 +1721,10 @@ private fun ConstructPalette(vm: Graph2DViewModel, modifier: Modifier) {
         }
         Spacer(Modifier.height(8.dp))
         val tools = (if (category == GeometryCategory.Points) listOf(GeometryTool.Move) else emptyList()) + GeometryTool.entries.filter { it.category == category && it != GeometryTool.Move }
-        // The group's tools scroll when there are more than fit (the graph keeps most of the screen).
-        Column(Modifier.heightIn(max = 236.dp).verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+        // Two and a half rows show, so a group with more says it scrolls; all groups alike.
+        val scroll = androidx.compose.foundation.rememberScrollState()
+        androidx.compose.runtime.LaunchedEffect(category) { scroll.scrollTo(0) }
+        Column(Modifier.height(TILE_HEIGHT * 2.5f + 12.dp).verticalScroll(scroll)) {
             tools.chunked(4).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
                     row.forEach { t -> Box(Modifier.weight(1f)) { ToolChip(vm, t, compact = false) } }
@@ -1733,12 +1732,11 @@ private fun ConstructPalette(vm: Graph2DViewModel, modifier: Modifier) {
                 }
             }
         }
-        if (vm.recentTools.isNotEmpty()) {
-            Text("Recent", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 6.dp, top = 2.dp, bottom = 6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { vm.recentTools.forEach { t -> ToolChip(vm, t, compact = true) } }
-        }
     }
 }
+
+/** A tool's tile in the phone palette: every one the same height. */
+private val TILE_HEIGHT = 70.dp
 
 /**
  * The tools on a tablet: a rail at the graph's edge, each group under a small heading, its
@@ -1750,6 +1748,7 @@ private fun ConstructRail(vm: Graph2DViewModel, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
     Column(
         modifier.width(118.dp).shadow(6.dp, RoundedCornerShape(26.dp)).clip(RoundedCornerShape(26.dp)).background(colors.surfaceContainer)
+            .blockGraphTouches()
             .verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 8.dp, vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -1783,13 +1782,18 @@ private fun ToolChip(vm: Graph2DViewModel, tool: GeometryTool, compact: Boolean)
         ) { androidx.compose.foundation.Canvas(Modifier.size(26.dp)) { drawToolIcon(tool, ink, accent) } }
     } else {
         Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(bg).clickable(onClickLabel = "Use ${tool.label}") { vm.selectTool(tool) }
-                .padding(vertical = 10.dp, horizontal = 4.dp),
+            Modifier.fillMaxWidth().height(TILE_HEIGHT).clip(RoundedCornerShape(18.dp)).background(bg).clickable(onClickLabel = "Use ${tool.label}") { vm.selectTool(tool) }
+                .padding(top = 8.dp, bottom = 4.dp, start = 3.dp, end = 3.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            androidx.compose.foundation.Canvas(Modifier.size(30.dp)) { drawToolIcon(tool, ink, accent) }
-            Spacer(Modifier.height(4.dp))
-            Text(tool.label, style = MaterialTheme.typography.labelSmall, color = ink, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 13.sp)
+            androidx.compose.foundation.Canvas(Modifier.size(28.dp)) { drawToolIcon(tool, ink, accent) }
+            Spacer(Modifier.height(3.dp))
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Text(
+                    tool.tile, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 12.sp), color = ink, maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+            }
         }
     }
 }

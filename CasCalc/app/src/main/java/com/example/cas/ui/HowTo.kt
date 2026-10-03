@@ -97,6 +97,7 @@ private fun docsIcon(key: String): ImageVector = when (key) {
     "converter" -> Icons.Outlined.SwapHoriz
     "files" -> Icons.Outlined.FolderOpen
     "keys" -> Icons.Outlined.Keyboard
+    "geometry" -> PlotIcons.Geometry
     else -> Icons.Outlined.Description
 }
 

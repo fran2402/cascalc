@@ -26,7 +26,6 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Visibility
 
 import androidx.compose.material.icons.filled.Functions
-import androidx.compose.material.icons.filled.Hexagon
 
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
@@ -84,6 +83,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.ui.graphics.StrokeCap
@@ -1661,43 +1661,18 @@ private fun FitButton(vm: GraphViewModel, f: PlotFunction) {
  */
 @Composable
 private fun AddFabMenu(vm: GraphViewModel, tables: Boolean) {
-    var commands by remember { mutableStateOf(false) }
+    // On a phone, something new to type in gets the screen: the graph steps aside until Enter
+    // (or the keyboard's handle pulled down), and construct mode closes.
+    val phone = !isTabletLayout()
+    fun adding(f: () -> Unit) { if (phone) (vm as? Graph2DViewModel)?.stopConstructing(); f() }
     // Nearest the button first.
     val items = buildList {
-        add(FabItem("Line", Icons.Default.Functions, "Add a line") { vm.add() })
-        add(FabItem("Note", Icons.Default.Notes, "Add a note") { vm.addText(folder = false) })
-        add(FabItem("Folder", Icons.Default.CreateNewFolder, "Add a folder") { vm.addText(folder = true) })
-        if (tables) add(FabItem("Table", Icons.Default.TableChart, "Add a table") { vm.addTable() })
-        if (tables && AppSettings.geometry) add(FabItem("Geometry mode", Icons.Default.Hexagon, "Add a geometry mode command") { commands = true })
+        add(FabItem("Line", Icons.Default.Functions, "Add a line") { adding { vm.add(); if (phone) vm.typingFocus = true } })
+        add(FabItem("Note", Icons.Default.Notes, "Add a note") { adding { vm.addText(folder = false); if (phone) vm.typingFocus = true } })
+        add(FabItem("Folder", Icons.Default.CreateNewFolder, "Add a folder") { adding { vm.addText(folder = true); if (phone) vm.typingFocus = true } })
+        if (tables) add(FabItem("Table", Icons.Default.TableChart, "Add a table") { adding { vm.addTable() } })
     }
     FabMenu(items, size = 48.dp, description = "Add a line, note, folder or table")
-    if (commands) GeometryCommandsDialog(onPick = { c -> commands = false; vm.addCommandLine(c) }, onDismiss = { commands = false })
-}
-
-/** Geometry mode's commands (alpha): tap one to start a line with it. */
-@Composable
-private fun GeometryCommandsDialog(onPick: (com.example.cas.graph.Geometry.Command) -> Unit, onDismiss: () -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.Hexagon, contentDescription = null) },
-        title = { Text("Geometry mode commands") },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                Text("Name a point with a capital (A = (1, 2)) and build on it. Drag free points on the graph.", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
-                Spacer(Modifier.height(8.dp))
-                com.example.cas.graph.Geometry.COMMANDS.forEach { c ->
-                    Column(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = "Add ${c.name}") { onPick(c) }.padding(horizontal = 6.dp, vertical = 8.dp),
-                    ) {
-                        Text(c.usage, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp), color = colors.onSurface)
-                        Text(c.help, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-    )
 }
 
 /** One of a [FabMenu]'s pills: its label, icon, what it says to screen readers, and its action. */
@@ -1833,12 +1808,18 @@ private fun TextRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
         Icon(Icons.Default.Notes, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp).size(20.dp))
         Box(Modifier.weight(1f).padding(vertical = 10.dp)) {
             val style = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface)
+            val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+            val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+            // Just added: straight into typing.
+            androidx.compose.runtime.LaunchedEffect(f) { if (vm.justAdded === f) { vm.justAdded = null; runCatching { focus.requestFocus() } } }
             androidx.compose.foundation.text.BasicTextField(
                 value = f.note.orEmpty(),
                 onValueChange = { vm.setNote(f, it) },
                 textStyle = style,
                 cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.primary),
-                modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Note" },
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { focusManager.clearFocus(); vm.typingFocus = false }),
+                modifier = Modifier.fillMaxWidth().focusRequester(focus).semantics { contentDescription = "Note" },
             )
             if (f.note.isNullOrEmpty()) Text("Note", style = style, color = colors.onSurfaceVariant)
         }
@@ -1859,6 +1840,8 @@ private fun FolderRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
     val colors = MaterialTheme.colorScheme
     val tint = folderColor(f, colors)
     var editing by remember { mutableStateOf(false) }
+    // Just added: its name straight away.
+    androidx.compose.runtime.LaunchedEffect(f) { if (vm.justAdded === f) { vm.justAdded = null; editing = true } }
     val tap = rememberKeyTap()
     Row(
         Modifier
@@ -1896,7 +1879,7 @@ private fun FolderRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
         }
         if (handle != null) Icon(Icons.Default.DragIndicator, contentDescription = "Drag to reorder", tint = colors.onSurfaceVariant, modifier = handle.size(40.dp).padding(8.dp))
     }
-    if (editing) FolderDialog(vm, f, onDismiss = { editing = false })
+    if (editing) FolderDialog(vm, f, onDismiss = { editing = false; vm.typingFocus = false })
 }
 
 /** A folder's name, color and place, all in one dialog: the line color picker with the name on top. */
@@ -2688,10 +2671,29 @@ fun GraphScaffold(vm: GraphViewModel, outputLabel: String, modifier: Modifier = 
         }
         return
     }
+    // Construct mode on a phone: the tools take the list's place (it comes back when closed).
+    val listAway = (vm as? Graph2DViewModel)?.constructing == true && AppSettings.geometry
+    // Typing something new: the graph (and its buttons) step aside, and the list has the room.
+    val focus = vm.typingFocus
+    // A note's keyboard closing (Back, or Done) ends it too.
+    val imeVisible = androidx.compose.foundation.layout.WindowInsets.ime.getBottom(androidx.compose.ui.platform.LocalDensity.current) > 0
+    var imeSeen by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(imeVisible, focus) {
+        if (!focus) imeSeen = false
+        else if (imeVisible) imeSeen = true
+        else if (imeSeen && vm.active == null) vm.typingFocus = false
+    }
+    // The graph's last height, kept while it's away so it doesn't redraw at another size.
+    val lastPlot = remember { intArrayOf(0) }
     androidx.compose.ui.layout.Layout(
         contents = listOf(
             { Box(Modifier.fillMaxSize()) { canvas() } },
-            { FunctionList(vm, outputLabel) },
+            {
+                if (!listAway) Column {
+                    if (focus) ShowGraphPill(onShow = { vm.typingFocus = false })
+                    FunctionList(vm, outputLabel)
+                }
+            },
             {
                 androidx.compose.animation.AnimatedVisibility(
                     visible = vm.active != null && !vm.keypadHidden,
@@ -2706,17 +2708,45 @@ fun GraphScaffold(vm: GraphViewModel, outputLabel: String, modifier: Modifier = 
         // The keyboard first, at its full height; then the lines; the plot keeps at least 120 dp.
         val kp = keys.map { it.measure(androidx.compose.ui.unit.Constraints(minWidth = w, maxWidth = w, maxHeight = h)) }
         val kh = kp.sumOf { it.height }
-        val room = (h - kh - 120.dp.roundToPx()).coerceAtLeast(0)
-        val lp = lines.map { it.measure(androidx.compose.ui.unit.Constraints(minWidth = w, maxWidth = w, maxHeight = room)) }
+        val all = (h - kh).coerceAtLeast(0)
+        val room = if (focus) all else (all - 120.dp.roundToPx()).coerceAtLeast(0)
+        val lp = lines.map { it.measure(androidx.compose.ui.unit.Constraints(minWidth = w, maxWidth = w, minHeight = if (focus) room else 0, maxHeight = room)) }
         val lh = lp.sumOf { it.height }
-        val ph = (h - kh - lh).coerceAtLeast(0)
-        val pp = plot.map { it.measure(androidx.compose.ui.unit.Constraints.fixed(w, ph)) }
+        val ph = if (focus) 0 else (h - kh - lh).coerceAtLeast(0)
+        if (ph > 0) lastPlot[0] = ph
+        // Away, the graph keeps its last size but isn't placed (not drawn, not touched).
+        val pp = plot.map { it.measure(androidx.compose.ui.unit.Constraints.fixed(w, if (focus) lastPlot[0].coerceAtLeast(1) else ph)) }
         layout(w, h) {
             var y = 0
-            pp.forEach { it.place(0, y) }; y += ph
+            if (!focus) pp.forEach { it.place(0, y) }
+            y += ph
             lp.forEach { it.place(0, y); y += it.height }
             kp.forEach { it.place(0, y); y += it.height }
         }
+    }
+}
+
+/**
+ * Over the list while the graph is away for typing: a pill to pull down (or tap) to bring the
+ * graph back, as the keyboard's own handle does.
+ */
+@Composable
+private fun ShowGraphPill(onShow: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    var pulled by remember { mutableStateOf(0f) }
+    Box(
+        Modifier.fillMaxWidth().height(28.dp)
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onDragStart = { pulled = 0f },
+                    onVerticalDrag = { _, dy -> pulled += dy },
+                    onDragEnd = { if (pulled > 24.dp.toPx()) onShow() },
+                )
+            }
+            .clickable(onClickLabel = "Show the graph", onClick = onShow),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.size(width = 36.dp, height = 4.dp).clip(CircleShape).background(colors.onSurfaceVariant.copy(alpha = 0.4f)))
     }
 }
 

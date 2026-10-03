@@ -203,6 +203,22 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (3 October, typing room and construct polish)
+- **Room to type (phones, all three graph modes):** adding a line, note or folder hides the graph
+  and its buttons so the list gets the screen. Enter, pulling down the keyboard's handle, the
+  pill over the list, or closing a note's keyboard brings the graph back. A new note is focused
+  straight away, and a new folder asks for its name.
+- **Construct mode on phones:** the palette takes the list's place under the graph. The list comes
+  back when construct mode closes, which now happens on its own when a line is edited or a line,
+  note, folder or table is added. The palette no longer folds or shows recent tools. Every group's
+  grid is the same height (it scrolls), and every tile is the same size, with short names
+  ("Perp. bisector").
+- **Tablets:** touches on the construct rail and status card no longer pan or tap the graph
+  behind them.
+- **＋ menu:** the geometry entry is gone. Every command, with what it does, is listed in
+  Settings › Documentation › Geometry mode.
+- **New geometry mode icon:** a compass drawing an arc.
+
 ## Latest changes (3 October, geometry fifth pass)
 - **Tool palette under the graph:** on phones the construct palette now sits below the graph,
   which shrinks to make room and keeps its scale, so nothing is hidden behind it. Dragging over

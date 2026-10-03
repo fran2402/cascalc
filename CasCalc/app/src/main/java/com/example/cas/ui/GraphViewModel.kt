@@ -627,7 +627,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     fun edit(f: PlotFunction?) {
         if (f != null && isDataLine(f)) return
         active = f
-        if (f != null) keypadHidden = false
+        if (f != null) keypadHidden = false else typingFocus = false
     }
 
     fun toggleVisible(f: PlotFunction) {
@@ -1011,18 +1011,6 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         return f
     }
 
-    /** A new line starting with [c] and its brackets, the cursor between them, ready to type what it takes. */
-    fun addCommandLine(c: com.example.cas.graph.Geometry.Command) {
-        val row = MathRow()
-        listOf(c.name, "(", ")").forEach { row.add(row.items.size, com.example.cas.editor.Sym(it)) }
-        val f = addFunction(row)
-        f.editor.setCursor(f.editor.root, 2)
-        active = f
-        keypadHidden = false
-        version++
-        save()
-    }
-
     /** Works every line out again (geometry turned on or off). */
     fun refreshAll() { geometryCache = null; recompileAll() }
 
@@ -1051,14 +1039,10 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     /** Construct mode: the tool palette is open (with Move, nothing is built by tapping). */
     var constructing by mutableStateOf(false)
 
-    /** Tools used lately, newest first (shown first in the palette). */
-    val recentTools = mutableStateListOf<GeometryTool>()
-
     /** Picks a tool (Move for none), starting its picks over. */
     fun selectTool(tool: GeometryTool) {
         geometryPicks.clear()
         geometryTool = if (tool == GeometryTool.Move) null else tool
-        if (tool != GeometryTool.Move) { recentTools.remove(tool); recentTools.add(0, tool); while (recentTools.size > 4) recentTools.removeAt(recentTools.lastIndex) }
     }
 
     /** Leaves construct mode. */
@@ -1863,6 +1847,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         f.note = if (folder) "Folder" else ""
         f.isFolder = folder
         active = null
+        justAdded = f
         version++
         save()
     }
@@ -2036,7 +2021,20 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
 
     // ---- Showing and hiding the keypad -------------------------------------------------
 
-    override var keypadHidden by mutableStateOf(false)
+    private var keypadHiddenState by mutableStateOf(false)
+    /** The keypad pulled down; that also ends [typingFocus] (the graph comes back). */
+    override var keypadHidden: Boolean
+        get() = keypadHiddenState
+        set(v) { keypadHiddenState = v; if (v) typingFocus = false }
+
+    /**
+     * On a phone, a line, note or folder just added: the graph and its buttons step aside so the
+     * list has the room to type in. Enter, the keyboard's handle, or the pill over the list ends it.
+     */
+    var typingFocus by mutableStateOf(false)
+
+    /** A note or folder just added, to be focused (or named) as it appears. */
+    var justAdded by mutableStateOf<PlotFunction?>(null)
 
     // ---- KeypadHost: keys edit the active function -------------------------------
 
@@ -2443,6 +2441,18 @@ enum class GeometryTool(
     Rotate("Rotate", "Rotate", "XP", 'O', GeometryCategory.Transform, listOf("What to turn", "Center"), ask = "Angle (degrees)"),
     Translate("Translate", "Translate", "XV", 'O', GeometryCategory.Transform, listOf("What to move", "The vector")),
     Dilate("Dilate", "Dilate", "XP", 'O', GeometryCategory.Transform, listOf("What to scale", "Center"), ask = "Factor");
+
+    /** The name on its tile in the palette, short enough for two lines. */
+    val tile: String get() = when (this) {
+        Bisector -> "Perp. bisector"
+        Perpendicular -> "Perp. line"
+        Inflection -> "Inflections"
+        CircleRadius -> "Circle, radius"
+        SegmentLength -> "Segment, length"
+        AngleSize -> "Angle, size"
+        CommonTangent -> "Common tangents"
+        else -> label
+    }
 
     /** Any number of points, finished with a button (or, for a polygon, its first corner tapped again). */
     val multi get() = slots.isEmpty() && this != Move
