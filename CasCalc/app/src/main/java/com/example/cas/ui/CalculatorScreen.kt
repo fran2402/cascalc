@@ -1,5 +1,7 @@
 package com.example.cas.ui
 
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
+
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Search
@@ -580,21 +582,18 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
             }
             }
         }
-        // Actions, on the newest card or a tapped one.
+        // Actions, on the newest card or a tapped one: the main ones as buttons (Graph or Use,
+        // and Steps), copy and pin as icons, and the rest in the ⋮ menu.
         AnimatedVisibility(focused, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
-            androidx.compose.foundation.layout.FlowRow(
-                Modifier.fillMaxWidth().padding(top = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 @Composable
                 fun action(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, spoken: String, tonal: Boolean = false, onClick: () -> Unit) {
                     Row(
-                        Modifier.height(36.dp).clip(RoundedCornerShape(12.dp))
+                        Modifier.height(40.dp).clip(RoundedCornerShape(14.dp))
                             .background(if (tonal) colors.secondaryContainer else Color.Transparent)
-                            .then(if (tonal) Modifier else Modifier.border(1.dp, colors.outlineVariant, RoundedCornerShape(12.dp)))
+                            .then(if (tonal) Modifier else Modifier.border(1.dp, colors.outlineVariant, RoundedCornerShape(14.dp)))
                             .clickable(onClickLabel = spoken) { tap(); onClick() }
-                            .padding(start = 10.dp, end = 14.dp),
+                            .padding(start = 12.dp, end = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         val fg = if (tonal) colors.onSecondaryContainer else colors.onSurfaceVariant
@@ -603,34 +602,50 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                         Text(label, color = fg, style = MaterialTheme.typography.labelLarge, maxLines = 1)
                     }
                 }
-                item.graph?.let { g ->
-                    action(
-                        if (g.dimensions == 1) TabIcons.Complex else Icons.AutoMirrored.Filled.ShowChart,
-                        "Graph", when (g.dimensions) { 1 -> "Plot on the complex plane"; 2 -> "Graph this"; else -> "Graph this in 3D" }, tonal = true,
-                    ) { onGraph(g) }
-                }
-                // Beta: the working, for an integral or a loop integral.
+                val g = item.graph
+                if (g != null) action(
+                    if (g.dimensions == 1) TabIcons.Complex else Icons.AutoMirrored.Filled.ShowChart,
+                    "Graph", when (g.dimensions) { 1 -> "Plot on the complex plane"; 2 -> "Graph this"; else -> "Graph this in 3D" }, tonal = true,
+                ) { onGraph(g) }
+                else action(Icons.AutoMirrored.Filled.KeyboardReturn, "Use", "Use this answer", tonal = true) { vm.reuse(shown) }
+                // Beta: the working.
                 if (AppSettings.showSteps && remember(item) { Steps.supports(item.expression) }) {
                     action(Icons.AutoMirrored.Filled.FormatListBulleted, "Steps", "Show the steps") { showingSteps = true }
                 }
-                action(Icons.AutoMirrored.Filled.KeyboardReturn, "Use", "Use this answer", tonal = item.graph == null) { vm.reuse(shown) }
-                action(Icons.Default.ContentCopy, "Copy", "Copy the answer") { copy(Formatter.plain(shown), "Answer") }
-                action(if (item.pinned) Icons.Default.PushPin else Icons.Outlined.PushPin, if (item.pinned) "Unpin" else "Pin", if (item.pinned) "Unpin" else "Pin: keep it whatever the history limit") { vm.togglePin(item) }
-                action(Icons.Default.Folder, item.folder ?: "Folder", "Move to a folder") { movingToFolder = true }
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = { tap(); copy(Formatter.plain(shown), "Answer") }) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy the answer", tint = colors.onSurfaceVariant)
+                }
+                IconButton(onClick = { tap(); vm.togglePin(item) }) {
+                    Icon(
+                        if (item.pinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
+                        contentDescription = if (item.pinned) "Unpin" else "Pin: keep it whatever the history limit",
+                        tint = if (item.pinned) colors.primary else colors.onSurfaceVariant,
+                    )
+                }
                 Box {
-                    action(Icons.Default.Share, "Share", "Share or delete") { shareMenu = true }
-                    DropdownMenu(expanded = shareMenu, onDismissRequest = { shareMenu = false }) {
-                        DropdownMenuItem(text = { Text("Share as image") }, onClick = {
+                    IconButton(onClick = { tap(); shareMenu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More: folder, share, delete", tint = colors.onSurfaceVariant) }
+                    DropdownMenu(expanded = shareMenu, onDismissRequest = { shareMenu = false }, shape = RoundedCornerShape(16.dp)) {
+                        if (g != null) DropdownMenuItem(
+                            text = { Text("Use the answer") }, leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardReturn, null) },
+                            onClick = { shareMenu = false; vm.reuse(shown) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(item.folder?.let { "Folder: $it" } ?: "Move to a folder") }, leadingIcon = { Icon(Icons.Default.Folder, null) },
+                            onClick = { shareMenu = false; movingToFolder = true },
+                        )
+                        HorizontalDivider()
+                        DropdownMenuItem(text = { Text("Share as image") }, leadingIcon = { Icon(Icons.Default.Share, null) }, onClick = {
                             shareMenu = false
                             scope.launch { shareImage(context, layer.toImageBitmap().asAndroidBitmap()) }
                         })
-                        DropdownMenuItem(text = { Text("Share as LaTeX") }, onClick = { shareMenu = false; shareText(context, latex()) })
-                        DropdownMenuItem(text = { Text("Copy LaTeX") }, onClick = { shareMenu = false; copy(latex(), "LaTeX") })
+                        DropdownMenuItem(text = { Text("Share as LaTeX") }, leadingIcon = { Icon(Icons.Default.Share, null) }, onClick = { shareMenu = false; shareText(context, latex()) })
+                        DropdownMenuItem(text = { Text("Copy LaTeX") }, leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, onClick = { shareMenu = false; copy(latex(), "LaTeX") })
                         HorizontalDivider()
                         // Delete, as swiping does (asking first when that's on).
                         DropdownMenuItem(
-                            text = { Text("Delete") },
-                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
+                            text = { Text("Delete", color = colors.error) },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = colors.error) },
                             onClick = { shareMenu = false; if (AppSettings.confirmDeleteEntry) confirm = true else vm.deleteHistory(item) },
                         )
                     }
@@ -1526,6 +1541,8 @@ private fun SettingsChoice(title: String, options: List<String>, selected: Int, 
 fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAcknowledgements: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val tablet = isTabletLayout()
+    var howTo by remember { mutableStateOf(false) }
+    if (howTo) HowToUsePage(onBack = { howTo = false })
     // One scrolling page on a phone; on a tablet, the sections down the left and one at a time on the right.
     SectionedPage("Settings", onBack = onBack, sections = listOf(
         PageSection("Appearance", Icons.Outlined.Palette) {
@@ -1555,7 +1572,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 AppSettings.unitConverter, AppSettings::changeUnitConverter, badge = "Beta",
             )
             SettingsToggle(
-                "Spreadsheet formulas", "In the data table: columns lettered A, B, C… and cells like =B1*2, =SUM(A:A), =SLOPE(B:B, A:A) or =IF(A1>0, A1, 0), worked out as Excel does: over 370 of its functions (statistics and distributions, lookups like VLOOKUP and XLOOKUP, text, dates, finance, engineering), with fill down and a searchable list. Still in beta",
+                "Spreadsheet formulas", "In the data table: columns lettered A, B, C… and cells like =B1*2, =SUM(A:A), =SLOPE(B:B, A:A) or =IF(A1>0, A1, 0), worked out as Excel does: over 370 of its functions (statistics and distributions, lookups like VLOOKUP and XLOOKUP, text, dates, finance, engineering), with fill down; the list of functions is under How to use. Still in beta",
                 AppSettings.sheetFormulas, AppSettings::changeSheetFormulas, badge = "Beta",
             )
         },
@@ -1618,6 +1635,20 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             val scope = rememberCoroutineScope()
             SettingsLink("Report a bug", "An email to the developer with the app's log attached", "Report a bug") { scope.launch { Feedback.reportBug(context) } }
             SettingsLink("Request a feature", "An email to the developer with your idea", "Request a feature") { Feedback.requestFeature(context) }
+        },
+        // How to use: inline on a tablet; on a phone a page of its own, so settings stay short.
+        PageSection("How to use", Icons.AutoMirrored.Outlined.HelpOutline) {
+            if (tablet) {
+                HowTo.topics.forEach { topic ->
+                    Text(topic.title, style = MaterialTheme.typography.titleMedium, color = colors.onSurface, modifier = Modifier.padding(top = 8.dp))
+                    HowToTopic(topic)
+                }
+                Text("Spreadsheet functions", style = MaterialTheme.typography.titleMedium, color = colors.onSurface, modifier = Modifier.padding(top = 8.dp))
+                FunctionReference(onPick = null)
+            } else {
+                SettingsLink("How to use", "Every mode with examples, gestures and tips: history, data tables, fitting, formulas, units, files", "Open how to use") { howTo = true }
+                SettingsLink("Spreadsheet functions", "Over 370 of Excel's functions for data tables, with search", "Open the spreadsheet functions") { howTo = true }
+            }
         },
         PageSection("About", Icons.Outlined.Info) {
             SettingsLink("Acknowledgements", "Fonts, libraries, data and methods, with links", "Open the acknowledgements") { onAcknowledgements() }

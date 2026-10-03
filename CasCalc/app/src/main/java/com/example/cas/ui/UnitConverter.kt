@@ -1,5 +1,7 @@
 package com.example.cas.ui
 
+import androidx.compose.ui.unit.em
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -243,6 +245,37 @@ private fun parseValue(text: String): Double? {
     return t.toDoubleOrNull()
 }
 
+/**
+ * The typed value as math: 3e-8 shows as 3 × 10 with −8 raised, and every minus is the true
+ * minus sign (−), not a hyphen. What's stored stays plain, 3e-8.
+ */
+private object ScientificTransformation : androidx.compose.ui.text.input.VisualTransformation {
+    private const val TIMES = " × 10"
+    override fun filter(text: androidx.compose.ui.text.AnnotatedString): androidx.compose.ui.text.input.TransformedText {
+        val raw = text.text
+        val e = raw.indexOfFirst { it == 'e' || it == 'E' }
+        val shown = androidx.compose.ui.text.buildAnnotatedString {
+            append((if (e < 0) raw else raw.substring(0, e)).replace('-', '−'))
+            if (e >= 0) {
+                append(TIMES)
+                pushStyle(androidx.compose.ui.text.SpanStyle(baselineShift = androidx.compose.ui.text.style.BaselineShift(0.45f), fontSize = 0.62.em))
+                append(raw.substring(e + 1).replace('-', '−'))
+                pop()
+            }
+        }
+        val grow = TIMES.length - 1
+        val map = object : androidx.compose.ui.text.input.OffsetMapping {
+            override fun originalToTransformed(offset: Int) = if (e < 0 || offset <= e) offset else offset + grow
+            override fun transformedToOriginal(offset: Int) = when {
+                e < 0 || offset <= e -> offset
+                offset < e + TIMES.length -> e + 1
+                else -> offset - grow
+            }.coerceIn(0, raw.length)
+        }
+        return androidx.compose.ui.text.input.TransformedText(shown, map)
+    }
+}
+
 /** A unit expression as typed: kg m^2 s^-2. */
 private fun plainUnit(q: Units.Quantity): String = q.parts.joinToString(" ") { p ->
     (p.prefix?.symbol ?: "") + p.unit.symbol + if (p.power == 1.0) "" else "^" + (if (p.power == Math.rint(p.power)) p.power.toInt().toString() else p.power.toString())
@@ -278,6 +311,7 @@ private fun FromCard(value: String, onValue: (String) -> Unit, state: ConverterS
                     singleLine = true,
                     cursorBrush = SolidColor(colors.primary),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    visualTransformation = ScientificTransformation,
                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Value" },
                 )
             }

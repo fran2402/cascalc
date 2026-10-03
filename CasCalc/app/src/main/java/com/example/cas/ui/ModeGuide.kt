@@ -100,7 +100,7 @@ private val Cookie = GenericShape { size, _ ->
     close()
 }
 
-private fun tipIcon(key: String): ImageVector = when (key) {
+internal fun tipIcon(key: String): ImageVector = when (key) {
     "tap" -> Icons.Default.TouchApp
     "hold" -> Icons.Default.PanTool
     "drag" -> Icons.Default.OpenWith

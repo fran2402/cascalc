@@ -284,9 +284,8 @@ private fun sectionOf(time: Long, now: java.util.Calendar): String {
 
 /**
  * The full-screen history, organized: pinned calculations first, then by when they were done
- * (Today, Yesterday, This week…), newest first. Each section is a rounded group of rows (a
- * badge for the kind of calculation, the question small, the answer large); a tap opens the
- * row into its full card with every action, a swipe deletes.
+ * (Today, Yesterday, This week…), newest first. Every calculation shows in full, as its card on
+ * the calculator; a tap shows its actions, a swipe deletes.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -308,11 +307,11 @@ fun HistoryBrowser(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, mod
         }
         return
     }
-    androidx.compose.foundation.lazy.LazyColumn(modifier.fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp)) {
+    androidx.compose.foundation.lazy.LazyColumn(modifier.fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp)) {
         sections.forEach { (title, list) ->
             stickyHeader(key = "h:$title") {
                 Row(
-                    Modifier.fillMaxWidth().background(colors.surface).padding(start = 8.dp, end = 8.dp, top = 14.dp, bottom = 8.dp),
+                    Modifier.fillMaxWidth().background(colors.surface).padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (title == "Pinned") { Icon(Icons.Default.PushPin, null, tint = colors.primary, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)) }
@@ -321,11 +320,8 @@ fun HistoryBrowser(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, mod
                         modifier = Modifier.clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 10.dp, vertical = 2.dp))
                 }
             }
-            list.forEachIndexed { k, item ->
+            list.forEach { item ->
                 item(key = "i:" + System.identityHashCode(item) + ":" + title) {
-                    val first = k == 0; val last = k == list.lastIndex
-                    val big = 24.dp; val small = 6.dp
-                    val shape = RoundedCornerShape(topStart = if (first) big else small, topEnd = if (first) big else small, bottomStart = if (last) big else small, bottomEnd = if (last) big else small)
                     var confirm by remember { mutableStateOf(false) }
                     if (confirm) AlertDialog(
                         onDismissRequest = { confirm = false },
@@ -334,55 +330,14 @@ fun HistoryBrowser(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, mod
                         confirmButton = { TextButton(onClick = { confirm = false; vm.deleteHistory(item) }) { Text("Delete") } },
                         dismissButton = { TextButton(onClick = { confirm = false }) { Text("Cancel") } },
                     )
-                    Box(Modifier.animateItem().padding(bottom = 3.dp)) {
+                    // Every calculation in full, as on the calculator; a tap shows its actions.
+                    Box(Modifier.animateItem().padding(bottom = 8.dp)) {
                         SwipeToDelete(onDelete = { if (AppSettings.confirmDeleteEntry) confirm = true else vm.deleteHistory(item) }) {
-                            if (vm.focused === item) Box(Modifier.padding(vertical = 4.dp)) { HistoryCard(item, vm, onGraph) }
-                            else HistoryRow(item, shape, hideFolder = vm.historyFilter) { vm.focused = item }
+                            HistoryCard(item, vm, onGraph)
                         }
                     }
                 }
             }
-        }
-    }
-}
-
-/** One calculation as a compact row: its kind's badge, the question small, the answer large, pin and folder. */
-@Composable
-private fun HistoryRow(item: HistoryItem, shape: androidx.compose.ui.graphics.Shape, hideFolder: String? = null, onOpen: () -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    val kind = remember(item) { HistoryKind.of(item) }
-    val (bg, fg) = when (kind.tone) {
-        0 -> colors.primaryContainer to colors.onPrimaryContainer
-        1 -> colors.secondaryContainer to colors.onSecondaryContainer
-        2 -> colors.tertiaryContainer to colors.onTertiaryContainer
-        else -> colors.surfaceContainerHighest to colors.onSurfaceVariant
-    }
-    val shown = if (item.showApprox && item.answer.approx != null) item.answer.approx else item.answer.exact
-    Row(
-        Modifier.fillMaxWidth().clip(shape).background(colors.surfaceContainer)
-            .combinedClickable(onClickLabel = "Open this calculation") { onOpen() }
-            .padding(start = 12.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(bg), contentAlignment = Alignment.Center) {
-            Text(kind.symbol, style = androidx.compose.ui.text.TextStyle(fontFamily = com.example.cas.ui.theme.CasFonts.CmItalic, fontSize = if (kind.symbol.length > 2) 13.sp else 20.sp), color = fg)
-        }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-                MathView(item.expression, 15.sp, colors.onSurfaceVariant)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(if (item.answer.isStatement) "" else if (item.answer.isApproximate || item.showApprox) "≈ " else "= ",
-                    style = androidx.compose.ui.text.TextStyle(fontFamily = com.example.cas.ui.theme.CasFonts.CmRoman, fontSize = 19.sp), color = colors.primary)
-                Box(Modifier.weight(1f, fill = false).horizontalScroll(rememberScrollState())) { MathView(shown, 19.sp, colors.onSurface) }
-            }
-        }
-        // The folder's tag is left off when that folder is what's listed.
-        val folder = item.folder?.takeIf { it != hideFolder }
-        if (item.pinned || folder != null) Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(start = 8.dp)) {
-            if (item.pinned) Icon(Icons.Default.PushPin, contentDescription = "Pinned", tint = colors.primary, modifier = Modifier.size(16.dp))
-            folder?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = colors.onSecondaryContainer, maxLines = 1, modifier = Modifier.widthIn(max = 96.dp).clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 8.dp, vertical = 2.dp)) }
         }
     }
 }

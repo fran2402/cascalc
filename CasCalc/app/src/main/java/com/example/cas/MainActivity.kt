@@ -35,6 +35,14 @@ class MainActivity : ComponentActivity() {
 
     /** A graph file opened from elsewhere (a file manager, an attachment): the app imports it. */
     private fun openedFile(intent: android.content.Intent?) {
-        if (intent?.action == android.content.Intent.ACTION_VIEW) intent.data?.let { com.example.cas.ui.OpenedGraphFile.uri = it }
+        val uri = when (intent?.action) {
+            android.content.Intent.ACTION_VIEW -> intent.data
+            android.content.Intent.ACTION_SEND -> sharedStream(intent)
+            else -> null
+        }
+        uri?.let { com.example.cas.ui.OpenedGraphFile.uri = it }
     }
+
+    @Suppress("DEPRECATION")
+    private fun sharedStream(intent: android.content.Intent): android.net.Uri? = intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM)
 }

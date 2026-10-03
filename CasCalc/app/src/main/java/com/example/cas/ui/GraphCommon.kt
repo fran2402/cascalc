@@ -140,6 +140,8 @@ import androidx.compose.material3.Button
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.ViewColumn
+import androidx.compose.material.icons.filled.TableRows
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.ScatterPlot
 import androidx.compose.material.icons.filled.FormatListNumbered
@@ -469,7 +471,7 @@ fun ColorPickerDialog(
     onDismiss: () -> Unit,
     /** For 2D lines: the current style ([com.example.cas.graph.LineStyle] by position) and thickness; null hides these. */
     lineStyle: Int? = null,
-    thickness: Float = 3f,
+    thickness: Float = 2f,
     onStyle: (Int, Float) -> Unit = { _, _ -> },
     /** More options for the line (labels, connecting points, fill opacity), under the colors. */
     extra: (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? = null,
@@ -1125,9 +1127,9 @@ private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable andro
                 Text("Filled", modifier = Modifier.weight(1f), color = colors.onSurface)
                 androidx.compose.material3.Switch(checked = filled, onCheckedChange = { vm.setOptions(f, shape = current.filled(it).ordinal) })
             }
-            MathText("Size: \$${String.format(java.util.Locale.US, "%.1f", f.pointSize)}\$ dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+            Text("Size: ${String.format(java.util.Locale.US, "%.1f", f.pointSize)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
             // In tenths of a dp.
-            ExpressiveSlider(value = f.pointSize, onValueChange = { vm.setOptions(f, size = kotlin.math.round(it * 10f) / 10f) }, valueRange = 2f..16f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Point size" })
+            ExpressiveSlider(value = f.pointSize, onValueChange = { vm.setOptions(f, size = kotlin.math.round(it * 10f) / 10f) }, valueRange = 1f..16f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Point size" })
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Show coordinates", modifier = Modifier.weight(1f), color = colors.onSurface)
                 androidx.compose.material3.Switch(checked = f.showLabel, onCheckedChange = { vm.setOptions(f, label = it) })
@@ -1205,7 +1207,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.ArrowOptions(vm: Grap
     }
     Text("Length", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
     Segments(com.example.cas.graph.VectorField.Length.entries.map { it.label }, f.arrowLength, "Arrow length") { vm.setArrows(f, length = it) }
-    MathText("Scale: \$\\times ${String.format(java.util.Locale.US, "%.2f", f.arrowScale)}\$", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    Text("Scale: × ${String.format(java.util.Locale.US, "%.2f", f.arrowScale)}", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
     ExpressiveSlider(value = f.arrowScale, onValueChange = { vm.setArrows(f, scale = kotlin.math.round(it * 20f) / 20f) }, valueRange = 0.2f..3f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Arrow scale" })
     Text("Arrowhead", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
     androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1238,12 +1240,12 @@ private fun androidx.compose.foundation.layout.ColumnScope.ArrowOptions(vm: Grap
         }
     }
     if (f.arrowTip != com.example.cas.graph.VectorField.Tip.None.ordinal) {
-        MathText("Head size: \$\\times ${String.format(java.util.Locale.US, "%.1f", f.arrowTipSize)}\$", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+        Text("Head size: × ${String.format(java.util.Locale.US, "%.1f", f.arrowTipSize)}", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
         ExpressiveSlider(value = f.arrowTipSize, onValueChange = { vm.setArrows(f, tipSize = kotlin.math.round(it * 10f) / 10f) }, valueRange = 0.4f..3f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Arrowhead size" })
     }
-    MathText("\$${f.arrowDensity}\$ arrows across", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    Text("${f.arrowDensity} arrows across", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
     ExpressiveSlider(value = f.arrowDensity.toFloat(), onValueChange = { vm.setArrows(f, density = it.roundToInt()) }, valueRange = 6f..50f, steps = 43, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Number of arrows across" })
-    MathText("Thickness: \$${String.format(java.util.Locale.US, "%.1f", f.thickness)}\$ dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    Text("Thickness: ${String.format(java.util.Locale.US, "%.1f", f.thickness)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
     ExpressiveSlider(value = f.thickness, onValueChange = { vm.setStyle(f, f.lineStyle, kotlin.math.round(it * 10f) / 10f) }, valueRange = 1f..8f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Arrow thickness" })
 }
 
@@ -1559,13 +1561,15 @@ private fun FitButton(vm: GraphViewModel, f: PlotFunction) {
     val colors = MaterialTheme.colorScheme
     val tap = rememberKeyTap()
     var failed by remember(f.version) { mutableStateOf(false) }
-    // A failed fit turns the chip red ("No fit") until the line changes.
+    var stats by remember { mutableStateOf(false) }
+    if (stats) FitStatsDialog(vm, f, onDismiss = { stats = false })
+    // A failed fit turns the chip red ("No fit") until the line changes; holding it shows the statistics.
     Box(
         Modifier
             .padding(horizontal = 2.dp)
             .clip(CircleShape)
             .background(if (failed) colors.errorContainer else colors.tertiaryContainer)
-            .clickable(onClickLabel = "Fit to the list") { tap(); failed = !vm.fit(f) }
+            .combinedClickable(onClickLabel = "Fit to the list", onLongClickLabel = "Show the fit's statistics", onLongClick = { tap(); stats = true }) { tap(); failed = !vm.fit(f) }
             .padding(horizontal = 12.dp, vertical = 6.dp)
             .semantics { if (failed) contentDescription = "Couldn't fit this to the points" },
     ) {
@@ -1581,34 +1585,46 @@ private fun FitButton(vm: GraphViewModel, f: PlotFunction) {
  */
 @Composable
 private fun AddFabMenu(vm: GraphViewModel, tables: Boolean) {
+    // Nearest the button first.
+    val items = buildList {
+        add(FabItem("Line", Icons.Default.Functions, "Add a line") { vm.add() })
+        add(FabItem("Note", Icons.Default.Notes, "Add a note") { vm.addText(folder = false) })
+        add(FabItem("Folder", Icons.Default.CreateNewFolder, "Add a folder") { vm.addText(folder = true) })
+        if (tables) add(FabItem("Table", Icons.Default.TableChart, "Add a table") { vm.addTable() })
+    }
+    FabMenu(items, size = 48.dp, description = "Add a line, note, folder or table")
+}
+
+/** One of a [FabMenu]'s pills: its label, icon, what it says to screen readers, and its action. */
+internal class FabItem(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val spoken: String, val action: () -> Unit)
+
+/**
+ * M3's FAB menu: + opens [items] as a stack of pills above it (the first nearest the button),
+ * each sliding in after the one below, and + turns into ×. Tapping outside, or ×, closes it.
+ */
+@Composable
+internal fun FabMenu(items: List<FabItem>, size: androidx.compose.ui.unit.Dp, description: String) {
     val colors = MaterialTheme.colorScheme
     val tap = rememberKeyTap()
     var open by remember { mutableStateOf(false) }
     val turn by androidx.compose.animation.core.animateFloatAsState(if (open) 45f else 0f, label = "fab")
-    val corner by androidx.compose.animation.core.animateDpAsState(if (open) 24.dp else 16.dp, label = "fabShape")
+    val corner by androidx.compose.animation.core.animateDpAsState(if (open) size / 2 else size / 3, label = "fabShape")
     val density = LocalDensity.current
-    // Nearest the button first.
-    val items = buildList<Triple<String, androidx.compose.ui.graphics.vector.ImageVector, () -> Unit>> {
-        add(Triple("Line", Icons.Default.Functions) { vm.add() })
-        add(Triple("Note", Icons.Default.Notes) { vm.addText(folder = false) })
-        add(Triple("Folder", Icons.Default.CreateNewFolder) { vm.addText(folder = true) })
-        if (tables) add(Triple("Table", Icons.Default.TableChart) { vm.addTable() })
-    }
     Box {
         Box(
             Modifier
-                .size(48.dp)
+                .size(size)
                 .shadow(6.dp, RoundedCornerShape(corner))
                 .clip(RoundedCornerShape(corner))
                 .background(if (open) colors.primary else colors.primaryContainer)
                 .clickable(onClickLabel = if (open) "Close" else "Add") { tap(); open = !open }
-                .semantics { contentDescription = if (open) "Close the add menu" else "Add a line, note, folder or table" },
+                .semantics { contentDescription = if (open) "Close the add menu" else description },
             contentAlignment = Alignment.Center,
         ) {
             Icon(Icons.Default.Add, contentDescription = null, tint = if (open) colors.onPrimary else colors.onPrimaryContainer, modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = turn })
         }
         if (open) {
-            val lift = with(density) { (48.dp + 10.dp).roundToPx() }
+            val lift = with(density) { (size + 10.dp).roundToPx() }
             androidx.compose.ui.window.Popup(
                 alignment = Alignment.BottomStart,
                 offset = IntOffset(0, -lift),
@@ -1616,7 +1632,7 @@ private fun AddFabMenu(vm: GraphViewModel, tables: Boolean) {
                 properties = androidx.compose.ui.window.PopupProperties(focusable = true),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.Start) {
-                    items.asReversed().forEachIndexed { k, (label, icon, action) ->
+                    items.asReversed().forEachIndexed { k, item ->
                         val order = items.size - 1 - k // 0 for the one nearest the button
                         val shown = remember { androidx.compose.animation.core.MutableTransitionState(false) }.apply { targetState = true }
                         androidx.compose.animation.AnimatedVisibility(
@@ -1631,13 +1647,13 @@ private fun AddFabMenu(vm: GraphViewModel, tables: Boolean) {
                                     .shadow(3.dp, CircleShape)
                                     .clip(CircleShape)
                                     .background(colors.primaryContainer)
-                                    .clickable(onClickLabel = "Add a ${label.lowercase()}") { tap(); open = false; action() }
+                                    .clickable(onClickLabel = item.spoken) { tap(); open = false; item.action() }
                                     .padding(start = 18.dp, end = 24.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                Icon(icon, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(24.dp))
-                                Text(label, style = MaterialTheme.typography.titleMedium, color = colors.onPrimaryContainer)
+                                Icon(item.icon, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(24.dp))
+                                Text(item.label, style = MaterialTheme.typography.titleMedium, color = colors.onPrimaryContainer)
                             }
                         }
                     }
@@ -1806,15 +1822,19 @@ private fun FolderDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () -> U
 /**
  * A line's data as a table, in Material 3 Expressive: the columns as cards with their role
  * (x, y, σ(x), σ(y), or not used) as a colored badge and a menu (sort, fill 1, 2, 3…, clear,
- * remove), the cells in banded rows tinted by their column's role, and a floating toolbar to
- * add rows and columns, paste a table from the clipboard and tidy up. On a tablet a side pane
- * shows the counts and a live preview of the points. Rows are built as they scroll into view,
- * so long data (thousands of points) stays quick.
+ * remove), the cells in banded rows tinted by their column's role, and one + button (bottom
+ * left) that opens to add a row or a column, or paste a table. Drag the grips between column
+ * cards, or under a row's number, to resize; double-tap a grip to go back to the usual size.
+ * On a tablet a side pane shows the counts and a live preview of the points.
+ *
+ * Long data stays quick: rows are built as they scroll into view, and a cell is plain text
+ * until it's tapped, when it becomes the one field being typed in.
  */
 @Composable
 private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val context = androidx.compose.ui.platform.LocalContext.current
+    val density = LocalDensity.current
     val start = remember(f) { vm.tableOf(f) }
     // Columns of cells, all kept the same length; roles are column positions.
     val names = remember(f) { androidx.compose.runtime.mutableStateListOf(*start.names.let { n -> List(start.columns.size) { n.getOrElse(it) { "" } } }.toTypedArray()) }
@@ -1827,48 +1847,67 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     var roleY by remember(f) { mutableStateOf(start.y) }
     var roleSx by remember(f) { mutableStateOf(start.sigmaX) }
     var roleSy by remember(f) { mutableStateOf(start.sigmaY) }
-    var preview by remember { mutableStateOf(false) }
-    var fitting by remember { mutableStateOf(false) }
-    // Beta: Excel-style formulas, with the cell last typed in (for the ƒx list) and that list.
+    // The one cell being typed in, as (column, row).
+    var editing by remember(f) { mutableStateOf<Pair<Int, Int>?>(null) }
+    // Columns' widths and rows' heights that were dragged; the rest are the usual size.
+    val defaultWidth = 112.dp
+    val defaultHeight = 44.dp
+    val widths = remember(f) { androidx.compose.runtime.mutableStateMapOf<Int, androidx.compose.ui.unit.Dp>() }
+    val heights = remember(f) { androidx.compose.runtime.mutableStateMapOf<Int, androidx.compose.ui.unit.Dp>() }
     val formulas = AppSettings.sheetFormulas
-    var lastCell by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-    var functionList by remember { mutableStateOf(false) }
     val rows = cells.maxOfOrNull { it.size } ?: 0
     fun table() = com.example.cas.graph.DataTable(names.toList(), cells.map { it.toList() }, roleX, roleY, roleSx, roleSy)
-    val current = table()
-    val points = current.points().size
-    val bad = current.badCells()
+    // Worked out again only when a cell, name or role changes, not on every redraw.
+    val current by remember(f) { androidx.compose.runtime.derivedStateOf { table() } }
+    val points by remember(f) { androidx.compose.runtime.derivedStateOf { current.points().size } }
+    val bad by remember(f) { androidx.compose.runtime.derivedStateOf { current.badCells() } }
     fun roleOf(c: Int) = when (c) { roleX -> "x"; roleY -> "y"; roleSx -> "σx"; roleSy -> "σy"; else -> null }
     /** One role per column and one column per role. */
     fun assign(c: Int, role: String?) {
         if (roleX == c) roleX = null; if (roleY == c) roleY = null; if (roleSx == c) roleSx = null; if (roleSy == c) roleSy = null
         when (role) { "x" -> roleX = c; "y" -> roleY = c; "σx" -> roleSx = c; "σy" -> roleSy = c }
     }
+    /** Sizes keyed by position, moved along when rows or columns come or go at [at]. */
+    fun <V> shiftKeys(map: MutableMap<Int, V>, at: Int, by: Int) {
+        val moved = map.filterKeys { it >= at }.toList()
+        moved.forEach { (k, _) -> map.remove(k) }
+        moved.forEach { (k, v) -> if (k + by >= at) map[k + by] = v }
+    }
     fun addRow() = cells.forEach { it.add("") }
-    fun insertRow(at: Int) = cells.forEach { it.add(at.coerceIn(0, it.size), "") }
+    fun insertRow(at: Int) { cells.forEach { it.add(at.coerceIn(0, it.size), "") }; shiftKeys(heights, at, 1) }
     fun addColumn() { names.add(""); cells.add(androidx.compose.runtime.mutableStateListOf(*Array(maxOf(rows, 1)) { "" })) }
-    fun removeRow(r: Int) { if (rows > 1) cells.forEach { if (r < it.size) it.removeAt(r) } }
+    fun removeRow(r: Int) {
+        if (rows <= 1) return
+        editing = null
+        cells.forEach { if (r < it.size) it.removeAt(r) }
+        heights.remove(r); shiftKeys(heights, r + 1, -1)
+    }
     fun removeColumn(c: Int) {
         if (cells.size <= 1) return
+        editing = null
         assign(c, null)
         names.removeAt(c); cells.removeAt(c)
+        widths.remove(c); shiftKeys(widths, c + 1, -1)
         fun shift(k: Int?) = k?.let { if (it > c) it - 1 else it }
         roleX = shift(roleX); roleY = shift(roleY); roleSx = shift(roleSx); roleSy = shift(roleSy)
     }
     /** Every column rewritten in the row order [order]. */
-    fun reorder(order: List<Int>) = cells.forEach { col ->
-        val copy = order.map { col.getOrElse(it) { "" } }
-        col.clear(); col.addAll(copy.ifEmpty { listOf("") })
+    fun reorder(order: List<Int>) {
+        editing = null
+        cells.forEach { col ->
+            val copy = order.map { col.getOrElse(it) { "" } }
+            col.clear(); col.addAll(copy.ifEmpty { listOf("") })
+        }
     }
     /** Rows by column [c]'s numbers, smallest first (text and empty cells last). */
     fun sortBy(c: Int) { val t = table(); reorder((0 until rows).sortedWith(compareBy(nullsLast()) { r: Int -> t.value(c, r) })) }
+    fun removeEmptyRows() = reorder((0 until rows).filter { r -> cells.any { it.getOrElse(r) { "" }.isNotBlank() } })
     /** The column's first formula copied down to the last row, its references moving with it. */
     fun fillFormulaDown(c: Int) {
         val col = cells[c]
         val top = col.indexOfFirst { com.example.cas.graph.Sheet.isFormula(it) }.takeIf { it >= 0 } ?: return
         for (r in top + 1 until col.size) col[r] = com.example.cas.graph.Sheet.shift(col[top], r - top)
     }
-    fun removeEmptyRows() = reorder((0 until rows).filter { r -> cells.any { it.getOrElse(r) { "" }.isNotBlank() } })
     /** A table copied from a spreadsheet or a CSV file, added below the rows already filled. */
     fun paste() {
         @Suppress("DEPRECATION")
@@ -1879,7 +1918,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         }
         removeEmptyRows()
         while (cells.size < t.columns.size) addColumn()
-        val from = if (rows == 1 && cells.all { it[0].isBlank() }) 0 else rows
+        val rowsNow = cells.maxOfOrNull { it.size } ?: 0
+        val from = if (rowsNow == 1 && cells.all { it[0].isBlank() }) 0 else rowsNow
         val n = t.rows
         cells.forEach { col -> while (col.size < from + n) col.add("") }
         t.columns.forEachIndexed { c, values -> values.forEachIndexed { r, v -> cells[c][from + r] = com.example.cas.graph.DataTable.text(v) } }
@@ -1889,25 +1929,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     val list = androidx.compose.foundation.lazy.rememberLazyListState()
     val across = rememberScrollState()
     val scope = rememberCoroutineScope()
-    val cellWidth = 112.dp
-    // The fit uses the table as it is now (saving it first, so the points match the curve).
-    if (fitting) FitDialog(current, onAdd = { latex ->
-        vm.setTable(f, table()); vm.addLatexLine(latex)
-        android.widget.Toast.makeText(context, "Fitted curve added to the graph", android.widget.Toast.LENGTH_SHORT).show()
-        fitting = false
-    }, onDismiss = { fitting = false })
-    if (functionList) FunctionListDialog(
-        onPick = { name ->
-            functionList = false
-            val (c, r) = lastCell ?: (0 to 0)
-            if (c < cells.size && r < cells[c].size) {
-                val t = cells[c][r]
-                cells[c][r] = if (com.example.cas.graph.Sheet.isFormula(t) || t.trim() == "=") "$t$name(" else "=$name("
-                lastCell = c to r
-            }
-        },
-        onDismiss = { functionList = false },
-    )
+    fun widthOf(c: Int) = widths[c] ?: defaultWidth
+    fun heightOf(r: Int) = heights[r] ?: defaultHeight
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
@@ -1916,7 +1939,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
             BoxWithConstraints(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
                 val wide = maxWidth >= 840.dp
                 Column(Modifier.fillMaxSize()) {
-                    // Top bar: close, the title and its counts as pills, Done.
+                    // Top bar: close, the title, Done.
                     Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 6.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close without saving") }
                         Row(Modifier.weight(1f).padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1938,87 +1961,92 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                     Row(Modifier.weight(1f).fillMaxWidth()) {
                         if (wide) TableSidePane(current, points, cells.size, bad, roleY == null, Modifier.width(320.dp).fillMaxHeight().padding(start = 16.dp, bottom = 16.dp))
                         Box(Modifier.weight(1f).fillMaxHeight()) {
-                            Column(Modifier.fillMaxSize().padding(horizontal = if (wide) 16.dp else 8.dp)) {
-                                androidx.compose.animation.AnimatedVisibility(!wide && preview) {
-                                    TablePreview(current, Modifier.fillMaxWidth().height(170.dp).padding(bottom = 8.dp))
+                            // The sheet: column cards on top, then the rows; both scroll sideways together.
+                            Column(Modifier.fillMaxSize().padding(horizontal = if (wide) 16.dp else 8.dp).clip(RoundedCornerShape(28.dp)).background(colors.surface)) {
+                                Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 6.dp), verticalAlignment = Alignment.Bottom) {
+                                    Spacer(Modifier.width(52.dp))
+                                    Row(Modifier.weight(1f).horizontalScroll(across)) {
+                                        cells.indices.forEach { c ->
+                                            ColumnCard(
+                                                role = roleOf(c), name = names[c], index = c, width = widthOf(c),
+                                                letter = if (formulas) com.example.cas.graph.Sheet.columnName(c) else null,
+                                                onName = { names[c] = it }, onRole = { assign(c, it) },
+                                                onSort = { sortBy(c) },
+                                                onFill = { cells[c].indices.forEach { r -> cells[c][r] = (r + 1).toString() } },
+                                                onFillDown = if (formulas && cells[c].any { com.example.cas.graph.Sheet.isFormula(it) }) ({ fillFormulaDown(c) }) else null,
+                                                onClear = { cells[c].indices.forEach { r -> cells[c][r] = "" } },
+                                                onRemove = if (cells.size > 1) ({ removeColumn(c) }) else null,
+                                            )
+                                            // The grip between columns: drag to resize, double-tap for the usual width.
+                                            ResizeGrip(
+                                                vertical = true,
+                                                description = "Resize column ${c + 1}",
+                                                onDrag = { px -> widths[c] = (widthOf(c) + with(density) { px.toDp() }).coerceIn(56.dp, 480.dp) },
+                                                onReset = { widths.remove(c) },
+                                                modifier = Modifier.width(10.dp).height(64.dp),
+                                            )
+                                        }
+                                        Spacer(Modifier.width(12.dp))
+                                    }
                                 }
-                                // The sheet: column cards on top, then the rows; both scroll sideways together.
-                                Column(Modifier.weight(1f).fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(colors.surface)) {
-                                    Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 6.dp), verticalAlignment = Alignment.Bottom) {
-                                        Spacer(Modifier.width(52.dp))
-                                        Row(Modifier.weight(1f).horizontalScroll(across), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                            cells.indices.forEach { c ->
-                                                ColumnCard(
-                                                    role = roleOf(c), name = names[c], index = c, width = cellWidth,
-                                                    letter = if (formulas) com.example.cas.graph.Sheet.columnName(c) else null,
-                                                    onFillDown = if (formulas && cells[c].any { com.example.cas.graph.Sheet.isFormula(it) }) ({ fillFormulaDown(c) }) else null,
-                                                    onName = { names[c] = it }, onRole = { assign(c, it) },
-                                                    onSort = { sortBy(c) },
-                                                    onFill = { cells[c].indices.forEach { r -> cells[c][r] = (r + 1).toString() } },
-                                                    onClear = { cells[c].indices.forEach { r -> cells[c][r] = "" } },
-                                                    onRemove = if (cells.size > 1) ({ removeColumn(c) }) else null,
+                                androidx.compose.foundation.lazy.LazyColumn(state = list, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(bottom = 96.dp)) {
+                                    items(rows, key = { it }) { r ->
+                                        Row(
+                                            Modifier.fillMaxWidth().background(if (r % 2 == 0) Color.Transparent else colors.surfaceContainerLowest.copy(alpha = 0.6f)).padding(vertical = 3.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Box(Modifier.width(52.dp).height(heightOf(r))) {
+                                                RowNumber(r, onInsertAbove = { insertRow(r) }, onInsertBelow = { insertRow(r + 1) }, onRemove = if (rows > 1) ({ removeRow(r) }) else null, modifier = Modifier.align(Alignment.Center))
+                                                // The grip under the number: drag to resize the row, double-tap for the usual height.
+                                                ResizeGrip(
+                                                    vertical = false,
+                                                    description = "Resize row ${r + 1}",
+                                                    onDrag = { px -> heights[r] = (heightOf(r) + with(density) { px.toDp() }).coerceIn(32.dp, 240.dp) },
+                                                    onReset = { heights.remove(r) },
+                                                    modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(12.dp),
                                                 )
                                             }
-                                            Spacer(Modifier.width(12.dp))
-                                        }
-                                    }
-                                    androidx.compose.foundation.lazy.LazyColumn(state = list, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(bottom = 96.dp)) {
-                                        items(rows, key = { it }) { r ->
-                                            Row(
-                                                Modifier.fillMaxWidth().background(if (r % 2 == 0) Color.Transparent else colors.surfaceContainerLowest.copy(alpha = 0.6f)).padding(vertical = 3.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                            ) {
-                                                RowNumber(r, onInsertAbove = { insertRow(r) }, onInsertBelow = { insertRow(r + 1) }, onRemove = if (rows > 1) ({ removeRow(r) }) else null)
-                                                Row(Modifier.weight(1f).horizontalScroll(across), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                    cells.forEachIndexed { c, col ->
-                                                        val t = col.getOrElse(r) { "" }
-                                                        val role = roleOf(c)
-                                                        // A formula shows what it works out to until it's tapped.
-                                                        val worked = if (formulas && com.example.cas.graph.Sheet.isFormula(t)) current.sheet.value(c, r) else null
-                                                        val error = worked?.error != null || (role != null && t.isNotBlank() && current.value(c, r) == null)
-                                                        TableCell(
-                                                            t, error, Modifier.width(cellWidth), role = role, shown = worked?.toString(), formulas = formulas,
-                                                            onFocus = { lastCell = c to r },
-                                                        ) { col[r] = it }
-                                                    }
-                                                    Spacer(Modifier.width(12.dp))
+                                            Row(Modifier.weight(1f).horizontalScroll(across)) {
+                                                cells.forEachIndexed { c, col ->
+                                                    val t = col.getOrElse(r) { "" }
+                                                    val role = roleOf(c)
+                                                    // A formula shows what it works out to until it's tapped.
+                                                    val worked = if (formulas && com.example.cas.graph.Sheet.isFormula(t)) current.sheet.value(c, r) else null
+                                                    val error = worked?.error != null || (role != null && t.isNotBlank() && worked == null && com.example.cas.graph.DataTable.number(t) == null) || (role != null && worked != null && worked.number == null)
+                                                    TableCell(
+                                                        t, error, Modifier.width(widthOf(c)).height(heightOf(r)), role = role, shown = worked?.toString(), formulas = formulas,
+                                                        editing = editing == (c to r),
+                                                        onTap = { editing = c to r },
+                                                        onNext = {
+                                                            // Down the column, adding a row at the end.
+                                                            if (r + 1 >= rows) addRow()
+                                                            editing = c to r + 1
+                                                            scope.launch { list.animateScrollToItem(maxOf(0, r - 2)) }
+                                                        },
+                                                    ) { if (r < col.size) col[r] = it }
+                                                    Spacer(Modifier.width(10.dp))
                                                 }
+                                                Spacer(Modifier.width(12.dp))
                                             }
                                         }
                                     }
                                 }
                             }
-                            // The floating toolbar: tools in a pill, and adding a row as the main action.
-                            Row(
-                                Modifier.align(Alignment.BottomCenter).padding(bottom = 16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                Row(
-                                    Modifier.shadow(6.dp, CircleShape).clip(CircleShape).background(colors.surfaceContainerHigh).padding(horizontal = 6.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    IconButton(onClick = { paste() }) { Icon(Icons.Default.ContentPaste, contentDescription = "Paste a table from the clipboard") }
-                                    IconButton(onClick = { addColumn(); scope.launch { across.animateScrollTo(across.maxValue + 10_000) } }) { Icon(Icons.Default.ViewColumn, contentDescription = "Add a column") }
-                                    IconButton(onClick = { removeEmptyRows() }) { Icon(Icons.Default.CleaningServices, contentDescription = "Remove empty rows") }
-                                    if (formulas) IconButton(onClick = { functionList = true }) {
-                                        Text("ƒx", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 20.sp, color = colors.onSurfaceVariant))
-                                    }
-                                    IconButton(onClick = { fitting = true }, enabled = points >= 2) { Icon(Icons.AutoMirrored.Filled.ShowChart, contentDescription = "Fit a curve to the points") }
-                                    if (!wide) androidx.compose.material3.IconToggleButton(checked = preview, onCheckedChange = { preview = it }) {
-                                        Icon(Icons.Default.ScatterPlot, contentDescription = if (preview) "Hide the preview" else "Preview the points", tint = if (preview) colors.primary else colors.onSurfaceVariant)
-                                    }
-                                }
-                                Row(
-                                    Modifier.height(56.dp).shadow(6.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(colors.primaryContainer)
-                                        .clickable(onClickLabel = "Add a row") { addRow(); scope.launch { list.animateScrollToItem(maxOf(0, (cells.maxOfOrNull { it.size } ?: 1) - 1)) } }
-                                        .padding(start = 16.dp, end = 20.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Icon(Icons.Default.Add, contentDescription = null, tint = colors.onPrimaryContainer)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Row", style = MaterialTheme.typography.titleMedium, color = colors.onPrimaryContainer)
-                                }
+                            // One button, bottom left: + opens to add a row or a column, or paste.
+                            Box(Modifier.align(Alignment.BottomStart).padding(start = if (wide) 32.dp else 24.dp, bottom = 20.dp)) {
+                                FabMenu(
+                                    listOf(
+                                        FabItem("Row", Icons.Default.TableRows, "Add a row") {
+                                            addRow(); scope.launch { list.animateScrollToItem(maxOf(0, (cells.maxOfOrNull { it.size } ?: 1) - 1)) }
+                                        },
+                                        FabItem("Column", Icons.Default.ViewColumn, "Add a column") {
+                                            addColumn(); scope.launch { across.animateScrollTo(across.maxValue + 10_000) }
+                                        },
+                                        FabItem("Paste", Icons.Default.ContentPaste, "Paste a table from the clipboard") { paste() },
+                                    ),
+                                    size = 56.dp,
+                                    description = "Add a row or a column, or paste a table",
+                                )
                             }
                         }
                     }
@@ -2029,65 +2057,32 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
 }
 
 /**
- * The spreadsheet functions (beta), each with how it's written; picking one starts it in the
- * cell last typed in.
+ * A grip for resizing: a short bar that drags along [vertical] (a column's width) or across (a
+ * row's height), and a double tap that goes back to the usual size.
  */
 @Composable
-private fun FunctionListDialog(onPick: (String) -> Unit, onDismiss: () -> Unit) {
+private fun ResizeGrip(vertical: Boolean, description: String, onDrag: (Float) -> Unit, onReset: () -> Unit, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
-    var query by remember { mutableStateOf("") }
-    var group by remember { mutableStateOf<String?>(null) }
-    val all = com.example.cas.graph.Sheet.FUNCTIONS
-    val shown = all.filter { h ->
-        (group == null || h.category == group) &&
-            (query.isBlank() || listOf(h.names, h.example, h.what).any { it.contains(query.trim(), ignoreCase = true) })
-    }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = { Text("ƒx", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 24.sp, color = colors.secondary)) },
-        title = { Text("Functions") },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = query, onValueChange = { query = it }, singleLine = true,
-                    placeholder = { Text("Search, e.g. lookup, NORM, date") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    shape = RoundedCornerShape(28.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                // The groups as chips; the chosen one is filled, so no check mark is needed.
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    (listOf<String?>(null) + com.example.cas.graph.Sheet.CATEGORIES).forEach { c ->
-                        androidx.compose.material3.FilterChip(selected = group == c, onClick = { group = c }, label = { Text(c ?: "All") })
-                    }
-                }
-                Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (group == null && query.isBlank()) Text(
-                        "Start a cell with =. Cells are A1, B2…; ranges A1:A10 or whole columns A:A; \$A\$1 stays put when filled down. Operators + − * / ^ % & and comparisons = <> < > <= >=. Text goes in \"quotes\".",
-                        style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp),
-                    )
-                    if (shown.isEmpty()) Text("No functions match", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(vertical = 16.dp))
-                    shown.forEachIndexed { k, h ->
-                        if (group == null && (k == 0 || shown[k - 1].category != h.category)) Text(
-                            h.category, style = MaterialTheme.typography.labelLarge, color = colors.primary,
-                            modifier = Modifier.padding(top = if (k == 0) 0.dp else 10.dp, bottom = 2.dp, start = 4.dp),
-                        )
-                        val name = h.example.substringBefore('(')
-                        Column(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainerHigh)
-                                .clickable(onClickLabel = "Use $name") { onPick(name) }
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
-                        ) {
-                            Text(h.names, style = MaterialTheme.typography.titleSmall, color = colors.onSurface)
-                            Text("=${h.example}", style = TextStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 13.sp, color = colors.primary))
-                            Text(h.what, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-                        }
-                    }
-                }
+    val drag by androidx.compose.runtime.rememberUpdatedState(onDrag)
+    val reset by androidx.compose.runtime.rememberUpdatedState(onReset)
+    var active by remember { mutableStateOf(false) }
+    Box(
+        modifier
+            .semantics { contentDescription = description }
+            .pointerInput(vertical) {
+                if (vertical) detectHorizontalDragGestures(onDragStart = { active = true }, onDragEnd = { active = false }, onDragCancel = { active = false }) { change, dx -> change.consume(); drag(dx) }
+                else detectVerticalDragGestures(onDragStart = { active = true }, onDragEnd = { active = false }, onDragCancel = { active = false }) { change, dy -> change.consume(); drag(dy) }
             }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
-    )
+            .pointerInput(Unit) { detectTapGestures(onDoubleTap = { reset() }) },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .then(if (vertical) Modifier.width(if (active) 4.dp else 3.dp).height(24.dp) else Modifier.height(if (active) 4.dp else 3.dp).width(20.dp))
+                .clip(CircleShape)
+                .background(if (active) colors.primary else colors.outlineVariant),
+        )
+    }
 }
 
 /** The role's colors: x primary, y tertiary, the uncertainties secondary, unused neutral. */
@@ -2144,7 +2139,7 @@ private fun TableSidePane(t: com.example.cas.graph.DataTable, points: Int, colum
                     Text(what, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
                 }
             }
-            Text("Columns without a role are kept but not plotted. Paste copies a table from a spreadsheet.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            Text("Columns without a role are kept but not plotted. ＋ › Paste copies a table from a spreadsheet. Drag the grips to resize rows and columns.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
         }
     }
 }
@@ -2252,10 +2247,10 @@ private fun ColumnCard(
 
 /** A row's number as a pill; tap it to insert a row above or below, or remove this one. */
 @Composable
-private fun RowNumber(r: Int, onInsertAbove: () -> Unit, onInsertBelow: () -> Unit, onRemove: (() -> Unit)?) {
+private fun RowNumber(r: Int, onInsertAbove: () -> Unit, onInsertBelow: () -> Unit, onRemove: (() -> Unit)?, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     var open by remember { mutableStateOf(false) }
-    Box(Modifier.width(52.dp), contentAlignment = Alignment.Center) {
+    Box(modifier, contentAlignment = Alignment.Center) {
         Box(
             Modifier.height(32.dp).widthIn(min = 36.dp).clip(CircleShape).clickable(onClickLabel = "Row ${r + 1}: insert or remove") { open = true }.padding(horizontal = 6.dp),
             contentAlignment = Alignment.Center,
@@ -2272,24 +2267,51 @@ private fun RowNumber(r: Int, onInsertAbove: () -> Unit, onInsertBelow: () -> Un
 }
 
 /**
- * One cell: a number field tinted with its column's role, outlined in the primary color while
- * it's being typed in and red-edged when it isn't a number. Next moves on to the next cell.
+ * One cell, tinted with its column's role: plain text (cheap, so thousands of rows scroll
+ * smoothly) until it's tapped, then a field being typed in, outlined in the primary color.
+ * Cells that aren't numbers get a red edge; a formula shows its value with a small ƒx until
+ * it's tapped. Next on the keyboard moves down to the next row.
  */
 @Composable
 private fun TableCell(
     text: String, error: Boolean, modifier: Modifier, role: String? = null,
-    shown: String? = null, formulas: Boolean = false, onFocus: () -> Unit = {}, onChange: (String) -> Unit,
+    shown: String? = null, formulas: Boolean = false, editing: Boolean = false,
+    onTap: () -> Unit = {}, onNext: () -> Unit = {}, onChange: (String) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
-    var focused by remember { mutableStateOf(false) }
-    val formula = shown != null
     val tint = roleColors(role).first
-    val shape = RoundedCornerShape(if (focused) 14.dp else 10.dp)
+    val formula = shown != null
+    val shape = RoundedCornerShape(if (editing) 14.dp else 10.dp)
+    val ink = if (role == null) colors.onSurfaceVariant else colors.onSurface
+    val base = modifier
+        .clip(shape)
+        .background(
+            if (formula && !editing) colors.tertiaryContainer.copy(alpha = 0.35f).compositeOver(colors.surfaceContainerHigh)
+            else if (role == null) colors.surfaceContainerHigh else tint.copy(alpha = 0.08f).compositeOver(colors.surfaceContainerHighest),
+        )
+        .border(if (editing || error) 2.dp else 0.dp, when { error && !editing -> colors.error; editing -> colors.primary; else -> Color.Transparent }, shape)
+    if (!editing) {
+        Row(
+            base.clickable(onClickLabel = "Edit this cell") { onTap() }.padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                shown ?: text, maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
+                style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = if (formula && error) colors.error else ink),
+                modifier = Modifier.weight(1f),
+            )
+            if (formula) Text("ƒx", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 12.sp, color = colors.tertiary))
+        }
+        return
+    }
+    val focus = remember { androidx.compose.ui.focus.FocusRequester() }
+    var value by remember { mutableStateOf(androidx.compose.ui.text.input.TextFieldValue(text, androidx.compose.ui.text.TextRange(text.length))) }
+    androidx.compose.runtime.LaunchedEffect(Unit) { focus.requestFocus() }
     androidx.compose.foundation.text.BasicTextField(
-        value = text,
-        onValueChange = onChange,
+        value = value,
+        onValueChange = { value = it; if (it.text != text) onChange(it.text) },
         singleLine = true,
-        textStyle = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = if (role == null) colors.onSurfaceVariant else colors.onSurface),
+        textStyle = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = ink),
         cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.primary),
         // With formulas, a keyboard with letters, = and brackets.
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -2297,27 +2319,9 @@ private fun TableCell(
             capitalization = if (formulas) androidx.compose.ui.text.input.KeyboardCapitalization.Characters else androidx.compose.ui.text.input.KeyboardCapitalization.None,
             imeAction = androidx.compose.ui.text.input.ImeAction.Next,
         ),
-        // Not being typed in, a formula shows its value (or error) with a small ƒx mark.
-        decorationBox = { inner ->
-            if (formula && !focused) Box(contentAlignment = Alignment.CenterStart) {
-                Box(Modifier.graphicsLayer { alpha = 0f }) { inner() }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        shown!!, maxLines = 1, modifier = Modifier.weight(1f, fill = false),
-                        style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = if (error) colors.error else if (role == null) colors.onSurfaceVariant else colors.onSurface),
-                    )
-                    Spacer(Modifier.weight(1f))
-                    Text("ƒx", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 12.sp, color = colors.tertiary))
-                }
-            } else inner()
-        },
-        modifier = modifier
-            .height(44.dp)
-            .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocus() }
-            .clip(shape)
-            .background(if (formula && !focused) colors.tertiaryContainer.copy(alpha = 0.35f).compositeOver(colors.surfaceContainerHigh) else if (role == null) colors.surfaceContainerHigh else tint.copy(alpha = 0.08f).compositeOver(colors.surfaceContainerHighest))
-            .border(if (focused || error) 2.dp else 0.dp, when { error -> colors.error; focused -> colors.primary; else -> Color.Transparent }, shape)
-            .padding(horizontal = 12.dp, vertical = 11.dp),
+        keyboardActions = androidx.compose.foundation.text.KeyboardActions(onNext = { onNext() }),
+        decorationBox = { inner -> Box(contentAlignment = Alignment.CenterStart) { inner() } },
+        modifier = base.focusRequester(focus).padding(horizontal = 12.dp),
     )
 }
 
@@ -2794,68 +2798,33 @@ internal fun withError(v: Double, e: Double?): String {
 }
 
 /**
- * Fit a curve to a table's points: a line, a polynomial, an exponential, a power, a logarithm or
- * a formula of your own; weighted by σ(y) when the table has it. Shows each parameter with its
- * standard error, R² (and χ²/dof when weighted), the curve over the points and the residuals,
- * and adds the fitted curve to the graph.
+ * A fit's statistics, from holding Fit: each parameter with its standard error, R², RMSE, the
+ * reduced χ² (χ²/ν) and ν, then the curve over the points and the residuals, drawn with the
+ * data's own point size. Weighted by σ(y) when every point has one.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun FitDialog(t: com.example.cas.graph.DataTable, onAdd: (String) -> Unit, onDismiss: () -> Unit) {
+private fun FitStatsDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    val pts = remember(t) { t.points() }
-    val sig = remember(t) { t.errors().second }
-    var model by remember { mutableStateOf<com.example.cas.graph.FitModel?>(com.example.cas.graph.FitModel.Linear) }
-    var custom by remember { mutableStateOf("a\\sin(bx)+c") }
-    val xs = remember(pts) { pts.map { it.first }.toDoubleArray() }
-    val ys = remember(pts) { pts.map { it.second }.toDoubleArray() }
-    val weighted = sig != null && sig.any { it.isFinite() && it > 0 }
-    // The fit: its function, parameter names, result and equation.
-    class Fitted(val value: (Double) -> Double, val names: List<String>, val r: com.example.cas.graph.Fit.Result, val latex: String)
-    val fitted: Fitted? = remember(model, custom, pts) {
-        runCatching {
-            val m = model
-            if (m != null) {
-                val r = com.example.cas.graph.Fit.leastSquares(m::value, xs, ys, m.start(xs, ys), sigmas = sig) ?: return@runCatching null
-                Fitted({ x -> m.value(x, r.parameters) }, m.params, r, m.equation(r.parameters) { v -> com.example.cas.engine.Units.number(v, 5) })
-            } else {
-                val c = com.example.cas.graph.CustomFitModel.of(custom) ?: return@runCatching null
-                val r = com.example.cas.graph.Fit.leastSquares(c::value, xs, ys, DoubleArray(c.params.size) { 1.0 }, sigmas = sig) ?: return@runCatching null
-                Fitted({ x -> c.value(x, r.parameters) }, c.params, r, c.equation(r.parameters))
-            }
-        }.getOrNull()
-    }
+    val stats = remember(f, f.version) { runCatching { vm.fitStats(f) }.getOrNull() }
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
         androidx.compose.material3.Surface(shape = RoundedCornerShape(28.dp), color = colors.surfaceContainerHigh, modifier = Modifier.padding(16.dp).widthIn(max = 600.dp).fillMaxWidth()) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column {
-                    Text("Fit a curve", style = MaterialTheme.typography.headlineSmall)
-                    Text("${pts.size} points" + if (weighted) " · weighted by σ(y)" else "", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                    Text("Fit statistics", style = MaterialTheme.typography.headlineSmall)
+                    if (stats != null) Text(
+                        "${stats.xs.size} points" + if (stats.sigmas != null) " · weighted by σ(y)" else "",
+                        style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
+                    )
                 }
-                // The models, as chips; Custom takes a formula with any letters as parameters.
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    (com.example.cas.graph.FitModel.entries.map { it to it.title } + (null to "Custom")).forEach { (m, title) ->
-                        androidx.compose.material3.FilterChip(
-                            selected = model == m, onClick = { model = m }, label = { Text(title) },
-                            leadingIcon = null,
-                        )
-                    }
-                }
-                if (model == null) OutlinedTextField(
-                    custom, { custom = it }, singleLine = true, label = { Text("y =") },
-                    supportingText = { Text("Any letters other than x are fitted, e.g. a\\sin(bx)+c or A e^{-x/τ}") },
-                    modifier = Modifier.fillMaxWidth(),
-                ) else MathText("\$${model!!.latex}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 18.sp), color = colors.onSurfaceVariant, mathScale = 1f)
-                if (fitted == null) {
-                    Text(if (pts.size < 2) "Add at least two points." else "This model doesn't fit these points (too few points, or values it can't take, like ln of a negative x).", color = colors.error, style = MaterialTheme.typography.bodyMedium)
+                Box(Modifier.horizontalScroll(rememberScrollState())) { MathView(f.editor.root, 20.sp, colors.onSurfaceVariant) }
+                if (stats == null) {
+                    Text("This line can't be fitted to the points (too few points, or values it can't take).", color = colors.error, style = MaterialTheme.typography.bodyMedium)
                 } else {
-                    // The result: the equation large, then each parameter ± its standard error.
+                    // Each parameter ± its standard error.
                     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.primaryContainer).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Box(Modifier.horizontalScroll(rememberScrollState())) {
-                            MathText("\$${fitted.latex}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 22.sp), color = colors.onPrimaryContainer, mathScale = 1f)
-                        }
-                        fitted.names.forEachIndexed { k, n ->
-                            MathText("\$${if (n.length == 1) n else "\\\\mathrm{$n}"} = ${Readout.latex(withError(fitted.r.parameters[k], fitted.r.errors?.get(k)))}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp), color = colors.onPrimaryContainer, mathScale = 1f)
+                        stats.names.forEachIndexed { k, n ->
+                            MathText("\$$n = ${Readout.latex(withError(stats.result.parameters[k], stats.result.errors?.get(k)))}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 18.sp), color = colors.onPrimaryContainer, mathScale = 1f)
                         }
                     }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2863,19 +2832,21 @@ internal fun FitDialog(t: com.example.cas.graph.DataTable, onAdd: (String) -> Un
                             Modifier.clip(RoundedCornerShape(12.dp)).background(colors.secondaryContainer).padding(horizontal = 12.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) { MathText("\$$math = $v\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 15.sp), color = colors.onSecondaryContainer, mathScale = 1f) }
-                        if (fitted.r.rSquared.isFinite()) stat("R^{2}", Readout.latex(java.math.BigDecimal(fitted.r.rSquared).round(java.math.MathContext(5)).toPlainString()))
-                        stat("\\mathrm{RMSE}", Readout.latex(shortNumber(fitted.r.rmse)))
-                        fitted.r.reducedChiSquared?.let { stat("\\chi^{2}/\\nu", Readout.latex(shortNumber(it))) }
-                        stat("\\nu", fitted.r.dof.toString())
+                        if (stats.result.rSquared.isFinite()) stat("R^{2}", Readout.latex(java.math.BigDecimal(stats.result.rSquared).round(java.math.MathContext(5)).toPlainString()))
+                        stat("\\mathrm{RMSE}", Readout.latex(shortNumber(stats.result.rmse)))
+                        stats.reducedChiSquared?.let { stat("\\chi^{2}/\\nu", Readout.latex(shortNumber(it))) }
+                        stat("\\nu", stats.result.dof.toString())
                     }
-                    FitPlot(xs, ys, sig, fitted.value, Modifier.fillMaxWidth().height(220.dp))
+                    if (stats.sigmas == null) Text(
+                        "No σ(y) on the points, so χ²/ν counts each as σ = 1: it's the residuals' mean square. Give the data a σ(y) column for a true reduced χ².",
+                        style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
+                    )
+                    FitPlot(stats.xs, stats.ys, stats.sigmas, stats.curve, stats.pointSize, Modifier.fillMaxWidth().height(240.dp))
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) { Text("Close") }
                     Spacer(Modifier.width(8.dp))
-                    Button(enabled = fitted != null, onClick = { fitted?.let { onAdd(it.latex) } }) {
-                        Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Add to graph")
-                    }
+                    Button(enabled = stats != null, onClick = { vm.fit(f); onDismiss() }) { Text("Apply the fit") }
                 }
             }
         }
@@ -2884,7 +2855,7 @@ internal fun FitDialog(t: com.example.cas.graph.DataTable, onAdd: (String) -> Un
 
 /** The points (with their σ(y) bars) and the fitted curve, and under them the residuals about 0. */
 @Composable
-private fun FitPlot(xs: DoubleArray, ys: DoubleArray, sig: DoubleArray?, f: (Double) -> Double, modifier: Modifier) {
+private fun FitPlot(xs: DoubleArray, ys: DoubleArray, sig: DoubleArray?, f: (Double) -> Double, pointSize: Float, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
     Column(modifier.clip(RoundedCornerShape(20.dp)).background(colors.surfaceContainer).padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         val residuals = remember(xs, ys, f) { DoubleArray(xs.size) { ys[it] - f(xs[it]) } }
@@ -2900,7 +2871,7 @@ private fun FitPlot(xs: DoubleArray, ys: DoubleArray, sig: DoubleArray?, f: (Dou
             val path = Path(); var pen = false
             curve.forEach { (x, y) -> if (!y.isFinite() || y < ya - (yb - ya) || y > yb + (yb - ya)) pen = false else { if (pen) path.lineTo(sx(x), sy(y)) else path.moveTo(sx(x), sy(y)); pen = true } }
             drawPath(path, colors.primary, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round))
-            xs.indices.forEach { i -> drawCircle(colors.onSurface, 3.5.dp.toPx(), Offset(sx(xs[i]), sy(ys[i]))) }
+            xs.indices.forEach { i -> drawCircle(colors.onSurface, pointSize.dp.toPx(), Offset(sx(xs[i]), sy(ys[i]))) }
         }
         Text("Residuals", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
         androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().weight(1f)) {
@@ -2910,7 +2881,7 @@ private fun FitPlot(xs: DoubleArray, ys: DoubleArray, sig: DoubleArray?, f: (Dou
             drawLine(colors.outline, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), 1.5f)
             xs.indices.forEach { i ->
                 drawLine(colors.tertiary.copy(alpha = 0.6f), Offset(sx(xs[i]), size.height / 2), Offset(sx(xs[i]), sy(residuals[i])), 2f)
-                drawCircle(colors.tertiary, 3.dp.toPx(), Offset(sx(xs[i]), sy(residuals[i])))
+                drawCircle(colors.tertiary, pointSize.dp.toPx(), Offset(sx(xs[i]), sy(residuals[i])))
             }
         }
     }

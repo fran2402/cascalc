@@ -56,7 +56,7 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
         internal set
     /** Line style in the 2D graph ([com.example.cas.graph.LineStyle] by position), and thickness in dp. */
     var lineStyle by mutableStateOf(0)
-    var thickness by mutableStateOf(3f)
+    var thickness by mutableStateOf(2f)
     /** Conditions after commas (y = x², 0 < x < 2): each compared chain's parts in (x, y, t, θ, r) + sliders. */
     var restrictions: List<Pair<List<RealFunction>, List<String>>> = emptyList()
         internal set
@@ -101,7 +101,7 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
     /** How strongly an inequality's region is shaded, 0 to 1. */
     var fillOpacity by mutableStateOf(0.22f)
     /** 2D points: their mark's size (radius in dp) and shape ([com.example.cas.graph.Marker]). */
-    var pointSize by mutableStateOf(6f)
+    var pointSize by mutableStateOf(4f)
     var pointShape by mutableStateOf(0)
     /** 2D lists of points: closed up and filled, as a polygon. */
     var closedShape by mutableStateOf(false)
@@ -109,12 +109,12 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
     var arrowsByLength by mutableStateOf(true)
     /** A vector field's arrow lengths ([com.example.cas.graph.VectorField.Length] by position) and their scale. */
     var arrowLength by mutableStateOf(0)
-    var arrowScale by mutableStateOf(1f)
+    var arrowScale by mutableStateOf(0.6f)
     /** A vector field's arrowheads ([com.example.cas.graph.VectorField.Tip] by position) and their size. */
     var arrowTip by mutableStateOf(0)
-    var arrowTipSize by mutableStateOf(1f)
+    var arrowTipSize by mutableStateOf(0.6f)
     /** How many arrows across the view. */
-    var arrowDensity by mutableStateOf(18)
+    var arrowDensity by mutableStateOf(12)
     /** A line with a list in it (y = [1, 2, 3]x): one hidden line per entry, drawn in its place. */
     var family: List<PlotFunction> = emptyList()
         internal set
@@ -315,7 +315,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 // Then flags (L label, C connect) and the fill opacity.
                 parts.getOrNull(3)?.let { flags -> f.showLabel = 'L' in flags; f.connectPoints = 'C' in flags; f.closedShape = 'S' in flags }
                 parts.getOrNull(4)?.toFloatOrNull()?.let { f.fillOpacity = it.coerceIn(0f, 1f) }
-                parts.getOrNull(5)?.toFloatOrNull()?.let { f.pointSize = it.coerceIn(2f, 16f) }
+                parts.getOrNull(5)?.toFloatOrNull()?.let { f.pointSize = it.coerceIn(1f, 16f) }
                 parts.getOrNull(6)?.toIntOrNull()?.let { f.pointShape = it.coerceIn(0, com.example.cas.graph.Marker.entries.lastIndex) }
                 // A vector field's arrows: coloring (V by length, else solid), length mode and scale, tip and its size, density.
                 parts.getOrNull(7)?.takeIf { it.isNotEmpty() }?.let { f.arrowsByLength = it == "V" }
@@ -511,6 +511,46 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         return lists.flatMap { it.xs.toList() }.toDoubleArray() to lists.flatMap { it.ys.toList() }.toDoubleArray()
     }
 
+    /** The lists' σ(y), point by point as [listPoints] gives them; null unless every point has one. */
+    private fun listSigmas(): DoubleArray? {
+        val lists = functions.filter { it.visible && it.plot is Plot2DKind.PointList }
+        val all = lists.flatMap { f ->
+            val n = (f.plot as Plot2DKind.PointList).xs.size
+            errorsOf(f).second?.toList() ?: List(n) { Double.NaN }
+        }
+        return all.takeIf { s -> s.isNotEmpty() && s.all { it.isFinite() && it > 0 } }?.toDoubleArray()
+    }
+
+    /** A fit's numbers for its statistics: the parameters' names, the result, the points and the curve. */
+    class FitStats(
+        val names: List<String>,
+        val result: com.example.cas.graph.Fit.Result,
+        val xs: DoubleArray,
+        val ys: DoubleArray,
+        val sigmas: DoubleArray?,
+        val curve: (Double) -> Double,
+        /** The data's point size (radius in dp), so the plots match the graph. */
+        val pointSize: Float,
+    ) {
+        /** χ² over the degrees of freedom; with no σ(y), each point counts as σ = 1. */
+        val reducedChiSquared: Double? get() = result.reducedChiSquared ?: if (result.dof > 0) xs.indices.sumOf { (ys[it] - curve(xs[it])).let { r -> r * r } } / result.dof else null
+    }
+
+    /** The fit [fit] would make, without setting the sliders: for the statistics (hold Fit). */
+    fun fitStats(f: PlotFunction): FitStats? {
+        val compiled = (f.plot as? Plot2DKind.Explicit)?.f ?: return null
+        val (xs, ys) = listPoints()
+        val names = f.parameters
+        val start = DoubleArray(names.size) { parameters[names[it]] ?: 1.0 }
+        val model = { x: Double, p: DoubleArray ->
+            try { compiled(doubleArrayOf(x) + p) } catch (e: RuntimeException) { Double.NaN }
+        }
+        val sig = listSigmas()
+        val result = com.example.cas.graph.Fit.leastSquares(model, xs, ys, start, sigmas = sig) ?: return null
+        val size = functions.firstOrNull { it.visible && it.plot is Plot2DKind.PointList }?.pointSize ?: 4f
+        return FitStats(names, result, xs, ys, sig, { x -> model(x, result.parameters) }, size)
+    }
+
     /** Fit is offered for a function of x with unknowns, and only once the graph has a list of points. */
     fun canFit(f: PlotFunction): Boolean =
         f.plot is Plot2DKind.Explicit && f.parameters.isNotEmpty() && functions.any { it.plot is Plot2DKind.PointList }
@@ -528,7 +568,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         val model = { x: Double, p: DoubleArray ->
             try { compiled(doubleArrayOf(x) + p) } catch (e: RuntimeException) { Double.NaN }
         }
-        val result = com.example.cas.graph.Fit.leastSquares(model, xs, ys, start) ?: return false
+        // Weighted by σ(y) when every point has one, as the statistics are.
+        val result = com.example.cas.graph.Fit.leastSquares(model, xs, ys, start, sigmas = listSigmas()) ?: return false
         names.forEachIndexed { k, name ->
             val value = result.parameters[k]
             val (lo, hi) = rangeOf(name)
@@ -1559,7 +1600,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     ) {
         f.closedShape = closed
         f.showLabel = label; f.connectPoints = connect; f.fillOpacity = opacity.coerceIn(0f, 1f)
-        f.pointSize = size.coerceIn(2f, 16f); f.pointShape = shape
+        f.pointSize = size.coerceIn(1f, 16f); f.pointShape = shape
         version++
         save()
     }
