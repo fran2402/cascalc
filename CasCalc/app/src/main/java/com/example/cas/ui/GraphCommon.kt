@@ -872,7 +872,7 @@ fun FunctionList(vm: GraphViewModel, outputLabel: String, modifier: Modifier = M
         params.forEach { p -> ParameterSlider(vm, p) }
     }
     // Moves playing sliders on every frame.
-    val anyPlaying = vm.playing.isNotEmpty()
+    val anyPlaying = vm.animating
     LaunchedEffect(anyPlaying) {
         if (!anyPlaying) return@LaunchedEffect
         var last = withFrameNanos { it }
@@ -1107,6 +1107,7 @@ private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable andro
     val many = kind is Plot2DKind.PointList || (f.complexPoints?.size ?: 0) > 1
     val region = kind is Plot2DKind.Region
     if (kind is Plot2DKind.VectorField) return { ArrowOptions(vm, f) }
+    if (kind is Plot2DKind.Geometry) return { GeometryOptions(vm, f) }
     if (!points && !region) return null
     return {
         val colors = MaterialTheme.colorScheme
@@ -1168,6 +1169,43 @@ private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable andro
             ExpressiveSlider(value = f.fillOpacity, onValueChange = { vm.setOptions(f, opacity = it) }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Fill opacity" })
         }
     }
+}
+
+/**
+ * A construction's options: for points, the mark and its size, its name and coordinates shown,
+ * and (on a path) moving by itself; for filled shapes (polygons, sectors, angles), the fill.
+ */
+@Composable
+private fun androidx.compose.foundation.layout.ColumnScope.GeometryOptions(vm: GraphViewModel, f: PlotFunction) {
+    val colors = MaterialTheme.colorScheme
+    val o = vm.geometryOf(f)
+    val isPoint = o is com.example.cas.graph.Geometry.Point || o is com.example.cas.graph.Geometry.Many && o.items.all { it is com.example.cas.graph.Geometry.Point }
+    val filled = o is com.example.cas.graph.Geometry.Polygon || o is com.example.cas.graph.Geometry.Angle || o is com.example.cas.graph.Geometry.Arc && o.sector
+    if (isPoint) {
+        Text("Point", style = MaterialTheme.typography.labelLarge, color = colors.primary)
+        Text("Size: ${String.format(java.util.Locale.US, "%.1f", f.pointSize)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+        ExpressiveSlider(value = f.pointSize, onValueChange = { vm.setOptions(f, size = kotlin.math.round(it * 10f) / 10f) }, valueRange = 1f..16f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Point size" })
+        if (f.geometry?.name != null) Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Show name", modifier = Modifier.weight(1f), color = colors.onSurface)
+            androidx.compose.material3.Switch(checked = !f.hideName, onCheckedChange = { vm.setGeometryOptions(f, hideName = !it) })
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Show coordinates", modifier = Modifier.weight(1f), color = colors.onSurface)
+            androidx.compose.material3.Switch(checked = f.showLabel, onCheckedChange = { vm.setOptions(f, label = it) })
+        }
+        if (f.geometry?.onPath == true) Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Move along its path", color = colors.onSurface)
+                Text("Round once in 10 s, or back and forth", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            }
+            androidx.compose.material3.Switch(checked = f.animate, onCheckedChange = { vm.setGeometryOptions(f, animate = it) })
+        }
+    }
+    if (filled) {
+        Text("Fill opacity: ${(f.fillOpacity * 100).roundToInt()}%", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+        ExpressiveSlider(value = f.fillOpacity, onValueChange = { vm.setOptions(f, opacity = it) }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Fill opacity" })
+    }
+    if (!isPoint && !filled) Text("Color, line style and thickness are above.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
 }
 
 /** Choices in a row of segments, M3's single-choice segmented buttons. */

@@ -203,6 +203,18 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (3 October, geometry third pass)
+- **Geometry (alpha), third pass**:
+  - **Loci:** Locus(P, Q) draws the curve P traces as Q slides along its object, and there's
+    a Locus tool. Other lines can use a locus, for example a point on it.
+  - **New commands:** triangle centers (Circumcenter, Orthocenter, Incenter, and Centroid of
+    points); a conic's parts (Foci, Vertex, Asymptote, Directrix) and Polar lines; and checks
+    that show true or false (AreCollinear, AreConcyclic, AreParallel, ArePerpendicular,
+    AreEqual).
+  - **Line options:** construction lines now have their own options. Points have size, Show
+    name and Show coordinates; filled shapes have fill opacity. A point on an object can Move
+    along its path by itself, and everything built on it follows.
+
 ## Latest changes (3 October, geometry second pass)
 - **Geometry (alpha), second pass**:
   - Arithmetic mixes with commands: Distance(A, B)/2, M = (A + B)/2, B = A + (2, 0), 3A,

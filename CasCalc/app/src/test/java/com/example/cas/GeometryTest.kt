@@ -247,4 +247,61 @@ class GeometryTest {
         assertEquals("h", Geometry.nextObjectName(setOf("f", "g")))
         assertEquals("α", Geometry.nextAngleName(emptySet()))
     }
+
+    // ---- Round 3 ----
+
+    @Test fun triangleCenters() {
+        val t = arrayOf("A=(0,0)", "B=(4,0)", "C=(0,3)")
+        assertPoint(2.0, 1.5, obj(*t, "Circumcenter(A,B,C)"))
+        // A right angle at A: the altitudes meet there.
+        assertPoint(0.0, 0.0, obj(*t, "Orthocenter(A,B,C)"))
+        assertPoint(1.0, 1.0, obj(*t, "Incenter(A,B,C)"))
+        assertPoint(4.0 / 3, 1.0, obj(*t, "Centroid(A,B,C)"))
+        // Euler's line: H = 3G − 2O, for a scalene triangle too.
+        val h = obj("Orthocenter((0,0),(5,0),(1,3))") as Point
+        // H is where the altitude from (1, 3) (x = 1) meets the one from (0, 0).
+        assertEquals(1.0, h.x, 1e-9); assertEquals(4.0 / 3, h.y, 1e-9)
+    }
+
+    @Test fun conicParts() {
+        val e = arrayOf("k=Ellipse((−3,0),(3,0),5)")
+        val f = obj(*e, "Foci(k)") as Geometry.Many
+        assertEquals(setOf(-3.0, 3.0), f.items.map { Math.round((it as Point).x).toDouble() }.toSet())
+        assertEquals(4, (obj(*e, "Vertex(k)") as Geometry.Many).items.size)
+        val asym = obj("h=Hyperbola((−5,0),(5,0),3)", "Asymptote(h)") as Geometry.Many
+        // y = ±4x/3.
+        asym.items.forEach { l -> l as Geometry.Line; assertEquals(4.0 / 3, kotlin.math.abs((l.b.y - l.a.y) / (l.b.x - l.a.x)), 1e-9) }
+        // y = x²/4: focus (0, 1), directrix y = −1, vertex (0, 0).
+        val par = arrayOf("p=Parabola((0,1),Line((0,−1),(1,−1)))")
+        assertPoint(0.0, 1.0, obj(*par, "Foci(p)"))
+        assertPoint(0.0, 0.0, obj(*par, "Vertex(p)"))
+        val d = obj(*par, "Directrix(p)") as Geometry.Line
+        assertEquals(-1.0, d.a.y, 1e-9); assertEquals(-1.0, d.b.y, 1e-9)
+        // The polar of (2, 0) for the unit circle is x = 1/2.
+        val polar = obj("c=Circle((0,0),1)", "Polar((2,0),c)") as Geometry.Line
+        assertEquals(0.5, polar.a.x, 1e-12); assertEquals(0.5, polar.b.x, 1e-12)
+    }
+
+    @Test fun areChecks() {
+        assertEquals(Geometry.Bool(true), obj("AreCollinear((0,0),(1,1),(3,3))"))
+        assertEquals(Geometry.Bool(false), obj("AreCollinear((0,0),(1,1),(3,4))"))
+        assertEquals(Geometry.Bool(true), obj("AreConcyclic((1,0),(0,1),(−1,0),(0,−1))"))
+        assertEquals(Geometry.Bool(true), obj("AreParallel(Line((0,0),(1,2)),Line((5,5),(6,7)))"))
+        assertEquals(Geometry.Bool(true), obj("ArePerpendicular(Line((0,0),(1,2)),Line((0,0),(−2,1)))"))
+        assertEquals(Geometry.Bool(true), obj("A=(0,0)", "B=(3,4)", "AreEqual(Distance(A,B),5)"))
+    }
+
+    @Test fun locus() {
+        // The midpoint of a fixed point and a point running round a circle traces half the circle, centered between.
+        val lines = arrayOf("c=Circle((0,0),2)", "Q=Point(c,0)", "A=(4,0)", "M=Midpoint(A,Q)", "L=Locus(M,Q)")
+        val out = build(*lines)
+        val locus = out.last()!!.obj as? Geometry.Polyline ?: error(out.last()!!.error ?: "no locus")
+        locus.pieces.flatten().forEach { p -> assertEquals(1.0, kotlin.math.hypot(p.x - 2, p.y), 1e-9) }
+        // The locus is listed after what it uses, but works out wherever it's written.
+        val first = build("L=Locus(M,Q)", *lines.dropLast(1).toTypedArray())
+        assertTrue(first[0]!!.obj is Geometry.Polyline)
+        assertEquals("A must be a point on an object, like A = Point(c, 0.5)", build(*lines.dropLast(1).toTypedArray(), "Locus(M,A)").last()!!.error)
+        // A point can go on a locus too.
+        assertNotNull(build(*lines, "P=Point(L,0.5)").last()!!.obj as? Point)
+    }
 }

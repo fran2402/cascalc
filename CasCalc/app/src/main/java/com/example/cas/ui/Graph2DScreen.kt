@@ -688,7 +688,7 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
                 val pts = d.points.mapNotNull { p -> at(p.x, p.y)?.let { Special(it.first, it.second, "point", f.colorIndex) } }
                 val labels = ArrayList<GeoLabel>()
                 val name = g.geometry?.name
-                if (name != null && o is com.example.cas.graph.Geometry.Point) pts.firstOrNull()?.let { labels += GeoLabel(it.x, it.y, geometryLabel(name), false) }
+                if (name != null && !g.hideName && o is com.example.cas.graph.Geometry.Point) pts.firstOrNull()?.let { labels += GeoLabel(it.x, it.y, geometryLabel(name), false) }
                 d.labels.forEach { (p, t) -> at(p.x, p.y)?.let { labels += GeoLabel(it.first, it.second, t, true) } }
                 out += Plotted(f, sc.paths(d.lines), pts, fill = d.fill?.mapNotNull { at(it.first, it.second) }, arrow = d.arrow, labels = labels)
             }

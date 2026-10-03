@@ -93,6 +93,10 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
         internal set
     var valueText by mutableStateOf<String?>(null)
         internal set
+    /** A construction's point drawn without its name. */
+    var hideName by mutableStateOf(false)
+    /** A point on a path (P = Point(c, t)) moving along it by itself. */
+    var animate by mutableStateOf(false)
     /** A color picked by long-pressing the dot (ARGB), or null for the theme's color for [colorIndex]. */
     var customColor by mutableStateOf<Int?>(null)
     /** On the complex plane: the colors for arg f. */
@@ -320,7 +324,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 f.colormap = map
                 f.colormapReversed = reversed
                 // Then flags (L label, C connect) and the fill opacity.
-                parts.getOrNull(3)?.let { flags -> f.showLabel = 'L' in flags; f.connectPoints = 'C' in flags; f.closedShape = 'S' in flags }
+                parts.getOrNull(3)?.let { flags -> f.showLabel = 'L' in flags; f.connectPoints = 'C' in flags; f.closedShape = 'S' in flags; f.hideName = 'H' in flags; f.animate = 'A' in flags }
                 parts.getOrNull(4)?.toFloatOrNull()?.let { f.fillOpacity = it.coerceIn(0f, 1f) }
                 parts.getOrNull(5)?.toFloatOrNull()?.let { f.pointSize = it.coerceIn(1f, 16f) }
                 parts.getOrNull(6)?.toIntOrNull()?.let { f.pointShape = it.coerceIn(0, com.example.cas.graph.Marker.entries.lastIndex) }
@@ -501,7 +505,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             // Lines can use functions defined on other lines, so a list with definitions recompiles whole.
             if (functions.any { com.example.cas.engine.UserFunction.definition(it.editor.root.items) != null || it.geometry != null } || f.geometry != null) { geometryCache = null; functions.forEach { recompile(it) } }
             else recompile(f)
-            save()
+            // (Not on every frame of a point moving by itself.)
+            if (!quietChange) save()
         }
         functions += f
         return f
@@ -927,6 +932,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         is com.example.cas.graph.Geometry.Circle -> "r = " + shortNumber(o.r)
         is com.example.cas.graph.Geometry.Conic -> when (o.shape) { com.example.cas.graph.Geometry.ConicShape.None -> "No points"; else -> o.kind }
         is com.example.cas.graph.Geometry.Arc -> "length = " + shortNumber(o.r * kotlin.math.abs(o.sweep))
+        is com.example.cas.graph.Geometry.Bool -> if (o.value) "true" else "false"
         else -> null
     }
 
@@ -1581,7 +1587,72 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             playing[name] = d
         }
         if (playing.isNotEmpty()) version++
+        advancePaths(seconds)
     }
+
+    /** Which way each animated point on a path is going (+1 or −1), for those that bounce between ends. */
+    private val pathDirection = HashMap<PlotFunction, Int>()
+
+    /**
+     * Moves points on paths that are animated: once round a closed path (circle, ellipse,
+     * polygon) in 10 seconds; back and forth along an open one (a segment, an arc), and across
+     * the view along an endless one (a line, a function's graph).
+     */
+    private fun advancePaths(seconds: Double) {
+        val moving = functions.filter { it.animate && it.geometry?.onPath == true && it.visible }
+        if (moving.isEmpty()) return
+        val c = construction()
+        for (f in moving) {
+            val path = c.outcomes[f]?.path ?: continue
+            val st = f.geometry ?: continue
+            val t0 = ((st.expr as? com.example.cas.graph.Geometry.Ex.Call)?.args?.getOrNull(1) as? com.example.cas.graph.Geometry.Ex.Lit)?.value
+                ?: ((st.expr as? com.example.cas.graph.Geometry.Ex.Call)?.args?.getOrNull(1) as? com.example.cas.graph.Geometry.Ex.Neg)?.let { (it.a as? com.example.cas.graph.Geometry.Ex.Lit)?.value?.unaryMinus() }
+                ?: 0.0
+            val closed = path is com.example.cas.graph.Geometry.Circle || path is com.example.cas.graph.Geometry.Polygon ||
+                path is com.example.cas.graph.Geometry.Conic && path.shape is com.example.cas.graph.Geometry.ConicShape.Ellipse
+            val bounded = closed || path is com.example.cas.graph.Geometry.Segment || path is com.example.cas.graph.Geometry.Arc ||
+                path is com.example.cas.graph.Geometry.Vector || path is com.example.cas.graph.Geometry.Polyline
+            val (lo, hi) = if (bounded) 0.0 to 1.0 else viewParameters(path) ?: continue
+            val dir = pathDirection.getOrPut(f) { 1 }
+            var t = t0 + dir * (hi - lo) / 10 * seconds
+            if (closed) t -= kotlin.math.floor(t)
+            else {
+                if (t > hi) { t = 2 * hi - t; pathDirection[f] = -1 }
+                if (t < lo) { t = 2 * lo - t; pathDirection[f] = 1 }
+            }
+            setPathParameter(f, t)
+        }
+    }
+
+    /** The parameters of an endless path where it crosses the view (from the view's corners). */
+    open fun viewParameters(path: com.example.cas.graph.Geometry.Obj): Pair<Double, Double>? {
+        val r = geometryRange()
+        val corners = listOf(r.start to r.start, r.start to r.endInclusive, r.endInclusive to r.start, r.endInclusive to r.endInclusive)
+        val ts = corners.mapNotNull { (x, y) -> runCatching { com.example.cas.graph.Geometry.parameterOf(path, com.example.cas.graph.Geometry.Point(x, y)) }.getOrNull() }
+        return if (ts.isEmpty()) null else ts.min() to ts.max()
+    }
+
+    /** Writes a point on a path's parameter into its line (no undo step: it's moving by itself). */
+    private fun setPathParameter(f: PlotFunction, t: Double) {
+        val st = f.geometry ?: return
+        val nodes = st.pathNodes ?: return
+        val row = MathRow()
+        fun add(n: com.example.cas.editor.Node) { row.add(row.items.size, n) }
+        add(com.example.cas.editor.Sym(st.name!!)); add(com.example.cas.editor.Sym("=")); add(com.example.cas.editor.Sym("Point")); add(com.example.cas.editor.Sym("("))
+        MathCodec.copy(MathRow(nodes.toMutableList())).items.toList().forEach { n -> n.parent?.items?.remove(n); add(n) }
+        add(com.example.cas.editor.Sym(","))
+        // Four figures are plenty for a moving point, and keep the line short.
+        java.math.BigDecimal(t).round(java.math.MathContext(4)).stripTrailingZeros().toPlainString().forEach { ch -> add(com.example.cas.editor.Sym(if (ch == '-') "−" else ch.toString())) }
+        add(com.example.cas.editor.Sym(")"))
+        quietChange = true
+        try { f.editor.replace(row, record = false) } finally { quietChange = false }
+    }
+
+    /** Set while a line is rewritten by an animation, which isn't saved frame by frame. */
+    private var quietChange = false
+
+    /** Whether anything moves by itself: playing sliders, or animated points on paths. */
+    val animating: Boolean get() = playing.isNotEmpty() || functions.any { it.animate && it.geometry?.onPath == true && it.visible }
 
     override val padEquals: Boolean get() = true
     override val listKey: Boolean get() = isComplex || plotVars == listOf("x")
@@ -1842,7 +1913,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     /** A line's saved style: style:thickness:colormap:flags:opacity:point size:point shape. */
     private fun styleText(f: PlotFunction) =
         "${f.lineStyle}:${f.thickness}:${com.example.cas.graph.Colormap.save(f.colormap, f.colormapReversed)}:" +
-            (if (f.showLabel) "L" else "") + (if (f.connectPoints) "C" else "") + (if (f.closedShape) "S" else "") + ":${f.fillOpacity}:${f.pointSize}:${f.pointShape}" +
+            (if (f.showLabel) "L" else "") + (if (f.connectPoints) "C" else "") + (if (f.closedShape) "S" else "") + (if (f.hideName) "H" else "") + (if (f.animate) "A" else "") + ":${f.fillOpacity}:${f.pointSize}:${f.pointShape}" +
             ":${if (f.arrowsByLength) "V" else "S"}:${f.arrowLength}:${f.arrowScale}:${f.arrowTip}:${f.arrowTipSize}:${f.arrowDensity}"
 
     /** Label, connect-the-points and fill opacity, from a line's options. */
@@ -1853,6 +1924,15 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         f.closedShape = closed
         f.showLabel = label; f.connectPoints = connect; f.fillOpacity = opacity.coerceIn(0f, 1f)
         f.pointSize = size.coerceIn(1f, 16f); f.pointShape = shape
+        version++
+        save()
+    }
+
+    /** A construction's own options: its point's name shown, and a point on a path moving by itself. */
+    fun setGeometryOptions(f: PlotFunction, hideName: Boolean = f.hideName, animate: Boolean = f.animate) {
+        f.hideName = hideName
+        if (animate != f.animate) { f.animate = animate; pathDirection.remove(f) }
+        // (Saved below, with where an animated point stopped.)
         version++
         save()
     }
@@ -2241,6 +2321,7 @@ enum class GeometryTool(val label: String, val command: String, val slots: Strin
     Parabola("Parabola", "Parabola", "PL", 'O', "Tap the focus, then the directrix (a line)"),
     Conic("Conic (5 points)", "Conic", "PPPPP", 'O', "Tap five points on the conic"),
     Reflect("Reflect", "Reflect", "XL", 'O', "Tap what to reflect, then the mirror line"),
+    Locus("Locus", "Locus", "PP", 'O', "Tap the tracing point, then the one on an object"),
     Angle("Angle", "Angle", "PPP", 'A', "Tap a point, the corner, then another point"),
     Distance("Distance", "Distance", "PP", 'O', "Tap two points"),
 }

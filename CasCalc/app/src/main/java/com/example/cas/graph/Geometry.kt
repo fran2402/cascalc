@@ -64,6 +64,12 @@ object Geometry {
         override fun hashCode() = c.contentHashCode()
     }
 
+    /** A curve given by its points: a locus (several pieces where it breaks off). */
+    data class Polyline(val pieces: List<List<Point>>) : Obj()
+
+    /** A yes or no: AreParallel(l, m), AreCollinear(A, B, C)… */
+    data class Bool(val value: Boolean) : Obj()
+
     /** The graph of a function f(x) from the graph's own lines, for intersecting and tangents. */
     class FunctionGraph(val name: String, val f: (Double) -> Double) : Obj()
 
@@ -174,6 +180,15 @@ object Geometry {
         Command("Tangent", "Tangent(A, c)", "The tangents from A to a circle or conic, or to a function graph at x = x(A)"),
         Command("Centroid", "Centroid(poly)", "The center of mass of a polygon (or of its corners)"),
         Command("Incircle", "Incircle(A, B, C)", "The circle inside the triangle ABC touching its sides"),
+        Command("Circumcenter", "Circumcenter(A, B, C)", "The center of the circle through A, B and C"),
+        Command("Orthocenter", "Orthocenter(A, B, C)", "Where the triangle's altitudes meet"),
+        Command("Incenter", "Incenter(A, B, C)", "The center of the circle inside the triangle"),
+        Command("Vertex", "Vertex(p, n)", "The nth corner of a polygon, or a conic's vertices"),
+        Command("Foci", "Foci(c)", "An ellipse's or hyperbola's two foci, or a parabola's focus", listOf("Focus")),
+        Command("Asymptote", "Asymptote(h)", "A hyperbola's two asymptotes"),
+        Command("Directrix", "Directrix(p)", "A parabola's directrix"),
+        Command("Polar", "Polar(A, c)", "The polar line of A with respect to a circle or conic"),
+        Command("Locus", "Locus(P, Q)", "The curve P traces as Q, a point on an object, moves along it"),
         Command("Distance", "Distance(A, B)", "How far apart two points are, or a point and a line or circle"),
         Command("Length", "Length(s)", "The length of a segment, vector or arc, or the perimeter of a polygon"),
         Command("Perimeter", "Perimeter(poly)", "The perimeter of a polygon, or a circle's circumference"),
@@ -181,6 +196,11 @@ object Geometry {
         Command("Angle", "Angle(A, B, C)", "The angle at B from A round to C (counterclockwise)"),
         Command("Slope", "Slope(l)", "The slope of a line or segment"),
         Command("Radius", "Radius(c)", "A circle's or arc's radius"),
+        Command("AreCollinear", "AreCollinear(A, B, C)", "Whether three points are on one line"),
+        Command("AreConcyclic", "AreConcyclic(A, B, C, D)", "Whether four points are on one circle"),
+        Command("AreParallel", "AreParallel(l, m)", "Whether two lines are parallel"),
+        Command("ArePerpendicular", "ArePerpendicular(l, m)", "Whether two lines are at right angles"),
+        Command("AreEqual", "AreEqual(a, b)", "Whether two numbers or points are the same"),
         Command("Reflect", "Reflect(obj, l)", "The mirror image in a line (or through a point)"),
         Command("Rotate", "Rotate(obj, θ, A)", "Turned by θ about A (about the origin without A)"),
         Command("Translate", "Translate(obj, v)", "Moved by the vector v (a vector, or a pair (dx, dy))"),
@@ -412,13 +432,19 @@ object Geometry {
         onStatement: (Int) -> kotlin.Unit = {},
         functionOf: (String) -> ((Double) -> Double)? = { null },
         xRange: ClosedFloatingPointRange<Double> = -50.0..50.0,
+        /** Objects to use instead of what their lines say (a locus moving its point along). */
+        overrides: Map<String, Obj> = emptyMap(),
+        /** Inside a locus's own runs, loci aren't worked out again. */
+        loci: Boolean = true,
     ): List<Outcome?> {
         val out = arrayOfNulls<Outcome>(statements.size)
         val env = LinkedHashMap<String, Obj>()
         val defined = statements.mapNotNull { it?.name }.toSet()
         val waiting = statements.indices.filter { statements[it] != null }.toMutableList()
         // As many passes as lines, so each can use a line below it; what's left waits on itself.
-        repeat(statements.size + 1) {
+        // Loci run the whole construction again, so they wait for a pass where nothing else can be done.
+        var lociTurn = false
+        repeat(2 * statements.size + 2) {
             val before = waiting.size
             val it2 = waiting.iterator()
             while (it2.hasNext()) {
@@ -426,8 +452,14 @@ object Geometry {
                 val s = statements[k]!!
                 try {
                     onStatement(k)
-                    val ev = Evaluation(env, defined, number, degrees, functionOf, xRange)
-                    val obj = ev.obj(s.expr)
+                    // A locus waits until everything else is worked out (it runs the whole construction again).
+                    if (loci && isLocus(s.expr) && !lociTurn) continue
+                    val locus = { traced: String, mover: String ->
+                        if (!loci) throw GeometryError("A locus can't use another locus")
+                        locusOf(statements, out, traced, mover, number, degrees, functionOf, xRange)
+                    }
+                    val ev = Evaluation(env, defined, number, degrees, functionOf, xRange, locus)
+                    val obj = s.name?.let { overrides[it] } ?: ev.obj(s.expr)
                     out[k] = Outcome(obj, null, if (s.onPath) ev.obj((s.expr as Ex.Call).args[0]) else null)
                     s.name?.let { env[it] = obj }
                     it2.remove()
@@ -440,10 +472,62 @@ object Geometry {
                     out[k] = Outcome(null, e.message ?: "Can't make this"); it2.remove()
                 }
             }
-            if (waiting.size == before) return@repeat
+            // Nothing more without the loci: their turn. After they've had it, nothing at all: stop.
+            if (waiting.size == before) { if (lociTurn || waiting.none { j -> isLocus(statements[j]!!.expr) }) return@repeat; lociTurn = true }
+            else lociTurn = false
         }
         waiting.forEach { k -> out[k] = Outcome(null, "This depends on itself") }
         return out.toList()
+    }
+
+    private fun isLocus(e: Ex) = e is Ex.Call && e.command.name == "Locus"
+
+    /**
+     * The curve [traced] makes as [mover] (a point on a path) runs along its path: the whole
+     * construction worked out again for each place, the mover put there.
+     */
+    private fun locusOf(
+        statements: List<Statement?>, done: Array<Outcome?>, traced: String, mover: String,
+        number: (List<Node>, Map<String, Double>) -> Double, degrees: Boolean,
+        functionOf: (String) -> ((Double) -> Double)?, xRange: ClosedFloatingPointRange<Double>,
+    ): Obj {
+        val k = statements.indexOfFirst { it?.name == mover }
+        if (k < 0) throw GeometryError("$mover isn't defined")
+        if (statements[k]?.onPath != true) throw GeometryError("$mover must be a point on an object, like $mover = Point(c, 0.5)")
+        val path = done[k]?.path ?: throw Missing(mover)
+        val tracedAt = statements.indexOfFirst { it?.name == traced }
+        if (tracedAt < 0) throw GeometryError("$traced isn't defined")
+        // How far the parameter runs: once round a closed path; along a line, a function or an open conic, across the view.
+        val span = xRange.endInclusive - xRange.start
+        val (lo, hi) = when (path) {
+            is Line, is Ray -> asLine(path).let { (a, b) -> val step = maxOf((b - a).length, 1e-9); (if (path is Ray) 0.0 else -span / step) to span / step }
+            is FunctionGraph -> xRange.start to xRange.endInclusive
+            is Conic -> when (path.shape) { is ConicShape.Ellipse -> 0.0 to 1.0; is ConicShape.Hyperbola -> -1.999 to 1.999; else -> -0.995 to 0.995 }
+            else -> 0.0 to 1.0
+        }
+        val n = 240
+        val pieces = ArrayList<MutableList<Point>>()
+        var current = ArrayList<Point>()
+        var last: Point? = null
+        for (i in 0..n) {
+            val t = lo + (hi - lo) * i / n
+            val at = runCatching { pointAt(path, t) }.getOrNull()
+            val p = at?.let { place ->
+                val outcomes = build(statements, number, degrees, functionOf = functionOf, xRange = xRange, overrides = mapOf(mover to place), loci = false)
+                outcomes[tracedAt]?.obj as? Point
+            }
+            // A break where the point isn't defined, or jumps a long way (across a branch).
+            val jump = p != null && last != null && (p - last).length > span / 4
+            if (p == null || jump || (path is Conic && path.shape is ConicShape.Hyperbola && i > 0 && (t >= 0) != (lo + (hi - lo) * (i - 1) / n >= 0))) {
+                if (current.size > 1) pieces += current
+                current = ArrayList()
+            }
+            if (p != null) current += p
+            last = p
+        }
+        if (current.size > 1) pieces += current
+        if (pieces.isEmpty()) throw GeometryError("$traced doesn't move with $mover")
+        return Polyline(pieces)
     }
 
     /** A number as a row of digits (for a function key whose arguments were worked out here). */
@@ -457,6 +541,7 @@ object Geometry {
     private class Evaluation(
         val env: Map<String, Obj>, val defined: Set<String>, val numberOf: (List<Node>, Map<String, Double>) -> Double,
         val degrees: Boolean, val functionOf: (String) -> ((Double) -> Double)?, val xRange: ClosedFloatingPointRange<Double>,
+        val locus: (String, String) -> Obj = { _, _ -> throw GeometryError("Locus isn't available here") },
     ) {
         fun numbers(): Map<String, Double> = env.mapNotNull { (k, v) -> value(v)?.let { k to it } }.toMap()
 
@@ -469,7 +554,8 @@ object Geometry {
             is Ex.Pair -> Point(num(obj(e.x)), num(obj(e.y)))
             is Ex.Lit -> Number(e.value)
             is Ex.Delegate -> Number(numberOf(e.nodes, numbers()))
-            is Ex.Call -> call(e.command, e.args.map { obj(it) })
+            // A locus names its points rather than taking their values.
+            is Ex.Call -> if (e.command.name == "Locus") call(e.command, listOf(Number(0.0), Number(0.0)), e) else call(e.command, e.args.map { obj(it) }, e)
             is Ex.Neg -> when (val a = obj(e.a)) {
                 is Point -> a.times(-1.0)
                 is Vector -> Vector(a.b, a.a)
@@ -531,7 +617,7 @@ object Geometry {
             else -> num(o).let { if (degrees) Math.toRadians(it) else it }
         }
 
-        fun call(c: Command, a: List<Obj>): Obj {
+        fun call(c: Command, a: List<Obj>, call: Ex.Call): Obj {
             fun need(vararg counts: Int) { if (a.size !in counts) throw GeometryError("${c.name} takes ${counts.joinToString(" or ")} things: ${c.usage}") }
             return when (c.name) {
                 "Point" -> { need(1, 2)
@@ -654,10 +740,79 @@ object Geometry {
                         else -> throw GeometryError("Tangent(A, c): c is a circle, a conic or a function")
                     }
                 }
-                "Centroid" -> { need(1)
-                    when (val o = a[0]) { is Polygon -> centroid(o.points); else -> throw GeometryError("Expected a polygon") }
+                "Centroid" -> if (a.size >= 2) a.map { point(it) }.let { pts -> Point(pts.sumOf { it.x } / pts.size, pts.sumOf { it.y } / pts.size) } else {
+                    when (val o = a[0]) { is Polygon -> centroid(o.points); else -> throw GeometryError("Expected a polygon, or points") }
                 }
                 "Incircle" -> { need(3); incircle(point(a[0]), point(a[1]), point(a[2])) }
+                "Circumcenter" -> { need(3); circumcircle(point(a[0]), point(a[1]), point(a[2])).center }
+                "Incenter" -> { need(3); incircle(point(a[0]), point(a[1]), point(a[2])).center }
+                "Orthocenter" -> { need(3)
+                    val p = point(a[0]); val q = point(a[1]); val r = point(a[2])
+                    if (abs(signedArea(listOf(p, q, r))) < 1e-12) throw GeometryError("The three points are on one line")
+                    // The centroid G and circumcenter O: H = 3G − 2O (Euler's line).
+                    val o = circumcircle(p, q, r).center
+                    Point(p.x + q.x + r.x - 2 * o.x, p.y + q.y + r.y - 2 * o.y)
+                }
+                "Vertex" -> when (val o = a[0]) {
+                    is Polygon -> if (a.size == 2) {
+                        val n = num(a[1]).toInt()
+                        o.points.getOrNull(n - 1) ?: throw GeometryError("The polygon has ${o.points.size} corners")
+                    } else Many(o.points)
+                    is Conic -> conicVertices(o).let { it.singleOrNull() ?: Many(it) }
+                    is Segment -> Many(listOf(o.a, o.b))
+                    else -> throw GeometryError("Vertex of a polygon or conic")
+                }
+                "Foci" -> { need(1); foci(a[0] as? Conic ?: throw GeometryError("Foci of a conic")).let { it.singleOrNull() ?: Many(it) } }
+                "Asymptote" -> { need(1)
+                    val s = (a[0] as? Conic)?.shape as? ConicShape.Hyperbola ?: throw GeometryError("Only a hyperbola has asymptotes")
+                    val c0 = Point(s.cx, s.cy)
+                    Many(listOf(1.0, -1.0).map { sign -> Line(c0, c0 + rotated(s.phi, s.a, sign * s.b)) })
+                }
+                "Directrix" -> { need(1)
+                    val o = a[0] as? Conic ?: throw GeometryError("Expected a parabola")
+                    val s = o.shape as? ConicShape.Parabola ?: throw GeometryError("Only a parabola has one directrix here")
+                    val (v, p) = parabolaVertex(s)
+                    // The line x′ = x′(vertex) − p, at right angles to the axis.
+                    val foot = rotated(s.phi, v.x - p, v.y)
+                    Line(foot, foot + rotated(s.phi, 0.0, 1.0))
+                }
+                "Polar" -> { need(2)
+                    val p = point(a[0])
+                    val c = when (val o = a[1]) {
+                        is Circle -> doubleArrayOf(1.0, 0.0, 1.0, -2 * o.center.x, -2 * o.center.y, o.center.x * o.center.x + o.center.y * o.center.y - o.r * o.r)
+                        is Conic -> o.c
+                        else -> throw GeometryError("Polar(A, c): c is a circle or conic")
+                    }
+                    // The line (A, B/2, D/2; B/2, C, E/2; D/2, E/2, F)·(x₀, y₀, 1) · (x, y, 1) = 0.
+                    val la = c[0] * p.x + c[1] / 2 * p.y + c[3] / 2
+                    val lb = c[1] / 2 * p.x + c[2] * p.y + c[4] / 2
+                    val lc = c[3] / 2 * p.x + c[4] / 2 * p.y + c[5]
+                    lineFrom(la, lb, lc) ?: throw GeometryError("The polar is at infinity (A is the center)")
+                }
+                "Locus" -> { need(2)
+                    val traced = (call.args[0] as? Ex.Ref)?.name ?: throw GeometryError("Locus(P, Q): P is a point's name")
+                    val mover = (call.args[1] as? Ex.Ref)?.name ?: throw GeometryError("Locus(P, Q): Q is a point's name")
+                    locus(traced, mover)
+                }
+                "AreCollinear" -> { need(3); val p = point(a[0]); val q = point(a[1]); val r = point(a[2])
+                    Bool(abs(signedArea(listOf(p, q, r))) <= 1e-9 * maxOf(1.0, (q - p).length * (r - p).length)) }
+                "AreConcyclic" -> { need(4)
+                    val pts = a.map { point(it) }
+                    Bool(runCatching { circumcircle(pts[0], pts[1], pts[2]) }.getOrNull()?.let { c -> abs((pts[3] - c.center).length - c.r) <= 1e-9 * maxOf(1.0, c.r) } ?: false)
+                }
+                "AreParallel", "ArePerpendicular" -> { need(2)
+                    val u = direction(a[0]); val v = direction(a[1])
+                    val cross = u.x * v.y - u.y * v.x; val dot = u.x * v.x + u.y * v.y
+                    Bool(if (c.name == "AreParallel") abs(cross) < 1e-9 else abs(dot) < 1e-9)
+                }
+                "AreEqual" -> { need(2)
+                    val x = a[0]; val y = a[1]
+                    Bool(when {
+                        x is Point && y is Point -> (x - y).length <= 1e-9 * maxOf(1.0, x.length)
+                        value(x) != null && value(y) != null -> abs(value(x)!! - value(y)!!) <= 1e-9 * maxOf(1.0, abs(value(x)!!))
+                        else -> x == y
+                    })
+                }
                 "Distance" -> { need(2)
                     val p = point(a[0])
                     Number(when (val o = a[1]) {
@@ -843,8 +998,9 @@ object Geometry {
         is Conic -> conicThrough(conicSamples(o).map(f)).let { Conic(it.c, o.kind) }
         is Angle -> o
         is Many -> Many(o.items.map { transform(it, scale, turn, mirror, f) })
-        is Number -> throw GeometryError("A number can't be moved")
+        is Number, is Bool -> throw GeometryError("A number can't be moved")
         is FunctionGraph -> throw GeometryError("A function's graph can't be moved here")
+        is Polyline -> Polyline(o.pieces.map { it.map(f) })
     }
 
     private fun tangents(p: Point, c: Circle): List<Obj> {
@@ -887,6 +1043,14 @@ object Geometry {
         is Conic -> conicAt(o.shape, t) ?: throw GeometryError("This conic has no points")
         is FunctionGraph -> o.f(t).let { y -> if (y.isFinite()) Point(t, y) else throw GeometryError("The function isn't defined at x = ${shortText(t)}") }
         is Point -> o
+        is Polyline -> {
+            val pts = o.pieces.flatten()
+            val lengths = (0 until pts.size - 1).map { (pts[it + 1] - pts[it]).length }
+            var left = t.coerceIn(0.0, 1.0) * lengths.sum()
+            var k = 0
+            while (k < lengths.size - 1 && left > lengths[k]) { left -= lengths[k]; k++ }
+            if (lengths.isEmpty() || lengths[k] == 0.0) pts.first() else pts[k] + (pts[k + 1] - pts[k]).times(left / lengths[k])
+        }
         else -> throw GeometryError("A point can go on a line, circle, arc, polygon, conic or function graph")
     }
 
@@ -911,7 +1075,7 @@ object Geometry {
             }
         }
         is FunctionGraph -> p.x
-        is Polygon, is Conic -> nearestParameter(o, p)
+        is Polygon, is Conic, is Polyline -> nearestParameter(o, p)
         else -> 0.0
     }
 
@@ -1067,6 +1231,35 @@ object Geometry {
         return d
     }
 
+    /** The line ax + by + c = 0, or null if a = b = 0. */
+    private fun lineFrom(a: Double, b: Double, c: Double): Line? {
+        val n2 = a * a + b * b
+        if (n2 < 1e-24) return null
+        val foot = Point(-a * c / n2, -b * c / n2)
+        return Line(foot, foot + Point(-b, a))
+    }
+
+    /** A parabola's vertex in its turned frame, and its focal length p (focus p along the axis). */
+    private fun parabolaVertex(s: ConicShape.Parabola): kotlin.Pair<Point, Double> {
+        val y = -s.k1 / (2 * s.k2)
+        val x = s.k2 * y * y + s.k1 * y + s.k0
+        return Point(x, y) to 1 / (4 * s.k2)
+    }
+
+    private fun conicVertices(o: Conic): List<Point> = when (val s = o.shape) {
+        is ConicShape.Ellipse -> listOf(Point(s.a, 0.0), Point(-s.a, 0.0), Point(0.0, s.b), Point(0.0, -s.b)).map { rotated(s.phi, it.x, it.y) + Point(s.cx, s.cy) }
+        is ConicShape.Hyperbola -> listOf(Point(s.a, 0.0), Point(-s.a, 0.0)).map { rotated(s.phi, it.x, it.y) + Point(s.cx, s.cy) }
+        is ConicShape.Parabola -> listOf(parabolaVertex(s).first.let { rotated(s.phi, it.x, it.y) })
+        ConicShape.None -> throw GeometryError("This conic has no points")
+    }
+
+    private fun foci(o: Conic): List<Point> = when (val s = o.shape) {
+        is ConicShape.Ellipse -> sqrt(maxOf(0.0, s.a * s.a - s.b * s.b)).let { c -> listOf(c, -c).map { rotated(s.phi, it, 0.0) + Point(s.cx, s.cy) } }
+        is ConicShape.Hyperbola -> sqrt(s.a * s.a + s.b * s.b).let { c -> listOf(c, -c).map { rotated(s.phi, it, 0.0) + Point(s.cx, s.cy) } }
+        is ConicShape.Parabola -> parabolaVertex(s).let { (v, p) -> listOf(rotated(s.phi, v.x + p, v.y)) }
+        ConicShape.None -> throw GeometryError("This conic has no points")
+    }
+
     /** Five points spread over a conic (to move it through a transformation). */
     private fun conicSamples(o: Conic): List<Point> = when (o.shape) {
         is ConicShape.Ellipse -> (0 until 5).map { conicAt(o.shape, it / 5.0)!! }
@@ -1094,6 +1287,7 @@ object Geometry {
     private fun pieces(o: Obj): List<Obj> = when (o) {
         is Line, is Segment, is Ray, is Vector, is Circle, is Arc, is Conic, is FunctionGraph -> listOf(o)
         is Polygon -> o.points.indices.map { k -> Segment(o.points[k], o.points[(k + 1) % o.points.size]) }
+        is Polyline -> o.pieces.flatMap { piece -> (0 until piece.size - 1).map { Segment(piece[it], piece[it + 1]) } }
         is Many -> o.items.flatMap { pieces(it) }
         else -> throw GeometryError("Intersect lines, circles, arcs, conics, polygons or function graphs")
     }
@@ -1321,8 +1515,9 @@ object Geometry {
             is Many -> o.items.map { draw(it, view, angleText) }.let { ds ->
                 Drawing(lines = ds.flatMap { it.lines }, points = ds.flatMap { it.points }, labels = ds.flatMap { it.labels })
             }
+            is Polyline -> Drawing(lines = o.pieces.map { piece -> piece.map { pt(it) } })
             // A function's graph is drawn by its own line; a number isn't drawn.
-            is FunctionGraph, is Number -> Drawing()
+            is FunctionGraph, is Number, is Bool -> Drawing()
         }
     }
 
@@ -1351,7 +1546,7 @@ object Geometry {
 
     /** Polylines an object is drawn with, for finding what a tap is on (empty for points and numbers). */
     fun outline(o: Obj, view: Viewport): List<List<kotlin.Pair<Double, Double>>> = when (o) {
-        is Point, is Number, is Angle, is FunctionGraph -> emptyList()
+        is Point, is Number, is Angle, is FunctionGraph, is Bool -> emptyList()
         else -> draw(o, view).lines
     }
 
