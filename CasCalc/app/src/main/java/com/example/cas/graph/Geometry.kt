@@ -158,7 +158,7 @@ object Geometry {
 
     val COMMANDS = listOf(
         Command("Point", "Point(c, t)", "A point on a line, circle, conic, polygon or function graph, at t along it (drag it along)"),
-        Command("Segment", "Segment(A, B)", "The segment from A to B"),
+        Command("Segment", "Segment(A, B)", "The segment from A to B; Segment(A, a) of length a to the right of A"),
         Command("Line", "Line(A, B)", "The line through A and B; Line(A, l) is the line through A parallel to l"),
         Command("Ray", "Ray(A, B)", "The ray from A through B"),
         Command("Vector", "Vector(A, B)", "The arrow from A to B"),
@@ -198,13 +198,34 @@ object Geometry {
         Command("Root", "Root(f)", "Where a function's graph crosses the x-axis (in and around the view)"),
         Command("Extremum", "Extremum(f)", "A function's highest and lowest turning points (in and around the view)"),
         Command("Relation", "Relation(a, b)", "How two objects relate: equal, parallel, perpendicular, on each other…"),
+        Command("ClosestPoint", "ClosestPoint(c, A)", "The point of a line, circle, polygon, conic or function graph nearest A"),
+        Command("Inflection", "Inflection(f)", "Where a function's graph changes from bending one way to the other (in and around the view)", listOf("InflectionPoint")),
+        Command("CommonTangent", "CommonTangent(c, d)", "The lines touching both circles (up to four)", listOf("CommonTangents")),
+        Command("NinePointCircle", "NinePointCircle(A, B, C)", "The circle through the midpoints of the triangle's sides (and the feet of its altitudes)"),
+        Command("EulerLine", "EulerLine(A, B, C)", "The line through the triangle's circumcenter, centroid and orthocenter"),
+        Command("Excircle", "Excircle(A, B, C)", "The circle outside the triangle touching side BC and the other two sides extended"),
+        Command("TriangleCenter", "TriangleCenter(A, B, C, n)", "Kimberling's nth center: 1 incenter, 2 centroid, 3 circumcenter, 4 orthocenter, 5 nine-point center, 6 symmedian point, 7 Gergonne point, 8 Nagel point"),
+        Command("MajorAxis", "MajorAxis(c)", "The line along an ellipse's or hyperbola's major axis"),
+        Command("MinorAxis", "MinorAxis(c)", "The line along an ellipse's or hyperbola's minor axis"),
+        Command("UnitVector", "UnitVector(v)", "The vector of length 1 along a vector or line"),
+        Command("PerpendicularVector", "PerpendicularVector(v)", "The vector at right angles to v, as long as it", listOf("OrthogonalVector")),
+        Command("UnitPerpendicularVector", "UnitPerpendicularVector(v)", "The vector of length 1 at right angles to v or a line", listOf("UnitOrthogonalVector")),
+        Command("Direction", "Direction(l)", "A line's direction, as a vector"),
         Command("Distance", "Distance(A, B)", "How far apart two points are, or a point and a line or circle"),
         Command("Length", "Length(s)", "The length of a segment, vector or arc, or the perimeter of a polygon"),
         Command("Perimeter", "Perimeter(poly)", "The perimeter of a polygon, or a circle's circumference"),
         Command("Area", "Area(poly)", "The area of a polygon, circle, sector or ellipse"),
-        Command("Angle", "Angle(A, B, C)", "The angle at B from A round to C (counterclockwise)"),
+        Command("Angle", "Angle(A, B, C)", "The angle at B from A round to C (counterclockwise); Angle(l, m) between two lines or vectors"),
         Command("Slope", "Slope(l)", "The slope of a line or segment"),
         Command("Radius", "Radius(c)", "A circle's or arc's radius"),
+        Command("Circumference", "Circumference(c)", "The distance round a circle or ellipse"),
+        Command("Eccentricity", "Eccentricity(c)", "How stretched a conic is: 0 a circle, under 1 an ellipse, 1 a parabola, over 1 a hyperbola"),
+        Command("LinearEccentricity", "LinearEccentricity(c)", "The distance from a conic's center to a focus"),
+        Command("SemiMajorAxisLength", "SemiMajorAxisLength(c)", "Half an ellipse's or hyperbola's major axis (a)"),
+        Command("SemiMinorAxisLength", "SemiMinorAxisLength(c)", "Half an ellipse's or hyperbola's minor axis (b)"),
+        Command("Dot", "Dot(u, v)", "The dot product of two vectors", listOf("DotProduct")),
+        Command("Cross", "Cross(u, v)", "The 2D cross product of two vectors (the signed area they span)", listOf("CrossProduct")),
+        Command("AreCongruent", "AreCongruent(a, b)", "Whether two segments, circles, angles or polygons are the same size and shape"),
         Command("AreCollinear", "AreCollinear(A, B, C)", "Whether three points are on one line"),
         Command("AreConcyclic", "AreConcyclic(A, B, C, D)", "Whether four points are on one circle"),
         Command("AreParallel", "AreParallel(l, m)", "Whether two lines are parallel"),
@@ -635,7 +656,10 @@ object Geometry {
                         else -> pointAt(o, if (a.size == 2) num(a[1]) else 0.0)
                     }
                 }
-                "Segment" -> { need(2); Segment(point(a[0]), point(a[1])) }
+                "Segment" -> { need(2)
+                    val p = point(a[0])
+                    when (val q = a[1]) { is Point -> Segment(p, q); else -> Segment(p, p + Point(num(q), 0.0)) }
+                }
                 "Line" -> { need(2)
                     val p = point(a[0])
                     when (val q = a[1]) {
@@ -707,6 +731,134 @@ object Geometry {
                     pts.singleOrNull() ?: Many(pts)
                 }
                 "Relation" -> { need(2); Text(relation(a[0], a[1])) }
+                "ClosestPoint" -> { need(2)
+                    val p = point(a[1])
+                    when (val o = a[0]) {
+                        is Point -> o
+                        is FunctionGraph -> {
+                            // Nearest by sampling the visible stretch, then narrowing in.
+                            fun d(x: Double) = runCatching { o.f(x) }.getOrDefault(Double.NaN).let { y -> if (y.isFinite()) (x - p.x) * (x - p.x) + (y - p.y) * (y - p.y) else Double.MAX_VALUE }
+                            val lo = xRange.start; val hi = xRange.endInclusive; val n = 4000
+                            var best = (0..n).map { lo + (hi - lo) * it / n }.minBy { d(it) }
+                            var step = (hi - lo) / n
+                            repeat(60) { val l = best - step; val r = best + step; best = listOf(l, best, r).minBy { d(it) }; step /= 1.6 }
+                            if (d(best) == Double.MAX_VALUE) throw GeometryError("The function has no points near here")
+                            Point(best, o.f(best))
+                        }
+                        is Many -> o.items.map { call(c, listOf(it, p), call) as Point }.minBy { (it - p).length }
+                        else -> pointAt(o, parameterOf(o, p))
+                    }
+                }
+                "Inflection" -> { need(1)
+                    val f = a[0] as? FunctionGraph ?: throw GeometryError("Inflection(f): f is a function, like f(x) = x³ − x")
+                    val h = (xRange.endInclusive - xRange.start) * 1e-4
+                    val xs = roots({ x -> f.f(x + h) - 2 * f.f(x) + f.f(x - h) }, xRange.start, xRange.endInclusive, 4000)
+                    val pts = xs.map { Point(it, f.f(it)) }.filter { it.y.isFinite() }
+                    if (pts.isEmpty()) throw GeometryError("No inflection points in and around the view")
+                    pts.singleOrNull() ?: Many(pts)
+                }
+                "CommonTangent" -> { need(2)
+                    val p = a[0] as? Circle ?: throw GeometryError("CommonTangent(c, d): two circles")
+                    val q = a[1] as? Circle ?: throw GeometryError("CommonTangent(c, d): two circles")
+                    commonTangents(p, q).let { if (it.isEmpty()) throw GeometryError("One circle is inside the other: no common tangents") else it.singleOrNull() ?: Many(it) }
+                }
+                "NinePointCircle" -> { need(3)
+                    val p = point(a[0]); val q = point(a[1]); val r = point(a[2])
+                    circumcircle(mid(q, r), mid(r, p), mid(p, q))
+                }
+                "EulerLine" -> { need(3)
+                    val p = point(a[0]); val q = point(a[1]); val r = point(a[2])
+                    val o = circumcircle(p, q, r).center
+                    val g = Point((p.x + q.x + r.x) / 3, (p.y + q.y + r.y) / 3)
+                    if ((g - o).length < 1e-9 * maxOf(1.0, (q - p).length)) throw GeometryError("An equilateral triangle's centers are all one point")
+                    Line(o, g)
+                }
+                "Excircle" -> { need(3)
+                    val p = point(a[0]); val q = point(a[1]); val r = point(a[2])
+                    val la = (q - r).length; val lb = (r - p).length; val lc = (p - q).length
+                    val area = abs(signedArea(listOf(p, q, r)))
+                    if (area < 1e-12) throw GeometryError("The three points are on one line")
+                    val w = -la + lb + lc
+                    Circle(Point((-la * p.x + lb * q.x + lc * r.x) / w, (-la * p.y + lb * q.y + lc * r.y) / w), 2 * area / w)
+                }
+                "TriangleCenter" -> { need(4)
+                    val p = point(a[0]); val q = point(a[1]); val r = point(a[2]); val n = num(a[3]).toInt()
+                    triangleCenter(p, q, r, n)
+                }
+                "MajorAxis", "MinorAxis" -> { need(1)
+                    val (cx, cy, phi) = when (val o = a[0]) {
+                        is Circle -> Triple(o.center.x, o.center.y, 0.0)
+                        is Conic -> when (val sh = o.shape) {
+                            is ConicShape.Ellipse -> Triple(sh.cx, sh.cy, sh.phi)
+                            is ConicShape.Hyperbola -> Triple(sh.cx, sh.cy, sh.phi)
+                            else -> throw GeometryError("Only an ellipse or hyperbola has axes")
+                        }
+                        else -> throw GeometryError("Expected an ellipse or hyperbola")
+                    }
+                    val c0 = Point(cx, cy)
+                    Line(c0, c0 + if (c.name == "MajorAxis") rotated(phi, 1.0, 0.0) else rotated(phi, 0.0, 1.0))
+                }
+                "UnitVector", "PerpendicularVector", "UnitPerpendicularVector", "Direction" -> { need(1)
+                    val d = when (val o = a[0]) { is Point -> o; else -> asLine(o).let { (p, q) -> q - p } }
+                    if (d.length < 1e-300) throw GeometryError("A vector of no length has no direction")
+                    val v = when (c.name) {
+                        "UnitVector" -> unit(d)
+                        "PerpendicularVector" -> Point(-d.y, d.x)
+                        "UnitPerpendicularVector" -> unit(Point(-d.y, d.x))
+                        else -> d
+                    }
+                    val from = (a[0] as? Vector)?.a ?: Point(0.0, 0.0)
+                    Vector(from, from + v)
+                }
+                "Circumference" -> { need(1)
+                    Number(when (val o = a[0]) {
+                        is Circle -> 2 * PI * o.r
+                        is Conic -> (o.shape as? ConicShape.Ellipse)?.let { ellipseCircumference(it.a, it.b) } ?: throw GeometryError("Only an ellipse goes all the way round")
+                        else -> throw GeometryError("Circumference of a circle or ellipse")
+                    }, Unit.Length)
+                }
+                "Eccentricity", "LinearEccentricity", "SemiMajorAxisLength", "SemiMinorAxisLength" -> { need(1)
+                    val (sa, sb, kind) = when (val o = a[0]) {
+                        is Circle -> Triple(o.r, o.r, 'e')
+                        is Conic -> when (val sh = o.shape) {
+                            is ConicShape.Ellipse -> Triple(sh.a, sh.b, 'e')
+                            is ConicShape.Hyperbola -> Triple(sh.a, sh.b, 'h')
+                            is ConicShape.Parabola -> Triple(Double.NaN, Double.NaN, 'p')
+                            ConicShape.None -> throw GeometryError("This conic has no points")
+                        }
+                        else -> throw GeometryError("Expected a circle or conic")
+                    }
+                    if (kind == 'p') when (c.name) {
+                        "Eccentricity" -> Number(1.0)
+                        "LinearEccentricity" -> Number(abs(parabolaVertex(((a[0] as Conic).shape as ConicShape.Parabola)).second), Unit.Length)
+                        else -> throw GeometryError("A parabola has no axes of finite length")
+                    } else {
+                        val lin = if (kind == 'e') sqrt(maxOf(0.0, sa * sa - sb * sb)) else sqrt(sa * sa + sb * sb)
+                        when (c.name) {
+                            "Eccentricity" -> Number(lin / sa)
+                            "LinearEccentricity" -> Number(lin, Unit.Length)
+                            "SemiMajorAxisLength" -> Number(sa, Unit.Length)
+                            else -> Number(sb, Unit.Length)
+                        }
+                    }
+                }
+                "Dot", "Cross" -> { need(2)
+                    val u = vecOf(a[0]); val v = vecOf(a[1])
+                    Number(if (c.name == "Dot") u.x * v.x + u.y * v.y else u.x * v.y - u.y * v.x)
+                }
+                "AreCongruent" -> { need(2)
+                    fun near(x: Double, y: Double) = abs(x - y) <= 1e-9 * maxOf(1.0, abs(x), abs(y))
+                    val x = a[0]; val y = a[1]
+                    Bool(when {
+                        (x is Segment || x is Vector) && (y is Segment || y is Vector) -> near(asLine(x).let { (p, q) -> (q - p).length }, asLine(y).let { (p, q) -> (q - p).length })
+                        x is Circle && y is Circle -> near(x.r, y.r)
+                        x is Arc && y is Arc -> near(x.r, y.r) && near(abs(x.sweep), abs(y.sweep))
+                        x is Angle && y is Angle -> near(x.sweep, y.sweep) || near(x.sweep, 2 * PI - y.sweep)
+                        x is Polygon && y is Polygon -> congruent(x.points, y.points)
+                        value(x) != null && value(y) != null -> near(value(x)!!, value(y)!!)
+                        else -> throw GeometryError("AreCongruent compares two segments, circles, arcs, angles or polygons")
+                    })
+                }
                 "RegularPolygon" -> { need(3)
                     val p = point(a[0]); val q = point(a[1]); val n = num(a[2]).toInt()
                     if (n < 3) throw GeometryError("A regular polygon needs three sides or more")
@@ -894,7 +1046,17 @@ object Geometry {
                         }, Unit.Area)
                     }
                 }
-                "Angle" -> { need(3)
+                "Angle" -> if (a.size == 2) {
+                    // Between two lines or vectors: from the first round to the second, at their crossing.
+                    val u = direction(a[0]); val v = direction(a[1])
+                    val vertex = when {
+                        a[0] is Vector && a[1] is Vector -> (a[0] as Vector).a
+                        abs(u.x * v.y - u.y * v.x) > 1e-12 -> runCatching { intersections(Line(asLine(a[0]).first, asLine(a[0]).first + u), Line(asLine(a[1]).first, asLine(a[1]).first + v)).first() }.getOrElse { asLine(a[0]).first }
+                        else -> asLine(a[0]).first
+                    }
+                    val s = atan2(u.y, u.x)
+                    Angle(vertex, s, ccw(atan2(v.y, v.x) - s))
+                } else { need(3)
                     val p = point(a[0]); val b = point(a[1]); val q = point(a[2])
                     if (p == b || q == b) throw GeometryError("The angle's arms have no length")
                     val s = atan2(p.y - b.y, p.x - b.x)
@@ -1094,6 +1256,87 @@ object Geometry {
         is Number, is Bool, is Text -> throw GeometryError("A number can't be moved")
         is FunctionGraph -> throw GeometryError("A function's graph can't be moved here")
         is Polyline -> Polyline(o.pieces.map { it.map(f) })
+    }
+
+    /** The lines touching both circles: outer ones, and inner ones when the circles are apart. */
+    private fun commonTangents(p: Circle, q: Circle): List<Obj> {
+        val d = q.center - p.center
+        val dist = d.length
+        if (dist < 1e-12) return emptyList()
+        val out = ArrayList<Obj>()
+        // A line n·X = c with |n| = 1 is tangent to both when n·P − c = r₁ and n·Q − c = s·r₂ (s = 1 outer, −1 inner),
+        // so n·(Q − P) = s·r₂ − r₁.
+        for (s in listOf(1.0, -1.0)) {
+            val k = (s * q.r - p.r) / dist
+            if (abs(k) > 1 + 1e-12) continue
+            val h = sqrt(maxOf(0.0, 1 - k * k))
+            val u = Point(d.x / dist, d.y / dist)
+            val normals = if (h < 1e-9) listOf(u.times(k)) else listOf(1.0, -1.0).map { t -> Point(u.x * k - t * u.y * h, u.y * k + t * u.x * h) }
+            for (n in normals) {
+                // The touching point on the first circle, and the line along it.
+                val touch = p.center - n.times(p.r)
+                out += Line(touch, touch + Point(-n.y, n.x))
+            }
+        }
+        return out
+    }
+
+    /** Kimberling's triangle centers 1 to 8, by their barycentric coordinates. */
+    private fun triangleCenter(p: Point, q: Point, r: Point, n: Int): Point {
+        val a = (q - r).length; val b = (r - p).length; val c = (p - q).length
+        if (abs(signedArea(listOf(p, q, r))) < 1e-12) throw GeometryError("The three points are on one line")
+        val s = (a + b + c) / 2
+        val w = when (n) {
+            1 -> Triple(a, b, c)
+            2 -> Triple(1.0, 1.0, 1.0)
+            3 -> Triple(a * a * (b * b + c * c - a * a), b * b * (c * c + a * a - b * b), c * c * (a * a + b * b - c * c))
+            4 -> Triple(1 / (b * b + c * c - a * a), 1 / (c * c + a * a - b * b), 1 / (a * a + b * b - c * c))
+            5 -> Triple(a * a * (b * b + c * c) - (b * b - c * c) * (b * b - c * c), b * b * (c * c + a * a) - (c * c - a * a) * (c * c - a * a), c * c * (a * a + b * b) - (a * a - b * b) * (a * a - b * b))
+            6 -> Triple(a * a, b * b, c * c)
+            7 -> Triple(1 / (s - a), 1 / (s - b), 1 / (s - c))
+            8 -> Triple(s - a, s - b, s - c)
+            else -> throw GeometryError("Triangle centers 1 to 8 are known here")
+        }
+        // A weight at infinity is that corner itself (the orthocenter of a right triangle).
+        if (w.first.isInfinite()) return p
+        if (w.second.isInfinite()) return q
+        if (w.third.isInfinite()) return r
+        val sum = w.first + w.second + w.third
+        if (!sum.isFinite() || abs(sum) < 1e-300) throw GeometryError("That center is at infinity for this triangle")
+        return Point((w.first * p.x + w.second * q.x + w.third * r.x) / sum, (w.first * p.y + w.second * q.y + w.third * r.y) / sum)
+    }
+
+    /** The perimeter of an ellipse with semi-axes [a] and [b], by Gauss–Kummer's series via the AGM. */
+    private fun ellipseCircumference(a: Double, b: Double): Double {
+        // 2π (a² + b²)/2 less 2ⁿ⁻¹ cₙ² at each AGM step, over the AGM: exact to rounding.
+        var x = maxOf(a, b); var y = minOf(a, b)
+        var sum = (x * x + y * y) / 2
+        var pow = 0.5
+        repeat(40) {
+            val nx = (x + y) / 2; val ny = sqrt(x * y)
+            pow *= 2
+            sum -= pow * ((x - y) / 2) * ((x - y) / 2)
+            x = nx; y = ny
+            if (abs(x - y) < 1e-16 * x) return 4 * PI * sum / (x + y)
+        }
+        return 4 * PI * sum / (x + y)
+    }
+
+    /** Whether two polygons are the same size and shape: their sides and corners match, in some turn or mirrored. */
+    private fun congruent(p: List<Point>, q: List<Point>): Boolean {
+        if (p.size != q.size) return false
+        fun near(x: Double, y: Double) = abs(x - y) <= 1e-9 * maxOf(1.0, abs(x), abs(y))
+        fun shape(pts: List<Point>) = pts.indices.map { k ->
+            val prev = pts[(k - 1 + pts.size) % pts.size]; val here = pts[k]; val next = pts[(k + 1) % pts.size]
+            val u = prev - here; val v = next - here
+            (next - here).length to abs(atan2(u.x * v.y - u.y * v.x, u.x * v.x + u.y * v.y))
+        }
+        val sp = shape(p)
+        for (order in listOf(q, q.reversed())) {
+            val sq = shape(order)
+            for (shift in sq.indices) if (sp.indices.all { k -> val (l1, a1) = sp[k]; val (l2, a2) = sq[(k + shift) % sq.size]; near(l1, l2) && near(a1, a2) }) return true
+        }
+        return false
     }
 
     private fun tangents(p: Point, c: Circle): List<Obj> {

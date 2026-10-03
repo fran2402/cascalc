@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Apps
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material.icons.filled.Hexagon
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -189,10 +190,16 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
     // The drawing as it is now, for gestures that outlive one frame (a dragged point).
     val latestPlotted by androidx.compose.runtime.rememberUpdatedState(plotted)
 
+    Column(modifier) {
     Box(
-        modifier
+        Modifier.weight(1f).fillMaxWidth()
             .clipToBounds()
-            .onSizeChanged { size = it; if (vm.view == null) vm.resetView(it) }
+            .onSizeChanged { new ->
+                val old = size
+                size = new
+                // A height change (the tool palette opening, say) keeps the scale, about the middle.
+                if (vm.view == null) vm.resetView(new) else if (old.height > 0 && old.width == new.width && old.height != new.height) vm.keepScale(old.height, new.height)
+            }
             .pointerInput(Unit) {
                 // Drag to move; pinch to zoom around your fingers. A sideways pinch stretches only x,
                 // an up-and-down pinch only y.
@@ -465,7 +472,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 p.points.filter { it.label == "point" }.take(200).forEach { s ->
                     val o = toScreen(v, s.x, s.y)
                     if (o.x in -40f..size.width && o.y in 0f..size.height + 20f) {
-                        val t = measurer.measure("(" + shortNumber(sc.realX(s.x)) + ", " + shortNumber(sc.realY(s.y)) + ")", labelStyle)
+                        val t = measurer.measure(geometryValueText("(" + shortNumber(sc.realX(s.x)) + ", " + shortNumber(sc.realY(s.y)) + ")"), labelStyle)
                         drawText(t, topLeft = Offset(o.x + 8.dp.toPx(), o.y - t.size.height - 4.dp.toPx()))
                     }
                 }
@@ -550,7 +557,6 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                     ConstructRail(vm, Modifier.align(byList).padding(top = 10.dp, bottom = 84.dp, start = 10.dp, end = 10.dp))
                 } else {
                     ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 12.dp, end = 12.dp))
-                    ConstructPalette(vm, Modifier.align(Alignment.BottomCenter).padding(bottom = 78.dp, start = 10.dp, end = 10.dp))
                 }
             }
         }
@@ -696,6 +702,12 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
             )
             PointCardAt(px, py, palette[t.colorIndex], kind, line?.let { legendSource(it) }?.takeIf { it.isNotBlank() }, rows, actions, onClose = { trace = null })
         }
+    }
+    // On a phone the tools sit under the graph, which shrinks to make room (so nothing is hidden
+    // behind them, and dragging over them never pans the graph).
+    if (AppSettings.geometry && vm.constructing && !isTabletLayout()) {
+        ConstructPalette(vm, Modifier.background(colors.surface).padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 6.dp))
+    }
     }
 }
 
@@ -1679,7 +1691,7 @@ private fun ConstructPalette(vm: Graph2DViewModel, modifier: Modifier) {
     // A tool picked folds the sheet; Move (or none) opens it.
     androidx.compose.runtime.LaunchedEffect(vm.geometryTool) { open = vm.geometryTool == null }
     Column(
-        modifier.widthIn(max = 520.dp).fillMaxWidth().shadow(8.dp, RoundedCornerShape(28.dp)).clip(RoundedCornerShape(28.dp))
+        modifier.fillMaxWidth().wrapContentWidth().widthIn(max = 520.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(28.dp)).clip(RoundedCornerShape(28.dp))
             .background(colors.surfaceContainer).padding(10.dp),
     ) {
         if (!open) {
@@ -1712,10 +1724,13 @@ private fun ConstructPalette(vm: Graph2DViewModel, modifier: Modifier) {
         }
         Spacer(Modifier.height(8.dp))
         val tools = (if (category == GeometryCategory.Points) listOf(GeometryTool.Move) else emptyList()) + GeometryTool.entries.filter { it.category == category && it != GeometryTool.Move }
-        tools.chunked(4).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-                row.forEach { t -> Box(Modifier.weight(1f)) { ToolChip(vm, t, compact = false) } }
-                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+        // The group's tools scroll when there are more than fit (the graph keeps most of the screen).
+        Column(Modifier.heightIn(max = 236.dp).verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+            tools.chunked(4).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+                    row.forEach { t -> Box(Modifier.weight(1f)) { ToolChip(vm, t, compact = false) } }
+                    repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                }
             }
         }
         if (vm.recentTools.isNotEmpty()) {
@@ -1851,6 +1866,10 @@ internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawToolIcon(tool:
         GeometryTool.Rotate -> { stroke(poly(0.2f, 0.8f, 0.52f, 0.8f, 0.2f, 0.56f), ink, thin); arc(0.2f, 0.8f, 0.5f, -80f, 60f); drawPath(poly(0.24f, 0.24f, 0.4f, 0.34f, 0.22f, 0.42f), accent); dot(0.2f, 0.8f) }
         GeometryTool.Translate -> { stroke(poly(0.08f, 0.82f, 0.32f, 0.82f, 0.08f, 0.6f), ink, thin); drawPath(poly(0.66f, 0.42f, 0.9f, 0.42f, 0.66f, 0.2f), accent.copy(alpha = 0.35f)); stroke(poly(0.66f, 0.42f, 0.9f, 0.42f, 0.66f, 0.2f), width = thin); line(0.3f, 0.6f, 0.58f, 0.36f, accent, thin) }
         GeometryTool.Dilate -> { stroke(poly(0.34f, 0.7f, 0.5f, 0.7f, 0.34f, 0.56f), ink, thin); drawPath(poly(0.5f, 0.86f, 0.9f, 0.86f, 0.5f, 0.5f), accent.copy(alpha = 0.3f)); stroke(poly(0.5f, 0.86f, 0.9f, 0.86f, 0.5f, 0.5f), width = thin); dot(0.14f, 0.5f); line(0.14f, 0.5f, 0.9f, 0.86f, ink, thin * 0.5f) }
+        GeometryTool.Inflection -> { stroke(Path().apply { for (k in 0..20) { val x = 0.08f + 0.84f * k / 20; val u = (x - 0.5f) * 2.2f; val y = 0.5f - 0.36f * (u * u * u - 0.6f * u); if (k == 0) moveTo(x * w, y * w) else lineTo(x * w, y * w) } }, ink, thin); dot(0.5f, 0.5f, accent) }
+        GeometryTool.ClosestPoint -> { drawCircle(ink, w * 0.3f, o(0.42f, 0.56f), style = Stroke(thin)); dot(0.88f, 0.14f); line(0.88f, 0.14f, 0.63f, 0.35f, ink, thin * 0.6f); dot(0.63f, 0.35f, accent) }
+        GeometryTool.CommonTangent -> { drawCircle(ink, w * 0.2f, o(0.27f, 0.6f), style = Stroke(thin)); drawCircle(ink, w * 0.13f, o(0.74f, 0.67f), style = Stroke(thin)); line(0.04f, 0.43f, 0.96f, 0.54f); line(0.06f, 0.8f, 0.96f, 0.8f) }
+        GeometryTool.Incircle -> { stroke(poly(0.1f, 0.84f, 0.9f, 0.84f, 0.42f, 0.14f), ink, thin); drawCircle(accent, w * 0.19f, o(0.46f, 0.62f), style = Stroke(bold)) }
         GeometryTool.Locus -> {
             val path = Path().apply { for (k in 0..24) { val t = k / 24f * 6.283f; val x = 0.5f + 0.36f * kotlin.math.cos(t); val y = 0.5f + 0.22f * kotlin.math.sin(2 * t); if (k == 0) moveTo(x * w, y * w) else lineTo(x * w, y * w) } }
             drawPath(path, accent, style = Stroke(bold, cap = StrokeCap.Round, pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(w * 0.02f, w * 0.1f))))

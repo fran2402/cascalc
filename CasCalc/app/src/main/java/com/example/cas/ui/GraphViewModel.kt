@@ -2182,6 +2182,14 @@ class Graph2DViewModel(app: Application) : GraphViewModel(app, "g2", listOf("x")
     }
 
     /** Equal scales on both axes (a circle looks round), keeping the center and the x range. */
+    /** The graph got [newHeight] pixels tall from [oldHeight]: the same scale, about the middle. */
+    fun keepScale(oldHeight: Int, newHeight: Int) {
+        val v = view ?: return
+        val cy = (v.yMin + v.yMax) / 2
+        val h = v.height * newHeight / oldHeight
+        view = com.example.cas.graph.Viewport(v.xMin, v.xMax, cy - h / 2, cy + h / 2)
+    }
+
     fun zoomSquare(width: Int, height: Int) {
         val v = view ?: return
         if (width == 0 || height == 0) return
@@ -2390,6 +2398,8 @@ enum class GeometryTool(
     Midpoint("Midpoint", "Midpoint", "PP", 'P', GeometryCategory.Points, listOf("First point", "Second point")),
     Root("Roots", "Root", "F", 'P', GeometryCategory.Points, listOf("The function")),
     Extremum("Extrema", "Extremum", "F", 'P', GeometryCategory.Points, listOf("The function")),
+    Inflection("Inflection points", "Inflection", "F", 'P', GeometryCategory.Points, listOf("The function")),
+    ClosestPoint("Closest point", "ClosestPoint", "OP", 'P', GeometryCategory.Points, listOf("The object", "Near")),
     Segment("Segment", "Segment", "PP", 'O', GeometryCategory.Lines, listOf("Start", "End")),
     SegmentLength("Segment of length", "Segment", "P", 'O', GeometryCategory.Lines, listOf("Start"), ask = "Length"),
     Line("Line", "Line", "PP", 'O', GeometryCategory.Lines, listOf("First point", "Second point")),
@@ -2403,12 +2413,14 @@ enum class GeometryTool(
     AngleBisector("Angle bisector", "AngleBisector", "PPP", 'O', GeometryCategory.Lines, listOf("Point", "Corner", "Point")),
     Tangent("Tangent", "Tangent", "PC", 'O', GeometryCategory.Lines, listOf("From", "Circle or conic")),
     Polar("Polar line", "Polar", "PC", 'O', GeometryCategory.Lines, listOf("Point", "Circle or conic")),
+    CommonTangent("Common tangents", "CommonTangent", "CC", 'O', GeometryCategory.Lines, listOf("First circle", "Second circle")),
     Polygon("Polygon", "Polygon", "", 'O', GeometryCategory.Shapes, listOf("Corners"), least = 3),
     RegularPolygon("Regular polygon", "RegularPolygon", "PP", 'O', GeometryCategory.Shapes, listOf("First corner", "Second corner"), ask = "Number of sides"),
     Circle("Circle", "Circle", "PP", 'O', GeometryCategory.Shapes, listOf("Center", "On the circle")),
     CircleRadius("Circle with radius", "Circle", "P", 'O', GeometryCategory.Shapes, listOf("Center"), ask = "Radius"),
     Compass("Compass", "Circle", "PPP", 'O', GeometryCategory.Shapes, listOf("Radius from", "Radius to", "Center")),
     Circle3("Circle through 3", "Circle", "PPP", 'O', GeometryCategory.Shapes, listOf("Point", "Point", "Point")),
+    Incircle("Incircle", "Incircle", "PPP", 'O', GeometryCategory.Shapes, listOf("Corner", "Corner", "Corner")),
     Semicircle("Semicircle", "Semicircle", "PP", 'O', GeometryCategory.Shapes, listOf("Start", "End")),
     Arc("Arc", "CircularArc", "PPP", 'O', GeometryCategory.Shapes, listOf("Center", "Start", "End")),
     Sector("Sector", "CircularSector", "PPP", 'O', GeometryCategory.Shapes, listOf("Center", "Start", "End")),

@@ -334,4 +334,85 @@ class GeometryTest {
         assertEquals("They're equal", (obj("A=(0,0)", "B=(3,4)", "Relation(Distance(A,B),5)") as Geometry.Text).value)
         assertEquals("They're parallel, and are the same length", (obj("Relation(Segment((0,0),(1,0)),Segment((0,1),(1,1)))") as Geometry.Text).value)
     }
+
+    private fun num(vararg lines: String) = Geometry.value(obj(*lines))!!
+
+    @Test fun closestPointAndVectors() {
+        assertPoint(0.0, 1.0, obj("ClosestPoint(Circle((0,0),1),(0,5))"))
+        assertPoint(2.0, 0.0, obj("ClosestPoint(Segment((0,0),(2,0)),(7,3))"))
+        val f = { x: Double -> x * x }
+        val p = Geometry.build(listOf(Geometry.parse(row("ClosestPoint(f,(0,2))"))), number, functionOf = { if (it == "f") f else null }, xRange = -10.0..10.0).last()!!.obj as Geometry.Point
+        // The nearest points of y = x² to (0, 2) have y = 1.5.
+        assertEquals(1.5, p.y, 1e-6)
+        val u = obj("UnitVector(Vector((1,1),(4,5)))") as Geometry.Vector
+        assertPoint(0.6, 0.8, u.b - u.a)
+        val n = obj("PerpendicularVector(Vector((0,0),(3,4)))") as Geometry.Vector
+        assertPoint(-4.0, 3.0, n.b - n.a)
+        assertEquals(11.0, num("Dot(Vector((0,0),(1,2)),Vector((0,0),(3,4)))"), 1e-12)
+        assertEquals(-2.0, num("Cross(Vector((0,0),(1,2)),Vector((0,0),(3,4)))"), 1e-12)
+        assertEquals(PI / 2, num("Angle(Line((0,0),(1,0)),Line((2,0),(2,1)))"), 1e-12)
+        assertPoint(2.0, 0.0, (obj("Angle(Line((0,0),(1,0)),Line((2,0),(2,1)))") as Geometry.Angle).vertex)
+        val s = obj("Segment((1,1),3)") as Geometry.Segment
+        assertPoint(4.0, 1.0, s.b)
+    }
+
+    @Test fun inflection() {
+        val f = { x: Double -> x * x * x - 3 * x }
+        val p = Geometry.build(listOf(Geometry.parse(row("Inflection(f)"))), number, functionOf = { if (it == "f") f else null }, xRange = -10.0..10.0).last()!!.obj
+        assertPoint(0.0, 0.0, p)
+    }
+
+    @Test fun commonTangents() {
+        // Apart: four tangents; each touches both circles.
+        val m = obj("CommonTangent(Circle((0,0),1),Circle((5,0),2))") as Geometry.Many
+        assertEquals(4, m.items.size)
+        m.items.forEach { l ->
+            assertEquals(1.0, num("Distance((0,0),${lineText(l)})"), 1e-9)
+            assertEquals(2.0, num("Distance((5,0),${lineText(l)})"), 1e-9)
+        }
+        // Overlapping: the two outer ones.
+        assertEquals(2, (obj("CommonTangent(Circle((0,0),2),Circle((1,0),2))") as Geometry.Many).items.size)
+        assertEquals("One circle is inside the other: no common tangents", build("CommonTangent(Circle((0,0),3),Circle((0.5,0),1))").last()!!.error)
+    }
+
+    private fun lineText(l: Geometry.Obj): String {
+        val ln = l as Geometry.Line
+        fun t(v: Double) = java.math.BigDecimal(v).toPlainString().replace("-", "−")
+        return "Line((${t(ln.a.x)},${t(ln.a.y)}),(${t(ln.b.x)},${t(ln.b.y)}))"
+    }
+
+    @Test fun moreTriangleCenters() {
+        val t = arrayOf("A=(0,0)", "B=(4,0)", "C=(0,3)")
+        // The nine-point circle has half the circumradius (2.5) and its center halfway from O to H.
+        val c = obj(*t, "NinePointCircle(A,B,C)") as Geometry.Circle
+        assertEquals(1.25, c.r, 1e-12)
+        assertPoint(1.0, 0.75, c.center)
+        assertPoint(1.0, 0.75, obj(*t, "TriangleCenter(A,B,C,5)"))
+        assertPoint(1.0, 1.0, obj(*t, "TriangleCenter(A,B,C,1)"))
+        assertPoint(0.0, 0.0, obj(*t, "TriangleCenter(A,B,C,4)"))
+        // The excircle opposite A, touching BC: radius area/(s − a) = 6/1 = 6.
+        assertEquals(6.0, (obj(*t, "Excircle(A,B,C)") as Geometry.Circle).r, 1e-12)
+        val e = obj(*t, "EulerLine(A,B,C)") as Geometry.Line
+        assertEquals(0.0, num(*t, "Distance(TriangleCenter(A,B,C,2),${lineText(e)})"), 1e-9)
+    }
+
+    @Test fun conicMeasures() {
+        val e = "Ellipse((−4,0),(4,0),5)"
+        assertEquals(0.8, num("Eccentricity($e)"), 1e-9)
+        assertEquals(4.0, num("LinearEccentricity($e)"), 1e-9)
+        assertEquals(5.0, num("SemiMajorAxisLength($e)"), 1e-9)
+        assertEquals(3.0, num("SemiMinorAxisLength($e)"), 1e-9)
+        // Its perimeter, from the integral of the arc length.
+        assertEquals(25.526998863398, num("Circumference($e)"), 1e-9)
+        assertEquals(2 * PI * 2, num("Circumference(Circle((0,0),2))"), 1e-12)
+        val axis = obj("MajorAxis($e)") as Geometry.Line
+        assertEquals(0.0, axis.a.y, 1e-9); assertEquals(0.0, axis.b.y, 1e-9)
+        assertEquals(1.0, num("Eccentricity(Parabola((0,1),Line((0,−1),(1,−1))))"), 1e-12)
+    }
+
+    @Test fun congruence() {
+        assertEquals(true, (obj("AreCongruent(Segment((0,0),(3,4)),Segment((1,1),(6,1)))") as Geometry.Bool).value)
+        assertEquals(true, (obj("AreCongruent(Polygon((0,0),(2,0),(0,1)),Polygon((5,5),(5,7),(6,5)))") as Geometry.Bool).value)
+        assertEquals(false, (obj("AreCongruent(Polygon((0,0),(2,0),(0,1)),Polygon((0,0),(3,0),(0,1)))") as Geometry.Bool).value)
+    }
 }

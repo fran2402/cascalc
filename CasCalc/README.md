@@ -203,6 +203,20 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (3 October, geometry fifth pass)
+- **Tool palette under the graph:** on phones the construct palette now sits below the graph,
+  which shrinks to make room and keeps its scale, so nothing is hidden behind it. Dragging over
+  the palette no longer pans the graph. A group with many tools scrolls.
+- **Values as math:** numbers in scientific notation under construction lines and beside points
+  show as 2.5 × 10⁶, not 2.500e+06. Letters standing for quantities (the r of a circle) are
+  italic.
+- **More commands:** ClosestPoint, Inflection, CommonTangent, NinePointCircle, EulerLine,
+  Excircle, TriangleCenter (Kimberling 1–8), MajorAxis, MinorAxis, UnitVector,
+  PerpendicularVector, UnitPerpendicularVector, Direction, Circumference, Eccentricity,
+  LinearEccentricity, SemiMajorAxisLength, SemiMinorAxisLength, Dot, Cross and AreCongruent.
+  Angle(l, m) measures between two lines, and Segment(A, a) has length a.
+- **More tools:** inflection points, closest point, common tangents and incircle.
+
 ## Latest changes (3 October, geometry fourth pass)
 - **Fixed:** the app crashed on start, and kept crashing, once geometry mode was on. Lines
   were being built before the graph's view existed; they are now built once it does.

@@ -181,6 +181,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.text.withStyle
 import com.example.cas.ui.theme.CasFonts
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -815,6 +817,34 @@ fun screenLegendEntry2D(f: PlotFunction, color: Color): ScreenLegendEntry = when
     else -> ScreenLegendEntry(legendSource(f), color, style = f.lineStyle)
 }
 
+/**
+ * A construction's value as math: a letter standing for a quantity (r) in italics, and a number
+ * in scientific notation as 2.5 × 10⁶, the power raised, instead of 2.500e+06.
+ */
+fun geometryValueText(text: String): androidx.compose.ui.text.AnnotatedString = androidx.compose.ui.text.buildAnnotatedString {
+    val sci = Regex("""(\d+(?:\.\d+)?)e([+\-−]?)(\d+)""")
+    var k = 0
+    fun plain(t: String) {
+        // Single letters on their own (r = 2) are quantities, so italic; words (length) stay upright.
+        var j = 0
+        Regex("""(?<![\p{L}])\p{L}(?![\p{L}(])""").findAll(t).forEach { m ->
+            append(t.substring(j, m.range.first))
+            withStyle(androidx.compose.ui.text.SpanStyle(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)) { append(m.value) }
+            j = m.range.last + 1
+        }
+        append(t.substring(j))
+    }
+    for (m in sci.findAll(text)) {
+        plain(text.substring(k, m.range.first))
+        val mantissa = m.groupValues[1].let { if ('.' in it) it.trimEnd('0').trimEnd('.') else it }
+        val power = (if (m.groupValues[2] == "-" || m.groupValues[2] == "−") "−" else "") + m.groupValues[3].trimStart('0').ifEmpty { "0" }
+        append(mantissa); append(" × 10")
+        withStyle(androidx.compose.ui.text.SpanStyle(baselineShift = androidx.compose.ui.text.style.BaselineShift.Superscript, fontSize = 0.7.em)) { append(power) }
+        k = m.range.last + 1
+    }
+    plain(text.substring(k))
+}
+
 /** Short number for labels: 1.4142, −3, 2.5e+06. */
 fun shortNumber(v: Double): String {
     if (!v.isFinite()) return "undefined"
@@ -1049,7 +1079,7 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
         }
         // A construction's value (d = 5, P = (1, 2), an angle).
         if (f.error == null) f.valueText?.let {
-            Text(it, color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 15.sp), modifier = Modifier.padding(start = 48.dp, bottom = 4.dp))
+            Text(geometryValueText(it), color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 15.sp), modifier = Modifier.padding(start = 48.dp, bottom = 4.dp))
         }
     }
 }
