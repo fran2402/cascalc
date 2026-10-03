@@ -130,11 +130,11 @@ object OpenedGraphFile {
  * is also kept in the saved graphs.
  */
 @Composable
-fun OpenGraphFileEffect(graphs0: Map<Mode, GraphViewModel>, onSwitch0: (Mode) -> Unit) {
+fun OpenGraphFileEffect(graphs: Map<Mode, GraphViewModel>, onSwitch: (Mode) -> Unit) {
     val context = LocalContext.current
     // The latest of each, for the long-running effect below.
-    val graphs by androidx.compose.runtime.rememberUpdatedState(graphs0)
-    val onSwitch by androidx.compose.runtime.rememberUpdatedState(onSwitch0)
+    val currentGraphs by androidx.compose.runtime.rememberUpdatedState(graphs)
+    val currentSwitch by androidx.compose.runtime.rememberUpdatedState(onSwitch)
     var pending by remember { mutableStateOf<GraphFile.Contents?>(null) }
     fun plot(c: GraphFile.Contents) {
         val vm = graphs[c.kind.mode] ?: return
@@ -168,9 +168,9 @@ fun OpenGraphFileEffect(graphs0: Map<Mode, GraphViewModel>, onSwitch0: (Mode) ->
                 })
             } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (e: Exception) { Result.failure(e) }
             read.onSuccess { c ->
-                val vm = graphs[c.kind.mode] ?: return@onSuccess
+                val vm = currentGraphs[c.kind.mode] ?: return@onSuccess
                 // Ask before replacing lines that are there; an empty graph is simply filled.
-                if (vm.hasContent()) { onSwitch(c.kind.mode); pending = c } else plot(c)
+                if (vm.hasContent()) { currentSwitch(c.kind.mode); pending = c } else plot(c)
             }.onFailure { e -> Toast.makeText(context, e.message ?: "Couldn't open the graph file", Toast.LENGTH_LONG).show() }
         }
     }
