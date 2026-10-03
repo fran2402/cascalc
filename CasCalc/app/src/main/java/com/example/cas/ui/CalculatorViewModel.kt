@@ -44,10 +44,17 @@ class HistoryItem(val expression: MathRow, val answer: Answer, decimalFirst: Boo
     /** The folder it's filed in, if any. */
     var folder by mutableStateOf<String?>(null)
 
-    /** The question and answer as plain text, lowercase without spaces, for searching. */
+    /** The question and answer as plain text and as LaTeX, lowercase without spaces, for searching. */
     val searchText: String by lazy {
-        (Formatter.plain(expression) + "=" + Formatter.plain(answer.exact) + "≈" + (answer.approx?.let { Formatter.plain(it) } ?: ""))
-            .lowercase().replace(" ", "")
+        val latex = runCatching { com.example.cas.engine.Latex.of(expression) + "=" + com.example.cas.engine.Latex.of(answer.exact) }.getOrDefault("")
+        (Formatter.plain(expression) + "=" + Formatter.plain(answer.exact) + "≈" + (answer.approx?.let { Formatter.plain(it) } ?: "")).lowercase().replace(" ", "") +
+            "\n" + normalizeLatex(latex)
+    }
+
+    companion object {
+        /** LaTeX for matching: without sizing (\left, \right), spacing or spaces, lowercase. */
+        fun normalizeLatex(t: String) = t.replace("\\left", "").replace("\\right", "").replace("\\,", "").replace("\\;", "").replace("\\!", "")
+            .replace("\\mathrm{d}", "d").replace("\\operatorname", "").replace("{", "").replace("}", "").replace(" ", "").lowercase()
     }
 }
 
@@ -156,7 +163,7 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
         if (q.isEmpty() && f == null) return history
         return history.filter { item ->
             (f == null || (f == PINNED && item.pinned) || (f != PINNED && item.folder == f)) &&
-                (q.isEmpty() || item.searchText.replace("−", "-").contains(q))
+                (q.isEmpty() || item.searchText.replace("−", "-").contains(q) || (q.contains('\\') || q.contains('{')) && item.searchText.contains(HistoryItem.normalizeLatex(historyQuery)))
         }
     }
 

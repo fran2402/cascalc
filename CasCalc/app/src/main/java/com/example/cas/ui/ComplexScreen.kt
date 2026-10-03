@@ -179,7 +179,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
         if (c == null || size.width == 0) { image = null; return@LaunchedEffect }
         val p = vm.parameterValues(f!!)
         try {
-            // Standard quality stops at half resolution; high renders every pixel.
+            // Medium quality stops at half resolution; high renders every pixel.
             // Low stops at a quarter.
             val passes = when (AppSettings.complexQuality) { 1 -> listOf(8 to 0L, 2 to 140L, 1 to 60L); 2 -> listOf(8 to 0L, 4 to 140L); else -> listOf(8 to 0L, 2 to 140L) }
             for ((divisor, wait) in passes) {
@@ -668,8 +668,8 @@ private fun ComplexSettingsDialog(vm: ComplexViewModel, view: Viewport, onDismis
                 RangeAndScaleSettings(range, "Re z", "Im z")
                 Text("Plot quality", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    // Shown low to high; stored as 2 (low), 0 (standard), 1 (high).
-                    listOf("Low" to 2, "Standard" to 0, "High" to 1).forEachIndexed { k, (name, value) ->
+                    // Shown low to high; stored as 2 (low), 0 (medium), 1 (high).
+                    listOf("Low" to 2, "Medium" to 0, "High" to 1).forEachIndexed { k, (name, value) ->
                         SegmentedButton(
                             selected = AppSettings.complexQuality == value,
                             onClick = { AppSettings.changeComplexQuality(value) },

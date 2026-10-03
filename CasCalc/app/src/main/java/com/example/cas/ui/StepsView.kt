@@ -1,5 +1,9 @@
 package com.example.cas.ui
 
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+
+import androidx.compose.ui.draw.drawBehind
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -110,7 +114,17 @@ private fun PhoneSteps(expression: MathRow, solution: Steps.Solution?, ready: Bo
                 Question(expression)
             }
             Spacer(Modifier.height(8.dp))
-            Box(Modifier.weight(1f)) {
+            // Scrolling on past the end (finger moving up) is kept from the sheet, which otherwise
+            // fought the list and made it jitter at the bottom; pulling down at the top still closes it.
+            val keepEnd = remember {
+                object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+                    override fun onPostScroll(consumed: androidx.compose.ui.geometry.Offset, available: androidx.compose.ui.geometry.Offset, source: androidx.compose.ui.input.nestedscroll.NestedScrollSource) =
+                        if (available.y < 0) androidx.compose.ui.geometry.Offset(0f, available.y) else androidx.compose.ui.geometry.Offset.Zero
+                    override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity) =
+                        if (available.y < 0) androidx.compose.ui.unit.Velocity(0f, available.y) else androidx.compose.ui.unit.Velocity.Zero
+                }
+            }
+            Box(Modifier.weight(1f).nestedScroll(keepEnd)) {
                 Body(solution, ready, state, list, Modifier.padding(horizontal = 20.dp))
             }
         }
@@ -220,7 +234,7 @@ private fun Body(solution: Steps.Solution?, ready: Boolean, state: StepsState, l
             Text("Steps are in beta: calculus, algebra, complex numbers, matrices, differential equations, statistics and vector calculus for now.", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
         }
         else -> LazyColumn(state = list, modifier = modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)) {
-            itemsIndexed(solution.steps) { k, step ->
+            itemsIndexed(solution.steps, key = { k, _ -> k }) { k, step ->
                 StepNode(k + 1, step, last = k == solution.steps.lastIndex)
             }
             item { BetaNote() }
@@ -238,8 +252,18 @@ private fun StepNode(number: Int, step: Steps.Step, last: Boolean) {
         Steps.Kind.Note -> colors.surfaceContainerHighest to colors.onSurfaceVariant
         Steps.Kind.Rule -> colors.secondaryContainer to colors.onSecondaryContainer
     }
-    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-        Column(Modifier.width(40.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+    // The line down to the next step is drawn behind the row, not measured with intrinsics: those
+    // gave some steps a gap below and made the list jitter when scrolled to its end.
+    val line = colors.outlineVariant
+    Row(
+        Modifier.fillMaxWidth().drawBehind {
+            if (!last) {
+                val x = 20.dp.toPx()
+                drawLine(line, androidx.compose.ui.geometry.Offset(x, 40.dp.toPx()), androidx.compose.ui.geometry.Offset(x, size.height - 4.dp.toPx()), 2.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            }
+        },
+    ) {
+        Column(Modifier.width(40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.size(36.dp).clip(if (step.kind == Steps.Kind.Result) RoundedCornerShape(12.dp) else CircleShape).background(fill), contentAlignment = Alignment.Center) {
                 when (step.kind) {
                     Steps.Kind.Check -> Icon(Icons.Default.Check, contentDescription = null, tint = ink, modifier = Modifier.size(20.dp))
@@ -247,7 +271,6 @@ private fun StepNode(number: Int, step: Steps.Step, last: Boolean) {
                     else -> Text("$number", style = MaterialTheme.typography.labelLarge, color = ink)
                 }
             }
-            if (!last) Box(Modifier.width(2.dp).weight(1f).padding(vertical = 4.dp).clip(CircleShape).background(colors.outlineVariant))
         }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f).padding(bottom = 20.dp, top = 6.dp)) {

@@ -35,6 +35,11 @@ class MainActivity : ComponentActivity() {
 
     /** A graph file opened from elsewhere (a file manager, an attachment): the app imports it. */
     private fun openedFile(intent: android.content.Intent?) {
+        // A home screen shortcut: a mode, or the unit converter.
+        if (intent?.action == com.example.cas.ui.Shortcuts.ACTION) {
+            com.example.cas.ui.Shortcuts.target = intent.getStringExtra(com.example.cas.ui.Shortcuts.EXTRA)
+            return
+        }
         val uri = when (intent?.action) {
             android.content.Intent.ACTION_VIEW -> intent.data
             android.content.Intent.ACTION_SEND -> sharedStream(intent)

@@ -1,5 +1,7 @@
 package com.example.cas.ui
 
+import androidx.compose.material.icons.outlined.FactCheck
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -74,6 +76,8 @@ val CREDITS: List<CreditGroup> = listOf(
             "The internationally agreed values, updated every four years; exact ones are fixed by the 2019 SI.", "Public domain (US government work)", "https://physics.nist.gov/cuu/Constants/"),
         Credit("matplotlib colormaps", "Nathaniel Smith and Stéfan van der Walt (viridis, plasma, magma), Jamie Nuñez et al. (cividis), Bastian Bechtold (twilight), Anton Mikhailov (turbo)", "The colors of the complex plane",
             "Every map on matplotlib's Choosing Colormaps page (86 of them), sampled at 256 points.", "CC0 (viridis family), BSD (matplotlib), Apache 2.0 (turbo)", "https://matplotlib.org/stable/users/explain/colors/colormaps.html"),
+        Credit("NIST Guide to the SI (SP 811) and the SI Brochure", "NIST, BIPM", "The unit converter's units, prefixes and conversion factors",
+            "Exact definitions (the inch is 0.0254 m, the pound 0.45359237 kg) and the accepted values of the rest.", "Public domain (US government work); BIPM terms", "https://www.nist.gov/pml/special-publication-811"),
     )),
     CreditGroup("Numerical methods", "Published methods behind the answers that aren't exact.", listOf(
         Credit("Gauss–Kronrod quadrature", "Carl Friedrich Gauss, Aleksandr Kronrod", "Definite integrals without a closed form",
@@ -92,6 +96,14 @@ val CREDITS: List<CreditGroup> = listOf(
             "Follows the tangent to a root, doubling the correct digits each step.", "Published method", "https://en.wikipedia.org/wiki/Newton%27s_method"),
         Credit("Levenberg–Marquardt", "Kenneth Levenberg, Donald Marquardt", "Fit: least squares through a list of points",
             "Between Gauss–Newton and gradient descent, damped when a step doesn't help.", "Published method", "https://en.wikipedia.org/wiki/Levenberg%E2%80%93Marquardt_algorithm"),
+        Credit("Incomplete gamma and beta functions", "After Press, Teukolsky, Vetterling and Flannery (Numerical Recipes)", "The t, χ², F, gamma, beta, binomial and Poisson distributions in data tables",
+            "A series near 0 and a continued fraction (by Lentz's method) elsewhere.", "Published method", "https://en.wikipedia.org/wiki/Incomplete_gamma_function"),
+        Credit("Runge–Kutta (RK4)", "Carl Runge, Wilhelm Kutta", "Solution curves through slope fields",
+            "Four slopes per step, averaged, for accurate curves with few steps.", "Published method", "https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods"),
+        Credit("Puiseux series", "Victor Puiseux", "Limits worked out from series expansions",
+            "Power series with fractional exponents, which find limits like \$\\frac{x - \\sin x}{x^3} \\to \\frac{1}{6}\$.", "Published method", "https://en.wikipedia.org/wiki/Puiseux_series"),
+        Credit("Exact decimal arithmetic", "The Java platform (java.math.BigDecimal)", "Unit conversions without floating-point error",
+            "34 significant digits throughout, so 1 L is 1000 mL, not 1000.0000000000001.", "GPL v2 with Classpath exception (OpenJDK)", "https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/math/BigDecimal.html"),
     )),
     CreditGroup("Graphics", "How the graphs are drawn.", listOf(
         Credit("Marching squares", "After Lorensen and Cline's marching cubes", "Equations in x and y, and the edges of inequalities",
@@ -108,12 +120,22 @@ val CREDITS: List<CreditGroup> = listOf(
             "Tones of one hue at fixed lightness steps, so text always stands out; rebuilt here in OKLab.", "Apache License 2.0 (the recipe)", "https://m3.material.io/styles/color/system/how-the-system-works"),
     )),
     CreditGroup("Inspiration", "Apps whose ideas this one borrows.", listOf(
+        Credit("Microsoft Excel", "Microsoft", "Spreadsheet formulas in data tables: the functions, references, fill handle and errors",
+            "Function names, arguments and results follow Excel's documentation, checked against its examples.", "—", "https://support.microsoft.com/en-us/office/excel-functions-alphabetical-b3944572-255d-4efb-bb96-c6d90033e188"),
+        Credit("pgfplots and SciencePlots", "Christian Feuersänger; John Garrett", "The look of exported graphs and their colors",
+            "LaTeX plotting and matplotlib styles for scientific figures.", "—", "https://ctan.org/pkg/pgfplots"),
         Credit("Desmos", "Desmos Studio", "Graphs: typing any line, restrictions, points, sliders and lists",
             "The graphing calculator many people learn with.", "—", "https://www.desmos.com/calculator"),
         Credit("Google Calculator", "Google", "The look, the keypad, and continuing from an answer",
             "The calculator on Pixel phones.", "—", "https://play.google.com/store/apps/details?id=com.google.android.calculator"),
         Credit("TI-Nspire CAS and HP Prime", "Texas Instruments, HP", "A 2D math editor with exact answers",
             "Handheld computer algebra calculators.", "—", "https://en.wikipedia.org/wiki/Computer_algebra_system"),
+    )),
+    CreditGroup("Checked against", "Tools used to check the app's answers while it was built; none of their code is in the app.", listOf(
+        Credit("SciPy", "The SciPy community", "Statistical distributions and special functions in tests",
+            "Reference values for the spreadsheet's distributions and the calculator's special functions.", "BSD 3-Clause", "https://scipy.org"),
+        Credit("mpmath and SymPy", "Fredrik Johansson; the SymPy development team", "Integrals, limits and series in tests",
+            "Arbitrary-precision and symbolic answers that the calculator's are compared with.", "BSD", "https://mpmath.org"),
     )),
 )
 
@@ -149,6 +171,7 @@ private fun iconFor(group: String): androidx.compose.ui.graphics.vector.ImageVec
     "Numerical methods" -> Icons.Outlined.Functions
     "Graphics" -> Icons.AutoMirrored.Outlined.ShowChart
     "Inspiration" -> Icons.Outlined.Lightbulb
+    "Checked against" -> Icons.Outlined.FactCheck
     else -> Icons.Outlined.Info
 }
 

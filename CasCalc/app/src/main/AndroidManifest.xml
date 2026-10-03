@@ -19,6 +19,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
+            <!-- A home screen shortcut to one mode, or to the unit converter. -->
+            <intent-filter>
+                <action android:name="com.example.cas.action.OPEN" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
             <!-- CasCalc graph files (.g2d), opened from a file manager. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

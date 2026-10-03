@@ -56,7 +56,7 @@ object ModeGuides {
             Example("Complex numbers", m("(1+2i)(3−i)"), "Worked out exactly: \$5 + 5i\$"),
             Example("Euler's identity", m("e", Pow(m("iπ")), "+1"), "\$0\$, exactly", advanced = true),
             Example("Gamma function", m(fn("gamma", m(Frac(m("1"), m("2"))))), "Exact special values: \$\\sqrt{\\pi}\$", advanced = true),
-            Example("Equations", m(fn("solve", m("x", sq(), "−5x+6=0"), m("x"))), "Solved exactly: \$x = 2,\\ x = 3\$"),
+            Example("Combinations", m(com.example.cas.editor.Binom(m("10"), m("3"))), "Ten choose three: \$120\$"),
             Example("Integrals", m(Integral(body = m("xe", Pow(m("x"))), variable = m("x"))), "Antiderivatives, and definite integrals with limits"),
             Example("Derivatives", m(Derivative(variable = m("x"), body = m(fn("sin", m("x")), "x", sq()))), "Exact, with the product and chain rules"),
             Example("Limits", m(fn("lim", m(Frac(m(fn("sin", m("x"))), m("x"))), m("x→0"))), "Found from the series: \$1\$"),

@@ -434,6 +434,9 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         storeProjects()
     }
 
+    /** Whether the graph has anything typed in it (a line, a note or a table). */
+    fun hasContent(): Boolean = functions.any { !it.editor.isEmpty || it.isText || it.table != null }
+
     /** Replaces the graph with a saved project. */
     fun openProject(p: Project) {
         active = null

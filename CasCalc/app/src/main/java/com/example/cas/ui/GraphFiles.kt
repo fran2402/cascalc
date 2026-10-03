@@ -125,12 +125,29 @@ object OpenedGraphFile {
 }
 
 /**
- * Imports a graph file the app was opened with into its mode's saved graphs, opens it and
- * switches to that mode.
+ * A graph file the app was opened with (Open with, or shared to it): read, then plotted in its
+ * mode, replacing the graph there. If that graph has lines, it asks first; either way the file
+ * is also kept in the saved graphs.
  */
 @Composable
 fun OpenGraphFileEffect(graphs: Map<Mode, GraphViewModel>, onSwitch: (Mode) -> Unit) {
     val context = LocalContext.current
+    var pending by remember { mutableStateOf<GraphFile.Contents?>(null) }
+    fun plot(c: GraphFile.Contents) {
+        val vm = graphs[c.kind.mode] ?: return
+        vm.openProject(vm.importProject(c.name, c.data))
+        onSwitch(c.kind.mode)
+        Toast.makeText(context, "Opened “${c.name}”", Toast.LENGTH_SHORT).show()
+    }
+    pending?.let { c ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { pending = null },
+            title = { androidx.compose.material3.Text("Open “${c.name}”?") },
+            text = { androidx.compose.material3.Text("It replaces what's in the ${c.kind.label} now. The file is kept in your saved graphs, but the current lines are lost unless you've saved them.") },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { pending = null; plot(c) }) { androidx.compose.material3.Text("Open and replace") } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { pending = null }) { androidx.compose.material3.Text("Cancel") } },
+        )
+    }
     val uri = OpenedGraphFile.uri ?: return
     androidx.compose.runtime.LaunchedEffect(uri) {
         OpenedGraphFile.uri = null
@@ -144,9 +161,8 @@ fun OpenGraphFileEffect(graphs: Map<Mode, GraphViewModel>, onSwitch: (Mode) -> U
             }
         }.onSuccess { c ->
             val vm = graphs[c.kind.mode] ?: return@onSuccess
-            vm.openProject(vm.importProject(c.name, c.data))
-            onSwitch(c.kind.mode)
-            Toast.makeText(context, "Opened “${c.name}”", Toast.LENGTH_SHORT).show()
+            // Ask before replacing lines that are there; an empty graph is simply filled.
+            if (vm.hasContent()) { onSwitch(c.kind.mode); pending = c } else plot(c)
         }.onFailure { e -> Toast.makeText(context, e.message ?: "Couldn't open the graph file", Toast.LENGTH_LONG).show() }
     }
 }

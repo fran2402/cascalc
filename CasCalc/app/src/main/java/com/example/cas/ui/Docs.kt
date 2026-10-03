@@ -128,7 +128,7 @@ object Docs {
             ),
         ),
         Chapter(
-            "Arithmetic and numbers", "numbers", "Fractions, powers, roots, whole-number functions and rounding.", part = CALC, sections = listOf(
+            "Arithmetic and numbers", "numbers", "Fractions, powers, roots, factorials and scientific notation.", part = CALC, sections = listOf(
                 section(
                     "Fractions and powers",
                     examples(
@@ -158,20 +158,12 @@ object Docs {
                         ex(bin("10", "3"), note = "\$n\$ choose \$k\$"),
                         ex(f("perm", "10", "3"), note = "Arrangements: \$\\frac{n!}{(n-k)!}\$"),
                         ex("17", Sym("mod"), "5", note = "The remainder"),
-                        ex(f("gcd", "84", "36"), note = "Greatest common divisor"),
-                        ex(f("lcm", "4", "6"), note = "Least common multiple"),
                     ),
                 ),
                 section(
-                    "Size, sign and rounding",
+                    "Absolute value and percent",
                     examples(
                         ex(f("abs", "−7")),
-                        ex(f("floor", "3.7")),
-                        ex(f("ceil", "3.2")),
-                        ex(f("round", "2.5")),
-                        ex(f("frac", "3.75"), note = "The fractional part"),
-                        ex(f("min", "3", "1")),
-                        ex(f("max", "3", "1")),
                         ex("25%", note = "Percent is a hundredth"),
                     ),
                 ),
@@ -272,41 +264,6 @@ object Docs {
                         ex(f("arg", "1+i"), note = "The argument, in radians"),
                         ex("2e", p(m("i", fr("π", "3"))), note = "Polar to \$a + bi\$"),
                     ),
-                ),
-            ),
-        ),
-        Chapter(
-            "Algebra", "algebra", "Solving equations, and rewriting expressions in the form you want.", part = CALC, sections = listOf(
-                section(
-                    "Solving equations",
-                    para("solve takes an equation and the letter to solve for. Polynomials up to degree four are solved exactly; higher degrees numerically."),
-                    examples(
-                        ex(f("solve", m("2x+1=7"), m("x"))),
-                        ex(f("solve", m("x", p("2"), "−5x+6=0"), m("x"))),
-                        ex(f("solve", m("x", p("2"), "=2"), m("x"))),
-                        ex(f("solve", m("x", p("2"), "+1=0"), m("x")), note = "Complex roots"),
-                        ex(f("solve", m("x", p("3"), "=8"), m("x"))),
-                        ex(f("solve", m("2", p("x+1"), "=8"), m("x")), note = "Exponential equations"),
-                        ex(f("solve", m("ax+b=0"), m("x")), note = "With letters"),
-                    ),
-                ),
-                section(
-                    "Rewriting expressions",
-                    para("Answers are simplified on their own; these functions ask for a particular form."),
-                    examples(
-                        ex(f("expand", m("(x+1)", p("3")))),
-                        ex(f("expand", m("(a−b)", p("3")))),
-                        ex(f("factor", m("x", p("2"), "−1"))),
-                        ex(f("factor", m("x", p("3"), "−8"))),
-                        ex(f("simplify", m(fr(m("x", p("2"), "−1"), "x−1")))),
-                        ex(f("apart", m(fr("1", m("x", p("2"), "−1")))), note = "Partial fractions"),
-                        ex(f("together", m(fr("1", "x"), "+", fr("1", "y"))), note = "One fraction"),
-                    ),
-                ),
-                section(
-                    "Variables and functions",
-                    para("\$a := 3\$ stores a value; afterwards \$a\$ means 3 everywhere. \$f(x) = \\ldots\$ defines a function of one or more letters, used like any other."),
-                    note("Defined letters show in color on the keys; hold a key to forget its value."),
                 ),
             ),
         ),

@@ -71,6 +71,15 @@ fun AppScreen() {
         }, onDismiss = { guide = null })
     }
 
+    // A home screen shortcut: its mode, or the calculator with the unit converter open.
+    val shortcut = Shortcuts.target
+    androidx.compose.runtime.LaunchedEffect(shortcut) {
+        if (shortcut == null) return@LaunchedEffect
+        Shortcuts.target = null
+        if (shortcut == "converter") { switchTo(Mode.Calculator); Shortcuts.openConverter = true }
+        else runCatching { Mode.valueOf(shortcut) }.getOrNull()?.let { switchTo(it) }
+    }
+
     // A graph file the app was opened with: imported, opened, and its mode shown.
     OpenGraphFileEffect(mapOf(Mode.Graph2D to graph2d, Mode.Graph3D to graph3d, Mode.Complex to complex), onSwitch = switchTo)
 

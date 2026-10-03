@@ -265,27 +265,30 @@ private fun ExampleGrid(mode: Mode, examples: List<ModeGuides.Example>, columns:
         examples.chunked(columns).forEach { line ->
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 line.forEach { e ->
+                    // Advanced ones in the tertiary container, solid (a see-through tint went muddy in the dark theme).
+                    val ink = if (emphasized) colors.onTertiaryContainer else colors.onSurface
                     Column(
                         Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(22.dp))
-                            .background(if (emphasized) colors.tertiaryContainer.copy(alpha = 0.55f) else colors.surfaceContainerHighest)
+                            .background(if (emphasized) colors.tertiaryContainer else colors.surfaceContainerHighest)
                             .clickable(onClickLabel = "Try ${e.label}") { tap(); onTry(mode, e.row) }
                             .padding(start = 14.dp, end = 10.dp, top = 12.dp, bottom = 10.dp),
                     ) {
-                        Text(e.label, style = MaterialTheme.typography.labelLarge, color = if (emphasized) colors.tertiary else colors.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(e.label, style = MaterialTheme.typography.labelLarge, color = if (emphasized) colors.onTertiaryContainer else colors.primary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Spacer(Modifier.height(8.dp))
                         Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-                            MathView(e.row, 19.sp, colors.onSurface, modifier = Modifier.semantics { contentDescription = com.example.cas.engine.Formatter.plain(e.row) })
+                            MathView(e.row, 19.sp, ink, modifier = Modifier.semantics { contentDescription = com.example.cas.engine.Formatter.plain(e.row) })
                         }
                         Spacer(Modifier.height(6.dp))
-                        MathText(e.note, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.weight(1f))
+                        MathText(e.note, style = MaterialTheme.typography.bodySmall, color = if (emphasized) colors.onTertiaryContainer.copy(alpha = 0.8f) else colors.onSurfaceVariant, modifier = Modifier.weight(1f))
                         Spacer(Modifier.height(8.dp))
                         Row(
-                            Modifier.align(Alignment.End).height(30.dp).clip(CircleShape).background(colors.primaryContainer).padding(start = 12.dp, end = 10.dp),
+                            Modifier.align(Alignment.End).height(30.dp).clip(CircleShape).background(if (emphasized) colors.tertiary else colors.primaryContainer).padding(start = 12.dp, end = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("Try", style = MaterialTheme.typography.labelMedium, color = colors.onPrimaryContainer)
+                            val tryInk = if (emphasized) colors.onTertiary else colors.onPrimaryContainer
+                            Text("Try", style = MaterialTheme.typography.labelMedium, color = tryInk)
                             Spacer(Modifier.width(4.dp))
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(16.dp))
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = tryInk, modifier = Modifier.size(16.dp))
                         }
                     }
                 }

@@ -100,13 +100,13 @@ object AppSettings {
     var viewHalfWidth by mutableStateOf(10)
         private set
     /** Complex plots: 0 standard (half resolution), 1 high (full), 2 low (a quarter). */
-    var complexQuality by mutableStateOf(0)
+    var complexQuality by mutableStateOf(2)
         private set
     /** 2D fields f(x, y): 0 low (12 px cells), 1 medium (6 px), 2 high (3 px). */
     var fieldQuality by mutableStateOf(0)
         private set
     /** 3D surfaces: 0 low, 1 medium, 2 high detail. */
-    var surfaceDetail by mutableStateOf(1)
+    var surfaceDetail by mutableStateOf(0)
         private set
 
     val mathScale: Float get() = when (mathSize) { 0 -> 0.85f; 2 -> 1.18f; else -> 1f }
@@ -151,8 +151,8 @@ object AppSettings {
         keySounds = p.getBoolean("keySounds", false)
         specialPoints = p.getBoolean("specialPoints", true)
         viewHalfWidth = p.getInt("viewHalfWidth", 10)
-        complexQuality = p.getInt("complexQuality", 0)
-        surfaceDetail = p.getInt("surfaceDetail", 1)
+        complexQuality = p.getInt("complexQuality", 2)
+        surfaceDetail = p.getInt("surfaceDetail", 0)
         fieldQuality = p.getInt("fieldQuality", 0)
         com.example.cas.engine.Formatter.groupDigits = groupDigits
         com.example.cas.engine.Formatter.numberFormat = numberFormat

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shortcuts on the app icon (hold it): each can be dragged to the home screen. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="converter"
+        android:enabled="true"
+        android:icon="@mipmap/shortcut_converter"
+        android:shortcutShortLabel="@string/shortcut_converter_short"
+        android:shortcutLongLabel="@string/shortcut_converter_long">
+        <intent
+            android:action="com.example.cas.action.OPEN"
+            android:targetPackage="com.example.cas"
+            android:targetClass="com.example.cas.MainActivity">
+            <extra android:name="open" android:value="converter" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="graph2d"
+        android:enabled="true"
+        android:icon="@mipmap/shortcut_graph2d"
+        android:shortcutShortLabel="@string/shortcut_graph2d_short"
+        android:shortcutLongLabel="@string/shortcut_graph2d_long">
+        <intent
+            android:action="com.example.cas.action.OPEN"
+            android:targetPackage="com.example.cas"
+            android:targetClass="com.example.cas.MainActivity">
+            <extra android:name="open" android:value="Graph2D" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="graph3d"
+        android:enabled="true"
+        android:icon="@mipmap/shortcut_graph3d"
+        android:shortcutShortLabel="@string/shortcut_graph3d_short"
+        android:shortcutLongLabel="@string/shortcut_graph3d_long">
+        <intent
+            android:action="com.example.cas.action.OPEN"
+            android:targetPackage="com.example.cas"
+            android:targetClass="com.example.cas.MainActivity">
+            <extra android:name="open" android:value="Graph3D" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="complex"
+        android:enabled="true"
+        android:icon="@mipmap/shortcut_complex"
+        android:shortcutShortLabel="@string/shortcut_complex_short"
+        android:shortcutLongLabel="@string/shortcut_complex_long">
+        <intent
+            android:action="com.example.cas.action.OPEN"
+            android:targetPackage="com.example.cas"
+            android:targetClass="com.example.cas.MainActivity">
+            <extra android:name="open" android:value="Complex" />
+        </intent>
+    </shortcut>
+</shortcuts>

@@ -1,5 +1,7 @@
 package com.example.cas.ui
 
+import androidx.compose.material.icons.outlined.AddToHomeScreen
+
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 
 import androidx.compose.material.icons.filled.Close
@@ -326,6 +328,8 @@ fun CalculatorTrailingAction(vm: CalculatorViewModel) {
     }
     if (settings) AppSettingsPage(vm, onBack = { settings = false }, onAcknowledgements = { settings = false; acknowledgements = true })
     if (acknowledgements) AcknowledgementsDialog(onDismiss = { acknowledgements = false })
+    // Opened from a home screen shortcut.
+    if (Shortcuts.openConverter) { Shortcuts.openConverter = false; converter = true }
     if (converter) UnitConverterPage(onBack = { converter = false }, onUse = { v -> converter = false; vm.insertNumber(v) })
     @Suppress("DEPRECATION") val clipboard = LocalClipboardManager.current
     val colors = MaterialTheme.colorScheme
@@ -613,18 +617,25 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                     action(Icons.AutoMirrored.Filled.FormatListBulleted, "Steps", "Show the steps") { showingSteps = true }
                 }
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = { tap(); copy(Formatter.plain(shown), "Answer") }) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy the answer", tint = colors.onSurfaceVariant)
-                }
-                IconButton(onClick = { tap(); vm.togglePin(item) }) {
-                    Icon(
+                // Copy and pin: small, side by side, right by the ⋮ menu.
+                @Composable
+                fun small(icon: androidx.compose.ui.graphics.vector.ImageVector, spoken: String, tint: Color, onClick: () -> Unit) = Box(
+                    Modifier.size(34.dp).clip(CircleShape).clickable(onClickLabel = spoken) { tap(); onClick() }.semantics { contentDescription = spoken },
+                    contentAlignment = Alignment.Center,
+                ) { Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp)) }
+                Row(horizontalArrangement = Arrangement.spacedBy(0.dp), verticalAlignment = Alignment.CenterVertically) {
+                    small(Icons.Default.ContentCopy, "Copy the answer", colors.onSurfaceVariant) { copy(Formatter.plain(shown), "Answer") }
+                    small(
                         if (item.pinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
-                        contentDescription = if (item.pinned) "Unpin" else "Pin: keep it whatever the history limit",
-                        tint = if (item.pinned) colors.primary else colors.onSurfaceVariant,
-                    )
+                        if (item.pinned) "Unpin" else "Pin: keep it whatever the history limit",
+                        if (item.pinned) colors.primary else colors.onSurfaceVariant,
+                    ) { vm.togglePin(item) }
                 }
                 Box {
-                    IconButton(onClick = { tap(); shareMenu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More: folder, share, delete", tint = colors.onSurfaceVariant) }
+                    Box(
+                        Modifier.size(34.dp).clip(CircleShape).clickable(onClickLabel = "More: folder, share, delete") { tap(); shareMenu = true },
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Default.MoreVert, contentDescription = "More: folder, share, delete", tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp)) }
                     DropdownMenu(expanded = shareMenu, onDismissRequest = { shareMenu = false }, shape = RoundedCornerShape(16.dp)) {
                         if (g != null) DropdownMenuItem(
                             text = { Text("Use the answer") }, leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardReturn, null) },
@@ -1619,16 +1630,24 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsChoice("Starting view", listOf("\$\\pm 5\$", "\$\\pm 10\$", "\$\\pm 20\$"), when (AppSettings.viewHalfWidth) { 5 -> 0; 20 -> 2; else -> 1 }) {
                 AppSettings.changeViewHalfWidth(listOf(5, 10, 20)[it])
             }
-            SettingsChoice("Complex plot quality", listOf("Low", "Standard", "High"), when (AppSettings.complexQuality) { 2 -> 0; 1 -> 2; else -> 1 }) {
-                AppSettings.changeComplexQuality(listOf(2, 0, 1)[it])
-            }
+            // All three start low, for speed; complex plot quality is stored as 2 low, 0 medium, 1 high.
             SettingsChoice("2D field quality", listOf("Low", "Medium", "High"), AppSettings.fieldQuality, AppSettings::changeFieldQuality)
             SettingsChoice("3D surface detail", listOf("Low", "Medium", "High"), AppSettings.surfaceDetail, AppSettings::changeSurfaceDetail)
+            SettingsChoice("Complex plot quality", listOf("Low", "Medium", "High"), when (AppSettings.complexQuality) { 2 -> 0; 1 -> 2; else -> 1 }) {
+                AppSettings.changeComplexQuality(listOf(2, 0, 1)[it])
+            }
         },
         PageSection("Touch and screen", Icons.Outlined.TouchApp) {
             SettingsToggle("Haptic feedback", "A tap on each key and button", AppSettings.haptics, AppSettings::changeHaptics)
             SettingsToggle("Key sounds", "A click on each key (uses the system's touch sounds)", AppSettings.keySounds, AppSettings::changeKeySounds)
             SettingsToggle("Keep the screen on", "While the app is open", AppSettings.keepScreenOn, AppSettings::changeKeepScreenOn)
+        },
+        PageSection("Home screen", Icons.Outlined.AddToHomeScreen) {
+            val context = LocalContext.current
+            Text("Put a shortcut on your home screen that opens straight to one of these. Holding the app's icon shows them too.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            Shortcuts.entries.forEach { e ->
+                SettingsLink(e.longLabel, "Add to the home screen", "Add a ${e.longLabel} shortcut to the home screen") { Shortcuts.pin(context, e) }
+            }
         },
         PageSection("Feedback", androidx.compose.material.icons.Icons.Outlined.BugReport) {
             val context = LocalContext.current

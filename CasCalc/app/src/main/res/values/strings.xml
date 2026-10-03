@@ -2,4 +2,13 @@
     <string name="app_name">CAS Scientific Calculator</string>
     <!-- The name under the icon on the home screen and in the app drawer. -->
     <string name="launcher_name">Calculator</string>
+    <!-- Home screen shortcuts (hold the app icon, or add them from Settings). -->
+    <string name="shortcut_converter_short">Units</string>
+    <string name="shortcut_converter_long">Unit converter</string>
+    <string name="shortcut_graph2d_short">2D graph</string>
+    <string name="shortcut_graph2d_long">2D graphing</string>
+    <string name="shortcut_graph3d_short">3D graph</string>
+    <string name="shortcut_graph3d_long">3D graphing</string>
+    <string name="shortcut_complex_short">Complex</string>
+    <string name="shortcut_complex_long">Complex plane</string>
 </resources>

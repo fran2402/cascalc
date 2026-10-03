@@ -141,6 +141,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.ViewColumn
 import androidx.compose.material.icons.filled.TableRows
+import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.ScatterPlot
@@ -1603,7 +1605,7 @@ internal class FabItem(val label: String, val icon: androidx.compose.ui.graphics
  * each sliding in after the one below, and + turns into ×. Tapping outside, or ×, closes it.
  */
 @Composable
-internal fun FabMenu(items: List<FabItem>, size: androidx.compose.ui.unit.Dp, description: String) {
+internal fun FabMenu(items: List<FabItem>, size: androidx.compose.ui.unit.Dp, description: String, alignEnd: Boolean = false) {
     val colors = MaterialTheme.colorScheme
     val tap = rememberKeyTap()
     var open by remember { mutableStateOf(false) }
@@ -1626,12 +1628,12 @@ internal fun FabMenu(items: List<FabItem>, size: androidx.compose.ui.unit.Dp, de
         if (open) {
             val lift = with(density) { (size + 10.dp).roundToPx() }
             androidx.compose.ui.window.Popup(
-                alignment = Alignment.BottomStart,
+                alignment = if (alignEnd) Alignment.BottomEnd else Alignment.BottomStart,
                 offset = IntOffset(0, -lift),
                 onDismissRequest = { open = false },
                 properties = androidx.compose.ui.window.PopupProperties(focusable = true),
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.Start) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start) {
                     items.asReversed().forEachIndexed { k, item ->
                         val order = items.size - 1 - k // 0 for the one nearest the button
                         val shown = remember { androidx.compose.animation.core.MutableTransitionState(false) }.apply { targetState = true }
@@ -1850,6 +1852,11 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     // The one cell being typed in, as (column, row), and where its fill handle is being dragged to.
     var editing by remember(f) { mutableStateOf<Pair<Int, Int>?>(null) }
     var fillTo by remember(f) { mutableStateOf<Pair<Int, Int>?>(null) }
+    // Undo and redo: whole-table snapshots, one per change (typing in a cell counts once per cell).
+    class Snapshot(val names: List<String>, val cells: List<List<String>>, val roles: List<Int?>)
+    val undoStack = remember(f) { androidx.compose.runtime.mutableStateListOf<Snapshot>() }
+    val redoStack = remember(f) { androidx.compose.runtime.mutableStateListOf<Snapshot>() }
+    var typingRecorded by remember(f) { mutableStateOf<Pair<Int, Int>?>(null) }
     // Columns' widths and rows' heights that were dragged; the rest are the usual size.
     val defaultWidth = 112.dp
     val defaultHeight = 44.dp
@@ -1863,8 +1870,27 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     val points by remember(f) { androidx.compose.runtime.derivedStateOf { current.points().size } }
     val bad by remember(f) { androidx.compose.runtime.derivedStateOf { current.badCells() } }
     fun roleOf(c: Int) = when (c) { roleX -> "x"; roleY -> "y"; roleSx -> "σx"; roleSy -> "σy"; else -> null }
+    fun snapshot() = Snapshot(names.toList(), cells.map { it.toList() }, listOf(roleX, roleY, roleSx, roleSy))
+    /** Keeps the table as it is now, before a change, for undo. */
+    val quiet = remember(f) { booleanArrayOf(false) }
+    fun record() {
+        // Within one action (a paste) only its first change is kept.
+        if (quiet[0]) return
+        undoStack.add(snapshot())
+        if (undoStack.size > 60) undoStack.removeAt(0)
+        redoStack.clear()
+    }
+    fun restore(s: Snapshot) {
+        editing = null; fillTo = null; typingRecorded = null
+        names.clear(); names.addAll(s.names)
+        cells.clear(); s.cells.forEach { col -> cells.add(androidx.compose.runtime.mutableStateListOf(*col.toTypedArray())) }
+        roleX = s.roles[0]; roleY = s.roles[1]; roleSx = s.roles[2]; roleSy = s.roles[3]
+    }
+    fun undo() { undoStack.removeLastOrNull()?.let { redoStack.add(snapshot()); restore(it) } }
+    fun redo() { redoStack.removeLastOrNull()?.let { undoStack.add(snapshot()); restore(it) } }
     /** One role per column and one column per role. */
     fun assign(c: Int, role: String?) {
+        record()
         if (roleX == c) roleX = null; if (roleY == c) roleY = null; if (roleSx == c) roleSx = null; if (roleSy == c) roleSy = null
         when (role) { "x" -> roleX = c; "y" -> roleY = c; "σx" -> roleSx = c; "σy" -> roleSy = c }
     }
@@ -1874,17 +1900,19 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         moved.forEach { (k, _) -> map.remove(k) }
         moved.forEach { (k, v) -> if (k + by >= at) map[k + by] = v }
     }
-    fun addRow() = cells.forEach { it.add("") }
-    fun insertRow(at: Int) { cells.forEach { it.add(at.coerceIn(0, it.size), "") }; shiftKeys(heights, at, 1) }
-    fun addColumn() { names.add(""); cells.add(androidx.compose.runtime.mutableStateListOf(*Array(maxOf(rows, 1)) { "" })) }
+    fun addRow() { record(); cells.forEach { it.add("") } }
+    fun insertRow(at: Int) { record(); cells.forEach { it.add(at.coerceIn(0, it.size), "") }; shiftKeys(heights, at, 1) }
+    fun addColumn() { record(); names.add(""); cells.add(androidx.compose.runtime.mutableStateListOf(*Array(maxOf(rows, 1)) { "" })) }
     fun removeRow(r: Int) {
         if (rows <= 1) return
+        record()
         editing = null
         cells.forEach { if (r < it.size) it.removeAt(r) }
         heights.remove(r); shiftKeys(heights, r + 1, -1)
     }
     fun removeColumn(c: Int) {
         if (cells.size <= 1) return
+        record()
         editing = null
         assign(c, null)
         names.removeAt(c); cells.removeAt(c)
@@ -1894,6 +1922,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     }
     /** Every column rewritten in the row order [order]. */
     fun reorder(order: List<Int>) {
+        record()
         editing = null
         cells.forEach { col ->
             val copy = order.map { col.getOrElse(it) { "" } }
@@ -1907,10 +1936,11 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     fun fillFormulaDown(c: Int) {
         val col = cells[c]
         val top = col.indexOfFirst { com.example.cas.graph.Sheet.isFormula(it) }.takeIf { it >= 0 } ?: return
+        record()
         for (r in top + 1 until col.size) col[r] = com.example.cas.graph.Sheet.shift(col[top], r - top)
     }
     /** A table copied from a spreadsheet or a CSV file, added below the rows already filled. */
-    fun paste() {
+    fun pasteClipboard() {
         @Suppress("DEPRECATION")
         val text = (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).primaryClip?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
         val t = runCatching { com.example.cas.graph.Csv.parse(text) }.getOrNull()
@@ -1926,6 +1956,10 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         t.columns.forEachIndexed { c, values -> values.forEachIndexed { r, v -> cells[c][from + r] = com.example.cas.graph.DataTable.text(v) } }
         if (roleY == null) { if (cells.size >= 2) { roleX = roleX ?: 0; roleY = 1 } else roleY = 0 }
         android.widget.Toast.makeText(context, "$n row${if (n == 1) "" else "s"} pasted", android.widget.Toast.LENGTH_SHORT).show()
+    }
+    fun paste() {
+        record(); quiet[0] = true
+        try { pasteClipboard() } finally { quiet[0] = false }
     }
     val list = androidx.compose.foundation.lazy.rememberLazyListState()
     val across = rememberScrollState()
@@ -1949,12 +1983,26 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         val (tc, tr) = fillTo ?: return
         fillTo = null
         val t = cells.getOrNull(sc)?.getOrNull(sr) ?: return
+        record()
         for (c in minOf(sc, tc)..maxOf(sc, tc)) for (r in minOf(sr, tr)..maxOf(sr, tr)) {
             if (c == sc && r == sr) continue
             val col = cells.getOrNull(c) ?: continue
             if (r >= col.size) continue
             col[r] = if (com.example.cas.graph.Sheet.isFormula(t)) com.example.cas.graph.Sheet.shift(t, r - sr, c - sc) else t
         }
+    }
+    /**
+     * Double-tapping the fill handle: down to the end of the data, as Excel does. The data ends
+     * at the last filled row of the next column over (left, else right), else of any column.
+     */
+    fun fillToEnd() {
+        val (sc, sr) = editing ?: return
+        fun lastFilled(c: Int) = cells.getOrNull(c)?.indexOfLast { it.isNotBlank() } ?: -1
+        val end = listOf(sc - 1, sc + 1).map { lastFilled(it) }.firstOrNull { it > sr }
+            ?: cells.indices.filter { it != sc }.maxOfOrNull { lastFilled(it) }?.takeIf { it > sr }
+            ?: return
+        fillTo = sc to end
+        fill()
     }
     /** The cell [px] pixels from (c, r) along one axis: whole rows (or columns) passed by half their size. */
     fun stepsAlong(start: Int, px: Float, count: Int, sizeOf: (Int) -> Float): Int {
@@ -1981,6 +2029,9 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                 modifier = Modifier.padding(start = 10.dp).clip(CircleShape).background(colors.tertiaryContainer).padding(horizontal = 10.dp, vertical = 4.dp),
                             )
                         }
+                        IconButton(onClick = { undo() }, enabled = undoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo") }
+                        IconButton(onClick = { redo() }, enabled = redoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo") }
+                        Spacer(Modifier.width(4.dp))
                         Button(
                             enabled = roleY != null && points > 0,
                             onClick = { vm.setTable(f, table()); onDismiss() },
@@ -2002,11 +2053,11 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                             ColumnCard(
                                                 role = roleOf(c), name = names[c], index = c, width = widthOf(c),
                                                 letter = if (formulas) com.example.cas.graph.Sheet.columnName(c) else null,
-                                                onName = { names[c] = it }, onRole = { assign(c, it) },
+                                                onName = { if (typingRecorded != (-1 to c)) { record(); typingRecorded = -1 to c }; names[c] = it }, onRole = { assign(c, it) },
                                                 onSort = { sortBy(c) },
-                                                onFill = { cells[c].indices.forEach { r -> cells[c][r] = (r + 1).toString() } },
+                                                onFill = { record(); cells[c].indices.forEach { r -> cells[c][r] = (r + 1).toString() } },
                                                 onFillDown = if (formulas && cells[c].any { com.example.cas.graph.Sheet.isFormula(it) }) ({ fillFormulaDown(c) }) else null,
-                                                onClear = { cells[c].indices.forEach { r -> cells[c][r] = "" } },
+                                                onClear = { record(); cells[c].indices.forEach { r -> cells[c][r] = "" } },
                                                 onRemove = if (cells.size > 1) ({ removeColumn(c) }) else null,
                                             )
                                             // The grip between columns: drag to resize, double-tap for the usual width.
@@ -2059,7 +2110,11 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                                                 editing = c to r + 1
                                                                 scope.launch { list.animateScrollToItem(maxOf(0, r - 2)) }
                                                             },
-                                                        ) { if (r < col.size) col[r] = it }
+                                                        ) {
+                                                            // Typing in a cell is one step to undo, however many characters.
+                                                            if (typingRecorded != (c to r)) { record(); typingRecorded = c to r }
+                                                            if (r < col.size) col[r] = it
+                                                        }
                                                         // The fill handle: drag it down or across to copy the cell, as in Excel.
                                                         if (here && t.isNotBlank()) FillHandle(
                                                             onStart = { fillTo = c to r },
@@ -2070,6 +2125,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                                                 else stepsAlong(c, dx, cells.size) { k -> with(density) { (widthOf(k) + 10.dp).toPx() } } to r
                                                             },
                                                             onEnd = { fill() },
+                                                            onDoubleTap = { fillToEnd() },
                                                             onCancel = { fillTo = null },
                                                             modifier = Modifier.align(Alignment.BottomEnd),
                                                         )
@@ -2087,11 +2143,12 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                 if (formulas && matches.isNotEmpty()) FormulaSuggestions(matches) { name ->
                                     val (c, r) = editing ?: return@FormulaSuggestions
                                     val now = cells.getOrNull(c)?.getOrNull(r) ?: return@FormulaSuggestions
+                                    if (typingRecorded != (c to r)) { record(); typingRecorded = c to r }
                                     cells[c][r] = now.dropLast(typing!!.length) + name + "("
                                 }
                             }
                             // One button, bottom left: + opens to add a row or a column, or paste.
-                            Box(Modifier.align(Alignment.BottomStart).padding(start = if (wide) 32.dp else 24.dp, bottom = 20.dp)) {
+                            Box(Modifier.align(Alignment.BottomEnd).padding(end = if (wide) 32.dp else 24.dp, bottom = 20.dp)) {
                                 FabMenu(
                                     listOf(
                                         FabItem("Row", Icons.Default.TableRows, "Add a row") {
@@ -2104,6 +2161,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     ),
                                     size = 56.dp,
                                     description = "Add a row or a column, or paste a table",
+                                    alignEnd = true,
                                 )
                             }
                         }
@@ -2116,17 +2174,19 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
 
 /** The fill handle: a small square at a cell's corner that drags over the cells to fill. */
 @Composable
-private fun FillHandle(onStart: () -> Unit, onDrag: (Float, Float) -> Unit, onEnd: () -> Unit, onCancel: () -> Unit, modifier: Modifier) {
+private fun FillHandle(onStart: () -> Unit, onDrag: (Float, Float) -> Unit, onEnd: () -> Unit, onCancel: () -> Unit, onDoubleTap: () -> Unit, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
     val drag by androidx.compose.runtime.rememberUpdatedState(onDrag)
     val start by androidx.compose.runtime.rememberUpdatedState(onStart)
     val end by androidx.compose.runtime.rememberUpdatedState(onEnd)
     val cancel by androidx.compose.runtime.rememberUpdatedState(onCancel)
+    val double by androidx.compose.runtime.rememberUpdatedState(onDoubleTap)
     // A larger touch area around the small square.
     Box(
         modifier
             .size(28.dp)
-            .semantics { contentDescription = "Fill handle: drag to copy this cell" }
+            .semantics { contentDescription = "Fill handle: drag to copy this cell, double-tap to fill to the end of the data" }
+            .pointerInput(Unit) { detectTapGestures(onDoubleTap = { double() }) }
             .pointerInput(Unit) {
                 var dx = 0f; var dy = 0f
                 detectDragGestures(

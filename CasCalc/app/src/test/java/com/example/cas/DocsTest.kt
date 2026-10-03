@@ -24,7 +24,7 @@ class DocsTest {
         }
     }
 
-    @Test fun manyExamples() = assertTrue(Docs.allExamples.size >= 150)
+    @Test fun manyExamples() = assertTrue(Docs.allExamples.size >= 120)
 
     @Test fun textUsesKnownLatex() {
         fun check(t: String) {
