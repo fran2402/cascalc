@@ -567,15 +567,19 @@ object Docs {
                 section(
                     "Points and objects",
                     para("Turn it on in Settings › Graphs. Each line of the 2D graph's list can then be a construction: name a point with a capital, like A = (1, 2), and build on it with GeoGebra's commands, like Segment(A, B), c = Circle(A, B) or P = Intersect(c, l, 1). A line can use names from any other line. Lowercase letters stay sliders, so Circle(A, r) gets a slider r."),
-                    para("Drag a point written with plain numbers and everything built on it follows. Numbers like d = Distance(A, B), Area(t) or Angle(A, B, C) show their value under the line and can be used in other lines."),
+                    para("Drag a point written with plain numbers and everything built on it follows. A point on an object, P = Point(c, 0.25), slides along it when dragged. Numbers like d = Distance(A, B), Area(t) or Angle(A, B, C) show their value under the line and can be used in other lines."),
+                    para("Arithmetic mixes in: Distance(A, B)/2, M = (A + B)/2, B = A + (2, 0) or v = B − A, 3A, and x(A) and y(A) for coordinates. Functions defined on the graph, like f(x) = x², can be used too: Intersect(f, l), Tangent(A, f) at x = x(A), Point(f, 2)."),
                 ),
                 section(
                     "Commands",
                     table(
                         "Segment(A, B), Line(A, B), Ray(A, B), Vector(A, B)" to "Straight objects through two points",
                         "Circle(A, B), Circle(A, r), Circle(A, B, C)" to "About A through B, with radius r, or through three points",
-                        "Polygon(A, B, C, …)" to "Filled, with three corners or more",
-                        "Midpoint, Intersect, Centroid" to "Points from other objects; Intersect(a, b, n) picks the nth",
+                        "Semicircle, CircularArc, CircumcircularArc, CircularSector" to "Parts of circles: on AB, about O from A to B, through three points, filled to the center",
+                        "Polygon(A, B, C, …), RegularPolygon(A, B, n)" to "Filled, with three corners or more; regular with n sides on AB",
+                        "Ellipse(F, G, a), Hyperbola(F, G, a), Parabola(F, l), Conic(A, B, C, D, E)" to "Conics from foci and a semi-major axis (or a point on them), focus and directrix, or five points",
+                        "Point(c, t)" to "A point on a line, circle, arc, polygon, conic or function graph, t along it",
+                        "Midpoint, Center, Intersect, Centroid" to "Points from other objects; Intersect(a, b, n) picks the nth",
                         "PerpendicularLine, ParallelLine, PerpendicularBisector, AngleBisector, Tangent" to "Lines built from points and other lines or circles",
                         "Incircle(A, B, C)" to "The circle inside a triangle",
                         "Distance, Length, Perimeter, Area, Angle, Slope, Radius" to "Measurements (angles in the graph's degrees or radians)",
@@ -584,7 +588,7 @@ object Docs {
                 ),
                 section(
                     "Building by tapping",
-                    para("Construct, top right of the graph, opens the tools: Point, Segment, Line, Ray, Vector, Circle (two or three points), Polygon, Midpoint, Perpendicular bisector, Angle and Distance. Tap existing points, or empty space to make a new one there; when the tool has its points, its line is added to the list. A polygon closes when you tap its first corner again. Tap the hint at the bottom, or Construct, to stop."),
+                    para("Construct, top right of the graph, opens the tools, as GeoGebra's toolbar does: points (on their own, on an object, where two objects cross, midpoints), lines (segment, line, ray, vector, perpendicular, parallel, bisectors, tangents), circles and arcs, polygons, conics, Reflect, Angle and Distance. Tap points, or empty space to make one there; tools that need a line, circle or curve take a tap on it (what's picked is highlighted). A polygon closes when you tap its first corner again. New lines are named as GeoGebra names them (A, B… for points, f, g… for others, α, β… for angles). Tap the hint at the bottom, or Construct, to stop."),
                     para("＋ › Geometry lists every command; tap one to start a line with it."),
                 ),
             ),

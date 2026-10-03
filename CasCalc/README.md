@@ -203,6 +203,19 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (3 October, geometry second pass)
+- **Geometry (alpha), second pass**:
+  - Arithmetic mixes with commands: Distance(A, B)/2, M = (A + B)/2, B = A + (2, 0), 3A,
+    x(A) and y(A).
+  - New objects: conics (Ellipse, Hyperbola, Parabola, Conic through five points), arcs and
+    sectors (Semicircle, CircularArc, CircumcircularArc, CircularSector) and RegularPolygon.
+  - Points on objects: P = Point(c, t) slides along a line, circle, arc, polygon, conic or
+    function graph when dragged.
+  - Functions f(x) from the graph's own lines work in Intersect, Tangent and Point.
+  - The Construct tools pick lines, circles and curves as well as points (with what's picked
+    highlighted), and there are many more of them, shown in two columns. New lines get
+    GeoGebra-style names (A, B… for points; f, g… for other objects; α, β… for angles).
+
 ## Latest changes (3 October, geometry alpha)
 - **Geometry (alpha)**: GeoGebra-style constructions in the 2D graph, turned on in Settings ›
   Graphs. A = (1, 2) is a point you can drag, and commands build on it: Segment, Line, Ray,

@@ -136,4 +136,115 @@ class GeometryTest {
         val all = ('A'..'Z').map { it.toString() }.toSet()
         assertEquals("A", com.example.cas.cas.CustomSymbol.decode(Geometry.nextPointName(all))!!.base)
     }
+
+    // ---- Round 2 ----
+
+    @Test fun arithmeticWithCommands() {
+        assertEquals(2.5, Geometry.value(obj("A=(0,0)", "B=(3,4)", "Distance(A,B)/2"))!!, 1e-12)
+        assertPoint(2.0, 1.0, obj("A=(0,0)", "B=(4,2)", "M=(A+B)/2"))
+        assertPoint(4.0, 2.0, obj("A=(1,1)", "v=Vector((0,0),(3,1))", "B=A+v"))
+        assertPoint(3.0, 2.0, obj("A=(1,2)", "P=A+(2,0)"))
+        assertEquals(5.0, Geometry.value(obj("A=(3,4)", "d=x(A)+y(A)-2"))!!, 1e-12)
+        assertPoint(6.0, 3.0, obj("A=(2,1)", "B=3A"))
+        // A typed product of letters isn't taken for a command: R·a·y without a bracket.
+        assertNull(Geometry.parse(row("y=Ray")))
+        // Arithmetic on points needs a name: y = A x keeps A as the graph's slider.
+        assertNull(Geometry.parse(row("y=Ax")))
+    }
+
+    @Test fun pointsOnPaths() {
+        val c = arrayOf("A=(0,0)", "c=Circle(A,2)")
+        assertPoint(0.0, 2.0, obj(*c, "P=Point(c,0.25)"))
+        assertTrue(Geometry.parse(row("P=Point(c,0.25)"))!!.onPath)
+        assertTrue(Geometry.parse(row("P=Point(c)"))!!.onPath)
+        assertPoint(1.0, 0.5, obj("s=Segment((0,0),(2,1))", "P=Point(s,0.5)"))
+        // Back again: the parameter of the nearest point.
+        val circle = obj(*c) as Geometry.Circle
+        assertEquals(0.125, Geometry.parameterOf(circle, Point(5.0, 5.0)), 1e-12)
+        val square = obj("Polygon((0,0),(1,0),(1,1),(0,1))")
+        assertPoint(1.0, 0.5, Geometry.pointAt(square, 0.375))
+        assertEquals(0.375, Geometry.parameterOf(square, Point(1.2, 0.5)), 1e-6)
+    }
+
+    @Test fun arcsAndSectors() {
+        val semi = obj("Semicircle((−1,0),(1,0))") as Geometry.Arc
+        assertEquals(PI, semi.start, 1e-12); assertEquals(PI, semi.sweep, 1e-12)
+        val sector = obj("O=(0,0)", "CircularSector(O,(1,0),(0,3))")
+        assertEquals(PI / 4, Geometry.value(obj("O=(0,0)", "s=CircularSector(O,(1,0),(0,3))", "Area(s)"))!!, 1e-12)
+        assertEquals(PI / 2, Geometry.value(obj("O=(0,0)", "s=CircularArc(O,(1,0),(0,3))", "Length(s)"))!!, 1e-12)
+        assertTrue(Geometry.draw(sector, Viewport(-2.0, 2.0, -2.0, 2.0)).fill != null)
+        // An arc only meets a line where the arc is: the upper half of the circle.
+        assertPoint(0.0, 1.0, obj("a=Semicircle((1,0),(−1,0))", "Intersect(a,Line((0,−5),(0,5)))"))
+        // Through B: (0, 1) is on the way from (1, 0) to (−1, 0) counterclockwise.
+        val arc = obj("CircumcircularArc((1,0),(0,1),(−1,0))") as Geometry.Arc
+        assertEquals(PI, arc.sweep, 1e-9)
+        val back = obj("CircumcircularArc((1,0),(0,−1),(−1,0))") as Geometry.Arc
+        assertEquals(-PI, back.sweep, 1e-9)
+    }
+
+    @Test fun regularPolygon() {
+        val sq = obj("RegularPolygon((0,0),(1,0),4)") as Geometry.Polygon
+        assertEquals(4, sq.points.size)
+        assertPoint(1.0, 1.0, sq.points[2]); assertPoint(0.0, 1.0, sq.points[3])
+        assertEquals(sqrt(3.0) / 4 * 4, Geometry.value(obj("t=RegularPolygon((0,0),(2,0),3)", "Area(t)"))!!, 1e-9)
+    }
+
+    @Test fun conics() {
+        // Foci (±3, 0), a = 5: x²/25 + y²/16 = 1.
+        val e = obj("Ellipse((−3,0),(3,0),5)") as Geometry.Conic
+        val shape = e.shape as Geometry.ConicShape.Ellipse
+        assertEquals(5.0, shape.a, 1e-9); assertEquals(4.0, shape.b, 1e-9)
+        assertEquals(0.0, Geometry.conicValue(e.c, Point(0.0, 4.0)), 1e-9)
+        assertEquals(20 * PI, Geometry.value(obj("k=Ellipse((−3,0),(3,0),5)", "Area(k)"))!!, 1e-9)
+        // Through a point instead of a: the same ellipse.
+        val e2 = obj("Ellipse((−3,0),(3,0),(5,0))") as Geometry.Conic
+        assertEquals(4.0, (e2.shape as Geometry.ConicShape.Ellipse).b, 1e-9)
+        // It meets the y axis at (0, ±4), and a circle of radius 4.5 in four points.
+        val axis = obj("k=Ellipse((−3,0),(3,0),5)", "Intersect(k,Line((0,0),(0,1)))") as Geometry.Many
+        assertPoint(0.0, -4.0, axis.items[0]); assertPoint(0.0, 4.0, axis.items[1])
+        assertEquals(4, (obj("k=Ellipse((−3,0),(3,0),5)", "c=Circle((0,0),4.5)", "Intersect(k,c)") as Geometry.Many).items.size)
+        // Hyperbola with foci (±5, 0), a = 3: x²/9 − y²/16 = 1.
+        val h = obj("Hyperbola((−5,0),(5,0),3)") as Geometry.Conic
+        assertEquals(0.0, Geometry.conicValue(h.c, Point(3.0, 0.0)), 1e-9)
+        assertEquals(0.0, Geometry.conicValue(h.c, Point(5.0, 16.0 / 3)), 1e-9)
+        assertEquals(2, Geometry.draw(h, Viewport(-10.0, 10.0, -10.0, 10.0)).lines.size)
+        // Parabola, focus (0, 1), directrix y = −1: y = x²/4.
+        val p = obj("Parabola((0,1),Line((0,−1),(1,−1)))") as Geometry.Conic
+        assertEquals(0.0, Geometry.conicValue(p.c, Point(2.0, 1.0)), 1e-9)
+        assertEquals(0.0, Geometry.conicValue(p.c, Point(-4.0, 4.0)), 1e-9)
+        val pts = (0..10).map { Geometry.conicAt(p.shape, -0.9 + 0.18 * it)!! }
+        pts.forEach { assertEquals(it.x * it.x / 4, it.y, 1e-6) }
+        // Through five points of the unit circle: the unit circle.
+        val c5 = obj("Conic((1,0),(0,1),(−1,0),(0,−1),(0.6,0.8))") as Geometry.Conic
+        assertEquals(0.0, Geometry.conicValue(c5.c, Point(-0.8, -0.6)), 1e-9)
+        // Tangents from (0, 5) to x²/25 + y²/16 = 1 touch it where y = 16/5.
+        val tangents = obj("k=Ellipse((−3,0),(3,0),5)", "Tangent((0,5),k)") as Geometry.Many
+        assertEquals(2, tangents.items.size)
+        tangents.items.forEach { assertEquals(16.0 / 5, (it as Geometry.Line).b.y, 1e-6) }
+        // Moved: the ellipse slides, its equation follows.
+        val moved = obj("k=Ellipse((−3,0),(3,0),5)", "Translate(k,(1,2))") as Geometry.Conic
+        assertEquals(0.0, Geometry.conicValue(moved.c, Point(1.0, 6.0)), 1e-6)
+        // A point on it, dragged round.
+        assertPoint(0.0, 4.0, obj("k=Ellipse((−3,0),(3,0),5)", "P=Point(k,0.25)"))
+    }
+
+    @Test fun functionGraphs() {
+        val f = { x: Double -> x * x }
+        fun build2(vararg lines: String) = Geometry.build(lines.map { Geometry.parse(row(it)) }, number, functionOf = { if (it == "f") f else null }, xRange = -10.0..10.0)
+        val out = build2("l=Line((0,4),(1,4))", "Intersect(f,l)").last()!!
+        val both = out.obj as? Geometry.Many ?: error(out.error ?: "no object")
+        assertPoint(-2.0, 4.0, both.items[0]); assertPoint(2.0, 4.0, both.items[1])
+        // The tangent at x = 1 has slope 2.
+        val t = build2("A=(1,0)", "Tangent(A,f)").last()!!.obj as Geometry.Line
+        assertEquals(2.0, (t.b.y - t.a.y) / (t.b.x - t.a.x), 1e-6)
+        assertPoint(3.0, 9.0, build2("P=Point(f,3)").last()!!.obj)
+        val circle = build2("c=Circle((0,0),2)", "Intersect(f,c)")
+        assertEquals(2, (circle.last()!!.obj as Geometry.Many).items.size)
+    }
+
+    @Test fun names() {
+        assertEquals("f", Geometry.nextObjectName(emptySet()))
+        assertEquals("h", Geometry.nextObjectName(setOf("f", "g")))
+        assertEquals("α", Geometry.nextAngleName(emptySet()))
+    }
 }

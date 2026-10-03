@@ -872,7 +872,9 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     /** The construction for the lines as they are now (worked out again when a line or a slider changes). */
     fun construction(): Construction {
         val lines = functions.filter { it.geometry != null || (AppSettings.geometry && !it.isText && com.example.cas.graph.Geometry.parse(it.editor.root.items) != null) }
-        val key: List<Any> = lines.map { it to it.version } + parameters.toMap() + angle
+        val range = geometryRange()
+        val definitions = functions.filter { com.example.cas.engine.UserFunction.definition(it.editor.root.items) != null }.map { it to it.version }
+        val key: List<Any> = lines.map { it to it.version } + parameters.toMap() + angle + range + definitions
         geometryCache?.let { (k, c) -> if (k == key) return c }
         val statements = lines.map { it.geometry ?: com.example.cas.graph.Geometry.parse(it.editor.root.items) }
         val sliders = HashMap<PlotFunction, MutableList<String>>()
@@ -891,11 +893,26 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 value
             }
         }
-        val outcomes = com.example.cas.graph.Geometry.build(statements, number, degrees = angle == AngleUnit.Degrees, onStatement = { k -> current = lines[k] })
+        // Functions f(x) defined on the graph's lines, for Intersect(f, l), Tangent(A, f), Point(f, 2).
+        val functionOf: (String) -> ((Double) -> Double)? = { name ->
+            userFns[name]?.takeIf { it.variables.size == 1 }?.let { uf ->
+                runCatching {
+                    val free = uf.body.freeVars().filter { it != uf.variable }.distinct().sorted()
+                    val fn = Compiler.compile(uf.body, listOf(uf.variable) + free)
+                    val values = free.map { parameters[it] ?: 1.0 }
+                    val graph: (Double) -> Double = { x -> try { fn(DoubleArray(1 + values.size) { k -> if (k == 0) x else values[k - 1] }) } catch (e: RuntimeException) { Double.NaN } }
+                    graph
+                }.getOrNull()
+            }
+        }
+        val outcomes = com.example.cas.graph.Geometry.build(statements, number, degrees = angle == AngleUnit.Degrees, onStatement = { k -> current = lines[k] }, functionOf = functionOf, xRange = range)
         val c = Construction(lines.indices.mapNotNull { k -> outcomes[k]?.let { lines[k] to it } }.toMap(), sliders)
         geometryCache = key to c
         return c
     }
+
+    /** Where function graphs are searched for crossings: the 2D view and a view's width either side. */
+    open fun geometryRange(): ClosedFloatingPointRange<Double> = -50.0..50.0
 
     /** A construction line's object as the sliders are now, or null if it couldn't be made. */
     fun geometryOf(f: PlotFunction): com.example.cas.graph.Geometry.Obj? = if (f.geometry == null) null else construction().outcomes[f]?.obj
@@ -908,6 +925,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         is com.example.cas.graph.Geometry.Many -> if (o.items.isEmpty()) "Nothing here" else if (o.items.all { it is com.example.cas.graph.Geometry.Point })
             o.items.joinToString(", ", "= ") { val p = it as com.example.cas.graph.Geometry.Point; "(" + shortNumber(p.x) + ", " + shortNumber(p.y) + ")" } else null
         is com.example.cas.graph.Geometry.Circle -> "r = " + shortNumber(o.r)
+        is com.example.cas.graph.Geometry.Conic -> when (o.shape) { com.example.cas.graph.Geometry.ConicShape.None -> "No points"; else -> o.kind }
+        is com.example.cas.graph.Geometry.Arc -> "length = " + shortNumber(o.r * kotlin.math.abs(o.sweep))
         else -> null
     }
 
@@ -929,6 +948,46 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         com.example.cas.graph.Csv.numberText(y).forEach { add(it.toString()) }
         add(")")
         f.editor.replace(row, record = first)
+    }
+
+    /** Moves a point on a path (P = Point(c, t)) to the place on its path nearest (x, y): its t is rewritten. */
+    fun movePathPoint(f: PlotFunction, x: Double, y: Double, first: Boolean) {
+        val st = f.geometry ?: return
+        val path = construction().outcomes[f]?.path ?: return
+        val nodes = st.pathNodes ?: return
+        val t = com.example.cas.graph.Geometry.parameterOf(path, com.example.cas.graph.Geometry.Point(x, y))
+        val row = MathRow()
+        fun add(n: com.example.cas.editor.Node) { row.add(row.items.size, n) }
+        add(com.example.cas.editor.Sym(st.name!!)); add(com.example.cas.editor.Sym("=")); add(com.example.cas.editor.Sym("Point")); add(com.example.cas.editor.Sym("("))
+        MathCodec.copy(MathRow(nodes.toMutableList())).items.toList().forEach { n -> n.parent?.items?.remove(n); add(n) }
+        add(com.example.cas.editor.Sym(","))
+        com.example.cas.graph.Csv.numberText(t).forEach { add(com.example.cas.editor.Sym(it.toString())) }
+        add(com.example.cas.editor.Sym(")"))
+        f.editor.replace(row, record = first)
+    }
+
+    /** Every name in use: constructions', functions' and sliders' (so a new name takes none of them). */
+    fun usedNames(): Set<String> = geometryNames() + parameters.keys +
+        functions.mapNotNull { com.example.cas.engine.UserFunction.definition(it.editor.root.items)?.first }
+
+    /**
+     * Gives an unnamed construction line a name (Circle(A, B) becomes f = Circle(A, B)), so a
+     * tool can use it; returns the name.
+     */
+    fun nameLine(f: PlotFunction): String? {
+        val st = f.geometry ?: return null
+        st.name?.let { return it }
+        val o = geometryOf(f)
+        val name = when (o) {
+            is com.example.cas.graph.Geometry.Point -> com.example.cas.graph.Geometry.nextPointName(usedNames())
+            is com.example.cas.graph.Geometry.Angle -> com.example.cas.graph.Geometry.nextAngleName(usedNames())
+            else -> com.example.cas.graph.Geometry.nextObjectName(usedNames())
+        }
+        val row = MathRow()
+        row.add(0, com.example.cas.editor.Sym(name)); row.add(1, com.example.cas.editor.Sym("="))
+        MathCodec.copy(f.editor.root).items.toList().forEach { n -> n.parent?.items?.remove(n); row.add(row.items.size, n) }
+        f.editor.replace(row, record = true)
+        return name
     }
 
     /** Adds a construction line (typed as [text], words in braces as one node: "{Segment}(A,B)"), returning it. */
@@ -977,9 +1036,12 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     /** The points tapped so far for [geometryTool]. */
     val geometryPicks = mutableStateListOf<String>()
 
+    /** What the tool's next tap should be on: a point, an object (a line, circle, conic…), a straight line, a circle or conic, or anything. */
+    val geometryNeeds: Char? get() = geometryTool?.let { tool -> if (tool == GeometryTool.Polygon) 'P' else tool.slots.getOrNull(geometryPicks.size) }
+
     /**
-     * A tap with a tool: [name] is the point tapped (an existing one, or one just made there).
-     * When the tool has its points, its line is added and the picks start over.
+     * A tap with a tool on [name] (a point tapped or just made there, or an object). When the
+     * tool has what it needs, its line is added (named as GeoGebra would) and the picks start over.
      */
     fun pickForTool(name: String) {
         val tool = geometryTool ?: return
@@ -989,17 +1051,34 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         }
         if (geometryPicks.lastOrNull() == name) return
         geometryPicks += name
-        if (tool != GeometryTool.Polygon && geometryPicks.size == tool.points) finishTool(tool, geometryPicks.toList())
+        if (tool != GeometryTool.Polygon && geometryPicks.size == tool.slots.length) finishTool(tool, geometryPicks.toList())
     }
 
     private fun finishTool(tool: GeometryTool, names: List<String>) {
         geometryPicks.clear()
         val nodes = ArrayList<com.example.cas.editor.Node>()
-        // Points get the next free name; everything else is left unnamed.
-        if (tool == GeometryTool.Midpoint) { nodes += com.example.cas.editor.Sym(com.example.cas.graph.Geometry.nextPointName(geometryNames())); nodes += com.example.cas.editor.Sym("=") }
+        val used = usedNames()
+        val name = when (tool.makes) {
+            'P' -> com.example.cas.graph.Geometry.nextPointName(used)
+            'A' -> com.example.cas.graph.Geometry.nextAngleName(used)
+            else -> com.example.cas.graph.Geometry.nextObjectName(used)
+        }
+        nodes += com.example.cas.editor.Sym(name); nodes += com.example.cas.editor.Sym("=")
         nodes += com.example.cas.editor.Sym(tool.command); nodes += com.example.cas.editor.Sym("(")
         names.forEachIndexed { k, n -> if (k > 0) nodes += com.example.cas.editor.Sym(","); nodes += com.example.cas.editor.Sym(n) }
         nodes += com.example.cas.editor.Sym(")")
+        addConstruction(nodes)
+    }
+
+    /** A point put on [path] (by the Point on object tool) at its place nearest (x, y). */
+    fun addPointOn(path: String, x: Double, y: Double) {
+        val o = construction().outcomes.entries.firstOrNull { it.key.geometry?.name == path }?.value?.obj
+        val t = o?.let { runCatching { com.example.cas.graph.Geometry.parameterOf(it, com.example.cas.graph.Geometry.Point(x, y)) }.getOrNull() } ?: x
+        val nodes = ArrayList<com.example.cas.editor.Node>()
+        fun add(s: String) { nodes += com.example.cas.editor.Sym(s) }
+        add(com.example.cas.graph.Geometry.nextPointName(usedNames())); add("="); add("Point"); add("("); add(path); add(",")
+        com.example.cas.graph.Csv.numberText(t).forEach { add(it.toString()) }
+        add(")")
         addConstruction(nodes)
     }
 
@@ -1935,6 +2014,9 @@ class Graph2DViewModel(app: Application) : GraphViewModel(app, "g2", listOf("x")
     /** Draw a polar grid (circles and rays) instead of the square grid, and read points as (r, θ). */
     var polarGrid by mutableStateOf(false)
 
+    override fun geometryRange(): ClosedFloatingPointRange<Double> =
+        view?.let { v -> val w = v.xMax - v.xMin; (v.xMin - w)..(v.xMax + w) } ?: -50.0..50.0
+
     override fun onScaleChanged(from: com.example.cas.graph.AxisScale, to: com.example.cas.graph.AxisScale) {
         view = view?.let { com.example.cas.graph.AxisScale.convert(it, from, to) }
         // Circles of constant r mean nothing on log axes.
@@ -2128,18 +2210,37 @@ class PlaneArea(val f: PlotFunction, val kind: Int, val total: Double, val signe
  */
 class AreaResult(val f: PlotFunction, val g: PlotFunction?, val a: Double, val b: Double, val signed: Double, val total: Double, val arc: Boolean = false)
 
-/** Tools for building on the 2D graph by tapping points (geometry, alpha). */
-enum class GeometryTool(val label: String, val command: String, val points: Int, val hint: String) {
-    Point("Point", "", 1, "Tap to place a point"),
-    Segment("Segment", "Segment", 2, "Tap two points for the segment"),
-    Line("Line", "Line", 2, "Tap two points for the line"),
-    Ray("Ray", "Ray", 2, "Tap the start, then a point it passes through"),
-    Vector("Vector", "Vector", 2, "Tap where the arrow starts and ends"),
-    Circle("Circle", "Circle", 2, "Tap the center, then a point on the circle"),
-    Circle3("Circle (3 points)", "Circle", 3, "Tap three points on the circle"),
-    Polygon("Polygon", "Polygon", 0, "Tap the corners, then the first one again"),
-    Midpoint("Midpoint", "Midpoint", 2, "Tap two points"),
-    Bisector("Perpendicular bisector", "PerpendicularBisector", 2, "Tap two points"),
-    Angle("Angle", "Angle", 3, "Tap a point, the corner, then another point"),
-    Distance("Distance", "Distance", 2, "Tap two points"),
+/**
+ * Tools for building on the 2D graph by tapping (geometry, alpha). [slots] says what each tap
+ * is on: P a point (tapped, or made where you tap), O an object (a line, circle, conic, polygon,
+ * arc or function graph), L a straight line, C a circle or conic, X anything. [makes] is what the
+ * new line holds, for its name: P a point, A an angle, O anything else.
+ */
+enum class GeometryTool(val label: String, val command: String, val slots: String, val makes: Char, val hint: String) {
+    Point("Point", "", "P", 'P', "Tap to place a point"),
+    PointOn("Point on object", "Point", "O", 'P', "Tap a line, circle or curve to put a point on it"),
+    Intersect("Intersect", "Intersect", "OO", 'P', "Tap two objects to mark where they cross"),
+    Midpoint("Midpoint", "Midpoint", "PP", 'P', "Tap two points"),
+    Segment("Segment", "Segment", "PP", 'O', "Tap two points for the segment"),
+    Line("Line", "Line", "PP", 'O', "Tap two points for the line"),
+    Ray("Ray", "Ray", "PP", 'O', "Tap the start, then a point it passes through"),
+    Vector("Vector", "Vector", "PP", 'O', "Tap where the arrow starts and ends"),
+    Perpendicular("Perpendicular line", "PerpendicularLine", "PL", 'O', "Tap a point, then a line"),
+    Parallel("Parallel line", "ParallelLine", "PL", 'O', "Tap a point, then a line"),
+    Bisector("Perpendicular bisector", "PerpendicularBisector", "PP", 'O', "Tap two points"),
+    AngleBisector("Angle bisector", "AngleBisector", "PPP", 'O', "Tap a point, the corner, then another point"),
+    Tangent("Tangent", "Tangent", "PC", 'O', "Tap a point, then a circle or conic"),
+    Polygon("Polygon", "Polygon", "", 'O', "Tap the corners, then the first one again"),
+    Circle("Circle", "Circle", "PP", 'O', "Tap the center, then a point on the circle"),
+    Circle3("Circle (3 points)", "Circle", "PPP", 'O', "Tap three points on the circle"),
+    Semicircle("Semicircle", "Semicircle", "PP", 'O', "Tap the two ends"),
+    Arc("Arc", "CircularArc", "PPP", 'O', "Tap the center, the start, then where it ends"),
+    Sector("Sector", "CircularSector", "PPP", 'O', "Tap the center, the start, then where it ends"),
+    Ellipse("Ellipse", "Ellipse", "PPP", 'O', "Tap the two foci, then a point on the ellipse"),
+    Hyperbola("Hyperbola", "Hyperbola", "PPP", 'O', "Tap the two foci, then a point on the hyperbola"),
+    Parabola("Parabola", "Parabola", "PL", 'O', "Tap the focus, then the directrix (a line)"),
+    Conic("Conic (5 points)", "Conic", "PPPPP", 'O', "Tap five points on the conic"),
+    Reflect("Reflect", "Reflect", "XL", 'O', "Tap what to reflect, then the mirror line"),
+    Angle("Angle", "Angle", "PPP", 'A', "Tap a point, the corner, then another point"),
+    Distance("Distance", "Distance", "PP", 'O', "Tap two points"),
 }

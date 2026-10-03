@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.North
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.filled.Hexagon
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -290,7 +291,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                     if (!AppSettings.geometry) return@awaitEachGesture
                     val v0 = vm.view ?: return@awaitEachGesture
                     val reach = 28.dp.toPx()
-                    val hit = plotted.asSequence().filter { it.f.geometry?.isFree == true }
+                    val hit = plotted.asSequence().filter { it.f.geometry?.isFree == true || it.f.geometry?.onPath == true }
                         .mapNotNull { p -> p.points.firstOrNull()?.let { pt -> p.f to kotlin.math.hypot(((pt.x - v0.xMin) / v0.width * size.width).toFloat() - down.position.x, ((v0.yMax - pt.y) / v0.height * size.height).toFloat() - down.position.y) } }
                         .filter { it.second < reach }.minByOrNull { it.second } ?: return@awaitEachGesture
                     val slop = viewConfiguration.touchSlop
@@ -309,7 +310,9 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                         val snapX = Plot2D.niceStep(v.width, 100); val snapY = Plot2D.niceStep(v.height, 100)
                         val x = Math.round(sc.realX(v.xMin + change.position.x / size.width * v.width) / snapX) * snapX
                         val y = Math.round(sc.realY(v.yMax - change.position.y / size.height * v.height) / snapY) * snapY
-                        vm.moveFreePoint(hit.first, x, y, first = !moved)
+                        // A point on a path slides along it (unsnapped); a free point goes where the finger is.
+                        if (hit.first.geometry?.onPath == true) vm.movePathPoint(hit.first, sc.realX(v.xMin + change.position.x / size.width * v.width), sc.realY(v.yMax - change.position.y / size.height * v.height), first = !moved)
+                        else vm.moveFreePoint(hit.first, x, y, first = !moved)
                         moved = true
                     }
                     moved = false
@@ -319,18 +322,44 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 detectTapGestures(
                     onDoubleTap = { vm.resetView(size); trace = null },
                     onTap = { tap ->
-                        // Building with a tool: tap a point (or empty space, which makes one there).
+                        // Building with a tool: tap a point (or empty space, which makes one there), or an object.
                         vm.geometryTool?.let { tool ->
                             val v = vm.view ?: return@detectTapGestures
                             val reach = 28.dp.toPx()
-                            val near = plotted.asSequence().filter { it.f.geometry?.name != null && vm.geometryOf(it.f) is com.example.cas.graph.Geometry.Point }
-                                .mapNotNull { p -> p.points.firstOrNull()?.let { pt -> p.f.geometry!!.name!! to kotlin.math.hypot(((pt.x - v.xMin) / v.width * size.width).toFloat() - tap.x, ((v.yMax - pt.y) / v.height * size.height).toFloat() - tap.y) } }
-                                .filter { it.second < reach }.minByOrNull { it.second }?.first
-                            val name = near ?: run {
-                                val snapX = Plot2D.niceStep(v.width, 100); val snapY = Plot2D.niceStep(v.height, 100)
-                                vm.addFreePoint(Math.round(vm.scale.realX(v.xMin + tap.x / size.width * v.width) / snapX) * snapX, Math.round(vm.scale.realY(v.yMax - tap.y / size.height * v.height) / snapY) * snapY)
+                            fun sx(x: Double) = ((x - v.xMin) / v.width * size.width).toFloat()
+                            fun sy(y: Double) = ((v.yMax - y) / v.height * size.height).toFloat()
+                            val wx = vm.scale.realX(v.xMin + tap.x / size.width * v.width)
+                            val wy = vm.scale.realY(v.yMax - tap.y / size.height * v.height)
+                            // The nearest construction point, named if it wasn't (so the new line can use it).
+                            fun pointNear(): String? = plotted.asSequence().filter { it.f.geometry != null && vm.geometryOf(it.f) is com.example.cas.graph.Geometry.Point }
+                                .mapNotNull { p -> p.points.firstOrNull()?.let { pt -> p.f to kotlin.math.hypot(sx(pt.x) - tap.x, sy(pt.y) - tap.y) } }
+                                .filter { it.second < reach }.minByOrNull { it.second }?.first?.let { vm.nameLine(it) }
+                            // The nearest object of the kind wanted: a construction, or a function f(x) = … for O.
+                            fun objectNear(kind: Char): String? {
+                                fun fits(o: com.example.cas.graph.Geometry.Obj?) = when (kind) {
+                                    'L' -> o is com.example.cas.graph.Geometry.Line || o is com.example.cas.graph.Geometry.Segment || o is com.example.cas.graph.Geometry.Ray || o is com.example.cas.graph.Geometry.Vector
+                                    'C' -> o is com.example.cas.graph.Geometry.Circle || o is com.example.cas.graph.Geometry.Conic || o is com.example.cas.graph.Geometry.Arc
+                                    else -> o != null && o !is com.example.cas.graph.Geometry.Point && o !is com.example.cas.graph.Geometry.Number && o !is com.example.cas.graph.Geometry.Angle
+                                }
+                                val best = plotted.asSequence().mapNotNull { p ->
+                                    val isFunction = p.f.geometry == null && (kind == 'O' || kind == 'X') && com.example.cas.engine.UserFunction.definition(p.f.editor.root.items)?.second?.size == 1
+                                    if (!isFunction && !(p.f.geometry != null && fits(vm.geometryOf(p.f)))) return@mapNotNull null
+                                    val d = p.lines.minOfOrNull { line -> polylineDistance(line.map { Offset(sx(it.first), sy(it.second)) }, tap) } ?: return@mapNotNull null
+                                    Triple(p.f, isFunction, d)
+                                }.filter { it.third < reach }.minByOrNull { it.third } ?: return null
+                                return if (best.second) com.example.cas.engine.UserFunction.definition(best.first.editor.root.items)?.first else vm.nameLine(best.first)
                             }
-                            if (tool != GeometryTool.Point) vm.pickForTool(name)
+                            val snapX = Plot2D.niceStep(v.width, 100); val snapY = Plot2D.niceStep(v.height, 100)
+                            fun newPoint() = vm.addFreePoint(Math.round(wx / snapX) * snapX, Math.round(wy / snapY) * snapY)
+                            when (tool) {
+                                GeometryTool.Point -> if (pointNear() == null) newPoint()
+                                GeometryTool.PointOn -> objectNear('O')?.let { vm.addPointOn(it, wx, wy) }
+                                else -> when (val need = vm.geometryNeeds ?: 'P') {
+                                    'P' -> vm.pickForTool(pointNear() ?: newPoint())
+                                    'X' -> (pointNear() ?: objectNear('O'))?.let { vm.pickForTool(it) }
+                                    else -> objectNear(need)?.let { vm.pickForTool(it) }
+                                }
+                            }
                             trace = null
                             return@detectTapGestures
                         }
@@ -443,11 +472,17 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                     drawText(t, topLeft = at)
                 }
             }
-            // The points picked so far with a tool, ringed.
+            // What's picked so far with a tool: points ringed, objects drawn over in a broad band.
             if (vm.geometryTool != null) vm.geometryPicks.forEach { name ->
-                plotted.firstOrNull { it.f.geometry?.name == name }?.points?.firstOrNull()?.let { s ->
+                val p = plotted.firstOrNull { it.f.geometry?.name == name || it.f.geometry == null && com.example.cas.engine.UserFunction.definition(it.f.editor.root.items)?.first == name } ?: return@forEach
+                p.points.firstOrNull()?.let { s ->
                     val o = toScreen(v, s.x, s.y)
                     drawCircle(colors.primary, radius = 10.dp.toPx(), center = o, style = Stroke(2.5.dp.toPx()))
+                }
+                p.lines.forEach { line ->
+                    val path = Path()
+                    line.forEachIndexed { k, (x, y) -> val o = toScreen(v, x, y); if (k == 0) path.moveTo(o.x, o.y) else path.lineTo(o.x, o.y) }
+                    drawPath(path, colors.primary.copy(alpha = 0.35f), style = Stroke(9.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
                 }
             }
             trace?.let { t ->
@@ -468,7 +503,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
         }
         if (AppSettings.geometry) GeometryToolbar(vm, Modifier.align(Alignment.TopEnd).padding(10.dp))
         vm.geometryTool?.let { tool ->
-            val step = if (tool.points > 1) " (${vm.geometryPicks.size + 1} of ${tool.points})" else if (tool == GeometryTool.Polygon && vm.geometryPicks.isNotEmpty()) " (${vm.geometryPicks.size} so far)" else ""
+            val step = if (tool.slots.length > 1) " (${vm.geometryPicks.size + 1} of ${tool.slots.length})" else if (tool == GeometryTool.Polygon && vm.geometryPicks.isNotEmpty()) " (${vm.geometryPicks.size} so far)" else ""
             Text(
                 tool.hint + step,
                 color = colors.inverseOnSurface,
@@ -1518,20 +1553,43 @@ private fun GeometryToolbar(vm: Graph2DViewModel, modifier: Modifier) {
             Text(vm.geometryTool?.label ?: "Construct", color = ink, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp, fontWeight = FontWeight.Medium))
             Text("α", color = ink.copy(alpha = 0.7f), style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 12.sp))
         }
+        // Two columns, as there are many tools; scrolls when the graph is short.
         if (open) Column(
-            Modifier.widthIn(max = 220.dp).clip(RoundedCornerShape(18.dp)).background(colors.surfaceContainerHigh).verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(6.dp),
+            Modifier.widthIn(max = 340.dp).heightIn(max = 460.dp).clip(RoundedCornerShape(18.dp)).background(colors.surfaceContainerHigh).verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(6.dp),
         ) {
-            GeometryTool.entries.forEach { tool ->
-                val on = vm.geometryTool == tool
-                Text(
-                    tool.label,
-                    color = if (on) colors.onSecondaryContainer else colors.onSurface,
-                    style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp),
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (on) colors.secondaryContainer else Color.Transparent)
-                        .clickable(onClickLabel = "Use the ${tool.label} tool") { vm.geometryPicks.clear(); vm.geometryTool = if (on) null else tool; if (!on) open = false }
-                        .padding(horizontal = 12.dp, vertical = 9.dp),
-                )
+            GeometryTool.entries.chunked(2).forEach { pair ->
+                Row {
+                    pair.forEach { tool ->
+                        val on = vm.geometryTool == tool
+                        Text(
+                            tool.label,
+                            color = if (on) colors.onSecondaryContainer else colors.onSurface,
+                            style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp),
+                            maxLines = 1,
+                            modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(if (on) colors.secondaryContainer else Color.Transparent)
+                                .clickable(onClickLabel = "Use the ${tool.label} tool") { vm.geometryPicks.clear(); vm.geometryTool = if (on) null else tool; if (!on) open = false }
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                        )
+                    }
+                    if (pair.size == 1) Spacer(Modifier.weight(1f))
+                }
             }
         }
     }
+}
+
+
+/** How far [p] is from a polyline (in screen pixels). */
+private fun polylineDistance(line: List<Offset>, p: Offset): Float {
+    var best = Float.MAX_VALUE
+    for (k in 0 until line.size - 1) {
+        val a = line[k]; val b = line[k + 1]
+        val d = b - a
+        val len2 = d.x * d.x + d.y * d.y
+        val t = if (len2 == 0f) 0f else (((p.x - a.x) * d.x + (p.y - a.y) * d.y) / len2).coerceIn(0f, 1f)
+        val q = Offset(a.x + d.x * t, a.y + d.y * t)
+        best = minOf(best, (p - q).getDistance())
+    }
+    if (line.size == 1) best = (line[0] - p).getDistance()
+    return best
 }
