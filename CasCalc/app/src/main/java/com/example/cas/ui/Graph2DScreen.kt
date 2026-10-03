@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.North
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material.icons.filled.Hexagon
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.size
 import kotlin.math.PI
@@ -127,7 +129,19 @@ private class Plotted(
     val arrowRange: Pair<Double, Double> = 0.0 to 1.0,
     /** The [segments] are a slope field's short marks: drawn thin and light, and not tapped. */
     val slopeMarks: Boolean = false,
+    /** A construction's words on the graph: a point's name, an angle's size. */
+    val labels: List<GeoLabel> = emptyList(),
 )
+
+/** Text on the graph at (x, y): beside a point (its name), or centered there (an angle's value). */
+private class GeoLabel(val x: Double, val y: Double, val text: String, val centered: Boolean)
+
+/** A construction's name as written on the graph: A, or A₁ for a built symbol with a subscript. */
+internal fun geometryLabel(name: String): String {
+    val c = com.example.cas.cas.CustomSymbol.decode(name) ?: return name
+    val sub = c.sub.map { ch -> "₀₁₂₃₄₅₆₇₈₉".getOrNull(ch - '0')?.takeIf { ch.isDigit() } ?: ch }.joinToString("")
+    return c.preSup + c.base + sub + c.sup
+}
 
 private data class Special(val x: Double, val y: Double, val label: String, val colorIndex: Int, /** At a crossing, the other curve's color slot. */ val other: Int? = null)
 
@@ -149,6 +163,10 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
     val measurer = rememberTextMeasurer()
     var size by remember { mutableStateOf(IntSize.Zero) }
     var trace by remember { mutableStateOf<Special?>(null) }
+    // A free point's drag has moved it (the first move is the undo step).
+    var moved by remember { mutableStateOf(false) }
+    // Lines are read again when geometry is turned on or off in settings.
+    androidx.compose.runtime.LaunchedEffect(AppSettings.geometry) { vm.refreshAll(); if (!AppSettings.geometry) vm.geometryTool = null }
     val themeColors = (0 until GraphViewModel.PLOT_COLOR_COUNT).map { plotColor(it) }
     // Colors picked by long-pressing a function's dot replace the theme's.
     val picked = vm.functions.mapNotNull { f -> f.customColor?.let { f.colorIndex to Color(it) } }.toMap()
@@ -162,6 +180,8 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
         // Whatever a line does while being sampled, drawing carries on (the line just isn't drawn).
         if (view == null || size.width == 0) emptyList() else runCatching { plot(vm, view, size, highlighted) }.getOrElse { emptyList() }
     }
+    // The drawing as it is now, for gestures that outlive one frame (a dragged point).
+    val latestPlotted by androidx.compose.runtime.rememberUpdatedState(plotted)
 
     Box(
         modifier
@@ -194,6 +214,8 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                         if (event.changes.count { it.pressed } > 1) break
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
                         if (!change.pressed) break
+                        // A construction's point being dragged takes the gesture.
+                        if (change.isConsumed) { trace = null; break }
                         if (!tracing && (change.position - down.position).getDistance() > slop) tracing = true
                         if (tracing) {
                             change.consume()
@@ -259,10 +281,59 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                     }
                 }
             }
+            .pointerInput(Unit) {
+                // Drag a free point of a construction (A = (1, 2)) to move it; what's built on it follows.
+                // (Keyed on nothing, as the drawing changes with every move: it reads the latest.)
+                awaitEachGesture {
+                    val plotted = latestPlotted
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    if (!AppSettings.geometry) return@awaitEachGesture
+                    val v0 = vm.view ?: return@awaitEachGesture
+                    val reach = 28.dp.toPx()
+                    val hit = plotted.asSequence().filter { it.f.geometry?.isFree == true }
+                        .mapNotNull { p -> p.points.firstOrNull()?.let { pt -> p.f to kotlin.math.hypot(((pt.x - v0.xMin) / v0.width * size.width).toFloat() - down.position.x, ((v0.yMax - pt.y) / v0.height * size.height).toFloat() - down.position.y) } }
+                        .filter { it.second < reach }.minByOrNull { it.second } ?: return@awaitEachGesture
+                    val slop = viewConfiguration.touchSlop
+                    var dragging = false
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        if (event.changes.count { it.pressed } > 1) break
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) break
+                        if (!dragging && (change.position - down.position).getDistance() > slop) { dragging = true; trace = null }
+                        if (!dragging) continue
+                        change.consume()
+                        val v = vm.view ?: break
+                        val sc = vm.scale
+                        // Snapped to a tidy value, a hundredth of the view.
+                        val snapX = Plot2D.niceStep(v.width, 100); val snapY = Plot2D.niceStep(v.height, 100)
+                        val x = Math.round(sc.realX(v.xMin + change.position.x / size.width * v.width) / snapX) * snapX
+                        val y = Math.round(sc.realY(v.yMax - change.position.y / size.height * v.height) / snapY) * snapY
+                        vm.moveFreePoint(hit.first, x, y, first = !moved)
+                        moved = true
+                    }
+                    moved = false
+                }
+            }
             .pointerInput(plotted) {
                 detectTapGestures(
                     onDoubleTap = { vm.resetView(size); trace = null },
                     onTap = { tap ->
+                        // Building with a tool: tap a point (or empty space, which makes one there).
+                        vm.geometryTool?.let { tool ->
+                            val v = vm.view ?: return@detectTapGestures
+                            val reach = 28.dp.toPx()
+                            val near = plotted.asSequence().filter { it.f.geometry?.name != null && vm.geometryOf(it.f) is com.example.cas.graph.Geometry.Point }
+                                .mapNotNull { p -> p.points.firstOrNull()?.let { pt -> p.f.geometry!!.name!! to kotlin.math.hypot(((pt.x - v.xMin) / v.width * size.width).toFloat() - tap.x, ((v.yMax - pt.y) / v.height * size.height).toFloat() - tap.y) } }
+                                .filter { it.second < reach }.minByOrNull { it.second }?.first
+                            val name = near ?: run {
+                                val snapX = Plot2D.niceStep(v.width, 100); val snapY = Plot2D.niceStep(v.height, 100)
+                                vm.addFreePoint(Math.round(vm.scale.realX(v.xMin + tap.x / size.width * v.width) / snapX) * snapX, Math.round(vm.scale.realY(v.yMax - tap.y / size.height * v.height) / snapY) * snapY)
+                            }
+                            if (tool != GeometryTool.Point) vm.pickForTool(name)
+                            trace = null
+                            return@detectTapGestures
+                        }
                         val start = vm.areaStart
                         if (start != null) {
                             // The second point of an area: a marked point if one is near, else where you tapped.
@@ -361,6 +432,24 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                     }
                 }
             }
+            // Constructions' names and angle values, in math italic beside their points.
+            val nameStyle = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 16.sp, color = colors.onSurface)
+            val valueStyle = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 14.sp, color = colors.onSurface)
+            plotted.forEach { p ->
+                p.labels.forEach { l ->
+                    val o = toScreen(v, l.x, l.y)
+                    val t = measurer.measure(l.text, if (l.centered) valueStyle else nameStyle)
+                    val at = if (l.centered) Offset(o.x - t.size.width / 2f, o.y - t.size.height / 2f) else Offset(o.x + 6.dp.toPx(), o.y - t.size.height - 2.dp.toPx())
+                    drawText(t, topLeft = at)
+                }
+            }
+            // The points picked so far with a tool, ringed.
+            if (vm.geometryTool != null) vm.geometryPicks.forEach { name ->
+                plotted.firstOrNull { it.f.geometry?.name == name }?.points?.firstOrNull()?.let { s ->
+                    val o = toScreen(v, s.x, s.y)
+                    drawCircle(colors.primary, radius = 10.dp.toPx(), center = o, style = Stroke(2.5.dp.toPx()))
+                }
+            }
             trace?.let { t ->
                 val o = toScreen(v, t.x, t.y)
                 drawCircle(palette[t.colorIndex], radius = 7.dp.toPx(), center = o)
@@ -376,6 +465,17 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
             },
             )
             vm.area?.let { ar -> AreaCard(ar, onClose = { vm.clearArea() }, onUse = { v -> onUseValue(v) }) }
+        }
+        if (AppSettings.geometry) GeometryToolbar(vm, Modifier.align(Alignment.TopEnd).padding(10.dp))
+        vm.geometryTool?.let { tool ->
+            val step = if (tool.points > 1) " (${vm.geometryPicks.size + 1} of ${tool.points})" else if (tool == GeometryTool.Polygon && vm.geometryPicks.isNotEmpty()) " (${vm.geometryPicks.size} so far)" else ""
+            Text(
+                tool.hint + step,
+                color = colors.inverseOnSurface,
+                style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 92.dp).clip(CircleShape).background(colors.inverseSurface)
+                    .clickable(onClickLabel = "Stop building") { vm.geometryTool = null; vm.geometryPicks.clear() }.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
         }
         if (vm.areaStart != null) {
             Text(
@@ -547,6 +647,16 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
     for (f in fns) for (g in f.family.ifEmpty { listOf(f) }) {
         val k = g.plot ?: continue
         when (k) {
+            is Plot2DKind.Geometry -> {
+                val o = vm.geometryOf(g) ?: continue
+                val d = com.example.cas.graph.Geometry.draw(o, realView) { vm.angleText(it) }
+                val pts = d.points.mapNotNull { p -> at(p.x, p.y)?.let { Special(it.first, it.second, "point", f.colorIndex) } }
+                val labels = ArrayList<GeoLabel>()
+                val name = g.geometry?.name
+                if (name != null && o is com.example.cas.graph.Geometry.Point) pts.firstOrNull()?.let { labels += GeoLabel(it.x, it.y, geometryLabel(name), false) }
+                d.labels.forEach { (p, t) -> at(p.x, p.y)?.let { labels += GeoLabel(it.first, it.second, t, true) } }
+                out += Plotted(f, sc.paths(d.lines), pts, fill = d.fill?.mapNotNull { at(it.first, it.second) }, arrow = d.arrow, labels = labels)
+            }
             is Plot2DKind.Vector -> {
                 val x = vm.call(g, k.x); val y = vm.call(g, k.y)
                 val x0 = k.fromX?.let { vm.call(g, it) } ?: 0.0
@@ -1088,6 +1198,11 @@ internal fun graph2DScene(vm: Graph2DViewModel, view: Viewport, size: Double, da
         if (p.f.showLabel) p.points.filter { it.label == "point" }.take(200).forEach { pt ->
             scene.add(Scene.Label(sx(pt.x) + 5, sy(pt.y) - 9, "(" + shortNumber(sc.realX(pt.x)) + ", " + shortNumber(sc.realY(pt.y)) + ")", Pgf.TICK_SIZE * 0.85, style.ink, Scene.Anchor.Start, Scene.Font.Roman))
         }
+        // Constructions' point names (math italic) and angle values.
+        p.labels.forEach { l ->
+            if (l.centered) scene.add(Scene.Label(sx(l.x), sy(l.y), l.text, Pgf.TICK_SIZE * 0.9, style.ink, Scene.Anchor.Middle, Scene.Font.Roman))
+            else scene.add(Scene.Label(sx(l.x) + 4, sy(l.y) - 8, l.text, Pgf.TICK_SIZE, style.ink, Scene.Anchor.Start, Scene.Font.Italic))
+        }
     }
     scene.add(Scene.ClipEnd)
     Pgf.axes(scene, v, frame, style, scale = sc)
@@ -1379,4 +1494,44 @@ private fun areaRow(between: Boolean, lo: String, hi: String): com.example.cas.e
     fun text(t: String) = com.example.cas.editor.MathRow(t.map { com.example.cas.editor.Sym(it.toString()) }.toMutableList())
     val body = if (between) text("f(x)−g(x)") else text("f(x)")
     return com.example.cas.editor.MathRow(mutableListOf(com.example.cas.editor.Integral(text(lo), text(hi), body, text("x"))))
+}
+
+
+/**
+ * Building by tapping (geometry, alpha): a button that opens the tools, GeoGebra's toolbar in
+ * short; the tool in use is shown filled. Tapping it again puts the tools away.
+ */
+@Composable
+private fun GeometryToolbar(vm: Graph2DViewModel, modifier: Modifier) {
+    val colors = MaterialTheme.colorScheme
+    var open by remember { mutableStateOf(false) }
+    Column(modifier, horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            Modifier.clip(CircleShape).background(if (vm.geometryTool != null || open) colors.primary else colors.secondaryContainer)
+                .clickable(onClickLabel = if (open) "Hide the geometry tools" else "Show the geometry tools") { open = !open; if (!open) { vm.geometryTool = null; vm.geometryPicks.clear() } }
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            val ink = if (vm.geometryTool != null || open) colors.onPrimary else colors.onSecondaryContainer
+            Icon(Icons.Default.Hexagon, contentDescription = null, tint = ink, modifier = Modifier.size(18.dp))
+            Text(vm.geometryTool?.label ?: "Construct", color = ink, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp, fontWeight = FontWeight.Medium))
+            Text("α", color = ink.copy(alpha = 0.7f), style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 12.sp))
+        }
+        if (open) Column(
+            Modifier.widthIn(max = 220.dp).clip(RoundedCornerShape(18.dp)).background(colors.surfaceContainerHigh).verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(6.dp),
+        ) {
+            GeometryTool.entries.forEach { tool ->
+                val on = vm.geometryTool == tool
+                Text(
+                    tool.label,
+                    color = if (on) colors.onSecondaryContainer else colors.onSurface,
+                    style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp),
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (on) colors.secondaryContainer else Color.Transparent)
+                        .clickable(onClickLabel = "Use the ${tool.label} tool") { vm.geometryPicks.clear(); vm.geometryTool = if (on) null else tool; if (!on) open = false }
+                        .padding(horizontal = 12.dp, vertical = 9.dp),
+                )
+            }
+        }
+    }
 }

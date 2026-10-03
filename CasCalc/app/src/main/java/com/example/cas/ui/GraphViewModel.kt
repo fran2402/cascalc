@@ -88,6 +88,11 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
         internal set
     var error by mutableStateOf<String?>(null)
         internal set
+    /** A construction line (geometry, alpha): what it says, and its value shown under it (d = 5, P = (1, 2)). */
+    var geometry: com.example.cas.graph.Geometry.Statement? = null
+        internal set
+    var valueText by mutableStateOf<String?>(null)
+        internal set
     /** A color picked by long-pressing the dot (ARGB), or null for the theme's color for [colorIndex]. */
     var customColor by mutableStateOf<Int?>(null)
     /** On the complex plane: the colors for arg f. */
@@ -163,6 +168,8 @@ sealed class Plot2DKind {
     class VectorField(val p: RealFunction, val q: RealFunction) : Plot2DKind() { override val label: String? = null }
     /** dy/dx = f(x, y): a slope field, with solution curves through the points tapped on it. */
     class SlopeField(val f: RealFunction) : Plot2DKind() { override val label: String? = null }
+    /** A GeoGebra-style construction (alpha): its object comes from [GraphViewModel.geometryOf]. */
+    object Geometry : Plot2DKind() { override val label: String? = null }
     /** A column vector, drawn as an arrow from the origin (or from [fromX], [fromY]). */
     class Vector(val x: RealFunction, val y: RealFunction, val fromX: RealFunction? = null, val fromY: RealFunction? = null) : Plot2DKind() { override val label: String? = null }
 }
@@ -492,7 +499,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         f.editor.onChange = {
             f.version++
             // Lines can use functions defined on other lines, so a list with definitions recompiles whole.
-            if (functions.any { com.example.cas.engine.UserFunction.definition(it.editor.root.items) != null }) functions.forEach { recompile(it) }
+            if (functions.any { com.example.cas.engine.UserFunction.definition(it.editor.root.items) != null || it.geometry != null } || f.geometry != null) { geometryCache = null; functions.forEach { recompile(it) } }
             else recompile(f)
             save()
         }
@@ -603,6 +610,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         functions.remove(f)
         // A deleted folder's lines stay, one level up.
         normalizeFolders()
+        // Constructions built on a deleted one are worked out again (and say what's missing).
+        if (f.geometry != null) { geometryCache = null; functions.filter { it.geometry != null }.forEach { recompile(it) } }
         version++
         save()
     }
@@ -627,6 +636,10 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         playing.remove(name) // dragging a slider stops its animation
         animationPosition.remove(name)
         parameters[name] = if (integerSliders[name] == true) Math.rint(value) else value
+        // Constructions' values follow their sliders (d = Distance(A, B) with A on a slider).
+        if (functions.any { it.geometry != null }) construction().let { c ->
+            functions.forEach { f -> if (f.geometry != null) c.outcomes[f]?.let { o -> f.error = o.error; f.valueText = o.obj?.let { geometryValue(it) } } }
+        }
         version++
         prefs.edit().putString("${key}_parameters", parameters.entries.joinToString("\n") { "${it.key}\t${it.value}" }).apply()
     }
@@ -699,6 +712,18 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         f.definesFunction = null
         f.restrictions = emptyList()
         f.family = emptyList()
+        f.valueText = null
+        // A construction (A = (1, 2), Segment(A, B)…), with geometry turned on in settings.
+        f.geometry = if (AppSettings.geometry) com.example.cas.graph.Geometry.parse(f.editor.root.items) else null
+        if (f.geometry != null) {
+            f.plot = Plot2DKind.Geometry; f.compiled = null; f.definition = null
+            val c = construction()
+            f.parameters = c.sliders[f].orEmpty()
+            val outcome = c.outcomes[f]
+            f.error = outcome?.error
+            f.valueText = outcome?.obj?.let { geometryValue(it) }
+            return
+        }
         // y = [1, 2, 3]x: a line for each entry, each compiled on its own.
         com.example.cas.editor.ListFamily.expand(f.editor.root)?.let { rows ->
             val members = rows.map { r -> PlotFunction(r, f.colorIndex).also { m -> m.customColor = f.customColor; recompile2D(m) } }
@@ -833,6 +858,150 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         }
     }
 
+
+    // ---- Geometry (alpha) ----------------------------------------------------------------
+
+    /** Every construction line worked out together: each line's outcome, and the sliders it uses. */
+    class Construction(
+        val outcomes: Map<PlotFunction, com.example.cas.graph.Geometry.Outcome>,
+        val sliders: Map<PlotFunction, List<String>>,
+    )
+
+    private var geometryCache: Pair<List<Any>, Construction>? = null
+
+    /** The construction for the lines as they are now (worked out again when a line or a slider changes). */
+    fun construction(): Construction {
+        val lines = functions.filter { it.geometry != null || (AppSettings.geometry && !it.isText && com.example.cas.graph.Geometry.parse(it.editor.root.items) != null) }
+        val key: List<Any> = lines.map { it to it.version } + parameters.toMap() + angle
+        geometryCache?.let { (k, c) -> if (k == key) return c }
+        val statements = lines.map { it.geometry ?: com.example.cas.graph.Geometry.parse(it.editor.root.items) }
+        val sliders = HashMap<PlotFunction, MutableList<String>>()
+        var current: PlotFunction? = null
+        val userFns = userFunctions()
+        val number = { nodes: List<com.example.cas.editor.Node>, known: Map<String, Double> ->
+            com.example.cas.graph.Geometry.plainNumber(nodes) ?: run {
+                val e = Evaluator(angle, null, storedVariables(), unitSystem, coordinates, userFns).evaluate(MathCodec.copy(MathRow(nodes.toMutableList())))
+                val free = e.freeVars().distinct().sorted()
+                free.filter { it !in known }.forEach { v ->
+                    if (v !in parameters) parameters[v] = 1.0
+                    current?.let { f -> sliders.getOrPut(f) { ArrayList() }.let { if (v !in it) it += v } }
+                }
+                val value = Compiler.compile(e, free)(DoubleArray(free.size) { k -> known[free[k]] ?: parameters[free[k]] ?: 1.0 })
+                if (!value.isFinite()) throw com.example.cas.graph.Geometry.GeometryError("That number isn't defined")
+                value
+            }
+        }
+        val outcomes = com.example.cas.graph.Geometry.build(statements, number, degrees = angle == AngleUnit.Degrees, onStatement = { k -> current = lines[k] })
+        val c = Construction(lines.indices.mapNotNull { k -> outcomes[k]?.let { lines[k] to it } }.toMap(), sliders)
+        geometryCache = key to c
+        return c
+    }
+
+    /** A construction line's object as the sliders are now, or null if it couldn't be made. */
+    fun geometryOf(f: PlotFunction): com.example.cas.graph.Geometry.Obj? = if (f.geometry == null) null else construction().outcomes[f]?.obj
+
+    /** A number or point as the list shows it under its line. */
+    fun geometryValue(o: com.example.cas.graph.Geometry.Obj): String? = when (o) {
+        is com.example.cas.graph.Geometry.Number -> "= " + shortNumber(o.value)
+        is com.example.cas.graph.Geometry.Angle -> "= " + angleText(o.sweep)
+        is com.example.cas.graph.Geometry.Point -> "= (" + shortNumber(o.x) + ", " + shortNumber(o.y) + ")"
+        is com.example.cas.graph.Geometry.Many -> if (o.items.isEmpty()) "Nothing here" else if (o.items.all { it is com.example.cas.graph.Geometry.Point })
+            o.items.joinToString(", ", "= ") { val p = it as com.example.cas.graph.Geometry.Point; "(" + shortNumber(p.x) + ", " + shortNumber(p.y) + ")" } else null
+        is com.example.cas.graph.Geometry.Circle -> "r = " + shortNumber(o.r)
+        else -> null
+    }
+
+    /** An angle as the graph's angle setting writes it. */
+    fun angleText(radians: Double): String =
+        if (angle == AngleUnit.Degrees) shortNumber(Math.toDegrees(radians)) + "°" else shortNumber(radians)
+
+    /** The names given on construction lines (A, B, c…). */
+    fun geometryNames(): Set<String> = functions.mapNotNull { it.geometry?.name }.toSet()
+
+    /** Moves a free point (A = (1, 2)) to (x, y): its line is rewritten. [first] starts the drag (one undo step for it). */
+    fun moveFreePoint(f: PlotFunction, x: Double, y: Double, first: Boolean) {
+        val name = f.editor.root.items.firstOrNull() as? com.example.cas.editor.Sym ?: return
+        val row = MathRow()
+        fun add(t: String) { row.add(row.items.size, com.example.cas.editor.Sym(t)) }
+        add(name.text); add("="); add("(")
+        com.example.cas.graph.Csv.numberText(x).forEach { add(it.toString()) }
+        add(",")
+        com.example.cas.graph.Csv.numberText(y).forEach { add(it.toString()) }
+        add(")")
+        f.editor.replace(row, record = first)
+    }
+
+    /** Adds a construction line (typed as [text], words in braces as one node: "{Segment}(A,B)"), returning it. */
+    fun addConstruction(nodes: List<com.example.cas.editor.Node>): PlotFunction {
+        val row = MathRow()
+        nodes.forEach { row.add(row.items.size, it) }
+        val f = addFunction(row)
+        geometryCache = null
+        functions.forEach { recompile(it) }
+        version++
+        save()
+        return f
+    }
+
+    /** A new line starting with [c] and its brackets, the cursor between them, ready to type what it takes. */
+    fun addCommandLine(c: com.example.cas.graph.Geometry.Command) {
+        val row = MathRow()
+        listOf(c.name, "(", ")").forEach { row.add(row.items.size, com.example.cas.editor.Sym(it)) }
+        val f = addFunction(row)
+        f.editor.setCursor(f.editor.root, 2)
+        active = f
+        keypadHidden = false
+        version++
+        save()
+    }
+
+    /** Works every line out again (geometry turned on or off). */
+    fun refreshAll() { geometryCache = null; recompileAll() }
+
+    /** A new free point at (x, y), named with the next free capital; returns its name. */
+    fun addFreePoint(x: Double, y: Double): String {
+        val name = com.example.cas.graph.Geometry.nextPointName(geometryNames())
+        val nodes = ArrayList<com.example.cas.editor.Node>()
+        fun add(t: String) { nodes += com.example.cas.editor.Sym(t) }
+        add(name); add("="); add("(")
+        com.example.cas.graph.Csv.numberText(x).forEach { add(it.toString()) }
+        add(",")
+        com.example.cas.graph.Csv.numberText(y).forEach { add(it.toString()) }
+        add(")")
+        addConstruction(nodes)
+        return name
+    }
+
+    /** The tool picked for building on the graph by tapping (null: none, the graph pans and reads as usual). */
+    var geometryTool by mutableStateOf<GeometryTool?>(null)
+    /** The points tapped so far for [geometryTool]. */
+    val geometryPicks = mutableStateListOf<String>()
+
+    /**
+     * A tap with a tool: [name] is the point tapped (an existing one, or one just made there).
+     * When the tool has its points, its line is added and the picks start over.
+     */
+    fun pickForTool(name: String) {
+        val tool = geometryTool ?: return
+        if (tool == GeometryTool.Point) return
+        if (tool == GeometryTool.Polygon && geometryPicks.size >= 3 && name == geometryPicks.first()) {
+            finishTool(tool, geometryPicks.toList()); return
+        }
+        if (geometryPicks.lastOrNull() == name) return
+        geometryPicks += name
+        if (tool != GeometryTool.Polygon && geometryPicks.size == tool.points) finishTool(tool, geometryPicks.toList())
+    }
+
+    private fun finishTool(tool: GeometryTool, names: List<String>) {
+        geometryPicks.clear()
+        val nodes = ArrayList<com.example.cas.editor.Node>()
+        // Points get the next free name; everything else is left unnamed.
+        if (tool == GeometryTool.Midpoint) { nodes += com.example.cas.editor.Sym(com.example.cas.graph.Geometry.nextPointName(geometryNames())); nodes += com.example.cas.editor.Sym("=") }
+        nodes += com.example.cas.editor.Sym(tool.command); nodes += com.example.cas.editor.Sym("(")
+        names.forEachIndexed { k, n -> if (k > 0) nodes += com.example.cas.editor.Sym(","); nodes += com.example.cas.editor.Sym(n) }
+        nodes += com.example.cas.editor.Sym(")")
+        addConstruction(nodes)
+    }
 
     // ---- Restored: these were lost when the 2D compile step was rewritten ----------------
 
@@ -1958,3 +2127,19 @@ class PlaneArea(val f: PlotFunction, val kind: Int, val total: Double, val signe
  * f − g, the area between the curves (NaN if it couldn't be computed).
  */
 class AreaResult(val f: PlotFunction, val g: PlotFunction?, val a: Double, val b: Double, val signed: Double, val total: Double, val arc: Boolean = false)
+
+/** Tools for building on the 2D graph by tapping points (geometry, alpha). */
+enum class GeometryTool(val label: String, val command: String, val points: Int, val hint: String) {
+    Point("Point", "", 1, "Tap to place a point"),
+    Segment("Segment", "Segment", 2, "Tap two points for the segment"),
+    Line("Line", "Line", 2, "Tap two points for the line"),
+    Ray("Ray", "Ray", 2, "Tap the start, then a point it passes through"),
+    Vector("Vector", "Vector", 2, "Tap where the arrow starts and ends"),
+    Circle("Circle", "Circle", 2, "Tap the center, then a point on the circle"),
+    Circle3("Circle (3 points)", "Circle", 3, "Tap three points on the circle"),
+    Polygon("Polygon", "Polygon", 0, "Tap the corners, then the first one again"),
+    Midpoint("Midpoint", "Midpoint", 2, "Tap two points"),
+    Bisector("Perpendicular bisector", "PerpendicularBisector", 2, "Tap two points"),
+    Angle("Angle", "Angle", 3, "Tap a point, the corner, then another point"),
+    Distance("Distance", "Distance", 2, "Tap two points"),
+}

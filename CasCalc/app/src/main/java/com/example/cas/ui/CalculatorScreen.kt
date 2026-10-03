@@ -1627,6 +1627,10 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsToggle("Grid lines", "The axes always show", AppSettings.showGrid, AppSettings::changeShowGrid)
             SettingsToggle("Legend", "Each line's name in the corner, and in exports. Hold a line to rename it", AppSettings.showLegend, AppSettings::changeShowLegend)
             SettingsToggle("Mark points on curves", "Zeros, extrema and crossings of the tapped curve", AppSettings.specialPoints, AppSettings::changeSpecialPoints)
+            SettingsToggle(
+                "Geometry", "GeoGebra-style constructions in the 2D graph: name points (A = (1, 2)) and build with Segment, Circle, Intersect, Midpoint, Angle, Area and more, or tap with the Construct tools. Drag free points and everything built on them follows. Early alpha: it will change a lot",
+                AppSettings.geometry, AppSettings::changeGeometry, badge = "Alpha",
+            )
             SettingsChoice("Starting view", listOf("\$\\pm 5\$", "\$\\pm 10\$", "\$\\pm 20\$"), when (AppSettings.viewHalfWidth) { 5 -> 0; 20 -> 2; else -> 1 }) {
                 AppSettings.changeViewHalfWidth(listOf(5, 10, 20)[it])
             }

@@ -110,6 +110,15 @@ class Editor(initial: MathRow = MathRow()) {
         changed()
     }
 
+    /** Replaces the whole row (a dragged point's coordinates), as one undo step only when [record]. */
+    fun replace(content: MathRow, record: Boolean) {
+        if (record) record()
+        root = content
+        row = root
+        index = root.items.size
+        changed()
+    }
+
     fun load(content: MathRow) {
         record()
         root = content

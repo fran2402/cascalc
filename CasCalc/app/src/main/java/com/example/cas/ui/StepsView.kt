@@ -328,7 +328,8 @@ private fun BetaNote() {
 fun BetaBadge(text: String = "Beta") {
     val colors = MaterialTheme.colorScheme
     Text(
-        text.uppercase(), style = MaterialTheme.typography.labelSmall, color = colors.onTertiaryContainer,
-        modifier = Modifier.clip(CircleShape).background(colors.tertiaryContainer).padding(horizontal = 8.dp, vertical = 2.dp).semantics { contentDescription = text },
+        // Alpha (earlier on, changing a lot) in the error container's tones; beta in tertiary.
+        text.uppercase(), style = MaterialTheme.typography.labelSmall, color = if (text == "Alpha") colors.onErrorContainer else colors.onTertiaryContainer,
+        modifier = Modifier.clip(CircleShape).background(if (text == "Alpha") colors.errorContainer else colors.tertiaryContainer).padding(horizontal = 8.dp, vertical = 2.dp).semantics { contentDescription = text },
     )
 }

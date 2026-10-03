@@ -563,6 +563,33 @@ object Docs {
             ),
         ),
         Chapter(
+            "Geometry", "geometry", "GeoGebra-style constructions in the 2D graph (alpha).", part = APP, sections = listOf(
+                section(
+                    "Points and objects",
+                    para("Turn it on in Settings › Graphs. Each line of the 2D graph's list can then be a construction: name a point with a capital, like A = (1, 2), and build on it with GeoGebra's commands, like Segment(A, B), c = Circle(A, B) or P = Intersect(c, l, 1). A line can use names from any other line. Lowercase letters stay sliders, so Circle(A, r) gets a slider r."),
+                    para("Drag a point written with plain numbers and everything built on it follows. Numbers like d = Distance(A, B), Area(t) or Angle(A, B, C) show their value under the line and can be used in other lines."),
+                ),
+                section(
+                    "Commands",
+                    table(
+                        "Segment(A, B), Line(A, B), Ray(A, B), Vector(A, B)" to "Straight objects through two points",
+                        "Circle(A, B), Circle(A, r), Circle(A, B, C)" to "About A through B, with radius r, or through three points",
+                        "Polygon(A, B, C, …)" to "Filled, with three corners or more",
+                        "Midpoint, Intersect, Centroid" to "Points from other objects; Intersect(a, b, n) picks the nth",
+                        "PerpendicularLine, ParallelLine, PerpendicularBisector, AngleBisector, Tangent" to "Lines built from points and other lines or circles",
+                        "Incircle(A, B, C)" to "The circle inside a triangle",
+                        "Distance, Length, Perimeter, Area, Angle, Slope, Radius" to "Measurements (angles in the graph's degrees or radians)",
+                        "Reflect, Rotate, Translate, Dilate" to "Copies moved: mirrored in a line, turned about a point, shifted by a vector, scaled",
+                    ),
+                ),
+                section(
+                    "Building by tapping",
+                    para("Construct, top right of the graph, opens the tools: Point, Segment, Line, Ray, Vector, Circle (two or three points), Polygon, Midpoint, Perpendicular bisector, Angle and Distance. Tap existing points, or empty space to make a new one there; when the tool has its points, its line is added to the list. A polygon closes when you tap its first corner again. Tap the hint at the bottom, or Construct, to stop."),
+                    para("＋ › Geometry lists every command; tap one to start a line with it."),
+                ),
+            ),
+        ),
+        Chapter(
             "Files and export", "files", "Saved graphs, graph files and exports.", part = APP, sections = listOf(
                 section(
                     "Graphs and files",

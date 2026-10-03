@@ -203,6 +203,16 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (3 October, geometry alpha)
+- **Geometry (alpha)**: GeoGebra-style constructions in the 2D graph, turned on in Settings ›
+  Graphs. A = (1, 2) is a point you can drag, and commands build on it: Segment, Line, Ray,
+  Vector, Circle (center and point, radius, or three points), Polygon, Midpoint, Intersect,
+  PerpendicularLine, ParallelLine, PerpendicularBisector, AngleBisector, Tangent, Centroid,
+  Incircle, Distance, Length, Perimeter, Area, Angle, Slope, Radius, Reflect, Rotate, Translate
+  and Dilate. Lines can use names from any other line, and lowercase letters stay sliders.
+  Construct (top right) has tap-to-build tools, and ＋ › Geometry lists the commands. The engine
+  is `graph/Geometry.kt`, with `GeometryTest`. Still early: it will change a lot.
+
 ## Latest changes (3 October)
 - **New icon**: a curve inside a hexagon over three axes, cream and sage on dark green. It is the
   adaptive launcher icon, with a one-color themed icon (axes at 40%) on Android 13+. The Play

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Visibility
 
 import androidx.compose.material.icons.filled.Functions
+import androidx.compose.material.icons.filled.Hexagon
 
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
@@ -726,7 +727,8 @@ fun plotColors(c: androidx.compose.material3.ColorScheme): List<Color> =
 
 /** A line's name as written (text with $math$): the one it was given, or its default. */
 fun legendSource(f: PlotFunction): String =
-    f.name ?: com.example.cas.graph.Legend.defaultSource(f.editor.root, isData = f.plot is Plot2DKind.PointList || f.table != null)
+    // Constructions stay out of the legend (as in GeoGebra) unless renamed.
+    f.name ?: if (f.geometry != null) "" else com.example.cas.graph.Legend.defaultSource(f.editor.root, isData = f.plot is Plot2DKind.PointList || f.table != null)
 
 /** One line of the legend on screen: the name (text with $math$) and how its sample is drawn. */
 class ScreenLegendEntry(
@@ -1044,6 +1046,10 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
         }
         f.error?.let {
             MathText(it, color = colors.error, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 13.sp), modifier = Modifier.padding(start = 48.dp, bottom = 2.dp))
+        }
+        // A construction's value (d = 5, P = (1, 2), an angle).
+        if (f.error == null) f.valueText?.let {
+            Text(it, color = colors.onSurfaceVariant, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 15.sp), modifier = Modifier.padding(start = 48.dp, bottom = 4.dp))
         }
     }
 }
@@ -1587,14 +1593,43 @@ private fun FitButton(vm: GraphViewModel, f: PlotFunction) {
  */
 @Composable
 private fun AddFabMenu(vm: GraphViewModel, tables: Boolean) {
+    var commands by remember { mutableStateOf(false) }
     // Nearest the button first.
     val items = buildList {
         add(FabItem("Line", Icons.Default.Functions, "Add a line") { vm.add() })
         add(FabItem("Note", Icons.Default.Notes, "Add a note") { vm.addText(folder = false) })
         add(FabItem("Folder", Icons.Default.CreateNewFolder, "Add a folder") { vm.addText(folder = true) })
         if (tables) add(FabItem("Table", Icons.Default.TableChart, "Add a table") { vm.addTable() })
+        if (tables && AppSettings.geometry) add(FabItem("Geometry", Icons.Default.Hexagon, "Add a geometry command") { commands = true })
     }
     FabMenu(items, size = 48.dp, description = "Add a line, note, folder or table")
+    if (commands) GeometryCommandsDialog(onPick = { c -> commands = false; vm.addCommandLine(c) }, onDismiss = { commands = false })
+}
+
+/** GeoGebra's commands available in the 2D graph (alpha): tap one to start a line with it. */
+@Composable
+private fun GeometryCommandsDialog(onPick: (com.example.cas.graph.Geometry.Command) -> Unit, onDismiss: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.Hexagon, contentDescription = null) },
+        title = { Text("Geometry commands") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text("Name a point with a capital (A = (1, 2)) and build on it. Drag free points on the graph.", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                com.example.cas.graph.Geometry.COMMANDS.forEach { c ->
+                    Column(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = "Add ${c.name}") { onPick(c) }.padding(horizontal = 6.dp, vertical = 8.dp),
+                    ) {
+                        Text(c.usage, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp), color = colors.onSurface)
+                        Text(c.help, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
 }
 
 /** One of a [FabMenu]'s pills: its label, icon, what it says to screen readers, and its action. */
