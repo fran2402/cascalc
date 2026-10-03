@@ -3026,7 +3026,7 @@ private fun FitStatsDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () ->
                         "No σ(y) on the points, so χ²/ν counts each as σ = 1: it's the residuals' mean square. Give the data a σ(y) column for a true reduced χ².",
                         style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
                     )
-                    FitPlot(stats.xs, stats.ys, stats.sigmas, stats.curve, stats.pointSize, Modifier.fillMaxWidth().height(240.dp))
+                    FitPlot(stats.xs, stats.ys, stats.sigmas, stats.curve, Modifier.fillMaxWidth().height(240.dp))
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onDismiss) { Text("Close") }
@@ -3038,9 +3038,12 @@ private fun FitStatsDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () ->
     }
 }
 
+/** The size of the points in the fit's plots, small so they don't hide the curve. */
+private const val FIT_POINT_SIZE = 1.7f
+
 /** The points (with their σ(y) bars) and the fitted curve, and under them the residuals about 0. */
 @Composable
-private fun FitPlot(xs: DoubleArray, ys: DoubleArray, sig: DoubleArray?, f: (Double) -> Double, pointSize: Float, modifier: Modifier) {
+private fun FitPlot(xs: DoubleArray, ys: DoubleArray, sig: DoubleArray?, f: (Double) -> Double, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
     Column(modifier.clip(RoundedCornerShape(20.dp)).background(colors.surfaceContainer).padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         val residuals = remember(xs, ys, f) { DoubleArray(xs.size) { ys[it] - f(xs[it]) } }
@@ -3055,8 +3058,9 @@ private fun FitPlot(xs: DoubleArray, ys: DoubleArray, sig: DoubleArray?, f: (Dou
             sig?.forEachIndexed { i, s -> if (s.isFinite() && s > 0) drawLine(colors.tertiary, Offset(sx(xs[i]), sy(ys[i] - s)), Offset(sx(xs[i]), sy(ys[i] + s)), 2f) }
             val path = Path(); var pen = false
             curve.forEach { (x, y) -> if (!y.isFinite() || y < ya - (yb - ya) || y > yb + (yb - ya)) pen = false else { if (pen) path.lineTo(sx(x), sy(y)) else path.moveTo(sx(x), sy(y)); pen = true } }
+            // The points first, so the fitted curve is drawn over them.
+            xs.indices.forEach { i -> drawCircle(colors.onSurface, FIT_POINT_SIZE.dp.toPx(), Offset(sx(xs[i]), sy(ys[i]))) }
             drawPath(path, colors.primary, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round))
-            xs.indices.forEach { i -> drawCircle(colors.onSurface, pointSize.dp.toPx(), Offset(sx(xs[i]), sy(ys[i]))) }
         }
         Text("Residuals", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
         androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().weight(1f)) {
@@ -3066,7 +3070,7 @@ private fun FitPlot(xs: DoubleArray, ys: DoubleArray, sig: DoubleArray?, f: (Dou
             drawLine(colors.outline, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), 1.5f)
             xs.indices.forEach { i ->
                 drawLine(colors.tertiary.copy(alpha = 0.6f), Offset(sx(xs[i]), size.height / 2), Offset(sx(xs[i]), sy(residuals[i])), 2f)
-                drawCircle(colors.tertiary, pointSize.dp.toPx(), Offset(sx(xs[i]), sy(residuals[i])))
+                drawCircle(colors.tertiary, FIT_POINT_SIZE.dp.toPx(), Offset(sx(xs[i]), sy(residuals[i])))
             }
         }
     }

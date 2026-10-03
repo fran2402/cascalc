@@ -532,8 +532,6 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         val ys: DoubleArray,
         val sigmas: DoubleArray?,
         val curve: (Double) -> Double,
-        /** The data's point size (radius in dp), so the plots match the graph. */
-        val pointSize: Float,
     ) {
         /** χ² over the degrees of freedom; with no σ(y), each point counts as σ = 1. */
         val reducedChiSquared: Double? get() = result.reducedChiSquared ?: if (result.dof > 0) xs.indices.sumOf { (ys[it] - curve(xs[it])).let { r -> r * r } } / result.dof else null
@@ -550,8 +548,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         }
         val sig = listSigmas()
         val result = com.example.cas.graph.Fit.leastSquares(model, xs, ys, start, sigmas = sig) ?: return null
-        val size = functions.firstOrNull { it.visible && it.plot is Plot2DKind.PointList }?.pointSize ?: 4f
-        return FitStats(names, result, xs, ys, sig, { x -> model(x, result.parameters) }, size)
+        return FitStats(names, result, xs, ys, sig, { x -> model(x, result.parameters) })
     }
 
     /** Fit is offered for a function of x with unknowns, and only once the graph has a list of points. */
@@ -1452,13 +1449,17 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         setPoints(f, t.points())
     }
 
-    /** An imported file as one line: its first column x, its second y (the rest can be picked in the table). */
-    fun importTable(t: com.example.cas.graph.Csv.Table): Int {
+    /**
+     * An imported file (or one sheet of it) as one line: its first column x, its second y (the
+     * rest can be picked in the table); [name] for its legend, as a sheet's name.
+     */
+    fun importTable(t: com.example.cas.graph.Csv.Table, name: String? = null): Int {
         val table = com.example.cas.graph.DataTable.fromCsv(t)
         val points = table.points()
         if (points.isEmpty()) return 0
         val f = addFunction(MathRow())
         f.table = table
+        f.name = name
         setPoints(f, points)
         active = null
         version++

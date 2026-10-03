@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.North
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.size
 import kotlin.math.PI
@@ -401,30 +402,43 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
         // Import data points from a CSV file or a spreadsheet (Excel, Google Sheets, LibreOffice).
         val context = androidx.compose.ui.platform.LocalContext.current
         val scope = rememberCoroutineScope()
+        // Several sheets with numbers: the ones to import are picked first.
+        var sheetChoice by remember { mutableStateOf<List<com.example.cas.graph.Spreadsheet.Sheet>?>(null) }
+        fun importTables(tables: List<Pair<String?, com.example.cas.graph.Csv.Table>>) {
+            // One line per table: its first column against its second. The other columns
+            // (more y values, σ(x), σ(y)) are picked in the table.
+            val n = tables.sumOf { (name, t) -> if (t.columns.isEmpty()) 0 else vm.importTable(t, name) }
+            val columns = tables.singleOrNull()?.second?.columns?.size ?: 0
+            android.widget.Toast.makeText(
+                context,
+                when {
+                    n == 0 -> "No numbers found in that file"
+                    tables.size > 1 -> "$n points from ${tables.size} sheets"
+                    columns > 2 -> "$n points · $columns columns, pick more in the table"
+                    else -> "$n points"
+                },
+                android.widget.Toast.LENGTH_SHORT,
+            ).show()
+        }
         val importer = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
             if (uri == null) return@rememberLauncherForActivityResult
             scope.launch {
-                var oldExcel = false
-                val table = runCatching {
+                val sheets = runCatching {
                     withContext(Dispatchers.IO) {
                         val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
-                        // Excel and OpenDocument (Google Sheets) workbooks are zips; anything else is read as text.
-                        when (com.example.cas.graph.Spreadsheet.format(bytes)) {
-                            com.example.cas.graph.Spreadsheet.Format.Xlsx, com.example.cas.graph.Spreadsheet.Format.Ods -> com.example.cas.graph.Spreadsheet.parse(bytes)
-                            com.example.cas.graph.Spreadsheet.Format.Xls -> { oldExcel = true; null }
-                            com.example.cas.graph.Spreadsheet.Format.None -> com.example.cas.graph.Csv.parse(bytes.toString(Charsets.UTF_8))
-                        }
+                        // Workbooks (.xlsx, .xls, .ods) are known by their first bytes; anything else is read as text.
+                        com.example.cas.graph.Spreadsheet.sheets(bytes)?.filter { it.table.columns.isNotEmpty() }
+                            ?: listOf(com.example.cas.graph.Spreadsheet.Sheet("", com.example.cas.graph.Csv.parse(bytes.toString(Charsets.UTF_8))))
                     }
-                }.getOrNull()
-                // One line for the file: its first column against its second. The other columns
-                // (more y values, σ(x), σ(y)) are picked in the table, which opens straight away.
-                val n = if (table == null || table.columns.isEmpty()) 0 else vm.importTable(table)
-                android.widget.Toast.makeText(
-                    context,
-                    if (oldExcel) "Old .xls files can't be read: save it as .xlsx or .csv" else if (n == 0) "No numbers found in that file" else "$n points" + if ((table?.columns?.size ?: 0) > 2) " · ${table!!.columns.size} columns, pick more in the table" else "",
-                    android.widget.Toast.LENGTH_SHORT,
-                ).show()
+                }.getOrDefault(emptyList())
+                if (sheets.size > 1) sheetChoice = sheets else importTables(sheets.map { null to it.table })
             }
+        }
+        sheetChoice?.let { sheets ->
+            SheetPickerDialog(sheets, onImport = { picked ->
+                sheetChoice = null
+                importTables(picked.map { (if (picked.size > 1) it.name.ifBlank { null }?.replace("$", "") else null) to it.table })
+            }, onDismiss = { sheetChoice = null })
         }
         GraphBottomBar(vm, Modifier.align(Alignment.BottomCenter), onExport = { if (size.width > 0) exporting = true }, tables = true, leading = {
             Spacer(Modifier.width(8.dp))
@@ -435,7 +449,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                         importer.launch(arrayOf(
                             "text/*", "application/csv", "application/vnd.ms-excel", "application/octet-stream", "application/zip",
                             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel.sheet.macroEnabled.12",
-                            "application/vnd.oasis.opendocument.spreadsheet",
+                            "application/vnd.oasis.opendocument.spreadsheet", "application/x-msexcel",
                         ))
                     },
                 contentAlignment = Alignment.Center,
@@ -1179,6 +1193,51 @@ internal fun pinInside(value: Float, min: Float, max: Float): Float =
 /** The same guard for integer offsets (bubbles pinned inside a canvas that may be tiny). */
 internal fun pinInside(value: Int, min: Int, max: Int): Int = if (max <= min) min else value.coerceIn(min, max)
 
+
+/** Which sheets of a workbook to import, each as its own line; all are ticked to start with. */
+@Composable
+private fun SheetPickerDialog(
+    sheets: List<com.example.cas.graph.Spreadsheet.Sheet>,
+    onImport: (List<com.example.cas.graph.Spreadsheet.Sheet>) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    var picked by remember { mutableStateOf(sheets.indices.toSet()) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.UploadFile, contentDescription = null) },
+        title = { Text("Import sheets") },
+        text = {
+            Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+                Text("Each sheet becomes its own line.", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                Spacer(Modifier.height(8.dp))
+                sheets.forEachIndexed { k, sheet ->
+                    val on = k in picked
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                            .toggleable(value = on, role = androidx.compose.ui.semantics.Role.Checkbox) { picked = if (it) picked + k else picked - k }
+                            .padding(vertical = 6.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        androidx.compose.material3.Checkbox(checked = on, onCheckedChange = null)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(sheet.name.ifBlank { "Sheet ${k + 1}" }, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                            val cols = sheet.table.columns.size
+                            Text("${sheet.table.rows} rows · $cols column" + if (cols == 1) "" else "s", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(enabled = picked.isNotEmpty(), onClick = { onImport(sheets.filterIndexed { k, _ -> k in picked }) }) {
+                Text(if (picked.size == sheets.size) "Import all" else "Import ${picked.size}")
+            }
+        },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
 
 /**
  * The 2D graph's settings, as Desmos's wrench has them: the limits typed exactly, linear or log

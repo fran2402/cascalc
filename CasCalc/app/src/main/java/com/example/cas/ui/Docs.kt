@@ -514,7 +514,7 @@ object Docs {
                 ),
                 section(
                     "Importing files",
-                    para("The import button left of the bottom bar reads a CSV or TSV file, an Excel workbook (.xlsx, .xlsm) or an OpenDocument sheet (.ods). For Google Sheets, use File › Download as .xlsx, .ods or .csv. The first sheet with numbers is read, formulas give their last value, and a row of words above the numbers names the columns. Old .xls files need saving as .xlsx first."),
+                    para("The import button left of the bottom bar reads a CSV or TSV file, an Excel workbook (.xlsx, .xlsm, or the older .xls) or an OpenDocument sheet (.ods). For Google Sheets, use File › Download as .xlsx, .ods or .csv. Formulas give their last value, and a row of words above the numbers names the columns. A workbook with numbers on several sheets asks which to import: each becomes its own line, named after its sheet."),
                 ),
                 section(
                     "Editing",

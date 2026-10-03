@@ -7,17 +7,17 @@ import java.util.zip.ZipInputStream
 import javax.xml.parsers.DocumentBuilderFactory
 
 /**
- * Reads data points from a spreadsheet for the 2D graph: Excel workbooks (.xlsx, .xlsm) and
- * OpenDocument ones (.ods), which is also what Google Sheets downloads as, besides .xlsx and
- * .csv. The first sheet with numbers in it is read; formulas give the value they were last
- * worked out to. The rows go through the same rules as a CSV file ([Csv.fromCells]).
+ * Reads data points from a spreadsheet for the 2D graph: Excel workbooks (.xlsx, .xlsm, and
+ * the old binary .xls, see [Xls]) and OpenDocument ones (.ods), which is also what Google
+ * Sheets downloads as, besides .xlsx and .csv. Every sheet is read; formulas give the value
+ * they were last worked out to. The rows go through the same rules as a CSV file ([Csv.fromCells]).
  */
 object Spreadsheet {
     enum class Format { Xlsx, Ods, Xls, None }
 
     /** What the file is, from its first bytes (and, for zips, what's inside). */
     fun format(bytes: ByteArray): Format = when {
-        bytes.size >= 4 && bytes[0] == 'P'.code.toByte() && bytes[1] == 'K'.code.toByte() -> {
+        isZip(bytes) -> {
             val names = entries(bytes).keys
             when {
                 "xl/workbook.xml" in names -> Format.Xlsx
@@ -26,21 +26,35 @@ object Spreadsheet {
             }
         }
         // The old binary .xls (an OLE compound file).
-        bytes.size >= 8 && bytes.take(8).map { it.toInt() and 0xFF } == listOf(0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1) -> Format.Xls
+        isXls(bytes) -> Format.Xls
         else -> Format.None
     }
 
-    /** The table in a .xlsx or .ods file, or null if it isn't one. */
-    fun parse(bytes: ByteArray): Csv.Table? {
-        val files = entries(bytes)
-        val sheets = when {
-            "xl/workbook.xml" in files -> xlsxSheets(files)
-            "content.xml" in files -> odsSheets(files.getValue("content.xml"))
-            else -> return null
+    /** A sheet of a workbook: its name and its numbers. */
+    class Sheet(val name: String, val table: Csv.Table)
+
+    /** Every sheet in a .xlsx, .xls or .ods file, in workbook order, or null if it isn't one. */
+    fun sheets(bytes: ByteArray): List<Sheet>? {
+        val raw = if (isXls(bytes)) Xls.sheets(bytes) else {
+            if (!isZip(bytes)) return null
+            val files = entries(bytes)
+            when {
+                "xl/workbook.xml" in files -> xlsxSheets(files)
+                "content.xml" in files -> odsSheets(files.getValue("content.xml"))
+                else -> return null
+            }
         }
-        val tables = sheets.map { Csv.fromCells(withoutEmptyColumns(it), ::number) }
-        return tables.firstOrNull { it.columns.isNotEmpty() } ?: Csv.Table(emptyList(), emptyList())
+        return raw.map { (name, rows) -> Sheet(name, Csv.fromCells(withoutEmptyColumns(rows), ::number)) }
     }
+
+    /** The table on the first sheet with numbers, or null if it isn't a spreadsheet. */
+    fun parse(bytes: ByteArray): Csv.Table? {
+        val sheets = sheets(bytes) ?: return null
+        return sheets.firstOrNull { it.table.columns.isNotEmpty() }?.table ?: Csv.Table(emptyList(), emptyList())
+    }
+
+    private fun isZip(b: ByteArray) = b.size >= 4 && b[0] == 'P'.code.toByte() && b[1] == 'K'.code.toByte()
+    private fun isXls(b: ByteArray) = b.size >= 512 && b.take(8).map { it.toInt() and 0xFF } == listOf(0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1)
 
     private fun number(s: String): Double? =
         s.trim().replace("−", "-").replace(" ", "").toDoubleOrNull()?.takeIf { it.isFinite() }
@@ -91,19 +105,22 @@ object Spreadsheet {
 
     // --- Excel ---
 
-    /** The sheets in workbook order, each as rows of cells. */
-    private fun xlsxSheets(files: Map<String, ByteArray>): List<List<List<String>>> {
+    /** The sheets in workbook order, named, each as rows of cells. */
+    private fun xlsxSheets(files: Map<String, ByteArray>): List<Pair<String, List<List<String>>>> {
         val strings = files["xl/sharedStrings.xml"]?.let { b ->
             xml(b).children("si").map { si -> si.descendants("t").filter { it.parentNode.localName != "rPh" }.joinToString("") { it.textContent } }
         } ?: emptyList()
         val targets = runCatching {
             val rels = files["xl/_rels/workbook.xml.rels"]?.let { xml(it).children("Relationship").associate { r -> r.attr("Id") to r.attr("Target") } } ?: emptyMap()
-            xml(files.getValue("xl/workbook.xml")).descendants("sheet").mapNotNull { s -> rels[s.attr("id")] }.map { t ->
-                if (t.startsWith("/")) t.removePrefix("/") else "xl/" + t
+            xml(files.getValue("xl/workbook.xml")).descendants("sheet").mapNotNull { s ->
+                rels[s.attr("id")]?.let { t -> (s.attr("name") ?: "") to if (t.startsWith("/")) t.removePrefix("/") else "xl/" + t }
             }
-        }.getOrDefault(emptyList()).filter { it in files }
-            .ifEmpty { files.keys.filter { Regex("xl/worksheets/sheet\\d+\\.xml").matches(it) }.sortedBy { it.filter(Char::isDigit).toInt() } }
-        return targets.map { xlsxSheet(xml(files.getValue(it)), strings) }
+        }.getOrDefault(emptyList()).filter { it.second in files }
+            .ifEmpty {
+                files.keys.filter { Regex("xl/worksheets/sheet\\d+\\.xml").matches(it) }.sortedBy { it.filter(Char::isDigit).toInt() }
+                    .map { "Sheet" + it.filter(Char::isDigit) to it }
+            }
+        return targets.map { (name, path) -> name to xlsxSheet(xml(files.getValue(path)), strings) }
     }
 
     private fun xlsxSheet(sheet: Element, strings: List<String>): List<List<String>> {
@@ -142,8 +159,8 @@ object Spreadsheet {
 
     // --- OpenDocument ---
 
-    private fun odsSheets(content: ByteArray): List<List<List<String>>> =
-        xml(content).descendants("table").filter { it.namespaceURI?.contains("table") == true }.map { odsSheet(it) }
+    private fun odsSheets(content: ByteArray): List<Pair<String, List<List<String>>>> =
+        xml(content).descendants("table").filter { it.namespaceURI?.contains("table") == true }.map { (it.attr("name") ?: "") to odsSheet(it) }
 
     private fun odsSheet(table: Element): List<List<String>> {
         val rows = sortedMapOf<Int, MutableMap<Int, String>>()
