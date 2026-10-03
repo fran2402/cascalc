@@ -186,6 +186,22 @@ F' = f""", """The area under \(f\). Leave the limits empty for an antiderivative
         return if (e == null) m.replace("-", "−") else m.replace("-", "−") + " × 10" + e.trimStart('+').map { SUPERSCRIPT[it] ?: it }.joinToString("")
     }
 
+    /** The keys by group, for the documentation's key reference (spoken names, as in [of]). */
+    val groups: List<Pair<String, List<String>>> = listOf(
+        "Powers, roots and logs" to listOf("pi", "e", "e to the power", "times ten to the power", "squared", "power", "square root", "nth root", "natural log", "log base a", "ten to the power", "previous answer"),
+        "Trigonometry" to listOf("sin", "cos", "tan", "inverse sin", "inverse cos", "inverse tan", "hyperbolic sin", "hyperbolic cos", "hyperbolic tan", "inverse hyperbolic sin", "inverse hyperbolic cos", "inverse hyperbolic tan"),
+        "Algebra" to listOf("solve", "equals sign", "comma", "simplify", "expand", "factor", "partial fractions", "common denominator", "less than", "greater than", "less than or equal to", "greater than or equal to"),
+        "Calculus" to listOf("integral", "derivative", "higher derivative", "limit", "one-sided limit", "Taylor series", "solve differential equation", "y prime", "y double prime", "infinity", "sum", "product"),
+        "Vector calculus" to listOf("partial derivative", "higher partial derivative", "double integral", "triple integral", "gradient", "divergence", "curl", "Laplacian", "Jacobian matrix", "Hessian matrix", "vector with 2 components", "vector with 3 components"),
+        "Linear algebra" to listOf("matrix", "inverse", "transpose", "conjugate transpose", "determinant", "eigenvalues", "eigenvectors", "characteristic polynomial", "trace", "reduced row echelon form", "rank", "dot product", "cross product", "Hadamard product", "Kronecker product"),
+        "Complex numbers" to listOf("i, the imaginary unit", "real part", "imaginary part", "conjugate", "argument", "e to the i theta", "z", "w", "contour integral", "residue"),
+        "Special functions" to listOf("gamma function", "Riemann zeta function", "Lambert W function", "Bessel function of the first kind", "Bessel function of the second kind", "sine integral", "cosine integral", "exponential integral", "logarithmic integral", "imaginary error function", "Fresnel sine integral", "Fresnel cosine integral", "upper incomplete gamma function", "incomplete elliptic integral of the first kind", "polylogarithm"),
+        "More functions" to listOf("absolute value", "floor", "ceiling", "round", "greatest common divisor", "least common multiple", "mod", "percent", "fractional part", "sign", "minimum", "maximum"),
+        "Statistics" to listOf("factorial", "n choose k", "permutations", "mean", "median", "sample standard deviation", "population standard deviation", "sample variance", "normal density", "normal distribution function", "inverse normal", "binomial probability", "cumulative binomial probability", "Poisson probability", "sum of a list", "comma for lists", "list brackets"),
+        "Variables and symbols" to listOf("store in variable", "symbol builder", "saved symbol", "list of constants with names"),
+        "Number pad" to listOf("all clear", "brackets", "divide", "times", "minus", "plus", "point", "backspace", "enter", "x"),
+    ).map { (t, keys) -> t to keys.filter { it in all } }
+
     /** Help for a key by its spoken name; constants show their value in LaTeX and link to NIST; otherwise just the name. */
     fun of(spoken: String): KeyHelp {
         all[spoken]?.let { return it }

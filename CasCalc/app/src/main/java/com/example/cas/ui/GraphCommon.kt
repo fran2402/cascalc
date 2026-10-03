@@ -1847,8 +1847,9 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     var roleY by remember(f) { mutableStateOf(start.y) }
     var roleSx by remember(f) { mutableStateOf(start.sigmaX) }
     var roleSy by remember(f) { mutableStateOf(start.sigmaY) }
-    // The one cell being typed in, as (column, row).
+    // The one cell being typed in, as (column, row), and where its fill handle is being dragged to.
     var editing by remember(f) { mutableStateOf<Pair<Int, Int>?>(null) }
+    var fillTo by remember(f) { mutableStateOf<Pair<Int, Int>?>(null) }
     // Columns' widths and rows' heights that were dragged; the rest are the usual size.
     val defaultWidth = 112.dp
     val defaultHeight = 44.dp
@@ -1931,6 +1932,37 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     val scope = rememberCoroutineScope()
     fun widthOf(c: Int) = widths[c] ?: defaultWidth
     fun heightOf(r: Int) = heights[r] ?: defaultHeight
+    // While a formula is typed, the cells it uses are outlined, each reference in its own color, as Excel does.
+    val editText = editing?.let { (c, r) -> cells.getOrNull(c)?.getOrNull(r) }
+    val refs = if (formulas && editText != null && editText.trimStart().startsWith("=")) com.example.cas.graph.Sheet.references(editText) else emptyList()
+    val refColors = listOf(Color(0xFF1A73E8), Color(0xFFD93025), Color(0xFF9334E6), Color(0xFF188038), Color(0xFFE37400), Color(0xFF12A4B8))
+    fun refColor(c: Int, r: Int): Color? = refs.indexOfFirst { c in it.c0..it.c1 && r >= it.r0 && r <= it.r1 }.takeIf { it >= 0 }?.let { refColors[it % refColors.size] }
+    /** Whether a cell is in the range the fill handle is being dragged over. */
+    fun inFill(c: Int, r: Int): Boolean {
+        val (sc, sr) = editing ?: return false
+        val (tc, tr) = fillTo ?: return false
+        return c in minOf(sc, tc)..maxOf(sc, tc) && r in minOf(sr, tr)..maxOf(sr, tr) && !(c == sc && r == sr)
+    }
+    /** The fill handle let go: the cell copied over the range, a formula's references moving with it (as Excel's fill). */
+    fun fill() {
+        val (sc, sr) = editing ?: return
+        val (tc, tr) = fillTo ?: return
+        fillTo = null
+        val t = cells.getOrNull(sc)?.getOrNull(sr) ?: return
+        for (c in minOf(sc, tc)..maxOf(sc, tc)) for (r in minOf(sr, tr)..maxOf(sr, tr)) {
+            if (c == sc && r == sr) continue
+            val col = cells.getOrNull(c) ?: continue
+            if (r >= col.size) continue
+            col[r] = if (com.example.cas.graph.Sheet.isFormula(t)) com.example.cas.graph.Sheet.shift(t, r - sr, c - sc) else t
+        }
+    }
+    /** The cell [px] pixels from (c, r) along one axis: whole rows (or columns) passed by half their size. */
+    fun stepsAlong(start: Int, px: Float, count: Int, sizeOf: (Int) -> Float): Int {
+        var at = start; var left = px
+        if (px > 0) while (at + 1 < count && left > sizeOf(at + 1) / 2) { left -= sizeOf(at + 1); at++ }
+        else while (at - 1 >= 0 && -left > sizeOf(at - 1) / 2) { left += sizeOf(at - 1); at-- }
+        return at
+    }
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
@@ -2013,23 +2045,49 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                                     // A formula shows what it works out to until it's tapped.
                                                     val worked = if (formulas && com.example.cas.graph.Sheet.isFormula(t)) current.sheet.value(c, r) else null
                                                     val error = worked?.error != null || (role != null && t.isNotBlank() && worked == null && com.example.cas.graph.DataTable.number(t) == null) || (role != null && worked != null && worked.number == null)
-                                                    TableCell(
-                                                        t, error, Modifier.width(widthOf(c)).height(heightOf(r)), role = role, shown = worked?.toString(), formulas = formulas,
-                                                        editing = editing == (c to r),
-                                                        onTap = { editing = c to r },
-                                                        onNext = {
-                                                            // Down the column, adding a row at the end.
-                                                            if (r + 1 >= rows) addRow()
-                                                            editing = c to r + 1
-                                                            scope.launch { list.animateScrollToItem(maxOf(0, r - 2)) }
-                                                        },
-                                                    ) { if (r < col.size) col[r] = it }
+                                                    val here = editing == (c to r)
+                                                    Box(Modifier.width(widthOf(c)).height(heightOf(r))) {
+                                                        TableCell(
+                                                            t, error, Modifier.fillMaxSize(), role = role, shown = worked?.toString(), formulas = formulas,
+                                                            editing = here,
+                                                            highlight = if (inFill(c, r)) colors.primary else refColor(c, r),
+                                                            referenceColors = if (here) refs.mapIndexed { k, ref -> ref.at to refColors[k % refColors.size] } else emptyList(),
+                                                            onTap = { editing = c to r },
+                                                            onNext = {
+                                                                // Down the column, adding a row at the end.
+                                                                if (r + 1 >= rows) addRow()
+                                                                editing = c to r + 1
+                                                                scope.launch { list.animateScrollToItem(maxOf(0, r - 2)) }
+                                                            },
+                                                        ) { if (r < col.size) col[r] = it }
+                                                        // The fill handle: drag it down or across to copy the cell, as in Excel.
+                                                        if (here && t.isNotBlank()) FillHandle(
+                                                            onStart = { fillTo = c to r },
+                                                            onDrag = { dx, dy ->
+                                                                val gap = with(density) { 6.dp.toPx() }
+                                                                fillTo = if (kotlin.math.abs(dy) >= kotlin.math.abs(dx))
+                                                                    c to stepsAlong(r, dy, rows) { k -> with(density) { heightOf(k).toPx() } + gap }
+                                                                else stepsAlong(c, dx, cells.size) { k -> with(density) { (widthOf(k) + 10.dp).toPx() } } to r
+                                                            },
+                                                            onEnd = { fill() },
+                                                            onCancel = { fillTo = null },
+                                                            modifier = Modifier.align(Alignment.BottomEnd),
+                                                        )
+                                                    }
                                                     Spacer(Modifier.width(10.dp))
                                                 }
                                                 Spacer(Modifier.width(12.dp))
                                             }
                                         }
                                     }
+                                }
+                                // While a function's name is typed in a formula: matching functions, one tap to use.
+                                val typing = editText?.let { com.example.cas.graph.Sheet.typingName(it) }
+                                val matches = remember(typing) { typing?.let { com.example.cas.graph.Sheet.suggestions(it) }.orEmpty() }
+                                if (formulas && matches.isNotEmpty()) FormulaSuggestions(matches) { name ->
+                                    val (c, r) = editing ?: return@FormulaSuggestions
+                                    val now = cells.getOrNull(c)?.getOrNull(r) ?: return@FormulaSuggestions
+                                    cells[c][r] = now.dropLast(typing!!.length) + name + "("
                                 }
                             }
                             // One button, bottom left: + opens to add a row or a column, or paste.
@@ -2051,6 +2109,53 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/** The fill handle: a small square at a cell's corner that drags over the cells to fill. */
+@Composable
+private fun FillHandle(onStart: () -> Unit, onDrag: (Float, Float) -> Unit, onEnd: () -> Unit, onCancel: () -> Unit, modifier: Modifier) {
+    val colors = MaterialTheme.colorScheme
+    val drag by androidx.compose.runtime.rememberUpdatedState(onDrag)
+    val start by androidx.compose.runtime.rememberUpdatedState(onStart)
+    val end by androidx.compose.runtime.rememberUpdatedState(onEnd)
+    val cancel by androidx.compose.runtime.rememberUpdatedState(onCancel)
+    // A larger touch area around the small square.
+    Box(
+        modifier
+            .size(28.dp)
+            .semantics { contentDescription = "Fill handle: drag to copy this cell" }
+            .pointerInput(Unit) {
+                var dx = 0f; var dy = 0f
+                detectDragGestures(
+                    onDragStart = { dx = 0f; dy = 0f; start() },
+                    onDragEnd = { end() },
+                    onDragCancel = { cancel() },
+                ) { change, amount -> change.consume(); dx += amount.x; dy += amount.y; drag(dx, dy) }
+            },
+        contentAlignment = Alignment.BottomEnd,
+    ) {
+        // Inside the cell's corner, so the row's scroll doesn't clip it.
+        Box(Modifier.size(10.dp).clip(RoundedCornerShape(2.dp)).background(colors.primary).border(1.5.dp, colors.surface, RoundedCornerShape(2.dp)))
+    }
+}
+
+/** Functions matching the name being typed, as chips above the keyboard, with how the first is written. */
+@Composable
+private fun FormulaSuggestions(names: List<String>, onPick: (String) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Column(Modifier.fillMaxWidth().background(colors.surfaceContainerHigh).padding(top = 6.dp, bottom = 8.dp)) {
+        com.example.cas.graph.Sheet.signature(names.first())?.let {
+            Text("=$it", style = TextStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 12.sp, color = colors.onSurfaceVariant), maxLines = 1, modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp))
+        }
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            names.forEach { n ->
+                Text(
+                    n, style = TextStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 14.sp, color = colors.onSecondaryContainer),
+                    modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(colors.secondaryContainer).clickable(onClickLabel = "Use $n") { onPick(n) }.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
             }
         }
     }
@@ -2276,6 +2381,7 @@ private fun RowNumber(r: Int, onInsertAbove: () -> Unit, onInsertBelow: () -> Un
 private fun TableCell(
     text: String, error: Boolean, modifier: Modifier, role: String? = null,
     shown: String? = null, formulas: Boolean = false, editing: Boolean = false,
+    highlight: Color? = null, referenceColors: List<Pair<IntRange, Color>> = emptyList(),
     onTap: () -> Unit = {}, onNext: () -> Unit = {}, onChange: (String) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -2289,7 +2395,12 @@ private fun TableCell(
             if (formula && !editing) colors.tertiaryContainer.copy(alpha = 0.35f).compositeOver(colors.surfaceContainerHigh)
             else if (role == null) colors.surfaceContainerHigh else tint.copy(alpha = 0.08f).compositeOver(colors.surfaceContainerHighest),
         )
-        .border(if (editing || error) 2.dp else 0.dp, when { error && !editing -> colors.error; editing -> colors.primary; else -> Color.Transparent }, shape)
+        .then(if (highlight != null && !editing) Modifier.background(highlight.copy(alpha = 0.10f)) else Modifier)
+        .border(
+            if (editing || error || highlight != null) 2.dp else 0.dp,
+            when { editing -> colors.primary; highlight != null -> highlight; error -> colors.error; else -> Color.Transparent },
+            shape,
+        )
     if (!editing) {
         Row(
             base.clickable(onClickLabel = "Edit this cell") { onTap() }.padding(horizontal = 12.dp),
@@ -2307,6 +2418,8 @@ private fun TableCell(
     val focus = remember { androidx.compose.ui.focus.FocusRequester() }
     var value by remember { mutableStateOf(androidx.compose.ui.text.input.TextFieldValue(text, androidx.compose.ui.text.TextRange(text.length))) }
     androidx.compose.runtime.LaunchedEffect(Unit) { focus.requestFocus() }
+    // Changed from outside (a suggestion picked): the field follows, cursor at the end.
+    androidx.compose.runtime.LaunchedEffect(text) { if (text != value.text) value = androidx.compose.ui.text.input.TextFieldValue(text, androidx.compose.ui.text.TextRange(text.length)) }
     androidx.compose.foundation.text.BasicTextField(
         value = value,
         onValueChange = { value = it; if (it.text != text) onChange(it.text) },
@@ -2320,6 +2433,16 @@ private fun TableCell(
             imeAction = androidx.compose.ui.text.input.ImeAction.Next,
         ),
         keyboardActions = androidx.compose.foundation.text.KeyboardActions(onNext = { onNext() }),
+        // Each reference in the formula in the color its cells are outlined in.
+        visualTransformation = if (referenceColors.isEmpty()) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.VisualTransformation { t ->
+            val styled = androidx.compose.ui.text.buildAnnotatedString {
+                append(t.text)
+                referenceColors.forEach { (at, color) ->
+                    if (at.last < t.text.length) addStyle(androidx.compose.ui.text.SpanStyle(color = color, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), at.first, at.last + 1)
+                }
+            }
+            androidx.compose.ui.text.input.TransformedText(styled, androidx.compose.ui.text.input.OffsetMapping.Identity)
+        },
         decorationBox = { inner -> Box(contentAlignment = Alignment.CenterStart) { inner() } },
         modifier = base.focusRequester(focus).padding(horizontal = 12.dp),
     )
@@ -2823,7 +2946,9 @@ private fun FitStatsDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () ->
                 } else {
                     // Each parameter ± its standard error.
                     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.primaryContainer).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        stats.names.forEachIndexed { k, n ->
+                        stats.names.forEachIndexed { k, name ->
+                            // A built symbol (x̂₁) shows as its LaTeX, not its stored form.
+                            val n = com.example.cas.cas.CustomSymbol.decode(name)?.latex ?: name
                             MathText("\$$n = ${Readout.latex(withError(stats.result.parameters[k], stats.result.errors?.get(k)))}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 18.sp), color = colors.onPrimaryContainer, mathScale = 1f)
                         }
                     }

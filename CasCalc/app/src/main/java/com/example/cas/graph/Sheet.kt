@@ -1592,6 +1592,85 @@ object Sheet {
             "$colFixed$c$rowFixed$r"
         }
 
+    /** Every function's name, for suggestions while typing a formula. */
+    val NAMES: List<String> = listOf(
+        "ABS", "ACOS", "ACOSH", "ACOT", "ACOTH", "ADDRESS", "AGGREGATE", "AND", "ARABIC", "ASIN", "ASINH", "ATAN", "ATAN2", "ATANH", "AVEDEV",
+        "AVERAGE", "AVERAGEA", "AVERAGEIF", "AVERAGEIFS", "BASE", "BESSELI", "BESSELJ", "BESSELK", "BESSELY", "BETA.DIST", "BETA.INV", "BETADIST",
+        "BETAINV", "BIN2DEC", "BIN2HEX", "BIN2OCT", "BINOM.DIST", "BINOM.DIST.RANGE", "BINOM.INV", "BINOMDIST", "BITAND", "BITLSHIFT", "BITOR",
+        "BITRSHIFT", "BITXOR", "CEILING", "CEILING.MATH", "CEILING.PRECISE", "CHAR", "CHIDIST", "CHIINV", "CHISQ.DIST", "CHISQ.DIST.RT", "CHISQ.INV",
+        "CHISQ.INV.RT", "CHISQ.TEST", "CHITEST", "CHOOSE", "CLEAN", "CODE", "COLUMN", "COLUMNS", "COMBIN", "COMBINA", "COMPLEX", "CONCAT",
+        "CONCATENATE", "CONFIDENCE", "CONFIDENCE.NORM", "CONFIDENCE.T", "CONVERT", "CORREL", "COS", "COSH", "COT", "COTH", "COUNT", "COUNTA",
+        "COUNTBLANK", "COUNTIF", "COUNTIFS", "COVAR", "COVARIANCE.P", "COVARIANCE.S", "CRITBINOM", "CSC", "CSCH", "CUMIPMT", "CUMPRINC", "DATE",
+        "DATEDIF", "DATEVALUE", "DAY", "DAYS", "DAYS360", "DB", "DDB", "DEC2BIN", "DEC2HEX", "DEC2OCT", "DECIMAL", "DEGREES", "DELTA", "DEVSQ",
+        "DOLLAR", "EDATE", "EFFECT", "EOMONTH", "ERF", "ERF.PRECISE", "ERFC", "ERFC.PRECISE", "ERROR.TYPE", "EVEN", "EXACT", "EXP", "EXPON.DIST",
+        "EXPONDIST", "F.DIST", "F.DIST.RT", "F.INV", "F.INV.RT", "F.TEST", "FACT", "FACTDOUBLE", "FALSE", "FDIST", "FIND", "FINV", "FISHER",
+        "FISHERINV", "FIXED", "FLOOR", "FLOOR.MATH", "FLOOR.PRECISE", "FORECAST", "FORECAST.LINEAR", "FTEST", "FV", "FVSCHEDULE", "GAMMA",
+        "GAMMA.DIST", "GAMMA.INV", "GAMMADIST", "GAMMAINV", "GAMMALN", "GAMMALN.PRECISE", "GAUSS", "GCD", "GEOMEAN", "GESTEP", "GROWTH", "HARMEAN",
+        "HEX2BIN", "HEX2DEC", "HEX2OCT", "HLOOKUP", "HOUR", "HYPGEOM.DIST", "HYPGEOMDIST", "IF", "IFERROR", "IFNA", "IFS", "IMABS", "IMAGINARY",
+        "IMARGUMENT", "IMCONJUGATE", "IMCOS", "IMDIV", "IMEXP", "IMLN", "IMLOG10", "IMLOG2", "IMPOWER", "IMPRODUCT", "IMREAL", "IMSIN", "IMSQRT",
+        "IMSUB", "IMSUM", "INDEX", "INDIRECT", "INT", "INTERCEPT", "IPMT", "IRR", "ISBLANK", "ISERR", "ISERROR", "ISEVEN", "ISFORMULA", "ISLOGICAL",
+        "ISNA", "ISNONTEXT", "ISNUMBER", "ISO.CEILING", "ISODD", "ISOWEEKNUM", "ISPMT", "ISREF", "ISTEXT", "KURT", "LARGE", "LCM", "LEFT", "LEN",
+        "LN", "LOG", "LOG10", "LOGINV", "LOGNORM.DIST", "LOGNORM.INV", "LOGNORMDIST", "LOOKUP", "LOWER", "MATCH", "MAX", "MAXA", "MAXIFS", "MDETERM",
+        "MEAN", "MEDIAN", "MID", "MIN", "MINA", "MINIFS", "MINUTE", "MIRR", "MOD", "MODE", "MODE.SNGL", "MONTH", "MROUND", "MULTINOMIAL", "N", "NA",
+        "NEGBINOM.DIST", "NEGBINOMDIST", "NETWORKDAYS", "NOMINAL", "NORM.DIST", "NORM.INV", "NORM.S.DIST", "NORM.S.INV", "NORMDIST", "NORMINV",
+        "NORMSDIST", "NORMSINV", "NOT", "NOW", "NPER", "NPV", "NUMBERVALUE", "OCT2BIN", "OCT2DEC", "OCT2HEX", "ODD", "OFFSET", "OR", "PDURATION",
+        "PEARSON", "PERCENTILE", "PERCENTILE.EXC", "PERCENTILE.INC", "PERCENTRANK", "PERCENTRANK.EXC", "PERCENTRANK.INC", "PERMUT", "PERMUTATIONA",
+        "PHI", "PI", "PMT", "POISSON", "POISSON.DIST", "POWER", "PPMT", "PRODUCT", "PROPER", "PV", "QUARTILE", "QUARTILE.EXC", "QUARTILE.INC",
+        "QUOTIENT", "RADIANS", "RAND", "RANDBETWEEN", "RANK", "RANK.AVG", "RANK.EQ", "RATE", "REPLACE", "REPT", "RIGHT", "ROMAN", "ROUND",
+        "ROUNDDOWN", "ROUNDUP", "ROW", "ROWS", "RRI", "RSQ", "SEARCH", "SEC", "SECH", "SECOND", "SERIESSUM", "SIGN", "SIN", "SINH", "SKEW", "SKEW.P",
+        "SLN", "SLOPE", "SMALL", "SQRT", "SQRTPI", "STANDARDIZE", "STDEV", "STDEV.P", "STDEV.S", "STDEVA", "STDEVP", "STDEVPA", "STEYX",
+        "SUBSTITUTE", "SUBTOTAL", "SUM", "SUMIF", "SUMIFS", "SUMPRODUCT", "SUMSQ", "SUMX2MY2", "SUMX2PY2", "SUMXMY2", "SWITCH", "SYD", "T", "T.DIST",
+        "T.DIST.2T", "T.DIST.RT", "T.INV", "T.INV.2T", "T.TEST", "TAN", "TANH", "TDIST", "TEXT", "TEXTAFTER", "TEXTBEFORE", "TEXTJOIN", "TIME",
+        "TINV", "TODAY", "TREND", "TRIM", "TRIMMEAN", "TRUE", "TRUNC", "TTEST", "TYPE", "UNICHAR", "UNICODE", "UPPER", "VALUE", "VAR", "VAR.P",
+        "VAR.S", "VARA", "VARP", "VARPA", "VLOOKUP", "WEEKDAY", "WEEKNUM", "WEIBULL", "WEIBULL.DIST", "WORKDAY", "XIRR", "XLOOKUP", "XMATCH", "XNPV",
+        "XOR", "YEAR", "YEARFRAC", "Z.TEST", "ZTEST",
+    )
+
+    /** How [name] is written, from the ƒx list's examples when one shows it. */
+    fun signature(name: String): String? =
+        FUNCTIONS.firstOrNull { it.example.startsWith("$name(") }?.example
+            ?: FUNCTIONS.firstOrNull { h -> Regex("(^|[ ·])" + Regex.escape(name) + "($|[ ·(])").containsMatchIn(h.names) }?.let { "$name(…) · " + it.what }
+
+    /** A reference in a formula: the cells it covers (whole columns run to [Int.MAX_VALUE]) and where it's written. */
+    class Reference(val c0: Int, val r0: Int, val c1: Int, val r1: Int, val at: IntRange)
+
+    /** The cells and ranges a formula uses (A1, \$B\$2, A1:C5, A:A), in order, outside quotes. */
+    fun references(formula: String): List<Reference> {
+        val out = ArrayList<Reference>()
+        val re = Regex("""(?<![A-Za-z0-9.$])\$?([A-Za-z]{1,3})\$?(\d+)(?::\$?([A-Za-z]{1,3})\$?(\d+))?(?![A-Za-z0-9.(])|(?<![A-Za-z0-9.$])\$?([A-Za-z]{1,3}):\$?([A-Za-z]{1,3})(?![A-Za-z0-9(])""")
+        for (m in re.findAll(formula)) {
+            if (formula.substring(0, m.range.first).count { it == '"' } % 2 == 1) continue
+            val g = m.groupValues
+            out += if (g[1].isNotEmpty()) {
+                val c0 = columnIndex(g[1]); val r0 = g[2].toInt() - 1
+                if (g[3].isEmpty()) Reference(c0, r0, c0, r0, m.range)
+                else Reference(minOf(c0, columnIndex(g[3])), minOf(r0, g[4].toInt() - 1), maxOf(c0, columnIndex(g[3])), maxOf(r0, g[4].toInt() - 1), m.range)
+            } else {
+                val a = columnIndex(g[5]); val b = columnIndex(g[6])
+                Reference(minOf(a, b), 0, maxOf(a, b), Int.MAX_VALUE, m.range)
+            }
+        }
+        return out.filter { it.r0 >= 0 }
+    }
+
+    /** The function name being typed at the end of [text] (letters after =, an operator, a comma or a bracket), or null. */
+    fun typingName(text: String): String? {
+        if (!isFormula(text) && text.trim() != "=") return null
+        val m = Regex("""(?:^\s*=|[=+\-*/^&,;(<>\s])([A-Za-z][A-Za-z0-9.]*)$""").find(text) ?: return null
+        val t = m.groupValues[1]
+        if (text.substring(0, m.range.first).count { it == '"' } % 2 == 1) return null
+        // A cell like A1 is being typed, not a function.
+        if (Regex("""[A-Za-z]{1,3}\d+""").matches(t)) return null
+        return t
+    }
+
+    /** Functions starting with [prefix], the ones most used first. */
+    fun suggestions(prefix: String, limit: Int = 12): List<String> {
+        val p = prefix.uppercase()
+        val common = listOf("SUM", "AVERAGE", "IF", "COUNT", "MAX", "MIN", "ROUND", "SQRT", "ABS", "STDEV", "SLOPE", "VLOOKUP", "XLOOKUP", "INDEX", "MATCH", "COUNTIF", "SUMIF")
+        return NAMES.filter { it.startsWith(p) && it != p }.sortedWith(compareBy({ n -> common.indexOf(n).let { if (it < 0) Int.MAX_VALUE else it } }, { it.length }, { it })).take(limit)
+    }
+
     /** One entry of the ƒx list: its group, the functions, how one is written, what they do. */
     class Help(val category: String, val names: String, val example: String, val what: String)
 

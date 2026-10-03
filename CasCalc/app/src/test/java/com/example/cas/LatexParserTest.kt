@@ -10,8 +10,9 @@ class LatexParserTest {
     private fun p(latex: String) = MathCodec.encode(LatexParser.parse(latex))
 
     @Test fun fraction() = assertEquals("frac{'a;|'b;}", p("\\frac{a}{b}"))
-    @Test fun powerAndSubscript() = assertEquals("'x;pow{'2;}scr{'a;|'i;'j;|}", p("x^2 a_{ij}"))
-    @Test fun subAndSup() = assertEquals("scr{'x;|'i;|'2;}", p("x_i^2"))
+    // A letter with a plain subscript is one symbol, as the symbol builder makes it; a superscript on it is a power.
+    @Test fun powerAndSubscript() = assertEquals("'x;pow{'2;}'" + com.example.cas.cas.CustomSymbol("a", sub = "ij").encode() + ";", p("x^2 a_{ij}"))
+    @Test fun subAndSup() = assertEquals("'" + com.example.cas.cas.CustomSymbol("x", sub = "i").encode() + ";pow{'2;}", p("x_i^2"))
     @Test fun roots() = assertEquals("sqrt{'x;}root{'n;|'x;}", p("\\sqrt{x}\\sqrt[n]{x}"))
     @Test fun greekAndSymbols() = assertEquals("'π;'≤;'∞;'·;'θ;", p("\\pi \\le \\infty \\cdot \\theta"))
     @Test fun functionNames() = assertEquals("'sin;'\u2009;'θ;", p("\\sin\\theta"))

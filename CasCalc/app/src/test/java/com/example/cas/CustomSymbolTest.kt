@@ -46,7 +46,9 @@ class CustomSymbolTest {
         assertEquals(CustomSymbol("x", Accent.Hat), CustomSymbol.decode((row.items.single() as Sym).text))
     }
     // Valid LaTeX: the scripted base is braced.
-    @Test fun latexAccentWithScripts() = assertEquals("{\\hat{x}}_{1}", com.example.cas.engine.Latex.of(com.example.cas.engine.LatexParser.parse("\\hat{x}_1")))
+    // \hat{x}_1 reads back as the one symbol x̂₁ (not x̂ with a subscript box), so it stays whole in the editor.
+    @Test fun latexAccentWithScripts() = assertEquals("\\hat{x}_{1}", com.example.cas.engine.Latex.of(com.example.cas.engine.LatexParser.parse("\\hat{x}_1")))
+    @Test fun builtSymbolSurvivesLatex() = assertEquals(xHat1.encode(), (com.example.cas.engine.LatexParser.parse(xHat1.latex).items.single() as com.example.cas.editor.Sym).text)
     @Test fun lettersTabStartsWithTheBuilder() {
         val rows = com.example.cas.ui.letterRows(listOf(xHat1.encode()))
         // The builder and := first, then the symbols you built.

@@ -91,4 +91,23 @@ class SheetTest {
         assertEquals(1, t.badCells())
         assertNull(t.value(1, 2))
     }
+
+    @Test fun referencesInAFormula() {
+        val r = Sheet.references("=SUM(A1:B3)+\$C\$2*D:D+\"E5\"")
+        assertEquals(3, r.size)
+        assertEquals(listOf(0, 0, 1, 2), listOf(r[0].c0, r[0].r0, r[0].c1, r[0].r1))
+        assertEquals(listOf(2, 1), listOf(r[1].c0, r[1].r0))
+        assertEquals(3, r[2].c0); assertEquals(Int.MAX_VALUE, r[2].r1)
+        assertEquals("A1:B3", "=SUM(A1:B3)+".substring(r[0].at.first, r[0].at.last + 1))
+    }
+
+    @Test fun suggestionsWhileTyping() {
+        assertEquals("SU", Sheet.typingName("=SU"))
+        assertEquals("AV", Sheet.typingName("=1+AV"))
+        assertNull(Sheet.typingName("=SUM(A1"))
+        assertNull(Sheet.typingName("12"))
+        assertEquals("SUM", Sheet.suggestions("SU").first())
+        assert(Sheet.suggestions("VLO").contains("VLOOKUP"))
+        assert(Sheet.NAMES.size > 350)
+    }
 }

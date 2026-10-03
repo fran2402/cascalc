@@ -1,5 +1,7 @@
 package com.example.cas.engine
 
+import java.math.BigDecimal
+
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.floor
@@ -410,6 +412,13 @@ object Units {
     /** A unit with its prefix, as read from a unit expression. */
     class Part(val prefix: Prefix?, val unit: Unit, val power: Double) {
         val factor get() = ((prefix?.factor ?: 1.0) * unit.factor).pow(power)
+        /** The factor in exact decimal arithmetic, for whole powers; null otherwise. */
+        val exactFactor: BigDecimal? get() {
+            if (power != Math.rint(power) || abs(power) > 30) return null
+            val base = exact(prefix?.factor ?: 1.0).multiply(exact(unit.factor), MC)
+            val n = power.toInt()
+            return if (n >= 0) base.pow(n, MC) else BigDecimal.ONE.divide(base.pow(-n, MC), MC)
+        }
         val dims get() = unit.dims * power
         fun latex(): String {
             val p = prefix?.latex?.trim() ?: ""
@@ -431,6 +440,36 @@ object Units {
         fun latex(): String = parts.joinToString("\\,") { it.latex() }.ifEmpty { "1" }
         fun toSI(x: Double) = affine?.let { (x + it.offset) * it.factor } ?: (x * factor)
         fun fromSI(x: Double) = affine?.let { x / it.factor - it.offset } ?: (x / factor)
+
+        /** [factor] exactly, from the parts, when they account for all of it. */
+        val exactFactor: BigDecimal? get() {
+            if (parts.isEmpty()) return if (factor == 1.0) BigDecimal.ONE else null
+            var f = BigDecimal.ONE
+            for (p in parts) f = f.multiply(p.exactFactor ?: return null, MC)
+            return f.takeIf { abs(it.toDouble() / factor - 1) < 1e-12 }
+        }
+
+        /** The same in exact decimals, so 1 L is 1000 mL and 68 °F is 20 °C, not 1000.0000000000001 and 20.000000000000057. */
+        fun toSI(x: BigDecimal): BigDecimal = affine?.let { x.add(exact(it.offset), MC).multiply(exact(it.factor), MC) } ?: x.multiply(exactFactor ?: exact(factor), MC)
+        fun fromSI(x: BigDecimal): BigDecimal = affine?.let { x.divide(exact(it.factor), MC).subtract(exact(it.offset), MC) } ?: x.divide(exactFactor ?: exact(factor), MC)
+    }
+
+    private val MC = java.math.MathContext.DECIMAL128
+
+    /**
+     * A unit's factor as the exact number it stands for: the decimal it was written as
+     * (0.3048, 1609.344), or a simple fraction when it's one (5/9 for °F, 1/3600).
+     */
+    fun exact(d: Double): BigDecimal {
+        val shortest = BigDecimal(d.toString())
+        if (shortest.precision() <= 12) return shortest
+        for (q in 2..10_000) {
+            val p = d * q
+            val r = Math.rint(p)
+            // Within a few units in the last place: 5/9 × 9 = 5.000000000000001.
+            if (r != 0.0 && abs(r) < 1e15 && abs(p - r) <= 4 * Math.ulp(p)) return BigDecimal(r.toLong()).divide(BigDecimal(q), MC)
+        }
+        return shortest
     }
 
     class UnitError(message: String) : Exception(message)
@@ -623,11 +662,15 @@ object Units {
 
     /** [value] in [from] as [to]; null target means SI. Throws [UnitError] when they can't convert. */
     fun convert(value: Double, from: Quantity, to: Quantity, bridges: Bridges = Bridges()): Result {
-        if (from.dims.same(to.dims)) return Result(to.fromSI(from.toSI(value)), from, to, null)
+        // In exact decimals, then to 15 significant figures: past that a double holds only noise.
+        fun done(x: BigDecimal) = x.round(java.math.MathContext(15)).toDouble()
+        val x = if (value.isFinite()) BigDecimal(value.toString()) else return Result(to.fromSI(from.toSI(value)), from, to, null)
+        if (from.dims.same(to.dims)) return Result(done(to.fromSI(from.toSI(x))), from, to, null)
         val bridge = bridge(from.dims, to.dims, bridges) ?: throw UnitError("Can't convert \$${from.dims.latex()}\$ to \$${to.dims.latex()}\$")
-        val si = from.toSI(value)
-        val out = (if (bridge.inverse) 1 / si else si) * bridge.factor
-        return Result(to.fromSI(out), from, to, bridge)
+        val si = from.toSI(x)
+        if (si.signum() == 0 && bridge.inverse) throw UnitError("Can't convert zero this way")
+        val out = (if (bridge.inverse) BigDecimal.ONE.divide(si, MC) else si).multiply(exact(bridge.factor), MC)
+        return Result(done(to.fromSI(out)), from, to, bridge)
     }
 
     /** The simplest c^a h^b k_B^k (perhaps of 1/x) taking [from] to [to], or null. */

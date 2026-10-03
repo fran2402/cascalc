@@ -1542,7 +1542,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
     val colors = MaterialTheme.colorScheme
     val tablet = isTabletLayout()
     var howTo by remember { mutableStateOf(false) }
-    if (howTo) HowToUsePage(onBack = { howTo = false })
+    if (howTo) DocsPage(onBack = { howTo = false })
     // One scrolling page on a phone; on a tablet, the sections down the left and one at a time on the right.
     SectionedPage("Settings", onBack = onBack, sections = listOf(
         PageSection("Appearance", Icons.Outlined.Palette) {
@@ -1636,19 +1636,9 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsLink("Report a bug", "An email to the developer with the app's log attached", "Report a bug") { scope.launch { Feedback.reportBug(context) } }
             SettingsLink("Request a feature", "An email to the developer with your idea", "Request a feature") { Feedback.requestFeature(context) }
         },
-        // How to use: inline on a tablet; on a phone a page of its own, so settings stay short.
-        PageSection("How to use", Icons.AutoMirrored.Outlined.HelpOutline) {
-            if (tablet) {
-                HowTo.topics.forEach { topic ->
-                    Text(topic.title, style = MaterialTheme.typography.titleMedium, color = colors.onSurface, modifier = Modifier.padding(top = 8.dp))
-                    HowToTopic(topic)
-                }
-                Text("Spreadsheet functions", style = MaterialTheme.typography.titleMedium, color = colors.onSurface, modifier = Modifier.padding(top = 8.dp))
-                FunctionReference(onPick = null)
-            } else {
-                SettingsLink("How to use", "Every mode with examples, gestures and tips: history, data tables, fitting, formulas, units, files", "Open how to use") { howTo = true }
-                SettingsLink("Spreadsheet functions", "Over 370 of Excel's functions for data tables, with search", "Open the spreadsheet functions") { howTo = true }
-            }
+        // The documentation opens as its own page, on phones and tablets alike.
+        PageSection("Documentation", Icons.AutoMirrored.Outlined.HelpOutline) {
+            SettingsLink("Documentation", "How everything works: ${Docs.chapters.size} chapters with ${Docs.allExamples.size} worked examples, every key, and the spreadsheet functions", "Open the documentation") { howTo = true }
         },
         PageSection("About", Icons.Outlined.Info) {
             SettingsLink("Acknowledgements", "Fonts, libraries, data and methods, with links", "Open the acknowledgements") { onAcknowledgements() }

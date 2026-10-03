@@ -48,7 +48,42 @@ object LatexParser {
     )
     private const val THIN = Formatter.THIN_SPACE
 
-    fun parse(latex: String): MathRow = Reader(latex).row(stopAt = null).also { absoluteBars(it) }
+    fun parse(latex: String): MathRow = Reader(latex).row(stopAt = null).also { absoluteBars(it); scriptedSymbols(it) }
+
+    /**
+     * A letter with a plain subscript (x_1, \hat{x}_{1}, v_{0}^{2}) as one symbol, as the symbol
+     * builder makes it, so a formula sent to a graph or pasted keeps it whole: the subscript is
+     * part of the symbol and a superscript is a power on it.
+     */
+    private fun scriptedSymbols(row: MathRow) {
+        row.items.forEach { n -> n.slots.forEach { scriptedSymbols(it) } }
+        var k = 0
+        while (k < row.items.size) {
+            val n = row.items[k] as? com.example.cas.editor.Scripted
+            val base = (n?.base?.items?.singleOrNull() as? Sym)?.text
+            fun simple(r: MathRow) = r.items.all { (it as? Sym)?.text?.let { t -> t.isNotEmpty() && t.all { c -> c.isLetterOrDigit() || c == '′' } } == true }
+            if (n != null && base != null && n.sub.items.isNotEmpty() && simple(n.sub)) {
+                val custom = com.example.cas.cas.CustomSymbol.decode(base)
+                val letter = base.removePrefix(UPRIGHT)
+                val symbol = when {
+                    custom != null && custom.sub.isEmpty() -> custom.copy(sub = n.sub.items.joinToString("") { (it as Sym).text })
+                    // (Not Σ or Π, whose subscript is an index.)
+                    custom == null && letter !in setOf("Σ", "Π") && (letter.length == 1 && letter[0].isLetter() || com.example.cas.editor.MathAlphabets.isMathLetter(letter)) ->
+                        com.example.cas.cas.CustomSymbol(letter, sub = n.sub.items.joinToString("") { (it as Sym).text }, upright = if (base.startsWith(UPRIGHT)) "u" else "")
+                    else -> null
+                }
+                if (symbol != null) {
+                    row.items[k] = Sym(symbol.encode()).also { it.parent = row }
+                    if (n.sup.items.isNotEmpty()) {
+                        val power = com.example.cas.editor.Pow(MathRow(n.sup.items.toMutableList()))
+                        power.parent = row
+                        row.items.add(k + 1, power)
+                    }
+                }
+            }
+            k++
+        }
+    }
 
     /**
      * |x| (or \left| x \right|) as the editor's absolute value, as typed on the keys: bars in the

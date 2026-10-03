@@ -146,4 +146,15 @@ class MoreUnitsTest {
             org.junit.Assert.assertNotNull(p, Units.lookup(p + "m"))
         close(1e30, conv(1.0, "Qm", "m")); close(1e-30, conv(1.0, "qm", "m")); close(10.0, conv(1.0, "dam", "m"))
     }
+
+    /** Conversions come out exact, not 1000.0000000000001 or 20.000000000000057. */
+    @Test fun noFloatingPointNoise() {
+        fun c(v: Double, a: String, b: String) = com.example.cas.engine.Units.convert(v, com.example.cas.engine.Units.parse(a), com.example.cas.engine.Units.parse(b)).value
+        org.junit.Assert.assertEquals(1000.0, c(1.0, "L", "mL"), 0.0)
+        org.junit.Assert.assertEquals(20.0, c(68.0, "°F", "°C"), 0.0)
+        org.junit.Assert.assertEquals(212.0, c(100.0, "°C", "°F"), 0.0)
+        org.junit.Assert.assertEquals(12.0, c(1.0, "ft", "in"), 0.0)
+        org.junit.Assert.assertEquals(1.609344, c(1.0, "mi", "km"), 0.0)
+        org.junit.Assert.assertEquals(0.3, c(30.0, "cm", "m"), 0.0)
+    }
 }

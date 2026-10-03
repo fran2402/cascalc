@@ -1,0 +1,71 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:NCMR;src:url(../app/src/main/res/font/ncm_roman.otf)}
+@font-face{font-family:NCMI;src:url(../app/src/main/res/font/ncm_latin_italic.otf)}
+@font-face{font-family:NCMM;src:url(../app/src/main/res/font/ncm_math.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px;width:1900px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1600px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px;line-height:1.4}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--lowest:#fff;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sec:#5E6045;--onsec:#fff;--sc:#E2E4C4;--onsc:#1B1D0A;--ter:#3C6A5A;--onter:#fff;--tc:#BEECDB;--ontc:#002019;--outv:#C8C7B5;--out:#77786A;--err:#BA1A1A;--ec:#FFDAD6;--onec:#410002}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--lowest:#0D0F08;--c:#1F2018;--ch:#292A22;--chh:#34352C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sec:#C6C8A9;--onsec:#2F321B;--sc:#45483A;--onsc:#E2E4C4;--ter:#A2D0BF;--onter:#05372B;--tc:#214E41;--ontc:#BEECDB;--outv:#47473B;--out:#919283;--err:#FFB4AB;--ec:#93000A;--onec:#FFDAD6}
+.phone{position:relative;width:412px;height:900px;border-radius:44px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.tablet{position:relative;width:1280px;height:800px;border-radius:36px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 12px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font:500 14px GSF}
+.top{display:flex;align-items:center;padding:6px 12px 4px 4px;gap:4px}
+.ib{width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--onv)}
+.done{height:48px;border-radius:16px;background:var(--pri);color:var(--onpri);display:flex;align-items:center;gap:8px;padding:0 20px 0 16px;font:600 15px GSF}
+.pill{font:600 14px GSF;border-radius:20px;padding:6px 12px;background:var(--sc);color:var(--onsc)}
+.pill.e{background:var(--ec);color:var(--onec)}
+.sheet{border-radius:28px;background:var(--bg);overflow:hidden;position:relative}
+.cc{border-radius:18px;padding:8px 2px 6px 8px;display:flex;flex-direction:column;gap:6px;flex:none}
+.badge{height:30px;min-width:30px;padding:0 6px;display:inline-flex;align-items:center;justify-content:center;font:italic 17px CMI}
+.cell{flex:none;height:44px;border-radius:10px;display:flex;align-items:center;padding:0 12px;font:17px CMR}
+.rn{width:52px;flex:none;text-align:center;font:600 14px GSF;color:var(--onv)}
+.tb{position:absolute;bottom:16px;left:0;right:0;display:flex;justify-content:center;gap:10px;align-items:center}
+.tools{border-radius:28px;background:var(--chh);display:flex;padding:4px 6px;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.tools span{width:48px;height:48px;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--onv)}
+.fab{height:56px;border-radius:18px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;gap:8px;padding:0 20px 0 16px;font:600 17px GSF;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.menu{position:absolute;background:var(--c);border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:8px 0;width:270px;z-index:5}
+.menu div{display:flex;align-items:center;gap:12px;padding:10px 16px;font:15px GSF}
+.menu hr{border:none;border-top:1px solid var(--outv);margin:6px 0}
+.mi{display:inline-block;vertical-align:middle}
+.step{display:flex;gap:14px}
+.node{width:30px;height:30px;border-radius:15px;background:var(--pri);color:var(--onpri);font:600 13px GSF;display:flex;align-items:center;justify-content:center;flex:none}
+.mbox{margin-top:8px;border-radius:16px;background:var(--c);padding:10px 12px;overflow:hidden}
+.tools span{width:42px !important}.fab{white-space:nowrap}</style></head><body>
+<h2>Documentation, spreadsheet editing, symbols and exact conversions</h2>
+<p class="note">Settings › Documentation opens a manual: a contents page with search, then chapters numbered by part (The calculator, Graphs and tools, Reference). Each chapter has "On this page" links, numbered sections, notes, formulas, and tables of worked examples. There are 160 examples, and each answer was computed by the calculator itself (a test keeps them in step). The Reference part lists every key and the spreadsheet functions. In the data table, a formula being typed outlines each range it uses in its own color, matching functions appear above the keyboard, and the corner square fills down or across like Excel. Built symbols such as x̂₁ stay whole when sent to a graph. Unit conversions use exact decimals.</p>
+<div class="row" id="main"></div>
+<script>
+const phone=(body,cap,cls='light')=>`<div><div class="phone ${cls}"><div class="status"><span>9:41</span><span>▾ ◢ ▮</span></div>${body}</div><div class="cap">${cap}</div></div>`;
+const bar=t=>`<div class="top"><span class="ib">←</span><span style="font:400 22px GSF;padding-left:4px">${t}</span></div>`;
+const chap=(n,ic,t,s,first,last)=>`<div style="display:flex;align-items:center;gap:14px;background:var(--c);padding:12px 14px;border-radius:${first?24:6}px ${first?24:6}px ${last?24:6}px ${last?24:6}px;margin-bottom:3px"><span style="width:44px;height:44px;border-radius:14px;background:var(--sc);display:flex;align-items:center;justify-content:center;font-size:20px">${ic}</span><div style="flex:1"><div style="font:500 16px GSF">${n}. ${t}</div><div style="font:12px GSF;color:var(--onv)">${s}</div></div><span style="color:var(--onv)">›</span></div>`;
+const contents=bar('Documentation')+`<div style="padding:0 16px"><div style="font:14px GSF;color:var(--onv);margin:4px 4px 10px">Everything CAS Calculator does, with 160 worked examples. Every answer here was worked out by the calculator itself.</div>
+<div style="height:52px;border-radius:28px;border:1px solid var(--out);display:flex;align-items:center;gap:10px;padding:0 16px;font:16px GSF;color:var(--onv);margin-bottom:12px">⌕ Search the documentation</div>
+<div style="font:600 14px GSF;color:var(--pri);margin:8px 4px">The calculator</div>
+${chap(1,'▶','Getting started','Typing math, exact answers and the decimal',1,0)}${chap(2,'▦','Arithmetic and numbers','Fractions, powers, roots, rounding',0,0)}${chap(3,'↗','Powers, exponentials and logs','Exact, real and complex',0,0)}${chap(4,'△','Trigonometry','Exact values, inverses, degrees',0,0)}${chap(5,'◯','Complex numbers','a + bi or polar',0,0)}${chap(6,'ƒ','Algebra','Solving and rewriting',0,0)}${chap(7,'∫','Calculus','Derivatives, integrals, limits, series',0,0)}${chap(8,'∇','Vector calculus','grad, div, curl, Jacobians',0,1)}</div>`;
+const exrow=(inp,ans,note,alt)=>`<div style="padding:10px 14px;${alt?'background:color-mix(in srgb, var(--lowest) 50%, transparent)':''};border-top:1px solid var(--outv)"><div style="font:19px CMR">${inp}</div><div style="text-align:right;font:19px CMR;color:var(--pri)">= ${ans}</div><div style="font:12px GSF;color:var(--onv)">${note}</div></div>`;
+const chapter=bar('Calculus')+`<div style="padding:0 20px">
+<div style="display:flex;align-items:center;gap:14px"><span style="width:56px;height:56px;border-radius:18px;background:var(--pc);display:flex;align-items:center;justify-content:center;font:28px CMR">∫</span><div><div style="font:600 12px GSF;color:var(--pri)">The calculator · Chapter 7</div><div style="font:400 28px GSF">Calculus</div></div></div>
+<div style="font:15px GSF;color:var(--onv);margin:10px 0">Derivatives, integrals, limits, series, sums and differential equations.</div>
+<div style="font:600 13px GSF;color:var(--onv)">On this page</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px">${['7.1 Derivatives','7.2 Integrals','7.3 Limits','7.4 Sums and products','7.5 Taylor series','7.6 Differential equations'].map(t=>`<span style="border:1px solid var(--outv);border-radius:10px;padding:6px 10px;font:500 13px GSF;color:var(--onv)">${t}</span>`).join('')}</div>
+<div style="border-top:1px solid var(--outv);padding-top:16px"><span style="font:400 22px GSF;color:var(--pri)">7.2</span> <span style="font:400 22px GSF">Integrals</span></div>
+<div style="font:15px GSF;margin:10px 0">Leave the limits empty for an antiderivative; fill them for a definite integral. ∞ works as a limit.</div>
+<div style="border:1px solid var(--outv);border-radius:20px;overflow:hidden"><div style="display:flex;justify-content:space-between;background:var(--chh);padding:8px 14px;font:600 13px GSF;color:var(--onv)"><span>You type</span><span>Answer</span></div>
+${exrow('∫ <i style="font-family:CMI">xe<sup>x</sup></i> d<i style="font-family:CMI">x</i>','<i style="font-family:CMI">xe<sup>x</sup></i> − <i style="font-family:CMI">e<sup>x</sup></i>','By parts',0)}${exrow('∫<sub>0</sub><sup>∞</sup> <i style="font-family:CMI">e</i><sup>−<i style="font-family:CMI">x</i></sup> d<i style="font-family:CMI">x</i>','1','Improper',1)}${exrow('∫<sub>−∞</sub><sup>∞</sup> <i style="font-family:CMI">e</i><sup>−<i style="font-family:CMI">x</i>²</sup> d<i style="font-family:CMI">x</i>','√π &nbsp;≈ 1.772 453 851','The Gaussian integral',0)}${exrow('∫ <span style="display:inline-block;vertical-align:middle;text-align:center;font-size:15px"><span style="border-bottom:1px solid">sin <i style="font-family:CMI">x</i></span><br><i style="font-family:CMI">x</i></span> d<i style="font-family:CMI">x</i>','Si(<i style="font-family:CMI">x</i>)','Answers in special functions',1)}</div></div>`;
+const C=(t,w,st)=>`<div class="cell" style="width:${w}px;height:44px;${st||'background:var(--ch)'}">${t}</div>`;
+const tableHL=bar('Data table')+`<div style="padding:0 8px"><div class="sheet" style="height:600px"><div style="display:flex;padding:10px 0 6px"><div style="width:52px"></div>${['A','B','C'].map((l,i)=>`<div class="cc" style="width:${[100,100,140][i]}px;background:var(--c);margin-right:10px"><div style="font:600 14px GSF;color:var(--onv)">${l}</div><div style="font:13px GSF">${['t','d','v'][i]}</div></div>`).join('')}</div>
+${[['0.5','0.31'],['1.0','1.22'],['1.5','2.79'],['2.0','4.88'],['2.5','7.71']].map((row,r)=>`<div style="display:flex;align-items:center;padding:3px 0"><div class="rn">${r+1}</div>${C(row[0],100,r<5?'background:color-mix(in srgb, #1A73E8 10%, var(--ch));border:2px solid #1A73E8':'')}<div style="width:10px"></div>${C(row[1],100,r<5?'background:color-mix(in srgb, #D93025 10%, var(--ch));border:2px solid #D93025':'')}<div style="width:10px"></div>${r==0?`<div class="cell" style="width:140px;height:44px;border:2px solid var(--pri);border-radius:14px;font:15px monospace;position:relative">=SLOPE(<b style="color:#D93025">B1:B5</b>, <b style="color:#1A73E8">A1:A5</b>)<span style="position:absolute;right:-2px;bottom:-2px;width:10px;height:10px;border-radius:2px;background:var(--pri);border:1.5px solid #fff"></span></div>`:C('',140)}</div>`).join('')}</div>
+<div style="background:var(--chh);padding:6px 12px 8px;margin-top:-80px;position:relative"><div style="font:12px monospace;color:var(--onv);padding:2px 4px">=SLOPE(B:B, A:A)</div><div style="display:flex;gap:6px">${['SLOPE','SUM','SMALL','SKEW','SUMIF'].map(n=>`<span style="border-radius:10px;background:var(--sc);color:var(--onsc);padding:8px 12px;font:14px monospace">${n}</span>`).join('')}</div></div></div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:220px;background:#d4d6cd;display:flex;align-items:center;justify-content:center;font:14px GSF;color:#555">keyboard</div>`;
+const fill=bar('Data table')+`<div style="padding:0 8px"><div class="sheet" style="height:700px"><div style="display:flex;padding:10px 0 6px"><div style="width:52px"></div>${['A','B','C'].map((l,i)=>`<div class="cc" style="width:${[100,100,140][i]}px;background:var(--c);margin-right:10px"><div style="font:600 14px GSF;color:var(--onv)">${l}</div><div style="font:13px GSF">${['t','d','v = d/t'][i]}</div></div>`).join('')}</div>
+${[['0.5','0.31'],['1.0','1.22'],['1.5','2.79'],['2.0','4.88'],['2.5','7.71'],['3.0','11.0']].map((row,r)=>`<div style="display:flex;align-items:center;padding:3px 0"><div class="rn">${r+1}</div>${C(row[0],100)}<div style="width:10px"></div>${C(row[1],100)}<div style="width:10px"></div>${r==0?`<div class="cell" style="width:140px;height:44px;border:2px solid var(--pri);border-radius:14px;font:15px monospace;position:relative">=B1/A1<span style="position:absolute;right:-2px;bottom:-2px;width:10px;height:10px;border-radius:2px;background:var(--pri);border:1.5px solid #fff"></span></div>`:C('',140,r<5?'background:color-mix(in srgb, var(--pri) 10%, var(--ch));border:2px solid var(--pri)':'background:var(--ch)')}</div>`).join('')}
+<div style="position:absolute;left:300px;top:250px;font:13px GSF;color:var(--pri);background:var(--bg);padding:4px 8px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.2)">↓ drag the corner</div></div></div>`;
+document.getElementById('main').innerHTML=phone(contents,'Settings › Documentation: contents grouped by part, with search. Reference holds every key and the spreadsheet functions.')+phone(chapter,'A chapter: its number and part, "On this page" links, numbered sections, and worked examples (you type → answer, with decimal and note).')+phone(tableHL,'Typing =SLOPE(B1:B5, A1:A5): each range is outlined in its own color, matching the formula text. Matching functions sit above the keyboard, with how the first is written.')+phone(fill,'The fill handle: drag the corner square of =B1/A1 down to row 5. On release, each row gets =B2/A2, =B3/A3… (across fills along the row).');
+document.title='ready';
+</script></body></html>

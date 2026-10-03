@@ -232,9 +232,16 @@ private class ConverterState(
             var error: String? = null
             val result = if (fq != null && tq != null && v != null) runCatching { Units.convert(v, fq, tq, bridges) }.getOrElse { error = it.message; null } else null
             if (v == null && valueText.isNotBlank()) error = "That value isn't a number"
-            return ConverterState(to, fq, fe, tq, te, result, error, if (fq != null && v != null) fq.toSI(v) else null)
+            return ConverterState(to, fq, fe, tq, te, result, error, if (fq != null && v != null && v.isFinite()) fq.toSI(java.math.BigDecimal(v.toString())).round(java.math.MathContext(15)).toDouble() else null)
         }
     }
+}
+
+/** [x] (in units of [of], SI by default) in [base]'s units, worked out in exact decimals. */
+private fun exactRatio(x: Double, base: Units.Quantity, of: Units.Quantity? = null): Double {
+    val mc = java.math.MathContext.DECIMAL128
+    val v = java.math.BigDecimal(x.toString()).let { if (of != null) it.multiply(of.exactFactor ?: Units.exact(of.factor), mc) else it }
+    return v.divide(base.exactFactor ?: Units.exact(base.factor), mc).round(java.math.MathContext(15)).toDouble()
 }
 
 /** A typed value: 3e8, 3×10^8, 3·10⁸, −2.5 or 1,5. */
@@ -544,9 +551,9 @@ private fun DetailsCard(state: ConverterState, digits: Int) {
         Units.quantityName(q.dims)?.let { row("Measures", it) }
         state.si?.let { si ->
             val base = Units.inSystem(q.dims, "base")
-            row("In SI base", "\$${Units.number(si / base.factor, digits)}\\;${base.latex().takeIf { it != "1" } ?: ""}\$")
+            row("In SI base", "\$${Units.number(exactRatio(si, base), digits)}\\;${base.latex().takeIf { it != "1" } ?: ""}\$")
         }
-        row("Size", "\$1\\;${q.latex()} = ${Units.number(q.factor / Units.inSystem(q.dims, "base").factor, digits)}\\;${Units.inSystem(q.dims, "base").latex().takeIf { it != "1" } ?: ""}\$")
+        row("Size", "\$1\\;${q.latex()} = ${Units.number(exactRatio(1.0, Units.inSystem(q.dims, "base"), q), digits)}\\;${Units.inSystem(q.dims, "base").latex().takeIf { it != "1" } ?: ""}\$")
     }
 }
 
@@ -559,7 +566,7 @@ private fun OptionsCard(digits: Int, onDigits: (Int) -> Unit, c: Boolean, onC: (
         Text("Significant figures: $digits", style = MaterialTheme.typography.labelLarge, color = colors.onSurface, modifier = Modifier.padding(start = 4.dp))
         ExpressiveSlider(
             value = digits.toFloat(),
-            onValueChange = { onDigits(it.toInt()) },
+            onValueChange = { v -> kotlin.math.round(v).toInt().let { if (it != digits) onDigits(it) } },
             valueRange = 2f..15f,
             steps = 12,
             modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Significant figures" },
