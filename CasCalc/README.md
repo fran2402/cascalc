@@ -203,6 +203,13 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (3 October)
+- **New icon**: a curve inside a hexagon over three axes, cream and sage on dark green. It is the
+  adaptive launcher icon, with a one-color themed icon (axes at 40%) on Android 13+. The Play
+  Store graphics in `store/` are `icon-512.png` and `feature-graphic.png` /
+  `feature-graphic-plain.png`, and the home-screen shortcuts use the same colors. Everything
+  comes from `preview-render/icon_artboard.py` (`render_store.py` makes the PNGs).
+
 ## Latest changes (1 October)
 - **Folders**: every line has its own depth, so a folder holds only the lines inside it: +
   never drops a new line into a folder, and moving a (closed) folder carries its lines as a block
@@ -241,7 +248,7 @@ signed with a throwaway debug key, so they install alongside nothing from the Pl
   bends down (gold), on deep blue-green. Launcher icon (adaptive, and a line-art themed icon on
   Android 13+) and the Play Store graphics in `store/`: `icon-512.png` (512 × 512) and
   `feature-graphic.png` / `feature-graphic-plain.png` (1024 × 500). All generated from one
-  script, `preview-render/icon_saddle.py` (`render_store.py` makes the PNGs).
+  script, `preview-render/icon_saddle.py` (since replaced by `icon_artboard.py`).
 
 ## Latest changes (30 September, seventh round)
 - **Complex plots**: the empty plane is white in light mode (black in dark mode), with dark
