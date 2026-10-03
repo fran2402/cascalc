@@ -69,7 +69,7 @@ object AppSettings {
     /** Beta: Excel-style formulas (=SUM(A:A), =B1*2…) in the data table. */
     var sheetFormulas by mutableStateOf(false)
         private set
-    /** Alpha: GeoGebra-style geometry in the 2D graph (named points, Segment(A, B), Circle, Intersect…, and tools to build by tapping). */
+    /** Alpha: geometry mode in the 2D graph (named points, Segment(A, B), Circle, Intersect…, and tools to build by tapping). */
     var geometry by mutableStateOf(false)
         private set
     /** The converter's last value, from and to units, so it opens where it was left. */

@@ -203,8 +203,22 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (3 October, geometry fourth pass)
+- **Fixed:** the app crashed on start, and kept crashing, once geometry mode was on. Lines
+  were being built before the graph's view existed; they are now built once it does.
+- **More tools:** a Transform group (mirror in a line or a point, invert in a circle, rotate,
+  translate, dilate). Also new: polyline, best-fit line, compass, a segment with a set length,
+  a circle with a set radius, an angle with a set size, a circumcircular sector, roots and
+  extrema of a function, slope, and Relation. Tools that need a number ask for it after the
+  taps. Tools that take any number of points finish with Finish.
+- **New commands:** Polyline, FitLine, Root, Extremum, CircumcircularSector and Relation.
+  Circle(A, segment) uses the segment's length as the radius, and Reflect in a circle
+  inverts.
+- **Naming:** it's called geometry mode everywhere; GeoGebra, whose tools it follows, is
+  credited in Acknowledgements.
+
 ## Latest changes (3 October, geometry third pass)
-- **Geometry (alpha), third pass**:
+- **Geometry mode (alpha), third pass**:
   - **Loci:** Locus(P, Q) draws the curve P traces as Q slides along its object, and there's
     a Locus tool. Other lines can use a locus, for example a point on it.
   - **New commands:** triangle centers (Circumcenter, Orthocenter, Incenter, and Centroid of
@@ -216,7 +230,7 @@ signed with a throwaway debug key, so they install alongside nothing from the Pl
     along its path by itself, and everything built on it follows.
 
 ## Latest changes (3 October, geometry second pass)
-- **Geometry (alpha), second pass**:
+- **Geometry mode (alpha), second pass**:
   - Arithmetic mixes with commands: Distance(A, B)/2, M = (A + B)/2, B = A + (2, 0), 3A,
     x(A) and y(A).
   - New objects: conics (Ellipse, Hyperbola, Parabola, Conic through five points), arcs and
@@ -226,10 +240,10 @@ signed with a throwaway debug key, so they install alongside nothing from the Pl
   - Functions f(x) from the graph's own lines work in Intersect, Tangent and Point.
   - The Construct tools pick lines, circles and curves as well as points (with what's picked
     highlighted), and there are many more of them, shown in two columns. New lines get
-    GeoGebra-style names (A, B… for points; f, g… for other objects; α, β… for angles).
+    automatic names (A, B… for points; f, g… for other objects; α, β… for angles).
 
 ## Latest changes (3 October, geometry alpha)
-- **Geometry (alpha)**: GeoGebra-style constructions in the 2D graph, turned on in Settings ›
+- **Geometry mode (alpha)**: constructions in the 2D graph, turned on in Settings ›
   Graphs. A = (1, 2) is a point you can drag, and commands build on it: Segment, Line, Ray,
   Vector, Circle (center and point, radius, or three points), Polygon, Midpoint, Intersect,
   PerpendicularLine, ParallelLine, PerpendicularBisector, AngleBisector, Tangent, Centroid,

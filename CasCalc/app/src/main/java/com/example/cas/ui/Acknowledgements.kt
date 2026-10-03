@@ -126,6 +126,8 @@ val CREDITS: List<CreditGroup> = listOf(
             "LaTeX plotting and matplotlib styles for scientific figures.", "—", "https://ctan.org/pkg/pgfplots"),
         Credit("Desmos", "Desmos Studio", "Graphs: typing any line, restrictions, points, sliders and lists",
             "The graphing calculator many people learn with.", "—", "https://www.desmos.com/calculator"),
+        Credit("GeoGebra", "The GeoGebra team", "Geometry mode: its commands and construction tools",
+            "Command names and tools follow GeoGebra's; none of its code is in the app.", "—", "https://www.geogebra.org"),
         Credit("Google Calculator", "Google", "The look, the keypad, and continuing from an answer",
             "The calculator on Pixel phones.", "—", "https://play.google.com/store/apps/details?id=com.google.android.calculator"),
         Credit("TI-Nspire CAS and HP Prime", "Texas Instruments, HP", "A 2D math editor with exact answers",

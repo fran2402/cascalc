@@ -304,4 +304,34 @@ class GeometryTest {
         // A point can go on a locus too.
         assertNotNull(build(*lines, "P=Point(L,0.5)").last()!!.obj as? Point)
     }
+
+    // ---- Round 4 ----
+
+    @Test fun moreCommands() {
+        val fit = obj("FitLine((0,1),(1,3),(2,5))") as Geometry.Line
+        assertEquals(2.0, (fit.b.y - fit.a.y) / (fit.b.x - fit.a.x), 1e-12)
+        assertTrue(obj("Polyline((0,0),(1,1),(2,0))") is Geometry.Polyline)
+        val sector = obj("CircumcircularSector((1,0),(0,1),(−1,0))") as Geometry.Arc
+        assertTrue(sector.sector); assertEquals(PI, sector.sweep, 1e-9)
+        // The compass: a segment's length as the radius.
+        assertEquals(5.0, (obj("s=Segment((0,0),(3,4))", "Circle((1,1),s)") as Geometry.Circle).r, 1e-12)
+        // Inversion in the unit circle: (2, 0) goes to (1/2, 0).
+        assertPoint(0.5, 0.0, obj("c=Circle((0,0),1)", "Reflect((2,0),c)"))
+    }
+
+    @Test fun rootsAndExtrema() {
+        val f = { x: Double -> x * x - 4 }
+        fun b(vararg lines: String) = Geometry.build(lines.map { Geometry.parse(row(it)) }, number, functionOf = { if (it == "f") f else null }, xRange = -10.0..10.0)
+        val roots = b("Root(f)").last()!!.obj as Geometry.Many
+        assertPoint(-2.0, 0.0, roots.items[0]); assertPoint(2.0, 0.0, roots.items[1])
+        assertPoint(0.0, -4.0, b("Extremum(f)").last()!!.obj)
+    }
+
+    @Test fun relations() {
+        assertEquals("They're parallel", (obj("Relation(Line((0,0),(1,1)),Line((0,1),(1,2)))") as Geometry.Text).value)
+        assertEquals("They're perpendicular", (obj("Relation(Line((0,0),(1,1)),Line((0,0),(1,−1)))") as Geometry.Text).value)
+        assertEquals("The point is on it", (obj("Relation((0,1),Circle((0,0),1))") as Geometry.Text).value)
+        assertEquals("They're equal", (obj("A=(0,0)", "B=(3,4)", "Relation(Distance(A,B),5)") as Geometry.Text).value)
+        assertEquals("They're parallel, and are the same length", (obj("Relation(Segment((0,0),(1,0)),Segment((0,1),(1,1)))") as Geometry.Text).value)
+    }
 }

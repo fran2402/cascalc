@@ -727,7 +727,7 @@ fun plotColors(c: androidx.compose.material3.ColorScheme): List<Color> =
 
 /** A line's name as written (text with $math$): the one it was given, or its default. */
 fun legendSource(f: PlotFunction): String =
-    // Constructions stay out of the legend (as in GeoGebra) unless renamed.
+    // Constructions stay out of the legend unless renamed.
     f.name ?: if (f.geometry != null) "" else com.example.cas.graph.Legend.defaultSource(f.editor.root, isData = f.plot is Plot2DKind.PointList || f.table != null)
 
 /** One line of the legend on screen: the name (text with $math$) and how its sample is drawn. */
@@ -1638,20 +1638,20 @@ private fun AddFabMenu(vm: GraphViewModel, tables: Boolean) {
         add(FabItem("Note", Icons.Default.Notes, "Add a note") { vm.addText(folder = false) })
         add(FabItem("Folder", Icons.Default.CreateNewFolder, "Add a folder") { vm.addText(folder = true) })
         if (tables) add(FabItem("Table", Icons.Default.TableChart, "Add a table") { vm.addTable() })
-        if (tables && AppSettings.geometry) add(FabItem("Geometry", Icons.Default.Hexagon, "Add a geometry command") { commands = true })
+        if (tables && AppSettings.geometry) add(FabItem("Geometry mode", Icons.Default.Hexagon, "Add a geometry mode command") { commands = true })
     }
     FabMenu(items, size = 48.dp, description = "Add a line, note, folder or table")
     if (commands) GeometryCommandsDialog(onPick = { c -> commands = false; vm.addCommandLine(c) }, onDismiss = { commands = false })
 }
 
-/** GeoGebra's commands available in the 2D graph (alpha): tap one to start a line with it. */
+/** Geometry mode's commands (alpha): tap one to start a line with it. */
 @Composable
 private fun GeometryCommandsDialog(onPick: (com.example.cas.graph.Geometry.Command) -> Unit, onDismiss: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Default.Hexagon, contentDescription = null) },
-        title = { Text("Geometry commands") },
+        title = { Text("Geometry mode commands") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text("Name a point with a capital (A = (1, 2)) and build on it. Drag free points on the graph.", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)

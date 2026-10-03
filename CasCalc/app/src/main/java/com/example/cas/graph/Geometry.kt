@@ -13,7 +13,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * GeoGebra-style constructions in the 2D graph (alpha): named points, and objects built from
+ * Geometry mode in the 2D graph (alpha): constructions, named points, and objects built from
  * them with commands, each on its own line of the list:
  *
  *     A = (1, 2)              a free point (drag it on the graph)
@@ -66,6 +66,9 @@ object Geometry {
 
     /** A curve given by its points: a locus (several pieces where it breaks off). */
     data class Polyline(val pieces: List<List<Point>>) : Obj()
+
+    /** A sentence about objects: Relation(a, b). */
+    data class Text(val value: String) : Obj()
 
     /** A yes or no: AreParallel(l, m), AreCollinear(A, B, C)… */
     data class Bool(val value: Boolean) : Obj()
@@ -165,6 +168,8 @@ object Geometry {
         Command("CircumcircularArc", "CircumcircularArc(A, B, C)", "The arc from A through B to C"),
         Command("CircularSector", "CircularSector(O, A, B)", "The sector about O from A counterclockwise to the ray OB", listOf("Sector")),
         Command("Polygon", "Polygon(A, B, C)", "The polygon with these corners (three or more)"),
+        Command("Polyline", "Polyline(A, B, C)", "The open path through these points in order"),
+        Command("CircumcircularSector", "CircumcircularSector(A, B, C)", "The sector of the circle through A, B and C, from A through B to C"),
         Command("RegularPolygon", "RegularPolygon(A, B, n)", "The regular polygon with n sides on AB, counterclockwise"),
         Command("Ellipse", "Ellipse(F, G, a)", "The ellipse with foci F and G and semi-major axis a (or through a point)"),
         Command("Hyperbola", "Hyperbola(F, G, a)", "The hyperbola with foci F and G and semi-major axis a (or through a point)"),
@@ -189,6 +194,10 @@ object Geometry {
         Command("Directrix", "Directrix(p)", "A parabola's directrix"),
         Command("Polar", "Polar(A, c)", "The polar line of A with respect to a circle or conic"),
         Command("Locus", "Locus(P, Q)", "The curve P traces as Q, a point on an object, moves along it"),
+        Command("FitLine", "FitLine(A, B, C)", "The best-fitting line through points (least squares)"),
+        Command("Root", "Root(f)", "Where a function's graph crosses the x-axis (in and around the view)"),
+        Command("Extremum", "Extremum(f)", "A function's highest and lowest turning points (in and around the view)"),
+        Command("Relation", "Relation(a, b)", "How two objects relate: equal, parallel, perpendicular, on each other…"),
         Command("Distance", "Distance(A, B)", "How far apart two points are, or a point and a line or circle"),
         Command("Length", "Length(s)", "The length of a segment, vector or arc, or the perimeter of a polygon"),
         Command("Perimeter", "Perimeter(poly)", "The perimeter of a polygon, or a circle's circumference"),
@@ -223,7 +232,7 @@ object Geometry {
         return t.length == 1 && t[0].isLetter() && t !in setOf("e", "i", "π", "x", "y")
     }
 
-    /** A point's name: a capital letter, or a built symbol on one (GeoGebra's convention). */
+    /** A point's name: a capital letter, or a built symbol on one. */
     fun isPointName(n: Node?): Boolean {
         val t = text(n) ?: return false
         val base = com.example.cas.cas.CustomSymbol.decode(t)?.base ?: t
@@ -640,7 +649,12 @@ object Geometry {
                     else -> { need(2); Vector(point(a[0]), point(a[1])) }
                 }
                 "Circle" -> when (a.size) {
-                    2 -> { val c0 = point(a[0]); when (val b = a[1]) { is Point -> Circle(c0, (b - c0).length); else -> Circle(c0, abs(num(b))) } }
+                    2 -> { val c0 = point(a[0]); when (val b = a[1]) {
+                        is Point -> Circle(c0, (b - c0).length)
+                        // A segment's length as the radius (the compass).
+                        is Segment -> Circle(c0, (b.b - b.a).length)
+                        else -> Circle(c0, abs(num(b)))
+                    } }
                     3 -> circumcircle(point(a[0]), point(a[1]), point(a[2]))
                     else -> { need(2, 3); throw IllegalStateException() }
                 }
@@ -666,6 +680,33 @@ object Geometry {
                     if (toM <= toQ) Arc(o, circle.r, s, toQ) else Arc(o, circle.r, s, toQ - 2 * PI)
                 }
                 "Polygon" -> { if (a.size < 3) throw GeometryError("A polygon needs three corners or more"); Polygon(a.map { point(it) }) }
+                "Polyline" -> { if (a.size < 2) throw GeometryError("A polyline needs two points or more"); Polyline(listOf(a.map { point(it) })) }
+                "CircumcircularSector" -> { need(3)
+                    val arc = call(Command("CircumcircularArc", "", ""), a, call) as Arc
+                    Arc(arc.center, arc.r, arc.start, arc.sweep, sector = true)
+                }
+                "FitLine" -> {
+                    val pts = a.flatMap { o -> when (o) { is Point -> listOf(o); is Many -> o.items.map { point(it) }; is Polygon -> o.points; else -> listOf(point(o)) } }
+                    if (pts.size < 2) throw GeometryError("A best-fit line needs two points or more")
+                    val mx = pts.sumOf { it.x } / pts.size; val my = pts.sumOf { it.y } / pts.size
+                    val sxx = pts.sumOf { (it.x - mx) * (it.x - mx) }; val sxy = pts.sumOf { (it.x - mx) * (it.y - my) }
+                    // Least squares of y on x; points straight above each other give the vertical line.
+                    if (sxx < 1e-12 * (1 + pts.sumOf { (it.y - my) * (it.y - my) })) Line(Point(mx, my), Point(mx, my + 1))
+                    else Line(Point(mx, my), Point(mx + 1, my + sxy / sxx))
+                }
+                "Root", "Extremum" -> { need(1)
+                    val f = a[0] as? FunctionGraph ?: throw GeometryError("${c.name}(f): f is a function, like f(x) = x² − 2")
+                    val xs = if (c.name == "Root") roots(f.f, xRange.start, xRange.endInclusive, 4000)
+                        else {
+                            // Turning points: where the slope changes sign.
+                            val h = (xRange.endInclusive - xRange.start) * 1e-6
+                            roots({ x -> (f.f(x + h) - f.f(x - h)) / (2 * h) }, xRange.start, xRange.endInclusive, 4000)
+                        }
+                    val pts = xs.map { Point(it, if (c.name == "Root") 0.0 else f.f(it)) }.filter { it.y.isFinite() }
+                    if (pts.isEmpty()) throw GeometryError(if (c.name == "Root") "No zeros in and around the view" else "No turning points in and around the view")
+                    pts.singleOrNull() ?: Many(pts)
+                }
+                "Relation" -> { need(2); Text(relation(a[0], a[1])) }
                 "RegularPolygon" -> { need(3)
                     val p = point(a[0]); val q = point(a[1]); val n = num(a[2]).toInt()
                     if (n < 3) throw GeometryError("A regular polygon needs three sides or more")
@@ -869,6 +910,19 @@ object Geometry {
                 }
                 "Reflect" -> { need(2)
                     when (val m = a[1]) {
+                        // In a circle: inversion, P′ on the ray from the center with |OP|·|OP′| = r².
+                        is Circle -> {
+                            fun invert(p: Point): Point {
+                                val d = p - m.center; val l2 = d.x * d.x + d.y * d.y
+                                if (l2 < 1e-24) throw GeometryError("The center has no image in the circle")
+                                return m.center + d.times(m.r * m.r / l2)
+                            }
+                            when (val o = a[0]) {
+                                is Point -> invert(o)
+                                is Many -> Many(o.items.map { invert(point(it)) })
+                                else -> throw GeometryError("Reflecting in a circle works on points here")
+                            }
+                        }
                         is Point -> transform(a[0], scale = -1.0) { p -> m + m - p }
                         else -> { val l = asLine(m); transform(a[0], mirror = true) { p -> mirror(p, l.first, l.second) } }
                     }
@@ -900,6 +954,45 @@ object Geometry {
         is Angle -> o.sweep
         else -> null
     }
+
+    /** How two objects relate, in words (Relation(a, b)). */
+    private fun relation(a: Obj, b: Obj): String {
+        fun near(x: Double, y: Double) = abs(x - y) <= 1e-9 * maxOf(1.0, abs(x), abs(y))
+        return when {
+            a is Point && b is Point -> if ((a - b).length < 1e-9) "The points are the same" else "The points are different (${fmt((a - b).length)} apart)"
+            isStraight(a) && isStraight(b) -> {
+                val u = direction(a); val v = direction(b)
+                val cross = u.x * v.y - u.y * v.x; val dot = u.x * v.x + u.y * v.y
+                when {
+                    abs(cross) < 1e-9 -> if (distanceTo(asLine(a).first, Line(asLine(b).first, asLine(b).second)) < 1e-9) "They're on the same line" else "They're parallel"
+                    abs(dot) < 1e-9 -> "They're perpendicular"
+                    else -> "They cross at " + fmtAngle(kotlin.math.acos(abs(dot)))
+                } + if (a is Segment && b is Segment && near((a.b - a.a).length, (b.b - b.a).length)) ", and are the same length" else ""
+            }
+            a is Point || b is Point -> {
+                val p = (if (a is Point) a else b) as Point; val o = if (a is Point) b else a
+                val on = when (o) {
+                    is Circle -> near((p - o.center).length, o.r)
+                    is Conic -> abs(conicValue(o.c, p)) < 1e-9 * (1 + o.c.maxOf { abs(it) })
+                    is Line, is Segment, is Ray, is Vector -> distanceTo(p, o) < 1e-9
+                    is Polygon -> pieces(o).any { distanceTo(p, it) < 1e-9 }
+                    else -> false
+                }
+                if (on) "The point is on it" else "The point isn't on it"
+            }
+            value(a) != null && value(b) != null -> if (near(value(a)!!, value(b)!!)) "They're equal" else "They're different (${fmt(value(a)!!)} and ${fmt(value(b)!!)})"
+            a is Circle && b is Circle -> when {
+                (a.center - b.center).length < 1e-9 && near(a.r, b.r) -> "The circles are the same"
+                (a.center - b.center).length < 1e-9 -> "The circles are concentric"
+                near((a.center - b.center).length, a.r + b.r) || near((a.center - b.center).length, abs(a.r - b.r)) -> "The circles touch"
+                else -> "The circles meet in ${circles(a, b).size} points"
+            }
+            else -> intersections(a, b).size.let { n -> if (n == 0) "They don't meet" else "They meet in $n point" + if (n == 1) "" else "s" }
+        }
+    }
+
+    private fun fmt(v: Double) = java.math.BigDecimal(v).round(java.math.MathContext(5)).stripTrailingZeros().toPlainString()
+    private fun fmtAngle(r: Double) = fmt(Math.toDegrees(r)) + "°"
 
     /** An angle brought into [0, 2π). */
     private fun ccw(a: Double): Double { var s = a % (2 * PI); if (s < 0) s += 2 * PI; return s }
@@ -998,7 +1091,7 @@ object Geometry {
         is Conic -> conicThrough(conicSamples(o).map(f)).let { Conic(it.c, o.kind) }
         is Angle -> o
         is Many -> Many(o.items.map { transform(it, scale, turn, mirror, f) })
-        is Number, is Bool -> throw GeometryError("A number can't be moved")
+        is Number, is Bool, is Text -> throw GeometryError("A number can't be moved")
         is FunctionGraph -> throw GeometryError("A function's graph can't be moved here")
         is Polyline -> Polyline(o.pieces.map { it.map(f) })
     }
@@ -1517,7 +1610,7 @@ object Geometry {
             }
             is Polyline -> Drawing(lines = o.pieces.map { piece -> piece.map { pt(it) } })
             // A function's graph is drawn by its own line; a number isn't drawn.
-            is FunctionGraph, is Number, is Bool -> Drawing()
+            is FunctionGraph, is Number, is Bool, is Text -> Drawing()
         }
     }
 
@@ -1546,7 +1639,7 @@ object Geometry {
 
     /** Polylines an object is drawn with, for finding what a tap is on (empty for points and numbers). */
     fun outline(o: Obj, view: Viewport): List<List<kotlin.Pair<Double, Double>>> = when (o) {
-        is Point, is Number, is Angle, is FunctionGraph, is Bool -> emptyList()
+        is Point, is Number, is Angle, is FunctionGraph, is Bool, is Text -> emptyList()
         else -> draw(o, view).lines
     }
 
@@ -1565,7 +1658,7 @@ object Geometry {
         }
     }
 
-    /** A name for a line, circle or number, as GeoGebra gives them: f, g, h, … (skipping letters with other meanings), then f₁, … */
+    /** A name for a line, circle or number: f, g, h, … (skipping letters with other meanings), then f₁, … */
     fun nextObjectName(used: Set<String>): String {
         val letters = "fghjklmnpqsuvwabcdo".toList()
         for (c in letters) if (c.toString() !in used) return c.toString()
