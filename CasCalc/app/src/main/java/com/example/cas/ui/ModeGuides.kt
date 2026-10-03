@@ -117,7 +117,7 @@ object ModeGuides {
         ),
         listOf(
             Tip("folder", "Folders and notes", "＋ adds lines, notes and folders; drag to reorder"),
-            Tip("table", "Data", "Import a CSV or edit points as a table; a line with unknowns (\$y = ax + b\$) then gets Fit"),
+            Tip("table", "Data", "Import a CSV, Excel or Google Sheets file, or edit points as a table; a line with unknowns (\$y = ax + b\$) then gets Fit"),
             Tip("export", "Export", "PNG, JPG, SVG or PDF in a LaTeX style, and a graph file to share"),
         ),
     )

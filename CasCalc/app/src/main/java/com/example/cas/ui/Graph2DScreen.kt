@@ -398,16 +398,22 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
             scale = vm.scale,
             onGraphFile = { share -> exporting = false; writeFile(com.example.cas.graph.GraphFile.Contents(com.example.cas.graph.GraphFile.Kind.Graph2D, "graph", vm.graphData()), share) },
         )
-        // Import a CSV file of data points as point lists.
+        // Import data points from a CSV file or a spreadsheet (Excel, Google Sheets, LibreOffice).
         val context = androidx.compose.ui.platform.LocalContext.current
         val scope = rememberCoroutineScope()
         val importer = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
             if (uri == null) return@rememberLauncherForActivityResult
             scope.launch {
+                var oldExcel = false
                 val table = runCatching {
                     withContext(Dispatchers.IO) {
-                        val text = context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } ?: ""
-                        com.example.cas.graph.Csv.parse(text)
+                        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() } ?: ByteArray(0)
+                        // Excel and OpenDocument (Google Sheets) workbooks are zips; anything else is read as text.
+                        when (com.example.cas.graph.Spreadsheet.format(bytes)) {
+                            com.example.cas.graph.Spreadsheet.Format.Xlsx, com.example.cas.graph.Spreadsheet.Format.Ods -> com.example.cas.graph.Spreadsheet.parse(bytes)
+                            com.example.cas.graph.Spreadsheet.Format.Xls -> { oldExcel = true; null }
+                            com.example.cas.graph.Spreadsheet.Format.None -> com.example.cas.graph.Csv.parse(bytes.toString(Charsets.UTF_8))
+                        }
                     }
                 }.getOrNull()
                 // One line for the file: its first column against its second. The other columns
@@ -415,7 +421,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 val n = if (table == null || table.columns.isEmpty()) 0 else vm.importTable(table)
                 android.widget.Toast.makeText(
                     context,
-                    if (n == 0) "No numbers found in that file" else "$n points" + if ((table?.columns?.size ?: 0) > 2) " · ${table!!.columns.size} columns, pick more in the table" else "",
+                    if (oldExcel) "Old .xls files can't be read: save it as .xlsx or .csv" else if (n == 0) "No numbers found in that file" else "$n points" + if ((table?.columns?.size ?: 0) > 2) " · ${table!!.columns.size} columns, pick more in the table" else "",
                     android.widget.Toast.LENGTH_SHORT,
                 ).show()
             }
@@ -424,10 +430,17 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
             Spacer(Modifier.width(8.dp))
             Box(
                 Modifier.size(48.dp).shadow(6.dp, CircleShape).clip(CircleShape).background(colors.secondaryContainer)
-                    .clickable(onClickLabel = "Import points from a CSV file") { tap(); importer.launch(arrayOf("text/*", "application/csv", "application/vnd.ms-excel", "application/octet-stream")) },
+                    .clickable(onClickLabel = "Import points from a CSV, Excel or Google Sheets file") {
+                        tap()
+                        importer.launch(arrayOf(
+                            "text/*", "application/csv", "application/vnd.ms-excel", "application/octet-stream", "application/zip",
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel.sheet.macroEnabled.12",
+                            "application/vnd.oasis.opendocument.spreadsheet",
+                        ))
+                    },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Default.UploadFile, contentDescription = "Import CSV", tint = colors.onSecondaryContainer)
+                Icon(Icons.Default.UploadFile, contentDescription = "Import data", tint = colors.onSecondaryContainer)
             }
         }, tools = {
             // Circles of constant r mean nothing on log axes: turning the grid on goes back to linear ones.

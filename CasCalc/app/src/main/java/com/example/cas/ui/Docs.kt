@@ -513,10 +513,14 @@ object Docs {
                     para("In the 2D graph, ＋ › Table adds a table; tap its line to open it. Tap a column's card for its role: \$x\$, \$y\$, \$\\sigma(x)\$ or \$\\sigma(y)\$ (error bars), or not used. Without an \$x\$ column, rows are numbered 1, 2, 3…"),
                 ),
                 section(
+                    "Importing files",
+                    para("The import button left of the bottom bar reads a CSV or TSV file, an Excel workbook (.xlsx, .xlsm) or an OpenDocument sheet (.ods). For Google Sheets, use File › Download as .xlsx, .ods or .csv. The first sheet with numbers is read, formulas give their last value, and a row of words above the numbers names the columns. Old .xls files need saving as .xlsx first."),
+                ),
+                section(
                     "Editing",
                     table(
                         "Tap a cell" to "Type in it; Next moves down, adding a row at the end",
-                        "＋ (bottom left)" to "A row, a column, or a table pasted from the clipboard",
+                        "＋ (bottom right)" to "A row, a column, or a table pasted from the clipboard",
                         "Tap a row's number" to "Insert a row above or below, or remove it",
                         "Drag a grip" to "Resize a column (between the cards) or a row (under its number)",
                         "Double-tap a grip" to "Back to the usual size",

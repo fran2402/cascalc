@@ -28,10 +28,18 @@ object Csv {
             if (decimalComma) t = t.replace(',', '.')
             return t.toDoubleOrNull()?.takeIf { it.isFinite() }
         }
+        return fromCells(lines.map { cells(it) }, ::number)
+    }
+
+    /**
+     * The table in rows of cells (from a CSV file or a spreadsheet): rows of numbers are kept,
+     * the first row of words before them names the columns.
+     */
+    internal fun fromCells(cells: List<List<String>>, number: (String) -> Double?): Table {
         var names: List<String>? = null
         val rows = ArrayList<List<Double>>()
-        for (line in lines) {
-            val c = cells(line)
+        for (c in cells) {
+            if (c.all { it.isBlank() }) continue
             val values = c.map { number(it) }
             if (values.all { it == null }) { if (names == null && rows.isEmpty()) names = c; continue }
             // Rows with a gap or a word in them are left out, rather than guessed.
