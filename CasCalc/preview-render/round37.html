@@ -1,0 +1,90 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:NCMR;src:url(../app/src/main/res/font/ncm_roman.otf)}
+@font-face{font-family:NCMI;src:url(../app/src/main/res/font/ncm_latin_italic.otf)}
+@font-face{font-family:NCMM;src:url(../app/src/main/res/font/ncm_math.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px;width:1900px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1600px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px;line-height:1.4}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--lowest:#fff;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sec:#5E6045;--onsec:#fff;--sc:#E2E4C4;--onsc:#1B1D0A;--ter:#3C6A5A;--onter:#fff;--tc:#BEECDB;--ontc:#002019;--outv:#C8C7B5;--out:#77786A;--err:#BA1A1A;--ec:#FFDAD6;--onec:#410002}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--lowest:#0D0F08;--c:#1F2018;--ch:#292A22;--chh:#34352C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sec:#C6C8A9;--onsec:#2F321B;--sc:#45483A;--onsc:#E2E4C4;--ter:#A2D0BF;--onter:#05372B;--tc:#214E41;--ontc:#BEECDB;--outv:#47473B;--out:#919283;--err:#FFB4AB;--ec:#93000A;--onec:#FFDAD6}
+.phone{position:relative;width:412px;height:900px;border-radius:44px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+
+.tsw{display:flex;gap:4px;background:var(--lowest);border-radius:26px;padding:5px;box-shadow:0 3px 10px rgba(0,0,0,.18)}
+.tsw span{width:40px;height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center;color:var(--onv);font:18px GSF}
+.tsw span.on{width:auto;padding:0 14px;background:var(--pri);color:var(--onpri);font:500 14px GSF}
+.ttop{height:56px;display:flex;align-items:center;justify-content:center;position:relative}
+.tdots{position:absolute;right:18px;font:700 22px GSF;color:var(--onv)}
+.graph{position:relative;overflow:hidden;background:var(--bg)}
+.gtb{position:absolute;right:12px;bottom:12px;display:flex;background:var(--chh);border-radius:26px;padding:4px 6px;box-shadow:0 3px 10px rgba(0,0,0,.2)}.gtb span{width:38px;height:42px;display:flex;align-items:center;justify-content:center;color:var(--onv);font-size:18px}
+.gfab{position:absolute;left:12px;bottom:12px;width:50px;height:50px;border-radius:16px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;justify-content:center;font:26px GSF;box-shadow:0 3px 10px rgba(0,0,0,.25)}
+.gimp{position:absolute;left:70px;bottom:13px;width:48px;height:48px;border-radius:24px;background:var(--sc);color:var(--onsc);display:flex;align-items:center;justify-content:center;font:18px GSF}
+.cons{position:absolute;right:10px;top:10px;background:var(--sc);color:var(--onsc);border-radius:20px;padding:8px 14px;font:500 13px GSF}
+.list{background:var(--low);padding:6px 12px;display:flex;flex-direction:column;gap:6px;overflow:hidden}
+.ln{display:flex;align-items:center;background:var(--bg);border-radius:20px;min-height:56px;padding:4px 4px 4px 8px;gap:6px}
+.ln.act{outline:2px solid var(--pri)}
+.ldot{width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex:none}.ldot i{width:18px;height:18px;border-radius:9px;display:block}
+.lm{flex:1;font:22px CMR;white-space:nowrap;overflow:hidden;padding-left:6px}.lm em{font:22px CMI}.lm sup{font:15px CMR}
+.lval{font:15px CMR;color:var(--onv);margin:-2px 0 2px 56px}
+.lx{width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--onv);font:18px GSF;flex:none}
+.cur{display:inline-block;width:2px;height:26px;background:var(--pri);vertical-align:-5px;margin:0 1px}
+.slider{background:var(--bg);border-radius:20px;padding:10px 16px;display:flex;align-items:center;gap:12px;font:20px CMI}
+.track{flex:1;height:16px;border-radius:8px;background:var(--sc);position:relative}.track b{position:absolute;left:0;top:0;bottom:0;width:62%;border-radius:8px;background:var(--pri)}.track i{position:absolute;left:61%;top:-8px;width:4px;height:32px;border-radius:2px;background:var(--pri)}
+.kpd{background:var(--low);padding:0 10px 10px}
+.handle{height:24px;display:flex;align-items:center;justify-content:center}.handle i{width:36px;height:4px;border-radius:2px;background:var(--onv);opacity:.4}
+.kbar{display:flex;align-items:center;gap:6px;height:46px}
+.seg{display:flex;border:1px solid var(--out);border-radius:20px;overflow:hidden}.seg span{padding:7px 14px;font:14px GSF}.seg span.on{background:var(--sc)}
+.arrow{width:40px;height:40px;border-radius:14px;background:var(--chh);display:flex;align-items:center;justify-content:center;font:18px GSF;margin-left:6px}
+.qv{display:flex;gap:6px;margin:4px 0 6px}.qv span{flex:1;height:34px;border-radius:12px;background:var(--ch);display:flex;align-items:center;justify-content:center;font:19px CMI}
+.ftab{display:flex;gap:4px;margin-bottom:6px}.ftab span{flex:1;height:34px;border-radius:17px;display:flex;align-items:center;justify-content:center;font:14px GSF;color:var(--onv)}.ftab span.on{background:var(--sc);color:var(--onsc)}
+.fk{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;background:var(--c);border-radius:22px;padding:8px;margin-bottom:8px}.fk span{height:38px;border-radius:19px;background:var(--chh);display:flex;align-items:center;justify-content:center;font:18px CMR}
+.nk{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.nk span{height:48px;border-radius:24px;background:var(--chh);display:flex;align-items:center;justify-content:center;font:22px GSF}.nk span.op{background:var(--sc)}.nk span.ent{background:#ffdcbd;color:#2c1600}
+.kbfab{position:absolute;right:16px;bottom:16px;width:48px;height:48px;border-radius:14px;background:var(--sc);color:var(--onsc);display:flex;align-items:center;justify-content:center;font:20px GSF;box-shadow:0 3px 10px rgba(0,0,0,.25)}
+.callout{position:absolute;background:#1f1f1a;color:#fff;font:500 13px/1.35 GSF;padding:8px 12px;border-radius:12px;max-width:220px;z-index:9;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.callout:after{content:"";position:absolute;width:10px;height:10px;background:#1f1f1a;transform:rotate(45deg)}
+.callout.down:after{bottom:-5px;left:24px}.callout.up:after{top:-5px;left:24px}.callout.upr:after{top:-5px;right:24px}
+.phone .status{padding:0 44px !important}</style></head>
+<body style="width:2060px">
+<h2>Round 37: Room to type on phones</h2>
+<p class="note">Adding a line, note or folder, editing a line, or tapping the keyboard button hides the graph and its buttons (＋, import, export, tools). The list takes the room above the keyboard and shows every line, scrolling, not just the one being edited, with the cursor kept in view. Enter, or pulling the keyboard's handle down, brings the graph back. The same applies in 2D, 3D and the complex plane; construct mode closes when this starts.</p>
+<div class="row" id="row"></div>
+<script>
+const P=(cls,inner)=>`<div class="${cls}"><div class="phone">${inner}</div></div>`;
+const hdr=(mode)=>`<div class="status"><span>12:30</span><span>▴ ▮</span></div><div class="ttop"><div class="tsw"><span>▦</span>${mode=='2d'?'<span class="on">⟋ 2D graphing</span><span>⬡</span><span>◐</span>':mode=='3d'?'<span>⟋</span><span class="on">⬡ 3D graphing</span><span>◐</span>':''}</div><span class="tdots">⋮</span></div>`;
+function grid(w,h,dark){let s=`<svg width="${w}" height="${h}">`;for(let x=w/2%40;x<w;x+=40)s+=`<line x1="${x}" y1="0" x2="${x}" y2="${h}" stroke="var(--outv)" opacity=".45"/>`;for(let y=h/2%40;y<h;y+=40)s+=`<line x1="0" y1="${y}" x2="${w}" y2="${y}" stroke="var(--outv)" opacity=".45"/>`;
+ s+=`<line x1="0" y1="${h/2}" x2="${w}" y2="${h/2}" stroke="var(--on)" stroke-width="1.3"/><line x1="${w/2}" y1="0" x2="${w/2}" y2="${h}" stroke="var(--on)" stroke-width="1.3"/>`;
+ const curve=(f,c)=>{let d='';for(let px=0;px<=w;px+=3){const x=(px-w/2)/40,y=f(x),py=h/2-y*40;d+=(px?'L':'M')+px+' '+py.toFixed(1)}return `<path d="${d}" fill="none" stroke="${c}" stroke-width="3"/>`};
+ s+=curve(x=>Math.sin(x),'var(--ter)')+curve(x=>x*x-2,'var(--pri)')+curve(x=>2*x+1,'var(--sec)')+curve(x=>1.5*Math.cos(x),'#c2410c');
+ return s+'</svg>'}
+const line=(dot,math,val,act)=>`<div class="ln${act?' act':''}"><div class="ldot"><i style="background:${dot}"></i></div><div class="lm">${math}</div><div class="lx">✕</div></div>${val?`<div class="lval">${val}</div>`:''}`;
+const L1=line('var(--ter)','<em>y</em> = sin <em>x</em>');
+const L2=line('var(--pri)','<em>f</em>(<em>x</em>) = <em>x</em><sup>2</sup> − 2');
+const L3=line('var(--sec)','<em>g</em>(<em>x</em>) = 2<em>x</em> + 1');
+const L4a=(act)=>line('#c2410c',`<em>y</em> = <em>a</em> cos <em>x</em>${act?'<span class="cur"></span>':''}`,'',act);
+const S=`<div class="slider"><em>a</em> = 1.5<div class="track"><b></b><i></i></div></div>`;
+const keypad=`<div class="kpd"><div class="handle"><i></i></div><div class="kbar"><div class="seg"><span class="on">Rad</span><span>Deg</span></div><div style="flex:1"></div><div class="arrow">‹</div><div class="arrow">›</div></div>
+<div class="qv"><span>x</span><span>y</span><span>r</span><span>θ</span><span>t</span></div>
+<div class="ftab"><span class="on">√x</span><span>△</span><span>∫</span><span>Σ</span><span>⋯</span></div>
+<div class="fk"><span>x²</span><span>√</span><span>sin</span><span>cos</span><span>ln</span><span>(</span><span>)</span><span>π</span><span>e</span><span>,</span></div>
+<div class="nk"><span>7</span><span>8</span><span>9</span><span class="op">÷</span><span>4</span><span>5</span><span>6</span><span class="op">×</span><span>1</span><span>2</span><span>3</span><span class="op">−</span><span>0</span><span>.</span><span>⌫</span><span class="ent">↵</span></div></div>`;
+const gtools=`<div class="gfab">＋</div><div class="gimp">⇪</div><div class="gtb"><span>⌂</span><span>◎</span><span>▢</span><span>⚙</span><span>⇧</span></div>`;
+const row=document.getElementById('row');
+// 1. Normal view
+row.innerHTML+=`<div>${P('light',hdr('2d')+`<div class="graph" style="height:470px">${grid(412,470)}${gtools}<div class="cons">⎊ Construct</div></div><div class="list" style="height:342px">${L1}${L2}${L3}${L4a(false)}</div>`)}<div class="cap"><b>1 · As before.</b> The graph on top with its buttons, the list under it. Tapping ＋ › Line (or a line, or the keyboard button) starts typing…</div></div>`;
+// 2. Typing view
+row.innerHTML+=`<div>${P('light',hdr('2d')+`<div class="list" style="height:330px;padding-top:10px">${L1}${L2}${L3}${L4a(true)}${S}</div>`+keypad)}<div class="cap"><b>2 · Typing.</b> The graph and its buttons step aside; the list has all the room above the keyboard and shows every line (it scrolls), the one being typed outlined with its cursor in view. Its sliders stay, so a = 1.5 can still be dragged.</div></div>`;
+// 3. Back
+row.innerHTML+=`<div>${P('light',hdr('2d')+`<div class="graph" style="height:470px">${grid(412,470)}${gtools}<div class="cons">⎊ Construct</div></div><div class="list" style="height:342px">${L1}${L2}${L3}${L4a(false)}${S}</div>`)}<div class="cap"><b>3 · Enter, or the handle pulled down.</b> The keyboard folds away and the graph comes back, with the new line drawn (orange). Pressing the arrows past a line's start or end keeps the cursor there, scrolled into view.</div></div>`;
+// 4. Dark 3D typing
+const D1=line('var(--ter)','<em>z</em> = sin <em>x</em> cos <em>y</em>');
+const D2=line('var(--pri)','<em>z</em> = <em>x</em><sup>2</sup> + <em>y</em><sup>2</sup> − 4');
+const D3=line('var(--sec)','<em>x</em><sup>2</sup> + <em>y</em><sup>2</sup> + <em>z</em><sup>2</sup> = 9');
+const D4=line('#c2410c','<em>z</em> = <em>e</em><sup>−(<em>x</em><sup>2</sup>+<em>y</em><sup>2</sup>)</sup><span class="cur"></span>','',true);
+row.innerHTML+=`<div>${P('dark',hdr('3d')+`<div class="list" style="height:330px;padding-top:10px">${D1}${D2}${D3}${D4}</div>`+keypad.replace('<span>x</span><span>y</span><span>r</span><span>θ</span><span>t</span>','<span>x</span><span>y</span><span>z</span><span>r</span><span>θ</span>'))}<div class="cap"><b>4 · Same in 3D (dark).</b> And on the complex plane. Notes type with the phone's keyboard; closing it brings the graph back too.</div></div>`;
+document.title='ready';
+</script></body></html>
