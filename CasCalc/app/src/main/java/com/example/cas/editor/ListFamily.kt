@@ -23,7 +23,7 @@ object ListFamily {
         if (open == 0 && close == items.lastIndex) return null
         val entries = entries(items.subList(open + 1, close)) ?: return null
         return entries.map { entry ->
-            MathCodec.copy(MathRow((items.subList(0, open) + Sym("(") + entry + Sym(")") + items.subList(close + 1, items.size)).toMutableList()))
+            MathCodec.copyOf(items.subList(0, open) + Sym("(") + entry + Sym(")") + items.subList(close + 1, items.size))
         }
     }
 
@@ -159,14 +159,14 @@ object ListFamily {
 
     /** [expr] with every letter [v] (at any depth) replaced by [value], bracketed. */
     private fun substitute(expr: List<Node>, v: String, value: List<Node>): List<Node> {
-        val row = MathCodec.copy(MathRow(expr.toMutableList()))
+        val row = MathCodec.copyOf(expr)
         fun walk(r: MathRow) {
             var k = 0
             while (k < r.items.size) {
                 val n = r.items[k]
                 if (n is Sym && n.text == v) {
                     r.removeAt(k)
-                    val piece = listOf(Sym("(")) + MathCodec.copy(MathRow(value.toMutableList())).items.toList() + Sym(")")
+                    val piece = listOf(Sym("(")) + MathCodec.copyOf(value).items.toList() + Sym(")")
                     piece.forEachIndexed { i, p -> r.add(k + i, p) }
                     k += piece.size
                 } else {

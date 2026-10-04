@@ -203,7 +203,17 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
-## Latest changes (4 October)
+## Latest changes (4 October, editing fixes)
+- **Graph lines edit like the calculator:** the graph read a line by wrapping parts of it in a
+  scratch row to copy them, and that took the parts out of the line being edited. After that,
+  ⌫ inside an empty cos( ) (or any empty element) did nothing, and the cursor vanished when it
+  stepped out of an element at the end. Parts are now copied without moving them
+  (`MathCodec.copyOf`), with a test.
+- **Keyboard comes back:** after pulling the keyboard down, tapping a line brings it (and the
+  typing view) back.
+- **Outline:** the line being edited has a border.
+
+## Latest changes (4 October) 
 - **Phones:** the keyboard button also hides the graph. While the graph is hidden, every line
   shows in a scrolling list, not just the one being edited.
 - **Cursor:** the arrow keys stop at a line's start and end, and keep the cursor in view there.

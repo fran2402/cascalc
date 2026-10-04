@@ -52,4 +52,23 @@ class CursorEdgesTest {
         assertNull(Sheet.cycleAnchor("=SUM("))
         assertTrue(Sheet.shift("=\$B2*C\$1", 3, 1) == "=\$B5*D\$1")
     }
+
+    @Test fun copyingPartOfALineLeavesItIntact() {
+        // The graph reads y = cos(▢) by copying the part after "=": the line itself must not change.
+        val ed = Editor()
+        ed.type("y"); ed.type("=")
+        ed.insert(com.example.cas.editor.Func("cos"), 0)
+        val cos = ed.root.items[2]
+        com.example.cas.editor.MathCodec.copyOf(ed.root.items.drop(2))
+        assertSame(ed.root, cos.parent)
+        // ⌫ inside the empty brackets removes cos, and the cursor stays in the line.
+        ed.backspace()
+        assertEquals(2, ed.root.items.size)
+        assertSame(ed.root, ed.row)
+        // Stepping out of an element at the end lands in the line, not in a stray copy.
+        ed.insert(com.example.cas.editor.Func("sin"), 0); ed.type("x")
+        com.example.cas.editor.MathCodec.copyOf(ed.root.items.drop(2))
+        ed.moveRight()
+        assertSame(ed.root, ed.row); assertEquals(3, ed.index)
+    }
 }

@@ -951,6 +951,8 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
             .background(if (active) colors.surfaceContainerHigh else colors.surfaceContainer)
+            // The line being edited is outlined.
+            .then(if (active) Modifier.border(2.dp, colors.primary, RoundedCornerShape(20.dp)) else Modifier)
             // Tap to edit; hold to rename it in the legend.
             .combinedClickable(onClickLabel = if (isData) null else "Edit this function", onLongClickLabel = "Rename", onLongClick = { renaming = true }) { if (!isData) vm.edit(f) }
             .padding(start = 8.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
@@ -2732,7 +2734,7 @@ fun GraphScaffold(vm: GraphViewModel, outputLabel: String, modifier: Modifier = 
         else if (imeSeen && vm.active == null) vm.typingFocus = false
     }
     // Editing a line gets the room too (the keyboard's handle, or Enter, brings the graph back).
-    androidx.compose.runtime.LaunchedEffect(vm.active) { if (vm.active != null) vm.typingFocus = true }
+    androidx.compose.runtime.LaunchedEffect(vm.active, vm.keypadHidden) { if (vm.active != null && !vm.keypadHidden) vm.typingFocus = true }
     // The graph's last height, kept while it's away so it doesn't redraw at another size.
     val lastPlot = remember { intArrayOf(0) }
     androidx.compose.ui.layout.Layout(

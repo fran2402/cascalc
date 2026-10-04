@@ -26,8 +26,8 @@ object Graphing {
             val at = eq.indexOfFirst { (it as? Sym)?.text == "=" }
             val commas = eq.any { (it as? Sym)?.text == "," }
             if (at > 0 && !commas && only.args[1].plainText().let { it.isEmpty() || it == "x" }) {
-                val lhs = MathRow(eq.subList(0, at).map { MathCodec.copy(MathRow(mutableListOf(it))).items[0] }.toMutableList())
-                val rhs = MathRow(eq.drop(at + 1).map { MathCodec.copy(MathRow(mutableListOf(it))).items[0] }.toMutableList())
+                val lhs = MathRow(eq.subList(0, at).map { MathCodec.copyOf(listOf(it)).items[0] }.toMutableList())
+                val rhs = MathRow(eq.drop(at + 1).map { MathCodec.copyOf(listOf(it)).items[0] }.toMutableList())
                 val vars = runCatching { Evaluator().evaluate(lhs).freeVars() + Evaluator().evaluate(rhs).freeVars() }.getOrNull()
                 if (vars != null && vars == setOf("x")) return GraphRequest(listOf(lhs, rhs), 2)
             }

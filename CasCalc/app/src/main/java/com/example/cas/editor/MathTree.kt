@@ -303,6 +303,16 @@ object MathCodec {
     }
 
     fun copy(row: MathRow): MathRow = decode(encode(row))
+
+    /**
+     * A copy of some nodes of a row, the nodes themselves left where they are. (Wrapping them in
+     * a MathRow to copy it would make that row their parent, and a line being edited would then
+     * lose them: the cursor stepping out of one, or ⌫ removing one, would act on the stray row.)
+     */
+    fun copyOf(nodes: List<Node>): MathRow {
+        val parents = nodes.map { it.parent }
+        try { return copy(MathRow(nodes.toMutableList())) } finally { nodes.forEachIndexed { k, n -> n.parent = parents[k] } }
+    }
 }
 
 /** Grows (or trims) every growable matrix in [row] to keep one spare row and column. */

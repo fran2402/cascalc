@@ -755,7 +755,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 }
                 items = body
             }
-            fun rowOf(nodes: List<com.example.cas.editor.Node>) = MathCodec.copy(MathRow(nodes.toMutableList()))
+            fun rowOf(nodes: List<com.example.cas.editor.Node>) = MathCodec.copyOf(nodes)
             // A list written as a range or comprehension ([(n, n²) for n = [1...10]]) is spelled out first.
             if (items === f.editor.root.items) com.example.cas.editor.ListFamily.spelledOut(f.editor.root)?.let { items = it.items.toList() }
             // [(x₁, y₁), (x₂, y₂), …]: a list of points.
@@ -890,7 +890,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         val userFns = userFunctions()
         val number = { nodes: List<com.example.cas.editor.Node>, known: Map<String, Double> ->
             com.example.cas.graph.Geometry.plainNumber(nodes) ?: run {
-                val e = Evaluator(angle, null, storedVariables(), unitSystem, coordinates, userFns).evaluate(MathCodec.copy(MathRow(nodes.toMutableList())))
+                val e = Evaluator(angle, null, storedVariables(), unitSystem, coordinates, userFns).evaluate(MathCodec.copyOf(nodes))
                 val free = e.freeVars().distinct().sorted()
                 free.filter { it !in known }.forEach { v ->
                     if (v !in parameters) parameters[v] = 1.0
@@ -968,7 +968,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         val row = MathRow()
         fun add(n: com.example.cas.editor.Node) { row.add(row.items.size, n) }
         add(com.example.cas.editor.Sym(st.name!!)); add(com.example.cas.editor.Sym("=")); add(com.example.cas.editor.Sym("Point")); add(com.example.cas.editor.Sym("("))
-        MathCodec.copy(MathRow(nodes.toMutableList())).items.toList().forEach { n -> n.parent?.items?.remove(n); add(n) }
+        MathCodec.copyOf(nodes).items.toList().forEach { n -> n.parent?.items?.remove(n); add(n) }
         add(com.example.cas.editor.Sym(","))
         com.example.cas.graph.Csv.numberText(t).forEach { add(com.example.cas.editor.Sym(it.toString())) }
         add(com.example.cas.editor.Sym(")"))
@@ -1369,7 +1369,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 }
                 items = body
             }
-            fun rowOf(nodes: List<com.example.cas.editor.Node>) = MathCodec.copy(MathRow(nodes.toMutableList()))
+            fun rowOf(nodes: List<com.example.cas.editor.Node>) = MathCodec.copyOf(nodes)
             val zSym = com.example.cas.cas.Sym("z")
             // [a, b, …]: points (joined with "Join the points").
             if ((items.firstOrNull() as? com.example.cas.editor.Sym)?.text == "[" && (items.lastOrNull() as? com.example.cas.editor.Sym)?.text == "]") {
@@ -1468,7 +1468,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 val parts = splitTopLevel(items.subList(1, items.size - 1))
                 if (parts.size == 3 && parts.all { it.isNotEmpty() }) {
                     val ev = evaluatorFor(f)
-                    val es = parts.map { ev.evaluate(MathCodec.copy(MathRow(it.toMutableList()))) }
+                    val es = parts.map { ev.evaluate(MathCodec.copyOf(it)) }
                     val curve = es.any { !it.freeOf(com.example.cas.cas.Sym("t")) }
                     val params = es.flatMap { it.freeVars() }.distinct().filter { it != "t" }.sorted()
                     params.forEach { if (it !in parameters) parameters[it] = 1.0 }
@@ -1694,7 +1694,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         val row = MathRow()
         fun add(n: com.example.cas.editor.Node) { row.add(row.items.size, n) }
         add(com.example.cas.editor.Sym(st.name!!)); add(com.example.cas.editor.Sym("=")); add(com.example.cas.editor.Sym("Point")); add(com.example.cas.editor.Sym("("))
-        MathCodec.copy(MathRow(nodes.toMutableList())).items.toList().forEach { n -> n.parent?.items?.remove(n); add(n) }
+        MathCodec.copyOf(nodes).items.toList().forEach { n -> n.parent?.items?.remove(n); add(n) }
         add(com.example.cas.editor.Sym(","))
         // Four figures are plenty for a moving point, and keep the line short.
         java.math.BigDecimal(t).round(java.math.MathContext(4)).stripTrailingZeros().toPlainString().forEach { ch -> add(com.example.cas.editor.Sym(if (ch == '-') "−" else ch.toString())) }
@@ -2140,6 +2140,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     fun tapAt(f: PlotFunction, r: MathRow, index: Int) {
         if (isDataLine(f)) return
         active = f
+        // A tap in a line brings the keyboard back, if it was pulled down.
+        keypadHidden = false
         f.editor.setCursor(r, index)
     }
 

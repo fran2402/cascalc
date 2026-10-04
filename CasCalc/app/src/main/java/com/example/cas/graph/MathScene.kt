@@ -149,8 +149,8 @@ object MathScene {
                 if (n is Sym && n.text in setOf("(", "[")) {
                     val close = matching(items, k)
                     if (close > k) {
-                        // (A plain list of the nodes between: they stay where they are in the line.)
-                        val inner = row(MathRow(items.subList(k + 1, close).toMutableList()), size)
+                        // (A copy of the nodes between: the line's own stay where they are.)
+                        val inner = row(com.example.cas.editor.MathCodec.copyOf(items.subList(k + 1, close)), size)
                         var b = fenced(n.text, inner, (items[close] as Sym).text, size)
                         var j = close + 1
                         while (j < items.size && items[j] is Pow) { b = scripts(b, row((items[j] as Pow).exp, size * 0.7), null, size); j++ }
