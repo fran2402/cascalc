@@ -245,19 +245,11 @@ Delete folder
 Into folder above	
 Out of folder	
 Close without saving	
-Formulas	
 Undo	
 Redo	
 More	
 Share as CSV	
 Copy as CSV	
-Find and replace	
-Freeze the first column	
-On	
-Remove empty rows	
-Remove duplicate rows	
-Trim spaces	
-Swap rows and columns	
 No numbers in this column yet.	
 Text and empty cells are left out; the standard deviation is the sample's. Tap a value to copy it.	
 Fill with a series	
@@ -274,6 +266,7 @@ Chosen
 Statistics	
 Number format…	
 Color scale	
+On	
 Sort smallest first	
 Sort largest first	
 Fill with 1, 2, 3…	
@@ -319,6 +312,10 @@ Only the look changes: formulas, fits and the graph use the full numbers.
 Show only the rows where this column…	
 Value	
 Apply	
+Tap a cell to type in it	
+Anchor the reference with $	
+Show the next summary	
+All of the column's actions	
 This color	
 By length	
 Arrow color	
@@ -599,6 +596,43 @@ Complex tools
 Multiply and divide points as numbers, take nth roots, or draw where a function f(z) from your list takes a point or a shape.	
 Options and names	
 Tap a line's color dot for its size, name and fill. Every construction is a line of text too: edit A = (1, 2), or type Circle(A, 3).	
+Sort up	
+Sort down	
+Fill 1, 2, 3	
+Fill series	
+Fill formula down	
+Sort & filter	
+Filter	
+Series	
+Formula	
+Stats	
+Rows	
+Row above	
+Row below	
+Copy row	
+Columns	
+Copy column	
+Clipboard	
+Tidy	
+Duplicates	
+Empty rows	
+Trim	
+Transpose	
+View	
+Freeze	
+Share CSV	
+Copy CSV	
+Number	
+Percent	
+Fewer	
+Shade	
+Home	
+Format	
+Sum	
+Average	
+Count	
+Min	
+Max	
 Is equal to	
 Isn't equal to	
 Greater than	

@@ -203,6 +203,24 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, data table redesign)
+- **The data table, organized like Sheets and Excel (Material 3 Expressive), with its rounded
+  cells kept:**
+  - **Formula bar:** tap a cell to select it, then type in the formula bar. On a phone it sits
+    at the bottom, in reach of a thumb and just above the keyboard; on a tablet it's above the
+    grid. It shows the cell's address in a pill, references in their colors, and a $ button
+    that anchors the last reference.
+  - **Toolbar in tabs:** Home, Insert, Data and Format, as an expressive connected button group,
+    with big tonal buttons that work on the selected cell's column. On a phone they hide while
+    the keyboard is up. On a tablet they're a ribbon of labelled groups.
+  - **Column sheets:** a column's card opens a bottom sheet with its role as a segmented
+    button and every action as a tile, instead of a long menu.
+  - **Summary pill and inspector:** a floating pill sums the selected column or range (tap for
+    the average, count, smallest and largest). A tablet's side panel shows the selected
+    column's role, format, filter and statistics.
+  - **Counts in the title:** the points and columns count moves into a line under the title.
+  - **Icons:** 34 new icons for the tools, drawn to match the app's own (`ui/TableIcons.kt`).
+
 ## Latest changes (4 October, spreadsheet tools, complex constructions)
 - **Data tables, more like a spreadsheet:**
   - Find and replace (matching cells outlined, step through them, replace one or all, match
