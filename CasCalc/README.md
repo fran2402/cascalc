@@ -203,6 +203,13 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, typewriter superscripts, tablet + button)
+- **Superscripts in the typewriter font:** ⁰ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹ ⁺ ⁻ added to the cells' font, in roman,
+  italic and bold. Each is made from the font's own digit, scaled and raised just as its ² is, so
+  they match ¹ ² ³ and scientific formats (1.23 × 10⁻⁴) stay in one font.
+  (`preview-render/mono_superscripts.py`.)
+- **Tablet:** the + button sits higher, clear of the status bar's zoom slider.
+
 ## Latest changes (4 October, two-tone icons, Expressive ribbon, typewriter cells)
 - **Two-tone icons:** every data-table icon has an ink layer (what a command acts on) and an
   accent layer (what it makes or does: a sort's arrow, an insert's plus, AutoSum's Σ), as the

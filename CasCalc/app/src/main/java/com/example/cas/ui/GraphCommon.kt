@@ -3176,7 +3176,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     Modifier.align(Alignment.BottomStart).padding(start = 20.dp, bottom = pillBottom))
                             }
                             // One button, bottom right: + opens to add a row or a column, or paste (on a phone the selection's toolbar takes its place).
-                            if (picked == null) Box(Modifier.align(Alignment.BottomEnd).padding(end = if (wide) 32.dp else 24.dp, bottom = 20.dp)) {
+                            // On a tablet it sits above the status bar, clear of its zoom slider.
+                            if (picked == null) Box(Modifier.align(Alignment.BottomEnd).padding(end = if (wide) 32.dp else 24.dp, bottom = if (wide) 80.dp else 20.dp)) {
                                 FabMenu(
                                     listOf(
                                         FabItem("Row", Icons.Default.TableRows, "Add a row") {
