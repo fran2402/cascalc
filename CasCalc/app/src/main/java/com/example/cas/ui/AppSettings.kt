@@ -64,11 +64,9 @@ object AppSettings {
     var showSteps by mutableStateOf(false)
         private set
     /** The unit converter in the ⋮ menu. */
-    var unitConverter by mutableStateOf(false)
-        private set
+    val unitConverter get() = true
     /** Excel-style formulas (=SUM(A:A), =B1*2…) in the data table. */
-    var sheetFormulas by mutableStateOf(false)
-        private set
+    val sheetFormulas get() = true
     /** Alpha: geometry mode in the 2D graph (named points, Segment(A, B), Circle, Intersect…, and tools to build by tapping). */
     var geometry by mutableStateOf(false)
         private set
@@ -141,8 +139,6 @@ object AppSettings {
         polarComplex = p.getBoolean("polarComplex", false)
         livePreview = p.getBoolean("livePreview", true)
         showSteps = p.getBoolean("showSteps", false)
-        unitConverter = p.getBoolean("unitConverter", false)
-        sheetFormulas = p.getBoolean("sheetFormulas", false)
         geometry = p.getBoolean("geometry", false)
         converterState = p.getString("converterState", null) ?: converterState
         historyLimit = p.getInt("historyLimit", 100)
@@ -191,8 +187,6 @@ object AppSettings {
     fun changePolarComplex(v: Boolean) { polarComplex = v; com.example.cas.engine.Formatter.polarComplex = v; save("polarComplex", v) }
     fun changeLivePreview(v: Boolean) { livePreview = v; save("livePreview", v) }
     fun changeShowSteps(v: Boolean) { showSteps = v; save("showSteps", v) }
-    fun changeUnitConverter(v: Boolean) { unitConverter = v; save("unitConverter", v) }
-    fun changeSheetFormulas(v: Boolean) { sheetFormulas = v; save("sheetFormulas", v) }
     fun changeGeometry(v: Boolean) { geometry = v; save("geometry", v) }
     fun changeConverterState(value: String, from: String, to: String) { converterState = "$value\n$from\n$to"; save("converterState", converterState) }
     fun changeHistoryLimit(v: Int) { historyLimit = v; save("historyLimit", v) }

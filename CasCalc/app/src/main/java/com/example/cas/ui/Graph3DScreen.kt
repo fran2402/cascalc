@@ -68,6 +68,7 @@ import com.example.cas.graph.Camera
 import com.example.cas.graph.Face
 import com.example.cas.graph.Polygon
 import com.example.cas.graph.Surface3D
+import com.example.cas.graph.Geometry3D
 import com.example.cas.ui.theme.CasFonts
 import kotlin.math.abs
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -98,8 +99,13 @@ fun Graph3DScreen(vm: Graph3DViewModel, onUseValue: (Double) -> Unit = {}, modif
             onGraphFile = { share -> exporting = false; writeFile(com.example.cas.graph.GraphFile.Contents(com.example.cas.graph.GraphFile.Kind.Graph3D, "graph-3d", vm.graphData()), share) },
         )
     }
+    // Geometry mode: lines read again when it's turned on or off; editing a line on a phone closes construct mode.
+    androidx.compose.runtime.LaunchedEffect(AppSettings.geometry) { vm.refreshAll(); if (!AppSettings.geometry) vm.stopConstructing() }
+    val phone = !isTabletLayout()
+    androidx.compose.runtime.LaunchedEffect(vm.active, phone) { if (phone && vm.active != null) vm.stopConstructing() }
     GraphScaffold(vm, outputLabel = "z", modifier = modifier) {
-        Box(Modifier.fillMaxSize().onSizeChanged { plotSize = it }) {
+        Column(Modifier.fillMaxSize()) {
+        Box(Modifier.weight(1f).fillMaxWidth().onSizeChanged { plotSize = it }) {
             SurfaceCanvas(vm, Modifier.fillMaxSize(), onUseValue)
             // The range control top left, and the legend under it.
             Column(Modifier.align(Alignment.TopStart).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -123,8 +129,25 @@ fun Graph3DScreen(vm: Graph3DViewModel, onUseValue: (Double) -> Unit = {}, modif
                 }
                 IconButton(onClick = { settings = true }) {
                     Icon(Icons.Default.Tune, contentDescription = "Graph settings", tint = MaterialTheme.colorScheme.onSurface)
+                    // (geometry's construct UI follows the bar, below)
                 }
             })
+            // A tool's number (a radius, an angle), asked once its taps are done.
+            vm.pendingAsk?.let { ask -> ToolNumberDialog(ask.tool, onDone = { vm.answerAsk(it) }, onDismiss = { vm.pendingAsk = null }) }
+            // Geometry in space: Construct starts building; the status card on top, the tools in a rail on a tablet.
+            if (AppSettings.geometry) {
+                if (!vm.constructing) ConstructButton(onClick = { vm.constructing = true }, modifier = Modifier.align(Alignment.TopEnd).padding(top = 34.dp, end = 10.dp))
+                else if (isTabletLayout()) {
+                    val byList = if (AppSettings.keypadSide == 0) Alignment.TopStart else Alignment.TopEnd
+                    ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 140.dp, end = 140.dp))
+                    ConstructRail(vm, Modifier.align(byList).padding(top = 10.dp, bottom = 84.dp, start = 10.dp, end = 10.dp))
+                } else ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 12.dp, end = 12.dp))
+            }
+        }
+        // On a phone the tools sit under the graph, in the list's place.
+        if (AppSettings.geometry && vm.constructing && phone) {
+            ConstructPalette(vm, Modifier.background(MaterialTheme.colorScheme.surface).padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 6.dp))
+        }
         }
     }
 }
@@ -276,7 +299,18 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier, onUseValue: 
 
     // The box: x and y as set; z as set, or fitted to the explicit surfaces.
     val bounds = remember(version, limits, vm.zRange, params) { surfaceBounds(vm) }
-    val polygons = remember(version, bounds, params, AppSettings.surfaceDetail) { surfacePolygons(vm, bounds) }
+    val surfaces = remember(version, bounds, params, AppSettings.surfaceDetail) { surfacePolygons(vm, bounds) }
+    // Geometry in space: each construction's drawing; its faces (planes, spheres, solids) join the
+    // surfaces so they're sorted by depth with them, see-through.
+    val geometry = remember(version, bounds, params, AppSettings.geometry) {
+        if (!AppSettings.geometry) emptyList() else vm.functions.filter { it.visible && it.geometry != null }.mapNotNull { f ->
+            vm.geometry3DOf(f)?.let { o -> Triple(f, o, runCatching { Geometry3D.draw(o, bounds) { vm.angleText(it) } }.getOrNull() ?: return@let null) }
+        }
+    }
+    val polygons = remember(surfaces, geometry) { surfaces + geometry.flatMap { (f, _, d) -> d.faces.map { Polygon(it, f.colorIndex, wall = true) } } }
+    val palette = (0 until GraphViewModel.PLOT_COLOR_COUNT).map { plotColor(it) }
+    fun colorOf(f: PlotFunction) = f.customColor?.let { Color(it) } ?: palette[f.colorIndex % palette.size]
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     val camera = vm.camera
     val faces: List<Face> = remember(polygons, camera, size) {
         if (size.width == 0) emptyList() else Surface3D.faces(polygons, bounds, camera, size.width.toFloat(), size.height.toFloat())
@@ -305,11 +339,18 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier, onUseValue: 
             }
             // Hold and drag over the surface to read (x, y, z) continuously.
             .holdToTrace(faces) { o -> pickAt(o)?.let { picked = it } }
-            .pointerInput(faces) {
+            .pointerInput(faces, geometry) {
                 detectTapGestures(
                     onDoubleTap = { vm.camera = Camera(); picked = null },
-                    // Tap the surface to read its (x, y, z) there.
-                    onTap = { o -> picked = pickAt(o) },
+                    // Tap the surface to read its (x, y, z) there; with a tool, tap points and objects to build.
+                    onTap = { o ->
+                        val tool = vm.geometryTool
+                        if (tool != null && AppSettings.geometry) {
+                            haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                            constructTap3D(vm, tool, o, geometry, bounds, camera, size.width.toFloat(), size.height.toFloat(), 28.dp.toPx())
+                            picked = null
+                        } else picked = pickAt(o)
+                    },
                 )
             }
             .semantics { contentDescription = "3D graph. Drag to rotate, pinch to zoom, tap the surface to read a point, double-tap to reset." },
@@ -380,6 +421,55 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier, onUseValue: 
                         val (sx, sy) = Surface3D.project(x, y, z, bounds, camera, w, h)
                         drawCircle(color, 7.dp.toPx(), Offset(sx, sy))
                         drawCircle(colors.surface, 2.5.dp.toPx(), Offset(sx, sy))
+                    }
+                }
+            }
+            // Geometry's lines, points and labels over the faces.
+            val labelText = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 15.sp, color = colors.onSurface)
+            for ((f, o, d) in geometry) {
+                val c = colorOf(f)
+                fun at(p: DoubleArray) = Surface3D.project(p[0], p[1], p[2], bounds, camera, w, h).let { Offset(it.first, it.second) }
+                d.lines.forEach { line ->
+                    val path = Path()
+                    line.forEachIndexed { k, p -> val q = at(p); if (k == 0) path.moveTo(q.x, q.y) else path.lineTo(q.x, q.y) }
+                    drawPath(path, c, style = Stroke(f.thickness.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                }
+                // A vector's arrowhead, at its end on screen.
+                if (d.arrow) d.lines.firstOrNull()?.takeIf { it.size >= 2 }?.let { line ->
+                    val e = at(line.last()); val s0 = at(line[line.size - 2])
+                    val dir = (e - s0).let { v -> val l = v.getDistance(); if (l < 1e-3) null else v / l }
+                    if (dir != null) {
+                        val head = 11.dp.toPx(); val n = Offset(-dir.y, dir.x)
+                        drawPath(Path().apply { moveTo(e.x, e.y); lineTo(e.x - dir.x * head + n.x * head * 0.45f, e.y - dir.y * head + n.y * head * 0.45f); lineTo(e.x - dir.x * head - n.x * head * 0.45f, e.y - dir.y * head - n.y * head * 0.45f); close() }, c)
+                    }
+                }
+                d.points.forEach { p ->
+                    val q = at(p)
+                    drawCircle(c, (f.pointSize * 0.75f).dp.toPx().coerceAtLeast(4.dp.toPx()), q)
+                    drawCircle(colors.surface, 2.dp.toPx(), q)
+                }
+                // The point's name beside it, and an angle's size at its arc.
+                val name = f.geometry?.name
+                if (name != null && !f.hideName && o is Geometry3D.Point) d.points.firstOrNull()?.let { p ->
+                    val q = at(p); val t = measurer.measure(geometryLabel(name), labelText)
+                    drawText(t, topLeft = Offset(q.x + 7.dp.toPx(), q.y - t.size.height - 2.dp.toPx()))
+                }
+                d.labels.forEach { (p, text) ->
+                    val q = at(p); val t = measurer.measure(text, labelText.copy(fontFamily = CasFonts.CmRoman, fontSize = 13.sp))
+                    drawText(t, topLeft = Offset(q.x - t.size.width / 2f, q.y - t.size.height / 2f))
+                }
+            }
+            // What a tool has picked so far: points ringed.
+            if (vm.geometryTool != null) vm.geometryPicks.forEach { name ->
+                geometry.firstOrNull { it.first.geometry?.name == name }?.let { (_, o, d) ->
+                    if (o is Geometry3D.Point) d.points.firstOrNull()?.let { p ->
+                        val (sx, sy) = Surface3D.project(p[0], p[1], p[2], bounds, camera, w, h)
+                        drawCircle(colors.primary, 11.dp.toPx(), Offset(sx, sy), style = Stroke(2.5.dp.toPx()))
+                    }
+                    d.lines.forEach { line ->
+                        val path = Path()
+                        line.forEachIndexed { k, p -> val (sx, sy) = Surface3D.project(p[0], p[1], p[2], bounds, camera, w, h); if (k == 0) path.moveTo(sx, sy) else path.lineTo(sx, sy) }
+                        drawPath(path, colors.primary.copy(alpha = 0.35f), style = Stroke(9.dp.toPx()))
                     }
                 }
             }
@@ -572,6 +662,75 @@ internal fun coordinateGuides(mode: Coordinates3D.Mode, b: Bounds): List<List<Do
                 (0..64).map { k -> val phi = k * 2 * PI / 64; doubleArrayOf(cx + r * kotlin.math.sin(phi) * kotlin.math.cos(t), cy + r * kotlin.math.sin(phi) * kotlin.math.sin(t), cz + r * kotlin.math.cos(phi)) }
             }
             latitudes + meridians
+        }
+    }
+}
+
+/**
+ * A tap with a geometry tool in space: on a construction's point (named if it wasn't), on an
+ * object of the kind the tool needs (a line, a plane, a circle or sphere…), or on empty space,
+ * which makes a point there on the floor (z = 0, or the box's bottom if 0 is outside it).
+ */
+private fun constructTap3D(
+    vm: Graph3DViewModel, tool: GeometryTool, tap: Offset,
+    geometry: List<Triple<PlotFunction, Geometry3D.Obj, Geometry3D.Drawing>>, b: Bounds, cam: Camera, w: Float, h: Float, reach: Float,
+) {
+    fun at(p: DoubleArray) = Surface3D.project(p[0], p[1], p[2], b, cam, w, h).let { Offset(it.first, it.second) }
+    fun pointNear(): String? = geometry.filter { it.second is Geometry3D.Point }
+        .mapNotNull { (f, _, d) -> d.points.firstOrNull()?.let { f to (at(it) - tap).getDistance() } }
+        .filter { it.second < reach }.minByOrNull { it.second }?.first?.let { vm.nameLine(it) }
+    fun fits(kind: Char, o: Geometry3D.Obj) = when (kind) {
+        'L' -> o is Geometry3D.Line || o is Geometry3D.Segment || o is Geometry3D.Ray || o is Geometry3D.Vector
+        'S' -> o is Geometry3D.Plane
+        'C' -> o is Geometry3D.Circle || o is Geometry3D.Sphere
+        'V' -> o is Geometry3D.Vector
+        else -> o !is Geometry3D.Point && o !is Geometry3D.Number && o !is Geometry3D.Bool
+    }
+    fun segmentDistance(a: Offset, c: Offset): Float {
+        val d = c - a; val len2 = d.x * d.x + d.y * d.y
+        val t = if (len2 == 0f) 0f else (((tap.x - a.x) * d.x + (tap.y - a.y) * d.y) / len2).coerceIn(0f, 1f)
+        return (tap - Offset(a.x + d.x * t, a.y + d.y * t)).getDistance()
+    }
+    fun inside(poly: List<Offset>): Boolean {
+        var inside = false
+        var j = poly.size - 1
+        for (i in poly.indices) {
+            val a = poly[i]; val c = poly[j]
+            if ((a.y > tap.y) != (c.y > tap.y) && tap.x < (c.x - a.x) * (tap.y - a.y) / (c.y - a.y) + a.x) inside = !inside
+            j = i
+        }
+        return inside
+    }
+    fun objectNear(kind: Char): String? = geometry.filter { fits(kind, it.second) }.mapNotNull { (f, _, d) ->
+        val lineD = d.lines.minOfOrNull { line -> line.map { at(it) }.zipWithNext { a, c -> segmentDistance(a, c) }.minOrNull() ?: Float.MAX_VALUE } ?: Float.MAX_VALUE
+        val faceD = if (d.faces.any { face -> inside(face.map { at(it) }) }) reach * 0.9f else Float.MAX_VALUE
+        f to minOf(lineD, faceD)
+    }.filter { it.second < reach }.minByOrNull { it.second }?.first?.let { vm.nameLine(it) }
+    fun newPoint(): String {
+        // The floor's point under the finger: the projection undone by Newton's method, z held.
+        val z = if (0.0 in b.z0..b.z1) 0.0 else b.z0
+        var x = (b.x0 + b.x1) / 2; var y = (b.y0 + b.y1) / 2
+        val e = 1e-4 * maxOf(b.x1 - b.x0, b.y1 - b.y0)
+        repeat(12) {
+            val s0 = at(doubleArrayOf(x, y, z)); val sx = at(doubleArrayOf(x + e, y, z)); val sy = at(doubleArrayOf(x, y + e, z))
+            val a11 = (sx.x - s0.x) / e; val a21 = (sx.y - s0.y) / e; val a12 = (sy.x - s0.x) / e; val a22 = (sy.y - s0.y) / e
+            val det = a11 * a22 - a12 * a21
+            if (kotlin.math.abs(det) < 1e-9) return@repeat
+            val rx = tap.x - s0.x; val ry = tap.y - s0.y
+            x += (a22 * rx - a12 * ry) / det; y += (a11 * ry - a21 * rx) / det
+        }
+        // Inside the box, at a tidy value.
+        val snap = com.example.cas.graph.Plot2D.niceStep(b.x1 - b.x0, 40)
+        fun tidy(v: Double, lo: Double, hi: Double) = (Math.round(v.coerceIn(lo, hi) / snap) * snap)
+        return vm.addFreePoint3(tidy(x, b.x0, b.x1), tidy(y, b.y0, b.y1), z)
+    }
+    when (tool) {
+        GeometryTool.Move -> {}
+        GeometryTool.Point -> if (pointNear() == null) newPoint()
+        else -> when (val need = vm.geometryNeeds ?: 'P') {
+            'P' -> vm.pickForTool(pointNear() ?: newPoint())
+            'X' -> (pointNear() ?: objectNear('O'))?.let { vm.pickForTool(it) }
+            else -> objectNear(need)?.let { vm.pickForTool(it) }
         }
     }
 }

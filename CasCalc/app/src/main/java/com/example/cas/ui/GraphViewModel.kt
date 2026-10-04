@@ -879,12 +879,12 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
 
     /** The construction for the lines as they are now (worked out again when a line or a slider changes). */
     fun construction(): Construction {
-        val lines = functions.filter { it.geometry != null || (AppSettings.geometry && !it.isText && com.example.cas.graph.Geometry.parse(it.editor.root.items) != null) }
+        val lines = functions.filter { it.geometry != null || (AppSettings.geometry && !it.isText && com.example.cas.graph.Geometry.parse(it.editor.root.items, complex = isComplex) != null) }
         val range = geometryRange()
         val definitions = functions.filter { com.example.cas.engine.UserFunction.definition(it.editor.root.items) != null }.map { it to it.version }
         val key: List<Any> = lines.map { it to it.version } + parameters.toMap() + angle + range + definitions
         geometryCache?.let { (k, c) -> if (k == key) return c }
-        val statements = lines.map { it.geometry ?: com.example.cas.graph.Geometry.parse(it.editor.root.items) }
+        val statements = lines.map { it.geometry ?: com.example.cas.graph.Geometry.parse(it.editor.root.items, complex = isComplex) }
         val sliders = HashMap<PlotFunction, MutableList<String>>()
         var current: PlotFunction? = null
         val userFns = userFunctions()
@@ -913,23 +913,119 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 }.getOrNull()
             }
         }
-        val outcomes = com.example.cas.graph.Geometry.build(statements, number, degrees = angle == AngleUnit.Degrees, onStatement = { k -> current = lines[k] }, functionOf = functionOf, xRange = range)
+        // On the complex plane, functions of z (f(z) = z²) map points and shapes: Image(f, c), f(A).
+        val complexFunctionOf: (String) -> ((com.example.cas.graph.Geometry.Point) -> com.example.cas.graph.Geometry.Point?)? = { name ->
+            userFns[name]?.takeIf { isComplex && it.variables.size == 1 }?.let { uf ->
+                runCatching {
+                    val free = uf.body.freeVars().filter { it != uf.variable }.distinct().sorted()
+                    val fn = com.example.cas.graph.ComplexCompiler.compile(uf.body, listOf(uf.variable) + free)
+                    val values = DoubleArray(free.size) { parameters[free[it]] ?: 1.0 }
+                    val map: (com.example.cas.graph.Geometry.Point) -> com.example.cas.graph.Geometry.Point? = { p ->
+                        runCatching { fn(com.example.cas.cas.CD(p.x, p.y), values) }.getOrNull()?.takeIf { it.re.isFinite() && it.im.isFinite() }?.let { com.example.cas.graph.Geometry.Point(it.re, it.im) }
+                    }
+                    map
+                }.getOrNull()
+            }
+        }
+        val outcomes = com.example.cas.graph.Geometry.build(statements, number, degrees = angle == AngleUnit.Degrees, onStatement = { k -> current = lines[k] }, functionOf = functionOf, xRange = range,
+            complex = isComplex, complexFunctionOf = complexFunctionOf)
         val c = Construction(lines.indices.mapNotNull { k -> outcomes[k]?.let { lines[k] to it } }.toMap(), sliders)
         geometryCache = key to c
         return c
+    }
+
+    /** Every construction in space worked out together (the 3D graph's geometry mode). */
+    class Construction3D(
+        val outcomes: Map<PlotFunction, com.example.cas.graph.Geometry3D.Outcome>,
+        val sliders: Map<PlotFunction, List<String>>,
+    )
+
+    private var geometry3DCache: Pair<List<Any>, Construction3D>? = null
+
+    fun construction3D(): Construction3D {
+        val lines = functions.filter { it.geometry != null }
+        val key: List<Any> = lines.map { it to it.version } + parameters.toMap() + angle
+        geometry3DCache?.let { (k, c) -> if (k == key) return c }
+        val sliders = HashMap<PlotFunction, MutableList<String>>()
+        var current: PlotFunction? = null
+        val userFns = userFunctions()
+        val number = { nodes: List<com.example.cas.editor.Node>, known: Map<String, Double> ->
+            com.example.cas.graph.Geometry.plainNumber(nodes) ?: run {
+                val e = Evaluator(angle, null, storedVariables(), unitSystem, coordinates, userFns).evaluate(MathCodec.copyOf(nodes))
+                val free = e.freeVars().distinct().sorted()
+                free.filter { it !in known }.forEach { v ->
+                    if (v !in parameters) parameters[v] = 1.0
+                    current?.let { f -> sliders.getOrPut(f) { ArrayList() }.let { if (v !in it) it += v } }
+                }
+                val value = Compiler.compile(e, free)(DoubleArray(free.size) { k -> known[free[k]] ?: parameters[free[k]] ?: 1.0 })
+                if (!value.isFinite()) throw com.example.cas.graph.Geometry.GeometryError("That number isn't defined")
+                value
+            }
+        }
+        val outcomes = com.example.cas.graph.Geometry3D.build(lines.map { it.geometry }, number, degrees = angle == AngleUnit.Degrees, onStatement = { k -> current = lines[k] })
+        val c = Construction3D(lines.indices.mapNotNull { k -> outcomes[k]?.let { lines[k] to it } }.toMap(), sliders)
+        geometry3DCache = key to c
+        return c
+    }
+
+    /** A 3D construction line's object, or null. */
+    fun geometry3DOf(f: PlotFunction): com.example.cas.graph.Geometry3D.Obj? = if (f.geometry == null || plotVars.size != 2) null else construction3D().outcomes[f]?.obj
+
+    /** A number or point in space as the list shows it under its line. */
+    fun geometry3DValue(o: com.example.cas.graph.Geometry3D.Obj): String? = when (o) {
+        is com.example.cas.graph.Geometry3D.Number -> "= " + when (o.unit) { com.example.cas.graph.Geometry3D.Unit.Angle -> angleText(o.value); else -> shortNumber(o.value) }
+        is com.example.cas.graph.Geometry3D.Angle -> "= " + angleText(o.size)
+        is com.example.cas.graph.Geometry3D.Point -> "= " + com.example.cas.graph.Geometry3D.text(o) { shortNumber(it) }
+        is com.example.cas.graph.Geometry3D.Sphere -> "r = " + shortNumber(o.r)
+        is com.example.cas.graph.Geometry3D.Circle -> "r = " + shortNumber(o.r)
+        is com.example.cas.graph.Geometry3D.Solid -> o.kind
+        is com.example.cas.graph.Geometry3D.Bool -> if (o.value) "true" else "false"
+        is com.example.cas.graph.Geometry3D.Many -> if (o.items.all { it is com.example.cas.graph.Geometry3D.Point }) o.items.joinToString(", ", "= ") { com.example.cas.graph.Geometry3D.text(it as com.example.cas.graph.Geometry3D.Point) { v -> shortNumber(v) } } else null
+        else -> null
+    }
+
+    /** A construction's kind for naming and options: P a point, A an angle, F a filled shape, O anything else. */
+    fun constructionKind(f: PlotFunction): Char {
+        if (plotVars.size == 2) return when (val o = geometry3DOf(f)) {
+            is com.example.cas.graph.Geometry3D.Point -> 'P'
+            is com.example.cas.graph.Geometry3D.Many -> if (o.items.all { it is com.example.cas.graph.Geometry3D.Point }) 'P' else 'O'
+            is com.example.cas.graph.Geometry3D.Angle -> 'A'
+            is com.example.cas.graph.Geometry3D.Polygon, is com.example.cas.graph.Geometry3D.Plane, is com.example.cas.graph.Geometry3D.Sphere, is com.example.cas.graph.Geometry3D.Solid -> 'F'
+            else -> 'O'
+        }
+        return when (val o = geometryOf(f)) {
+            is com.example.cas.graph.Geometry.Point -> 'P'
+            is com.example.cas.graph.Geometry.Many -> if (o.items.isNotEmpty() && o.items.all { it is com.example.cas.graph.Geometry.Point }) 'P' else 'O'
+            is com.example.cas.graph.Geometry.Angle -> 'A'
+            is com.example.cas.graph.Geometry.Polygon -> 'F'
+            is com.example.cas.graph.Geometry.Arc -> if (o.sector) 'F' else 'O'
+            else -> 'O'
+        }
+    }
+
+    /** A new free point in space at (x, y, z), named with the next free capital; returns its name. */
+    fun addFreePoint3(x: Double, y: Double, z: Double): String {
+        val name = com.example.cas.graph.Geometry.nextPointName(geometryNames())
+        val nodes = ArrayList<com.example.cas.editor.Node>()
+        fun add(t: String) { nodes += com.example.cas.editor.Sym(t) }
+        add(name); add("="); add("(")
+        listOf(x, y, z).forEachIndexed { k, v -> if (k > 0) add(","); com.example.cas.graph.Csv.numberText(v).forEach { add(it.toString()) } }
+        add(")")
+        addConstruction(nodes)
+        return name
     }
 
     /** Where function graphs are searched for crossings: the 2D view and a view's width either side. */
     open fun geometryRange(): ClosedFloatingPointRange<Double> = -50.0..50.0
 
     /** A construction line's object as the sliders are now, or null if it couldn't be made. */
-    fun geometryOf(f: PlotFunction): com.example.cas.graph.Geometry.Obj? = if (f.geometry == null) null else construction().outcomes[f]?.obj
+    fun geometryOf(f: PlotFunction): com.example.cas.graph.Geometry.Obj? = if (f.geometry == null || plotVars.size == 2) null else construction().outcomes[f]?.obj
 
     /** A number or point as the list shows it under its line. */
     fun geometryValue(o: com.example.cas.graph.Geometry.Obj): String? = when (o) {
         is com.example.cas.graph.Geometry.Number -> "= " + shortNumber(o.value)
         is com.example.cas.graph.Geometry.Angle -> "= " + angleText(o.sweep)
-        is com.example.cas.graph.Geometry.Point -> "= (" + shortNumber(o.x) + ", " + shortNumber(o.y) + ")"
+        is com.example.cas.graph.Geometry.Point -> "= " + if (isComplex) complexText(o.x, o.y) else "(" + shortNumber(o.x) + ", " + shortNumber(o.y) + ")"
         is com.example.cas.graph.Geometry.Many -> if (o.items.isEmpty()) "Nothing here" else if (o.items.all { it is com.example.cas.graph.Geometry.Point })
             o.items.joinToString(", ", "= ") { val p = it as com.example.cas.graph.Geometry.Point; "(" + shortNumber(p.x) + ", " + shortNumber(p.y) + ")" } else null
         is com.example.cas.graph.Geometry.Circle -> "r = " + shortNumber(o.r)
@@ -937,6 +1033,18 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         is com.example.cas.graph.Geometry.Arc -> "length = " + shortNumber(o.r * kotlin.math.abs(o.sweep))
         is com.example.cas.graph.Geometry.Bool -> if (o.value) "true" else "false"
         else -> null
+    }
+
+    /** A point of the complex plane as a number: 1 + 2i, −i, 3. */
+    fun complexText(re: Double, im: Double): String {
+        val a = kotlin.math.abs(re) >= 1e-12; val b = kotlin.math.abs(im) >= 1e-12
+        val imPart = when { kotlin.math.abs(im - 1) < 1e-12 -> "i"; kotlin.math.abs(im + 1) < 1e-12 -> "−i"; else -> shortNumber(im) + "i" }
+        return when {
+            !a && !b -> "0"
+            !b -> shortNumber(re)
+            !a -> imPart
+            else -> shortNumber(re) + (if (im < 0) " − " + imPart.removePrefix("−") else " + $imPart")
+        }
     }
 
     /** An angle as the graph's angle setting writes it. */
@@ -986,10 +1094,9 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     fun nameLine(f: PlotFunction): String? {
         val st = f.geometry ?: return null
         st.name?.let { return it }
-        val o = geometryOf(f)
-        val name = when (o) {
-            is com.example.cas.graph.Geometry.Point -> com.example.cas.graph.Geometry.nextPointName(usedNames())
-            is com.example.cas.graph.Geometry.Angle -> com.example.cas.graph.Geometry.nextAngleName(usedNames())
+        val name = when (constructionKind(f)) {
+            'P' -> com.example.cas.graph.Geometry.nextPointName(usedNames())
+            'A' -> com.example.cas.graph.Geometry.nextAngleName(usedNames())
             else -> com.example.cas.graph.Geometry.nextObjectName(usedNames())
         }
         val row = MathRow()
@@ -1004,7 +1111,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         val row = MathRow()
         nodes.forEach { row.add(row.items.size, it) }
         val f = addFunction(row)
-        geometryCache = null
+        geometryCache = null; geometry3DCache = null
         functions.forEach { recompile(it) }
         version++
         save()
@@ -1012,7 +1119,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     }
 
     /** Works every line out again (geometry turned on or off). */
-    fun refreshAll() { geometryCache = null; recompileAll() }
+    fun refreshAll() { geometryCache = null; geometry3DCache = null; recompileAll() }
 
     /** A new free point at (x, y), named with the next free capital; returns its name. */
     fun addFreePoint(x: Double, y: Double): String {
@@ -1056,13 +1163,25 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
 
     /** A tool's taps done, waiting for its number (a radius, a number of sides…). */
     class PendingAsk(val tool: GeometryTool, val names: List<String>)
+    /** The function the Image tool maps through (its name, as answered). */
+    private var imageFunction = "f"
     var pendingAsk by mutableStateOf<PendingAsk?>(null)
 
     /** The number typed for [pendingAsk]: its lines are added. False if it isn't a number. */
     fun answerAsk(text: String): Boolean {
         val ask = pendingAsk ?: return false
+        // Image asks for a function's name instead of a number.
+        if (ask.tool == GeometryTool.Image) {
+            val name = text.trim()
+            if (name.isEmpty() || userFunctions()[name]?.variables?.size != 1) return false
+            pendingAsk = null
+            imageFunction = name
+            buildTool(ask.tool, ask.names, null)
+            return true
+        }
         val v = text.trim().replace("−", "-").replace(',', '.').toDoubleOrNull() ?: return false
         if (ask.tool == GeometryTool.RegularPolygon && (v < 3 || v != Math.rint(v))) return false
+        if (ask.tool == GeometryTool.ComplexRoots && (v < 1 || v != Math.rint(v))) return false
         pendingAsk = null
         buildTool(ask.tool, ask.names, v)
         return true
@@ -1113,6 +1232,12 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         when (tool) {
             GeometryTool.Compass -> line(name, call("Circle", listOf(ref(names[2]), call("Distance", listOf(ref(names[0]), ref(names[1]))))))
             GeometryTool.CircleRadius -> line(name, call("Circle", listOf(ref(names[0]), number(kotlin.math.abs(v)))))
+            GeometryTool.SphereRadius -> line(name, call("Sphere", listOf(ref(names[0]), number(kotlin.math.abs(v)))))
+            GeometryTool.RotateAxis -> line(name, call("Rotate", listOf(ref(names[0]), number(v, degrees = true), ref(names[1]))))
+            GeometryTool.ComplexRoots -> line(name, call("ComplexRoots", listOf(ref(names[0]), number(v))))
+            GeometryTool.Image -> line(name, call("Image", listOf(ref(imageFunction), ref(names[0]))))
+            GeometryTool.Multiply -> line(name, ref(names[0]) + sym("·") + ref(names[1]))
+            GeometryTool.Divide -> line(name, ref(names[0]) + sym("/") + ref(names[1]))
             GeometryTool.RegularPolygon -> line(name, call("RegularPolygon", listOf(ref(names[0]), ref(names[1]), number(v))))
             GeometryTool.Rotate -> line(name, call("Rotate", listOf(ref(names[0]), number(v, degrees = true), ref(names[1]))))
             GeometryTool.Dilate -> line(name, call("Dilate", listOf(ref(names[0]), number(v), ref(names[1]))))
@@ -1343,6 +1468,19 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     private fun recompileComplex(f: PlotFunction) {
         f.complexCompiled = null; f.compiled = null; f.complexCurve = null; f.contour = null
         f.complexPoints = null; f.complexPath = null; f.complexPathRange = null; f.definesFunction = null
+        f.valueText = null
+        // A construction on the complex plane (A = 1 + 2i, Circle(A, 2), Image(f, c)…), with geometry on.
+        f.geometry = if (AppSettings.geometry) com.example.cas.graph.Geometry.parse(f.editor.root.items, complex = true) else null
+        if (f.geometry != null) {
+            if (!built) { f.parameters = emptyList(); f.error = null; return }
+            val c = try { construction() } catch (e: RuntimeException) { f.error = "Can't make this"; return }
+            f.parameters = c.sliders[f].orEmpty()
+            val outcome = c.outcomes[f]
+            f.error = outcome?.error
+            f.valueText = outcome?.obj?.let { geometryValue(it) }
+            f.definition = null
+            return
+        }
         try {
             val ev = evaluatorFor(f)
             val single = f.editor.root.items.singleOrNull() as? com.example.cas.editor.Func
@@ -1457,6 +1595,19 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     private fun recompile3D(f: PlotFunction) {
         f.space = null
         f.region3D = false
+        f.valueText = null
+        // A construction in space (A = (1, 2, 3), Plane(A, B, C), Sphere(A, 2)…), with geometry on.
+        f.geometry = if (AppSettings.geometry) com.example.cas.graph.Geometry3D.parse(withStandardLetters(f.editor.root).items) else null
+        if (f.geometry != null) {
+            f.compiled = null; f.implicit3D = null; f.definition = null
+            if (!built) { f.parameters = emptyList(); f.error = null; return }
+            val c = try { construction3D() } catch (e: RuntimeException) { f.error = "Can't make this"; return }
+            f.parameters = c.sliders[f].orEmpty()
+            val outcome = c.outcomes[f]
+            f.error = outcome?.error
+            f.valueText = outcome?.obj?.let { geometry3DValue(it) }
+            return
+        }
         try {
             // (a, b, c): a point; (x(t), y(t), z(t)): a curve in space.
             // Your own letters for the coordinates (i, j, k…) read as x, y and z.
@@ -1733,6 +1884,9 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             ed.setCursor(ed.root, cursorIndex.coerceIn(0, ed.root.items.size))
         }
     }
+
+    /** Where geometry mode builds on this graph. */
+    val geometrySpace get() = when { isComplex -> GeometrySpace.Complex; plotVars.size == 2 -> GeometrySpace.Space; else -> GeometrySpace.Plane }
 
     /** Plotting f(z) on the complex plane rather than real graphs. */
     val isComplex get() = plotVars == listOf("z")
@@ -2376,7 +2530,10 @@ class PlaneArea(val f: PlotFunction, val kind: Int, val total: Double, val signe
 class AreaResult(val f: PlotFunction, val g: PlotFunction?, val a: Double, val b: Double, val signed: Double, val total: Double, val arc: Boolean = false)
 
 /** The groups of construction tools. */
-enum class GeometryCategory(val label: String) { Points("Points"), Lines("Lines"), Shapes("Circles & shapes"), Conics("Conics"), Measure("Measure"), Transform("Transform") }
+enum class GeometryCategory(val label: String) { Points("Points"), Lines("Lines"), Shapes("Circles & shapes"), Solids("Planes & solids"), Conics("Conics"), Complex("Complex"), Measure("Measure"), Transform("Transform") }
+
+/** Where geometry mode builds: the 2D graph, the complex plane, or space (the 3D graph). */
+enum class GeometrySpace(val code: Char) { Plane('p'), Complex('c'), Space('s') }
 
 /**
  * Tools for building on the 2D graph by tapping (geometry mode). [slots] says what each tap is
@@ -2390,36 +2547,38 @@ enum class GeometryCategory(val label: String) { Points("Points"), Lines("Lines"
 enum class GeometryTool(
     val label: String, val command: String, val slots: String, val makes: Char, val category: GeometryCategory, val steps: List<String>,
     val ask: String? = null, val least: Int = 0,
+    /** Where it's offered: p the 2D graph, c the complex plane, s the 3D graph. */
+    val where: String = "pc",
 ) {
-    Move("Move", "", "", 'O', GeometryCategory.Points, emptyList()),
-    Point("Point", "", "P", 'P', GeometryCategory.Points, listOf("Place it")),
+    Move("Move", "", "", 'O', GeometryCategory.Points, emptyList(), where = "pcs"),
+    Point("Point", "", "P", 'P', GeometryCategory.Points, listOf("Place it"), where = "pcs"),
     PointOn("Point on object", "Point", "O", 'P', GeometryCategory.Points, listOf("The object")),
-    Intersect("Intersect", "Intersect", "OO", 'P', GeometryCategory.Points, listOf("First object", "Second object")),
-    Midpoint("Midpoint", "Midpoint", "PP", 'P', GeometryCategory.Points, listOf("First point", "Second point")),
-    Root("Roots", "Root", "F", 'P', GeometryCategory.Points, listOf("The function")),
-    Extremum("Extrema", "Extremum", "F", 'P', GeometryCategory.Points, listOf("The function")),
-    Inflection("Inflection points", "Inflection", "F", 'P', GeometryCategory.Points, listOf("The function")),
-    ClosestPoint("Closest point", "ClosestPoint", "OP", 'P', GeometryCategory.Points, listOf("The object", "Near")),
-    Segment("Segment", "Segment", "PP", 'O', GeometryCategory.Lines, listOf("Start", "End")),
+    Intersect("Intersect", "Intersect", "OO", 'P', GeometryCategory.Points, listOf("First object", "Second object"), where = "pcs"),
+    Midpoint("Midpoint", "Midpoint", "PP", 'P', GeometryCategory.Points, listOf("First point", "Second point"), where = "pcs"),
+    Root("Roots", "Root", "F", 'P', GeometryCategory.Points, listOf("The function"), where = "p"),
+    Extremum("Extrema", "Extremum", "F", 'P', GeometryCategory.Points, listOf("The function"), where = "p"),
+    Inflection("Inflection points", "Inflection", "F", 'P', GeometryCategory.Points, listOf("The function"), where = "p"),
+    ClosestPoint("Closest point", "ClosestPoint", "OP", 'P', GeometryCategory.Points, listOf("The object", "Near"), where = "pcs"),
+    Segment("Segment", "Segment", "PP", 'O', GeometryCategory.Lines, listOf("Start", "End"), where = "pcs"),
     SegmentLength("Segment of length", "Segment", "P", 'O', GeometryCategory.Lines, listOf("Start"), ask = "Length"),
-    Line("Line", "Line", "PP", 'O', GeometryCategory.Lines, listOf("First point", "Second point")),
-    Ray("Ray", "Ray", "PP", 'O', GeometryCategory.Lines, listOf("Start", "Through")),
-    Vector("Vector", "Vector", "PP", 'O', GeometryCategory.Lines, listOf("Start", "End")),
+    Line("Line", "Line", "PP", 'O', GeometryCategory.Lines, listOf("First point", "Second point"), where = "pcs"),
+    Ray("Ray", "Ray", "PP", 'O', GeometryCategory.Lines, listOf("Start", "Through"), where = "pcs"),
+    Vector("Vector", "Vector", "PP", 'O', GeometryCategory.Lines, listOf("Start", "End"), where = "pcs"),
     Polyline("Polyline", "Polyline", "", 'O', GeometryCategory.Lines, listOf("Points"), least = 2),
     FitLine("Best fit line", "FitLine", "", 'O', GeometryCategory.Lines, listOf("Points"), least = 2),
-    Perpendicular("Perpendicular", "PerpendicularLine", "PL", 'O', GeometryCategory.Lines, listOf("Through", "The line")),
-    Parallel("Parallel", "ParallelLine", "PL", 'O', GeometryCategory.Lines, listOf("Through", "The line")),
+    Perpendicular("Perpendicular", "PerpendicularLine", "PL", 'O', GeometryCategory.Lines, listOf("Through", "The line"), where = "pcs"),
+    Parallel("Parallel", "ParallelLine", "PL", 'O', GeometryCategory.Lines, listOf("Through", "The line"), where = "pcs"),
     Bisector("Perpendicular bisector", "PerpendicularBisector", "PP", 'O', GeometryCategory.Lines, listOf("First point", "Second point")),
     AngleBisector("Angle bisector", "AngleBisector", "PPP", 'O', GeometryCategory.Lines, listOf("Point", "Corner", "Point")),
     Tangent("Tangent", "Tangent", "PC", 'O', GeometryCategory.Lines, listOf("From", "Circle or conic")),
     Polar("Polar line", "Polar", "PC", 'O', GeometryCategory.Lines, listOf("Point", "Circle or conic")),
     CommonTangent("Common tangents", "CommonTangent", "CC", 'O', GeometryCategory.Lines, listOf("First circle", "Second circle")),
-    Polygon("Polygon", "Polygon", "", 'O', GeometryCategory.Shapes, listOf("Corners"), least = 3),
+    Polygon("Polygon", "Polygon", "", 'O', GeometryCategory.Shapes, listOf("Corners"), least = 3, where = "pcs"),
     RegularPolygon("Regular polygon", "RegularPolygon", "PP", 'O', GeometryCategory.Shapes, listOf("First corner", "Second corner"), ask = "Number of sides"),
     Circle("Circle", "Circle", "PP", 'O', GeometryCategory.Shapes, listOf("Center", "On the circle")),
     CircleRadius("Circle with radius", "Circle", "P", 'O', GeometryCategory.Shapes, listOf("Center"), ask = "Radius"),
     Compass("Compass", "Circle", "PPP", 'O', GeometryCategory.Shapes, listOf("Radius from", "Radius to", "Center")),
-    Circle3("Circle through 3", "Circle", "PPP", 'O', GeometryCategory.Shapes, listOf("Point", "Point", "Point")),
+    Circle3("Circle through 3", "Circle", "PPP", 'O', GeometryCategory.Shapes, listOf("Point", "Point", "Point"), where = "pcs"),
     Incircle("Incircle", "Incircle", "PPP", 'O', GeometryCategory.Shapes, listOf("Corner", "Corner", "Corner")),
     Semicircle("Semicircle", "Semicircle", "PP", 'O', GeometryCategory.Shapes, listOf("Start", "End")),
     Arc("Arc", "CircularArc", "PPP", 'O', GeometryCategory.Shapes, listOf("Center", "Start", "End")),
@@ -2429,20 +2588,45 @@ enum class GeometryTool(
     Hyperbola("Hyperbola", "Hyperbola", "PPP", 'O', GeometryCategory.Conics, listOf("Focus", "Focus", "On it")),
     Parabola("Parabola", "Parabola", "PL", 'O', GeometryCategory.Conics, listOf("Focus", "Directrix")),
     Conic("Conic through 5", "Conic", "PPPPP", 'O', GeometryCategory.Conics, listOf("Point", "Point", "Point", "Point", "Point")),
-    Angle("Angle", "Angle", "PPP", 'A', GeometryCategory.Measure, listOf("Point", "Corner", "Point")),
+    Angle("Angle", "Angle", "PPP", 'A', GeometryCategory.Measure, listOf("Point", "Corner", "Point"), where = "pcs"),
     AngleSize("Angle of size", "Rotate", "PP", 'P', GeometryCategory.Measure, listOf("Point", "Corner"), ask = "Angle (degrees)"),
-    Distance("Distance", "Distance", "PP", 'O', GeometryCategory.Measure, listOf("Point", "Point")),
-    Length("Length", "Length", "O", 'O', GeometryCategory.Measure, listOf("The object")),
-    Area("Area", "Area", "O", 'O', GeometryCategory.Measure, listOf("The shape")),
+    Distance("Distance", "Distance", "PP", 'O', GeometryCategory.Measure, listOf("Point", "Point"), where = "pcs"),
+    Length("Length", "Length", "O", 'O', GeometryCategory.Measure, listOf("The object"), where = "pcs"),
+    Area("Area", "Area", "O", 'O', GeometryCategory.Measure, listOf("The shape"), where = "pcs"),
     Slope("Slope", "Slope", "L", 'O', GeometryCategory.Measure, listOf("The line")),
     Relation("Relation", "Relation", "XX", 'O', GeometryCategory.Measure, listOf("First", "Second")),
     Locus("Locus", "Locus", "PP", 'O', GeometryCategory.Measure, listOf("Tracing point", "Moving point")),
     Reflect("Reflect in line", "Reflect", "XL", 'O', GeometryCategory.Transform, listOf("What to reflect", "Mirror line")),
-    ReflectPoint("Reflect in point", "Reflect", "XP", 'O', GeometryCategory.Transform, listOf("What to reflect", "Center")),
+    ReflectPoint("Reflect in point", "Reflect", "XP", 'O', GeometryCategory.Transform, listOf("What to reflect", "Center"), where = "pcs"),
     Invert("Reflect in circle", "Reflect", "XC", 'P', GeometryCategory.Transform, listOf("The point", "The circle")),
     Rotate("Rotate", "Rotate", "XP", 'O', GeometryCategory.Transform, listOf("What to turn", "Center"), ask = "Angle (degrees)"),
-    Translate("Translate", "Translate", "XV", 'O', GeometryCategory.Transform, listOf("What to move", "The vector")),
-    Dilate("Dilate", "Dilate", "XP", 'O', GeometryCategory.Transform, listOf("What to scale", "Center"), ask = "Factor");
+    Translate("Translate", "Translate", "XV", 'O', GeometryCategory.Transform, listOf("What to move", "The vector"), where = "pcs"),
+    Dilate("Dilate", "Dilate", "XP", 'O', GeometryCategory.Transform, listOf("What to scale", "Center"), ask = "Factor", where = "pcs"),
+    // In space (the 3D graph): planes, spheres and solids.
+    Plane3("Plane through 3", "Plane", "PPP", 'O', GeometryCategory.Solids, listOf("Point", "Point", "Point"), where = "s"),
+    PlaneParallel("Parallel plane", "Plane", "PS", 'O', GeometryCategory.Solids, listOf("Through", "The plane"), where = "s"),
+    PlanePerpendicular("Perpendicular plane", "PerpendicularPlane", "PL", 'O', GeometryCategory.Solids, listOf("Through", "The line"), where = "s"),
+    PerpendicularToPlane("Perpendicular to plane", "PerpendicularLine", "PS", 'O', GeometryCategory.Lines, listOf("Through", "The plane"), where = "s"),
+    Sphere("Sphere", "Sphere", "PP", 'O', GeometryCategory.Solids, listOf("Center", "On the sphere"), where = "s"),
+    SphereRadius("Sphere with radius", "Sphere", "P", 'O', GeometryCategory.Solids, listOf("Center"), ask = "Radius", where = "s"),
+    Cube("Cube", "Cube", "PP", 'O', GeometryCategory.Solids, listOf("Edge start", "Edge end"), where = "s"),
+    Tetrahedron("Tetrahedron", "Pyramid", "PPPP", 'O', GeometryCategory.Solids, listOf("Corner", "Corner", "Corner", "Apex"), where = "s"),
+    Pyramid("Pyramid", "Pyramid", "OP", 'O', GeometryCategory.Solids, listOf("Base polygon", "Apex"), where = "s"),
+    Prism("Prism", "Prism", "OP", 'O', GeometryCategory.Solids, listOf("Base polygon", "Top of the first edge"), where = "s"),
+    Volume("Volume", "Volume", "O", 'O', GeometryCategory.Measure, listOf("The solid"), where = "s"),
+    ReflectPlane("Reflect in plane", "Reflect", "XS", 'O', GeometryCategory.Transform, listOf("What to reflect", "Mirror plane"), where = "s"),
+    RotateAxis("Rotate about line", "Rotate", "XL", 'O', GeometryCategory.Transform, listOf("What to turn", "Axis"), ask = "Angle (degrees)", where = "s"),
+    // On the complex plane: points are numbers.
+    Multiply("Multiply", "", "PP", 'P', GeometryCategory.Complex, listOf("First number", "Second number"), where = "c"),
+    Divide("Divide", "", "PP", 'P', GeometryCategory.Complex, listOf("Top", "Bottom"), where = "c"),
+    Conjugate("Conjugate", "Conjugate", "X", 'P', GeometryCategory.Complex, listOf("Point or shape"), where = "c"),
+    ComplexRoots("nth roots", "ComplexRoots", "P", 'P', GeometryCategory.Complex, listOf("The number"), ask = "n (how many roots)", where = "c"),
+    Modulus("Modulus", "Modulus", "P", 'O', GeometryCategory.Complex, listOf("The number"), where = "c"),
+    Argument("Argument", "Argument", "P", 'O', GeometryCategory.Complex, listOf("The number"), where = "c"),
+    Image("Image under f", "Image", "X", 'O', GeometryCategory.Complex, listOf("Point or shape"), ask = "Function (its name, like f)", where = "c");
+
+    /** Whether it's offered in [space]. */
+    fun fits(space: GeometrySpace) = space.code in where
 
     /** The name on its tile in the palette, short enough for two lines. */
     val tile: String get() = when (this) {
@@ -2453,7 +2637,20 @@ enum class GeometryTool(
         SegmentLength -> "Segment, length"
         AngleSize -> "Angle, size"
         CommonTangent -> "Common tangents"
+        PlanePerpendicular -> "Perp. plane"
+        PerpendicularToPlane -> "Perp. to plane"
+        SphereRadius -> "Sphere, radius"
+        RotateAxis -> "Rotate about line"
         else -> label
+    }
+
+    companion object {
+        /** The tools of [category] offered in [space] (Move first among the points). */
+        fun of(space: GeometrySpace, category: GeometryCategory): List<GeometryTool> =
+            (if (category == GeometryCategory.Points) listOf(Move) else emptyList()) + entries.filter { it.category == category && it != Move && it.fits(space) }
+
+        /** The groups with tools in [space]. */
+        fun categories(space: GeometrySpace) = GeometryCategory.entries.filter { c -> entries.any { it.category == c && it != Move && it.fits(space) } }
     }
 
     /** Any number of points, finished with a button (or, for a polygon, its first corner tapped again). */
@@ -2471,6 +2668,7 @@ enum class GeometryTool(
         'C' -> "Tap a circle or conic"
         'F' -> "Tap a function's graph"
         'V' -> "Tap a vector"
+        'S' -> "Tap a plane"
         'X' -> "Tap a point or an object"
         else -> "Drag points to move them"
     }

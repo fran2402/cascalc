@@ -203,6 +203,32 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, geometry in space and on the complex plane)
+- **3D geometry:** with geometry mode on, the 3D graph builds in space (`graph/Geometry3D.kt`,
+  with tests).
+  - **Objects:** points (A = (1, 2, 3)), lines, segments, rays, vectors, planes, spheres,
+    circles, polygons, and solids (pyramids, tetrahedra, prisms, cubes).
+  - **Constructions:** intersections (two planes meet in a line, a plane and a sphere in a
+    circle), perpendicular and parallel lines and planes, closest points.
+  - **Measures:** distances (including between skew lines), angles (between lines, a line and a
+    plane, or two planes), lengths, areas, volumes.
+  - **Transforms:** reflect in a plane or point, rotate about a line, translate, dilate.
+  - **Drawing:** planes are cut to the box; planes, spheres and solids are see-through and depth
+    sorted with the surfaces.
+  - **Construct mode:** a Planes & solids tool group, and a tap on empty space puts a point on the
+    floor.
+- **Complex-plane geometry:**
+  - **Points are numbers:** A = 1 + 2i; A·B, A/B, powers, |A|, arg, √ and eᶻ work on them.
+  - **New commands:** Conjugate, Modulus, Argument, RootsOfUnity and ComplexRoots.
+  - **Functions of z:** with f(z) defined, Image(f, c) maps a point, line, circle or curve
+    through f, and f(A) is a point.
+  - **Construct mode:** the same tools as the 2D graph, plus a Complex group with its own icons.
+- **Shared construct UI:** the tools and their icons now live in `ConstructUI.kt`, and each tool
+  says which of the three graphs it belongs to.
+- **Always on:** the unit converter and spreadsheet formulas, and their settings are gone.
+- **Data table:** the ⋮ menu is after Redo.
+- **Point card:** its buttons row now scrolls sideways (it didn't scroll at all before).
+
 ## Latest changes (4 October, point card, data tables)
 - **Point card:** its buttons (area, tangent, normal, arc length…) scroll sideways again.
   A touch that starts on the card no longer pans the graph or closes the card, in 2D, 3D and

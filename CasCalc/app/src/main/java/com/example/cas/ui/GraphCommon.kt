@@ -1138,6 +1138,8 @@ private fun RenameDialog(f: PlotFunction, onDone: (String?) -> Unit, onDismiss: 
 /** Desmos-like options for a 2D line: labels on points, joining a list's points, a region's fill opacity. */
 @OptIn(ExperimentalLayoutApi::class)
 private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? {
+    // A construction (in any of the three graphs): its own options.
+    if (f.geometry != null) return { GeometryOptions(vm, f) }
     if (vm.plotVars != listOf("x") && !vm.isComplex) return null
     val kind = f.plot
     val points = kind is Plot2DKind.Point || kind is Plot2DKind.PointList || f.complexPoints != null
@@ -1188,11 +1190,7 @@ private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable andro
 }
 
 /** A geometry construction that is a point (or points): it has a mark, not a line style. */
-private fun isGeometryPoint(vm: GraphViewModel, f: PlotFunction): Boolean {
-    if (f.geometry == null) return false
-    val o = vm.geometryOf(f)
-    return o is com.example.cas.graph.Geometry.Point || o is com.example.cas.graph.Geometry.Many && o.items.isNotEmpty() && o.items.all { it is com.example.cas.graph.Geometry.Point }
-}
+private fun isGeometryPoint(vm: GraphViewModel, f: PlotFunction): Boolean = f.geometry != null && vm.constructionKind(f) == 'P'
 
 /** A point's mark: its shape (each chip draws it), and filled or hollow. */
 @OptIn(ExperimentalLayoutApi::class)
@@ -1230,9 +1228,9 @@ private fun MarkChooser(vm: GraphViewModel, f: PlotFunction) {
 @Composable
 private fun androidx.compose.foundation.layout.ColumnScope.GeometryOptions(vm: GraphViewModel, f: PlotFunction) {
     val colors = MaterialTheme.colorScheme
-    val o = vm.geometryOf(f)
     val isPoint = isGeometryPoint(vm, f)
-    val filled = o is com.example.cas.graph.Geometry.Polygon || o is com.example.cas.graph.Geometry.Angle || o is com.example.cas.graph.Geometry.Arc && o.sector
+    val kind = vm.constructionKind(f)
+    val filled = kind == 'F' || kind == 'A'
     if (isPoint) {
         Text("Point", style = MaterialTheme.typography.labelLarge, color = colors.primary)
         MarkChooser(vm, f)
@@ -1246,7 +1244,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.GeometryOptions(vm: G
             Text("Show coordinates", modifier = Modifier.weight(1f), color = colors.onSurface)
             androidx.compose.material3.Switch(checked = f.showLabel, onCheckedChange = { vm.setOptions(f, label = it) })
         }
-        if (f.geometry?.onPath == true) Row(verticalAlignment = Alignment.CenterVertically) {
+        if (f.geometry?.onPath == true && vm.plotVars == listOf("x")) Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Move along its path", color = colors.onSurface)
                 Text("Round once in 10 s, or back and forth", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
@@ -2189,6 +2187,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                             )
                         }
                         IconButton(onClick = { undo() }, enabled = undoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo") }
+                        IconButton(onClick = { redo() }, enabled = redoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo") }
                         // More: the table as CSV (shared or copied), and tidying up.
                         var more by remember { mutableStateOf(false) }
                         Box {
@@ -2208,7 +2207,6 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                 DropdownMenuItem(leadingIcon = { Icon(Icons.Default.CleaningServices, null) }, text = { Text("Remove empty rows") }, onClick = { more = false; removeEmptyRows() })
                             }
                         }
-                        IconButton(onClick = { redo() }, enabled = redoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo") }
                         Spacer(Modifier.width(4.dp))
                         Button(
                             enabled = roleY != null && points > 0,
@@ -2867,7 +2865,7 @@ fun GraphScaffold(vm: GraphViewModel, outputLabel: String, modifier: Modifier = 
         return
     }
     // Construct mode on a phone: the tools take the list's place (it comes back when closed).
-    val listAway = (vm as? Graph2DViewModel)?.constructing == true && AppSettings.geometry
+    val listAway = vm.constructing && AppSettings.geometry
     // Typing something new: the graph (and its buttons) step aside, and the list has the room.
     val focus = vm.typingFocus
     // A note's keyboard closing (Back, or Done) ends it too.
@@ -3075,7 +3073,8 @@ private fun PointCard(color: Color?, kind: String?, name: String?, rows: List<Ca
             }
             if (actions.isNotEmpty()) {
                 androidx.compose.material3.HorizontalDivider(Modifier.padding(top = 8.dp, bottom = 10.dp), color = colors.outlineVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // More buttons than fit (area, between curves, tangent, normal, arc length…) scroll sideways.
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     actions.forEach { a ->
                         Row(
                             Modifier.height(38.dp).clip(RoundedCornerShape(12.dp)).background(colors.secondaryContainer)

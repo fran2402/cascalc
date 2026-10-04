@@ -108,8 +108,13 @@ fun ComplexScreen(vm: ComplexViewModel, onUseValue: (CD) -> Unit = {}, modifier:
         scale = vm.scale,
         onGraphFile = { share -> exporting = false; writeFile(com.example.cas.graph.GraphFile.Contents(com.example.cas.graph.GraphFile.Kind.Complex, "complex-plot", vm.graphData()), share) },
     )
+    // Geometry mode: lines read again when it's turned on or off; editing a line on a phone closes construct mode.
+    androidx.compose.runtime.LaunchedEffect(AppSettings.geometry) { vm.refreshAll(); if (!AppSettings.geometry) vm.stopConstructing() }
+    val phone = !isTabletLayout()
+    androidx.compose.runtime.LaunchedEffect(vm.active, phone) { if (phone && vm.active != null) vm.stopConstructing() }
     GraphScaffold(vm, outputLabel = "f(z)", modifier = modifier) {
-        Box(Modifier.fillMaxSize().onSizeChanged { plotSize = it }) {
+        Column(Modifier.fillMaxSize()) {
+        Box(Modifier.weight(1f).fillMaxWidth().onSizeChanged { plotSize = it }) {
             ComplexCanvas(vm, Modifier.fillMaxSize(), onUseValue)
             // (Top left holds the contour result, bottom right the toolbar.)
             GraphBottomBar(vm, Modifier.align(Alignment.BottomCenter), onExport = { if (vm.view != null) exporting = true }, tools = { PlotTools(vm) })
@@ -134,6 +139,22 @@ fun ComplexScreen(vm: ComplexViewModel, onUseValue: (CD) -> Unit = {}, modifier:
                     }
                 })
             }
+            // A tool's number (n roots, a factor) or function name, asked once its taps are done.
+            vm.pendingAsk?.let { ask -> ToolNumberDialog(ask.tool, onDone = { vm.answerAsk(it) }, onDismiss = { vm.pendingAsk = null }) }
+            // Geometry on the complex plane: Construct starts building, as on the 2D graph.
+            if (AppSettings.geometry) {
+                if (!vm.constructing) ConstructButton(onClick = { vm.constructing = true }, modifier = Modifier.align(Alignment.TopEnd).padding(10.dp))
+                else if (isTabletLayout()) {
+                    val byList = if (AppSettings.keypadSide == 0) Alignment.TopStart else Alignment.TopEnd
+                    ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 140.dp, end = 140.dp))
+                    ConstructRail(vm, Modifier.align(byList).padding(top = 10.dp, bottom = 84.dp, start = 10.dp, end = 10.dp))
+                } else ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 12.dp, end = 12.dp))
+            }
+        }
+        // On a phone the tools sit under the plane, in the list's place.
+        if (AppSettings.geometry && vm.constructing && phone) {
+            ConstructPalette(vm, Modifier.background(MaterialTheme.colorScheme.surface).padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 6.dp))
+        }
         }
     }
 }
@@ -170,6 +191,15 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
         }
     }
     val curvesState = androidx.compose.runtime.rememberUpdatedState(curves)
+    // Geometry on the plane: each construction's drawing, in values (A = 1 + 2i, Circle(A, 2), Image(f, c)…).
+    val geometry = remember(view, vm.version, params, sc, AppSettings.geometry) {
+        val v = view
+        if (!AppSettings.geometry || v == null) emptyList() else vm.functions.filter { it.visible && it.geometry != null }.mapNotNull { fn ->
+            vm.geometryOf(fn)?.let { o -> runCatching { Triple(fn, o, com.example.cas.graph.Geometry.draw(o, sc.realView(v)) { vm.angleText(it) }) }.getOrNull() }
+        }
+    }
+    val geometryState = androidx.compose.runtime.rememberUpdatedState(geometry)
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
 
 
     // Render coarse first so panning feels live, then sharper once the view settles.
@@ -228,6 +258,13 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                     onDoubleTap = { vm.resetView(size); probe = null; hit = null },
                     onTap = { o ->
                         val v = vm.view ?: return@detectTapGestures
+                        // Building with a geometry tool: tap points (or empty space, making one), or objects.
+                        vm.geometryTool?.takeIf { AppSettings.geometry }?.let { tool ->
+                            haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                            constructTapComplex(vm, tool, o, geometryState.value, v, size, sc, 28.dp.toPx())
+                            hit = null; probe = null
+                            return@detectTapGestures
+                        }
                         val from = vm.areaFrom
                         if (from != null) {
                             // The end of an area to the axis: the nearest point of the same curve.
@@ -280,6 +317,47 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                     val c = complexLineColor(ar.f)
                     val path = Path().apply { ar.outline.forEachIndexed { k, z -> val o = toScreen(v, z, size.width, size.height, sc); if (k == 0) moveTo(o.x, o.y) else lineTo(o.x, o.y) }; close() }
                     drawPath(path, c.copy(alpha = 0.3f))
+                }
+            }
+            // Geometry: fills, then lines outlined so they show on any color, points, names and labels.
+            val geoLabel = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 15.sp, color = Color.White)
+            for ((fn, o, d) in geometry) {
+                val c = complexLineColor(fn)
+                fun at(x: Double, y: Double) = toScreen(v, CD(x, y), size.width, size.height, sc)
+                d.fill?.takeIf { it.size > 2 }?.let { fill ->
+                    drawPath(Path().apply { fill.forEachIndexed { k, (x, y) -> val q = at(x, y); if (k == 0) moveTo(q.x, q.y) else lineTo(q.x, q.y) }; close() }, c.copy(alpha = fn.fillOpacity.coerceIn(0.05f, 1f)))
+                }
+                d.lines.forEach { line ->
+                    val path = Path()
+                    line.forEachIndexed { k, (x, y) -> val q = at(x, y); if (k == 0) path.moveTo(q.x, q.y) else path.lineTo(q.x, q.y) }
+                    drawPath(path, Color.Black.copy(alpha = 0.55f), style = Stroke((fn.thickness + 2.5f).dp.toPx(), cap = StrokeCap.Round))
+                    drawPath(path, c, style = Stroke(fn.thickness.dp.toPx(), cap = StrokeCap.Round))
+                }
+                d.points.forEach { p ->
+                    val q = at(p.x, p.y)
+                    drawCircle(Color.Black.copy(alpha = 0.55f), 7.5.dp.toPx(), q)
+                    drawCircle(c, 6.dp.toPx(), q)
+                    drawCircle(colors.surface, 2.dp.toPx(), q)
+                }
+                val name = fn.geometry?.name
+                if (name != null && !fn.hideName && o is com.example.cas.graph.Geometry.Point) {
+                    val q = at(o.x, o.y); val t = measurer.measure(geometryLabel(name), geoLabel)
+                    drawText(t, topLeft = Offset(q.x + 8.dp.toPx(), q.y - t.size.height - 3.dp.toPx()), shadow = androidx.compose.ui.graphics.Shadow(Color.Black, blurRadius = 4f))
+                }
+                d.labels.forEach { (p, text) ->
+                    val q = at(p.x, p.y); val t = measurer.measure(text, geoLabel.copy(fontFamily = CasFonts.CmRoman, fontSize = 13.sp))
+                    drawText(t, topLeft = Offset(q.x - t.size.width / 2f, q.y - t.size.height / 2f), shadow = androidx.compose.ui.graphics.Shadow(Color.Black, blurRadius = 4f))
+                }
+            }
+            // What a tool has picked so far: points ringed, objects in a broad band.
+            if (vm.geometryTool != null) vm.geometryPicks.forEach { name ->
+                geometry.firstOrNull { it.first.geometry?.name == name }?.let { (_, _, d) ->
+                    d.points.forEach { p -> drawCircle(colors.primary, 11.dp.toPx(), toScreen(v, CD(p.x, p.y), size.width, size.height, sc), style = Stroke(2.5.dp.toPx())) }
+                    d.lines.forEach { line ->
+                        val path = Path()
+                        line.forEachIndexed { k, (x, y) -> val q = toScreen(v, CD(x, y), size.width, size.height, sc); if (k == 0) path.moveTo(q.x, q.y) else path.lineTo(q.x, q.y) }
+                        drawPath(path, colors.primary.copy(alpha = 0.4f), style = Stroke(9.dp.toPx(), cap = StrokeCap.Round))
+                    }
                 }
             }
             hit?.let { h ->
@@ -815,4 +893,50 @@ private fun ComplexAreaCard(ar: PlaneArea, onClose: () -> Unit, onUse: (Double) 
         onUse = { onUse(ar.total) },
         onClose = onClose,
     )
+}
+
+/**
+ * A tap with a geometry tool on the complex plane: on a construction's point (named if it
+ * wasn't), on an object of the kind the tool needs, or on empty space, which makes a point there.
+ */
+private fun constructTapComplex(
+    vm: ComplexViewModel, tool: GeometryTool, tap: Offset,
+    geometry: List<Triple<PlotFunction, com.example.cas.graph.Geometry.Obj, com.example.cas.graph.Geometry.Drawing>>,
+    v: Viewport, size: IntSize, sc: com.example.cas.graph.AxisScale, reach: Float,
+) {
+    fun at(x: Double, y: Double) = toScreen(v, CD(x, y), size.width, size.height, sc)
+    fun pointNear(): String? = geometry.filter { it.second is com.example.cas.graph.Geometry.Point }
+        .map { (fn, o, _) -> val p = o as com.example.cas.graph.Geometry.Point; fn to (at(p.x, p.y) - tap).getDistance() }
+        .filter { it.second < reach }.minByOrNull { it.second }?.first?.let { vm.nameLine(it) }
+    fun fits(kind: Char, o: com.example.cas.graph.Geometry.Obj) = when (kind) {
+        'L' -> o is com.example.cas.graph.Geometry.Line || o is com.example.cas.graph.Geometry.Segment || o is com.example.cas.graph.Geometry.Ray || o is com.example.cas.graph.Geometry.Vector
+        'C' -> o is com.example.cas.graph.Geometry.Circle || o is com.example.cas.graph.Geometry.Conic || o is com.example.cas.graph.Geometry.Arc
+        'V' -> o is com.example.cas.graph.Geometry.Vector
+        'F' -> false
+        else -> o !is com.example.cas.graph.Geometry.Point && o !is com.example.cas.graph.Geometry.Number && o !is com.example.cas.graph.Geometry.Angle
+    }
+    fun segmentDistance(a: Offset, c: Offset): Float {
+        val d = c - a; val len2 = d.x * d.x + d.y * d.y
+        val t = if (len2 == 0f) 0f else (((tap.x - a.x) * d.x + (tap.y - a.y) * d.y) / len2).coerceIn(0f, 1f)
+        return (tap - Offset(a.x + d.x * t, a.y + d.y * t)).getDistance()
+    }
+    fun objectNear(kind: Char): String? = geometry.filter { fits(kind, it.second) }.mapNotNull { (fn, _, d) ->
+        val dist = d.lines.minOfOrNull { line -> line.map { (x, y) -> at(x, y) }.zipWithNext { a, c -> segmentDistance(a, c) }.minOrNull() ?: Float.MAX_VALUE } ?: return@mapNotNull null
+        fn to dist
+    }.filter { it.second < reach }.minByOrNull { it.second }?.first?.let { vm.nameLine(it) }
+    fun newPoint(): String {
+        val z = toPlane(v, tap, size, sc)
+        val snapX = com.example.cas.graph.Plot2D.niceStep(v.width, 100); val snapY = com.example.cas.graph.Plot2D.niceStep(v.height, 100)
+        return vm.addFreePoint(Math.round(z.re / snapX) * snapX, Math.round(z.im / snapY) * snapY)
+    }
+    when (tool) {
+        GeometryTool.Move -> {}
+        GeometryTool.Point -> if (pointNear() == null) newPoint()
+        GeometryTool.PointOn -> objectNear('O')?.let { val z = toPlane(v, tap, size, sc); vm.addPointOn(it, z.re, z.im) }
+        else -> when (val need = vm.geometryNeeds ?: 'P') {
+            'P' -> vm.pickForTool(pointNear() ?: newPoint())
+            'X' -> (pointNear() ?: objectNear('O'))?.let { vm.pickForTool(it) }
+            else -> objectNear(need)?.let { vm.pickForTool(it) }
+        }
+    }
 }

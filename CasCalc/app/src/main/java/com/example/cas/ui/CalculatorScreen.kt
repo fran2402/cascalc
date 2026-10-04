@@ -1578,14 +1578,6 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 "Show steps", "Worked steps for calculus (integrals, derivatives, limits, sums, series, \$\\oint\$), algebra and complex numbers, matrices (determinants, inverses, eigenvalues, rref), differential equations, statistics and vector calculus: Steps on a history card. Still in beta, so steps may skip some algebra",
                 AppSettings.showSteps, AppSettings::changeShowSteps, badge = "Beta",
             )
-            SettingsToggle(
-                "Unit converter", "In the \$\\vdots\$ menu: convert any units, like km/s/Mpc to \$\\mathrm{s}^{-1}\$ or erg to SI, with c, h and \$k_B\$ bridging energy, mass, frequency and temperature",
-                AppSettings.unitConverter, AppSettings::changeUnitConverter,
-            )
-            SettingsToggle(
-                "Spreadsheet formulas", "In the data table: columns lettered A, B, C… and cells like =B1*2, =SUM(A:A), =SLOPE(B:B, A:A) or =IF(A1>0, A1, 0), worked out as Excel does: over 370 of its functions (statistics and distributions, lookups like VLOOKUP and XLOOKUP, text, dates, finance, engineering), with fill down; the list of functions is under How to use",
-                AppSettings.sheetFormulas, AppSettings::changeSheetFormulas,
-            )
         },
         PageSection("History", Icons.Outlined.History) {
             SettingsChoice("History keeps", listOf("50", "100", "500", "All"), when (AppSettings.historyLimit) { 50 -> 0; 100 -> 1; 500 -> 2; else -> 3 }) {
@@ -1628,7 +1620,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsToggle("Legend", "Each line's name in the corner, and in exports. Hold a line to rename it", AppSettings.showLegend, AppSettings::changeShowLegend)
             SettingsToggle("Mark points on curves", "Zeros, extrema and crossings of the tapped curve", AppSettings.specialPoints, AppSettings::changeSpecialPoints)
             SettingsToggle(
-                "Geometry mode", "Constructions in the 2D graph: name points (A = (1, 2)) and build with Segment, Circle, Intersect, Midpoint, Angle, Area and more, or tap with the Construct tools. Drag free points and everything built on them follows. Early alpha: it will change a lot",
+                "Geometry mode", "Constructions in the 2D graph: name points (A = (1, 2)) and build with Segment, Circle, Intersect, Midpoint, Angle, Area and more, or tap with the Construct tools. Drag free points and everything built on them follows. In the 3D graph, geometry in space (planes, spheres, solids); on the complex plane, points as numbers. Early alpha: it will change a lot",
                 AppSettings.geometry, AppSettings::changeGeometry, badge = "Alpha",
             )
             SettingsChoice("Starting view", listOf("\$\\pm 5\$", "\$\\pm 10\$", "\$\\pm 20\$"), when (AppSettings.viewHalfWidth) { 5 -> 0; 20 -> 2; else -> 1 }) {

@@ -530,7 +530,7 @@ object Docs {
                 ),
                 section(
                     "Spreadsheet formulas",
-                    para("With Spreadsheet formulas on (Settings › Calculator), columns are lettered A, B, C… and a cell starting with = is worked out, as in Excel: =B1*2, =SUM(A:A), =IF(A1>0, A1, 0)."),
+                    para("Columns are lettered A, B, C… and a cell starting with = is worked out, as in Excel: =B1*2, =SUM(A:A), =IF(A1>0, A1, 0)."),
                     para("Dragging the fill handle copies a formula and moves its references with it. A \\\$ fixes a part: \\\$A\\\$1 stays put, A\\\$1 keeps its row while the column changes, and \\\$A1 keeps its column while the row changes. While typing, the \\\$ button under the cell anchors the reference you just typed the next way round, as Excel's F4 does."),
                     bullets(
                         "References: A1 a cell, A1:B10 a range, A:A a whole column; \$A\$1 stays put when copied.",
@@ -559,13 +559,13 @@ object Docs {
             "Unit converter", "converter", "Any units, however they're combined.", part = APP, sections = listOf(
                 section(
                     "Converting",
-                    para("Turn it on in Settings › Calculator, then open it from the ⋮ menu. Type a value and pick the From and To units: anything like km/s/Mpc, erg, N m² kg⁻², lea/Å. × 10ⁿ and ± beside the value help on keyboards without e or a minus."),
+                    para("Open it from the ⋮ menu. Type a value and pick the From and To units: anything like km/s/Mpc, erg, N m² kg⁻², lea/Å. × 10ⁿ and ± beside the value help on keyboards without e or a minus."),
                     para("With \$c\$, \$h\$, \$\\hbar\$ or \$k_B\$ allowed, it also connects mass and energy, energy and frequency or wavelength, and energy and temperature."),
                 ),
             ),
         ),
         Chapter(
-            "Geometry mode", "geometry", "Constructions with points, lines, circles and conics in the 2D graph (alpha).", part = APP, sections = listOf(
+            "Geometry mode", "geometry", "Constructions in the 2D graph, in space in the 3D graph, and on the complex plane (alpha).", part = APP, sections = listOf(
                 section(
                     "Points and objects",
                     para("Turn geometry mode on in Settings › Graphs. Each line of the 2D graph's list can then be a construction: name a point with a capital, like A = (1, 2), and build on it with commands, like Segment(A, B), c = Circle(A, B) or P = Intersect(c, l, 1). A line can use names from any other line. Lowercase letters stay sliders, so Circle(A, r) gets a slider r."),
@@ -577,6 +577,15 @@ object Docs {
                     para("Every command, with what it takes and what it makes. Type one on a line of the 2D graph's list; names are capitals for points, other letters for the rest."),
                 ),
                 Section("Every command", listOf(Block.Table(com.example.cas.graph.Geometry.COMMANDS.map { c -> c.usage + (if (c.aliases.isEmpty()) "" else " (also " + c.aliases.joinToString(", ") + ")") to c.help }))),
+                section(
+                    "In space (the 3D graph)",
+                    para("Geometry mode works in the 3D graph too: name a point with three coordinates, A = (1, 2, 3), and build planes, spheres and solids on it. Planes are cut to the box and drawn see-through with spheres and solids; Construct has tools for them (Plane through 3, Sphere, Cube, Tetrahedron, Pyramid, Prism, Reflect in plane, Rotate about line), and a tap on empty space puts a point on the floor (z = 0)."),
+                ),
+                Section("Every command in space", listOf(Block.Table(com.example.cas.graph.Geometry3D.COMMANDS.map { c -> c.usage + (if (c.aliases.isEmpty()) "" else " (also " + c.aliases.joinToString(", ") + ")") to c.help }))),
+                section(
+                    "On the complex plane",
+                    para("On the complex plane, points are numbers: A = 1 + 2i, or A = (1, 2). A·B, A/B and powers multiply and divide them as complex numbers, |A|, arg A, √A and e^A work on them, and Conjugate, Modulus, Argument, RootsOfUnity(n) and ComplexRoots(A, n) are commands. With f(z) defined in the list, Image(f, c) draws where f takes a point, line, circle or curve, and f(A) is the point A goes to. Construct has a Complex group of tools for these."),
+                ),
                 section(
                     "Building by tapping",
                     para("Construct, top right of the graph, starts building. On a phone the tool palette takes the list's place under the graph (the list comes back when you're done, or when you edit a line or add something), always the same size, its tiles all alike, scrolling when a group has more; on a tablet the tools stand in a rail beside the graph, and touches on it never move the graph. The tools come in groups (points, lines, circles and shapes, conics, measure, transform), each with an icon; Move, the first, just drags points. A card at the top shows each step (its dots, what it's for, what to tap) and what you've picked, with Undo, Close for a polygon, Finish for tools that take any number of points (polyline, best-fit line), and Done."),

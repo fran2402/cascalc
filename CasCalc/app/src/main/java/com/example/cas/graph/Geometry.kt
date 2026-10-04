@@ -8,6 +8,7 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.exp
 import kotlin.math.hypot
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -76,6 +77,9 @@ object Geometry {
     /** The graph of a function f(x) from the graph's own lines, for intersecting and tangents. */
     class FunctionGraph(val name: String, val f: (Double) -> Double) : Obj()
 
+    /** A function of z defined on the complex plane's lines (w = f(z)): it maps points (Image(f, c)). */
+    class ComplexMap(val name: String, val f: (Point) -> Point?) : Obj()
+
     enum class Unit { None, Length, Angle, Area }
 
     /** A number: a length, an area, an angle (in radians) or a plain value. */
@@ -102,6 +106,8 @@ object Geometry {
         /** A command and its arguments, with each argument's nodes as typed (a point on a path rewrites its parameter). */
         class Call(val command: Command, val args: List<Ex>, val argNodes: List<List<Node>>) : Ex()
         class Pair(val x: Ex, val y: Ex) : Ex()
+        /** (x, y, z): a point in space. */
+        class Triple(val x: Ex, val y: Ex, val z: Ex) : Ex()
         class Lit(val value: Double) : Ex()
         /** Something only the app can work out (π, a constant, a fraction of plain numbers). */
         class Delegate(val nodes: List<Node>) : Ex()
@@ -122,6 +128,7 @@ object Geometry {
             when (this) {
                 is Call -> args.forEach { it.walk(visit) }
                 is Pair -> { x.walk(visit); y.walk(visit) }
+                is Triple -> { x.walk(visit); y.walk(visit); z.walk(visit) }
                 is Bin -> { a.walk(visit); b.walk(visit) }
                 is Neg -> a.walk(visit)
                 is Coordinate -> of.walk(visit)
@@ -211,6 +218,12 @@ object Geometry {
         Command("PerpendicularVector", "PerpendicularVector(v)", "The vector at right angles to v, as long as it", listOf("OrthogonalVector")),
         Command("UnitPerpendicularVector", "UnitPerpendicularVector(v)", "The vector of length 1 at right angles to v or a line", listOf("UnitOrthogonalVector")),
         Command("Direction", "Direction(l)", "A line's direction, as a vector"),
+        Command("Conjugate", "Conjugate(z)", "The mirror image in the real axis: a − bi for a + bi (complex plane); also of shapes"),
+        Command("Modulus", "Modulus(z)", "|z|: how far the point is from 0 (complex plane)"),
+        Command("Argument", "Argument(z)", "arg z: the angle from the positive real axis (complex plane)"),
+        Command("RootsOfUnity", "RootsOfUnity(n)", "The n points with zⁿ = 1, on the unit circle (complex plane)"),
+        Command("ComplexRoots", "ComplexRoots(z, n)", "The n points w with wⁿ = z (complex plane)", listOf("NthRoots")),
+        Command("Image", "Image(f, c)", "Where f(z), defined on the complex plane, takes a point, line, circle or curve (complex plane)"),
         Command("Distance", "Distance(A, B)", "How far apart two points are, or a point and a line or circle"),
         Command("Length", "Length(s)", "The length of a segment, vector or arc, or the perimeter of a polygon"),
         Command("Perimeter", "Perimeter(poly)", "The perimeter of a polygon, or a circle's circumference"),
@@ -263,7 +276,7 @@ object Geometry {
     private fun isPointName(name: String) = isPointName(Sym(name))
 
     /** The command starting at [from] (one word, or letters spelling it) and how many nodes it takes. */
-    private fun commandAt(items: List<Node>, from: Int): kotlin.Pair<Command, Int>? {
+    private fun commandAt(items: List<Node>, from: Int, command: (String) -> Command? = ::command): kotlin.Pair<Command, Int>? {
         text(items.getOrNull(from))?.let { t -> if (t.length > 1 && t.all { it.isLetter() } && text(items.getOrNull(from + 1)) == "(") command(t)?.let { return it to 1 } }
         val sb = StringBuilder()
         var k = from
@@ -298,7 +311,7 @@ object Geometry {
     // ---- Reading expressions -------------------------------------------------------------
 
     /** Reads a row (or part of one) as an expression: + − × / ^, brackets, pairs, calls, names. */
-    private class Reader(val items: List<Node>) {
+    internal class Reader(val items: List<Node>, val lookup: (String) -> Command? = ::command) {
         var k = 0
 
         fun all(): Ex {
@@ -342,7 +355,7 @@ object Geometry {
             while (true) {
                 val n = items.getOrNull(k)
                 when {
-                    n is com.example.cas.editor.Pow -> { k++; e = Ex.Bin('^', e, Reader(n.exp.items).all()) }
+                    n is com.example.cas.editor.Pow -> { k++; e = Ex.Bin('^', e, Reader(n.exp.items, lookup).all()) }
                     text(n) == "°" -> { k++; e = Ex.Degrees(e) }
                     text(n) == "²" -> { k++; e = Ex.Bin('^', e, Ex.Lit(2.0)) }
                     else -> return e
@@ -360,20 +373,20 @@ object Geometry {
             val n = items.getOrNull(k) ?: throw NotGeometry()
             val s = text(n)
             // A command and its arguments.
-            commandAt(items, k)?.let { (cmd, used) ->
+            commandAt(items, k, lookup)?.let { (cmd, used) ->
                 val open = k + used
                 val end = closing(items, open)
                 if (end < 0) throw NotGeometry()
                 val inner = items.subList(open + 1, end)
                 val parts = if (inner.isEmpty()) emptyList() else splitArgs(inner)
                 k = end + 1
-                return Ex.Call(cmd, parts.map { Reader(it).all() }, parts)
+                return Ex.Call(cmd, parts.map { Reader(it, lookup).all() }, parts)
             }
             // x(A), y(A): a coordinate.
-            if ((s == "x" || s == "y") && t(k + 1) == "(") {
+            if ((s == "x" || s == "y" || s == "z") && t(k + 1) == "(") {
                 val end = closing(items, k + 1)
                 if (end < 0) throw NotGeometry()
-                val inner = Reader(items.subList(k + 2, end)).all()
+                val inner = Reader(items.subList(k + 2, end), lookup).all()
                 k = end + 1
                 return Ex.Coordinate(s[0], inner)
             }
@@ -384,8 +397,10 @@ object Geometry {
                     val parts = splitArgs(items.subList(k + 1, end))
                     k = end + 1
                     return when (parts.size) {
-                        1 -> Reader(parts[0]).all()
-                        2 -> Ex.Pair(Reader(parts[0]).all(), Reader(parts[1]).all())
+                        1 -> Reader(parts[0], lookup).all()
+                        2 -> Ex.Pair(Reader(parts[0], lookup).all(), Reader(parts[1], lookup).all())
+                        // (x, y, z): a point in space (for 3D geometry).
+                        3 -> Ex.Triple(Reader(parts[0], lookup).all(), Reader(parts[1], lookup).all(), Reader(parts[2], lookup).all())
                         else -> throw NotGeometry()
                     }
                 }
@@ -395,10 +410,10 @@ object Geometry {
                     return Ex.Lit(sb.toString().toDoubleOrNull() ?: throw NotGeometry())
                 }
                 isName(n) -> { k++; return Ex.Ref(s!!) }
-                n is com.example.cas.editor.Frac -> { k++; return Ex.Bin('/', Reader(n.num.items).all(), Reader(n.den.items).all()) }
-                n is com.example.cas.editor.Sqrt -> { k++; return Ex.Sqrt(Reader(n.arg.items).all()) }
-                n is com.example.cas.editor.Root -> { k++; return Ex.Root(Reader(n.arg.items).all(), Reader(n.index.items).all()) }
-                n is Func -> { k++; return Ex.Fn(n.name, n.args.map { Reader(it.items).all() }) }
+                n is com.example.cas.editor.Frac -> { k++; return Ex.Bin('/', Reader(n.num.items, lookup).all(), Reader(n.den.items, lookup).all()) }
+                n is com.example.cas.editor.Sqrt -> { k++; return Ex.Sqrt(Reader(n.arg.items, lookup).all()) }
+                n is com.example.cas.editor.Root -> { k++; return Ex.Root(Reader(n.arg.items, lookup).all(), Reader(n.index.items, lookup).all()) }
+                n is Func -> { k++; return Ex.Fn(n.name, n.args.map { Reader(it.items, lookup).all() }) }
                 // Anything else (π, e, a constant): the app works it out.
                 else -> { k++; return Ex.Delegate(listOf(n)) }
             }
@@ -409,7 +424,13 @@ object Geometry {
      * The row as a construction, or null when it isn't one (a function, an equation, a plain
      * point (2, 3) without a name: the graph's usual lines).
      */
-    fun parse(items: List<Node>): Statement? {
+    fun parse(items: List<Node>, complex: Boolean = false): Statement? = parseWith(items, ::command, complex)
+
+    /**
+     * [parse] with another set of commands (3D geometry's). On the complex plane [complex] also
+     * takes A = 1 + 2i as a point.
+     */
+    internal fun parseWith(items: List<Node>, lookup: (String) -> Command?, complex: Boolean = false, space: Boolean = false): Statement? {
         if (items.isEmpty()) return null
         val eq = run {
             var depth = 0
@@ -420,7 +441,7 @@ object Geometry {
         val rhs = if (eq >= 0) items.subList(eq + 1, items.size) else items
         // Equations of x and y (y = 2x, x² + y² = 4) are the graph's own.
         if (rhs.any { text(it) == "=" }) return null
-        val expr = try { Reader(rhs).all() } catch (e: NotGeometry) { return null } catch (e: RuntimeException) { return null }
+        val expr = try { Reader(rhs, lookup).all() } catch (e: NotGeometry) { return null } catch (e: RuntimeException) { return null }
         var call = false; var capital = false; var coordinate = false
         expr.walk { e ->
             when (e) {
@@ -432,9 +453,11 @@ object Geometry {
         }
         val geometric = call || coordinate ||
             // A = (1, 2): a point, named with a capital (f = (1, 2) stays the graph's own point).
-            name != null && isPointName(items[0]) && expr is Ex.Pair ||
+            name != null && isPointName(items[0]) && (if (space) expr is Ex.Triple else expr is Ex.Pair) ||
+            // A = 1 + 2i: a point of the complex plane, written as a number.
+            complex && name != null && isPointName(items[0]) && rhs.any { text(it) == "i" } ||
             // v = B − A, M = (A + B)/2: arithmetic on points (but y = A sin x keeps its slider A).
-            capital && rhs.none { text(it) == "x" || text(it) == "y" } && name != null
+            capital && rhs.none { text(it) == "x" || text(it) == "y" || (space && text(it) == "z") } && name != null
         return if (geometric) Statement(name, expr) else null
     }
 
@@ -466,6 +489,10 @@ object Geometry {
         overrides: Map<String, Obj> = emptyMap(),
         /** Inside a locus's own runs, loci aren't worked out again. */
         loci: Boolean = true,
+        /** On the complex plane: points are numbers (A = 1 + 2i, A·B, A/B, √A), with the complex commands. */
+        complex: Boolean = false,
+        /** Functions of z defined on the complex plane's lines (for Image and f(A)). */
+        complexFunctionOf: (String) -> ((Point) -> Point?)? = { null },
     ): List<Outcome?> {
         val out = arrayOfNulls<Outcome>(statements.size)
         val env = LinkedHashMap<String, Obj>()
@@ -486,9 +513,9 @@ object Geometry {
                     if (loci && isLocus(s.expr) && !lociTurn) continue
                     val locus = { traced: String, mover: String ->
                         if (!loci) throw GeometryError("A locus can't use another locus")
-                        locusOf(statements, out, traced, mover, number, degrees, functionOf, xRange)
+                        locusOf(statements, out, traced, mover, number, degrees, functionOf, xRange, complex, complexFunctionOf)
                     }
-                    val ev = Evaluation(env, defined, number, degrees, functionOf, xRange, locus)
+                    val ev = Evaluation(env, defined, number, degrees, functionOf, xRange, locus, complex, complexFunctionOf)
                     val obj = s.name?.let { overrides[it] } ?: ev.obj(s.expr)
                     out[k] = Outcome(obj, null, if (s.onPath) ev.obj((s.expr as Ex.Call).args[0]) else null)
                     s.name?.let { env[it] = obj }
@@ -520,6 +547,7 @@ object Geometry {
         statements: List<Statement?>, done: Array<Outcome?>, traced: String, mover: String,
         number: (List<Node>, Map<String, Double>) -> Double, degrees: Boolean,
         functionOf: (String) -> ((Double) -> Double)?, xRange: ClosedFloatingPointRange<Double>,
+        complex: Boolean = false, complexFunctionOf: (String) -> ((Point) -> Point?)? = { null },
     ): Obj {
         val k = statements.indexOfFirst { it?.name == mover }
         if (k < 0) throw GeometryError("$mover isn't defined")
@@ -543,7 +571,7 @@ object Geometry {
             val t = lo + (hi - lo) * i / n
             val at = runCatching { pointAt(path, t) }.getOrNull()
             val p = at?.let { place ->
-                val outcomes = build(statements, number, degrees, functionOf = functionOf, xRange = xRange, overrides = mapOf(mover to place), loci = false)
+                val outcomes = build(statements, number, degrees, functionOf = functionOf, xRange = xRange, overrides = mapOf(mover to place), loci = false, complex = complex, complexFunctionOf = complexFunctionOf)
                 outcomes[tracedAt]?.obj as? Point
             }
             // A break where the point isn't defined, or jumps a long way (across a branch).
@@ -572,6 +600,8 @@ object Geometry {
         val env: Map<String, Obj>, val defined: Set<String>, val numberOf: (List<Node>, Map<String, Double>) -> Double,
         val degrees: Boolean, val functionOf: (String) -> ((Double) -> Double)?, val xRange: ClosedFloatingPointRange<Double>,
         val locus: (String, String) -> Obj = { _, _ -> throw GeometryError("Locus isn't available here") },
+        val complex: Boolean = false,
+        val complexFunctionOf: (String) -> ((Point) -> Point?)? = { null },
     ) {
         fun numbers(): Map<String, Double> = env.mapNotNull { (k, v) -> value(v)?.let { k to it } }.toMap()
 
@@ -579,11 +609,14 @@ object Geometry {
             // A capital is a point's name, so an unknown one is missing (not a new slider, as a or k is).
             is Ex.Ref -> env[e.name] ?: when {
                 e.name in defined || isPointName(e.name) -> throw Missing(e.name)
+                complex -> complexFunctionOf(e.name)?.let { ComplexMap(e.name, it) } ?: Number(numberOf(listOf(Sym(e.name)), numbers()))
                 else -> functionOf(e.name)?.let { FunctionGraph(e.name, it) } ?: Number(numberOf(listOf(Sym(e.name)), numbers()))
             }
             is Ex.Pair -> Point(num(obj(e.x)), num(obj(e.y)))
+            is Ex.Triple -> throw GeometryError("A point in space (x, y, z) is for 3D graphs")
             is Ex.Lit -> Number(e.value)
-            is Ex.Delegate -> Number(numberOf(e.nodes, numbers()))
+            // On the complex plane, i is the point (0, 1).
+            is Ex.Delegate -> if (complex && e.nodes.singleOrNull()?.let { (it as? Sym)?.text } == "i") Point(0.0, 1.0) else Number(numberOf(e.nodes, numbers()))
             // A locus names its points rather than taking their values.
             is Ex.Call -> if (e.command.name == "Locus") call(e.command, listOf(Number(0.0), Number(0.0)), e) else call(e.command, e.args.map { obj(it) }, e)
             is Ex.Neg -> when (val a = obj(e.a)) {
@@ -592,16 +625,23 @@ object Geometry {
                 else -> Number(-num(a), unitOf(a))
             }
             is Ex.Bin -> arithmetic(e.op, obj(e.a), obj(e.b))
-            is Ex.Coordinate -> when (val a = obj(e.of)) {
+            is Ex.Coordinate -> if (e.which == 'z') throw GeometryError("z( ) is for 3D graphs") else when (val a = obj(e.of)) {
                 is Point -> Number(if (e.which == 'x') a.x else a.y)
                 is Vector -> (a.b - a.a).let { Number(if (e.which == 'x') it.x else it.y) }
                 else -> throw GeometryError("${e.which}( ) takes a point or vector")
             }
             is Ex.Fn -> {
-                val args = e.args.map { digits(num(obj(it))) }
-                Number(numberOf(listOf(Func(e.name, args)), numbers()))
+                val objs = e.args.map { obj(it) }
+                val z = objs.singleOrNull() as? Point
+                if (complex && z != null) complexFn(e.name, z)
+                else if (complex && objs.size == 1 && objs[0] is Number && e.name == "abs") Number(abs(num(objs[0])))
+                else {
+                    // f(A) with f a function of z on the complex plane: the point it goes to.
+                    val args = objs.map { digits(num(it)) }
+                    Number(numberOf(listOf(Func(e.name, args)), numbers()))
+                }
             }
-            is Ex.Sqrt -> Number(sqrt(num(obj(e.a))))
+            is Ex.Sqrt -> obj(e.a).let { a -> if (complex && a is Point) cpow(a, 0.5) else Number(sqrt(num(a))) }
             is Ex.Root -> Number(Math.pow(num(obj(e.a)), 1 / num(obj(e.index))))
             is Ex.Degrees -> Number(Math.toRadians(num(obj(e.a))), Unit.Angle)
         }
@@ -610,6 +650,20 @@ object Geometry {
 
         /** + − × / ^ on numbers, and on points and vectors (added, scaled; a · b is the dot product). */
         fun arithmetic(op: Char, a: Obj, b: Obj): Obj {
+            // On the complex plane points are numbers: sums, products, quotients and powers of them.
+            // f(A): a function of z defined on the complex plane, applied to a point (or a shape).
+            if (complex && op == '*' && a is ComplexMap) return image(a, b)
+            if (complex && (a is Point || b is Point) && a !is Vector && b !is Vector) {
+                fun c(o: Obj): Point = o as? Point ?: Point(num(o), 0.0)
+                val p = c(a); val q = c(b)
+                return when (op) {
+                    '+' -> p + q
+                    '-' -> p - q
+                    '*' -> cmul(p, q)
+                    '/' -> cdiv(p, q)
+                    else -> if (b !is Point) cpow(p, num(b)) else cexp(cmul(q, clog(p)))
+                }
+            }
             fun vec(o: Obj): Point? = when (o) { is Point -> o; is Vector -> o.b - o.a; else -> null }
             val va = vec(a); val vb = vec(b)
             val na = value(a); val nb = value(b)
@@ -731,6 +785,10 @@ object Geometry {
                     pts.singleOrNull() ?: Many(pts)
                 }
                 "Relation" -> { need(2); Text(relation(a[0], a[1])) }
+                "Conjugate", "Modulus", "Argument", "RootsOfUnity", "ComplexRoots", "Image" -> {
+                    if (!complex) throw GeometryError("${c.name} is for the complex plane")
+                    complexCommand(c, a)
+                }
                 "ClosestPoint" -> { need(2)
                     val p = point(a[1])
                     when (val o = a[0]) {
@@ -1106,6 +1164,88 @@ object Geometry {
         }
 
         fun vecOf(o: Obj): Point = when (o) { is Vector -> o.b - o.a; is Point -> o; else -> throw GeometryError("Expected a vector, or a pair (dx, dy)") }
+
+        /** The complex plane's own commands. */
+        fun complexCommand(c: Command, a: List<Obj>): Obj {
+            fun need(n: Int) { if (a.size != n) throw GeometryError("${c.name} takes $n things: ${c.usage}") }
+            return when (c.name) {
+                "Conjugate" -> { need(1); transform(a[0], mirror = true) { p -> Point(p.x, -p.y) } }
+                "Modulus" -> { need(1); Number(point(a[0]).length, Unit.Length) }
+                "Argument" -> { need(1); val p = point(a[0]); Number(atan2(p.y, p.x), Unit.Angle) }
+                "RootsOfUnity", "ComplexRoots" -> {
+                    val (z, n) = if (c.name == "RootsOfUnity") { need(1); Point(1.0, 0.0) to num(a[0]).toInt() } else { need(2); point(a[0]) to num(a[1]).toInt() }
+                    if (n < 1) throw GeometryError("n is a whole number, 1 or more")
+                    val r = Math.pow(z.length, 1.0 / n); val t0 = atan2(z.y, z.x) / n
+                    Many((0 until n).map { k -> Point(r * cos(t0 + 2 * PI * k / n), r * sin(t0 + 2 * PI * k / n)) })
+                }
+                "Image" -> { need(2)
+                    val f = a[0] as? ComplexMap ?: throw GeometryError("Image(f, c): f is a function of z, like f(z) = z²")
+                    image(f, a[1])
+                }
+                else -> throw GeometryError("${c.name} isn't available yet")
+            }
+        }
+
+        /** Where [f] takes an object: a point to a point; a path, traced along, to a curve. */
+        fun image(f: ComplexMap, o: Obj): Obj = when (o) {
+            is Point -> f.f(o) ?: throw GeometryError("f isn't defined there")
+            is Many -> Many(o.items.map { image(f, it) })
+            else -> {
+                val (lo, hi, n) = when (o) {
+                    is Line -> Triple(-40.0, 40.0, 1600)
+                    is Ray -> Triple(0.0, 40.0, 800)
+                    else -> Triple(0.0, 1.0, 600)
+                }
+                val pieces = ArrayList<List<Point>>()
+                var cur = ArrayList<Point>()
+                var last: Point? = null
+                for (k in 0..n) {
+                    val t = lo + (hi - lo) * k / n
+                    val w = runCatching { pointAt(o, t) }.getOrNull()?.let { f.f(it) }?.takeIf { it.x.isFinite() && it.y.isFinite() }
+                    // A break where f isn't defined or jumps (across a pole or a branch cut).
+                    if (w == null || last != null && (w - last).length > 50) { if (cur.size > 1) pieces += cur; cur = ArrayList() }
+                    if (w != null) cur += w
+                    last = w
+                }
+                if (cur.size > 1) pieces += cur
+                if (pieces.isEmpty()) throw GeometryError("f isn't defined along it")
+                Polyline(pieces)
+            }
+        }
+    }
+
+    // ---- Complex numbers (the complex plane's points) ---------------------------------------
+
+    private fun cmul(p: Point, q: Point) = Point(p.x * q.x - p.y * q.y, p.x * q.y + p.y * q.x)
+    private fun cdiv(p: Point, q: Point): Point {
+        val d = q.x * q.x + q.y * q.y
+        if (d < 1e-300) throw GeometryError("Can't divide by 0")
+        return Point((p.x * q.x + p.y * q.y) / d, (p.y * q.x - p.x * q.y) / d)
+    }
+    private fun cexp(p: Point) = exp(p.x).let { r -> Point(r * cos(p.y), r * sin(p.y)) }
+    private fun clog(p: Point): Point {
+        if (p.length < 1e-300) throw GeometryError("ln 0 isn't defined")
+        return Point(kotlin.math.ln(p.length), atan2(p.y, p.x))
+    }
+    private fun cpow(p: Point, k: Double): Point {
+        if (p.length < 1e-300) return if (k > 0) Point(0.0, 0.0) else throw GeometryError("0 has no negative power")
+        val r = Math.pow(p.length, k); val t = atan2(p.y, p.x) * k
+        return Point(r * cos(t), r * sin(t))
+    }
+
+    /** A function key on a point of the complex plane: |z|, arg z, z̄, Re, Im, and e^z, ln, sin… of z. */
+    private fun complexFn(name: String, z: Point): Obj = when (name) {
+        "abs" -> Number(z.length, Unit.Length)
+        "arg" -> Number(atan2(z.y, z.x), Unit.Angle)
+        "conj" -> Point(z.x, -z.y)
+        "re", "Re" -> Number(z.x)
+        "im", "Im" -> Number(z.y)
+        "exp" -> cexp(z)
+        "ln", "log" -> clog(z)
+        "sqrt" -> cpow(z, 0.5)
+        "sin" -> Point(sin(z.x) * kotlin.math.cosh(z.y), cos(z.x) * kotlin.math.sinh(z.y))
+        "cos" -> Point(cos(z.x) * kotlin.math.cosh(z.y), -sin(z.x) * kotlin.math.sinh(z.y))
+        else -> throw GeometryError("$name of a point isn't available here")
     }
 
     // ---- Geometry ------------------------------------------------------------------------
@@ -1255,6 +1395,7 @@ object Geometry {
         is Many -> Many(o.items.map { transform(it, scale, turn, mirror, f) })
         is Number, is Bool, is Text -> throw GeometryError("A number can't be moved")
         is FunctionGraph -> throw GeometryError("A function's graph can't be moved here")
+        is ComplexMap -> throw GeometryError("A function can't be moved")
         is Polyline -> Polyline(o.pieces.map { it.map(f) })
     }
 
@@ -1853,7 +1994,7 @@ object Geometry {
             }
             is Polyline -> Drawing(lines = o.pieces.map { piece -> piece.map { pt(it) } })
             // A function's graph is drawn by its own line; a number isn't drawn.
-            is FunctionGraph, is Number, is Bool, is Text -> Drawing()
+            is FunctionGraph, is ComplexMap, is Number, is Bool, is Text -> Drawing()
         }
     }
 
@@ -1882,7 +2023,7 @@ object Geometry {
 
     /** Polylines an object is drawn with, for finding what a tap is on (empty for points and numbers). */
     fun outline(o: Obj, view: Viewport): List<List<kotlin.Pair<Double, Double>>> = when (o) {
-        is Point, is Number, is Angle, is FunctionGraph, is Bool, is Text -> emptyList()
+        is Point, is Number, is Angle, is FunctionGraph, is ComplexMap, is Bool, is Text -> emptyList()
         else -> draw(o, view).lines
     }
 
