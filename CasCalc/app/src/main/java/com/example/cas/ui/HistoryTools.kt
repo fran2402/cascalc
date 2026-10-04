@@ -121,8 +121,8 @@ fun HistoryToolbar(vm: CalculatorViewModel, modifier: Modifier = Modifier) {
                 }
             }
             chip("All", vm.historyFilter == null, null, { vm.historyFilter = null })
-            if (vm.history.any { it.pinned }) chip("Pinned", vm.historyFilter == CalculatorViewModel.PINNED, Icons.Default.PushPin, { vm.historyFilter = CalculatorViewModel.PINNED })
-            vm.historyFolders.forEach { f -> chip(f, vm.historyFilter == f, Icons.Default.Folder, { vm.historyFilter = f }, onLongClick = { editingFolder = f }) }
+            if (vm.history.any { it.pinned }) chip("Pinned", vm.historyFilter == CalculatorViewModel.PINNED, TableIcons.Pin, { vm.historyFilter = CalculatorViewModel.PINNED })
+            vm.historyFolders.forEach { f -> chip(f, vm.historyFilter == f, TableIcons.Folder, { vm.historyFilter = f }, onLongClick = { editingFolder = f }) }
         }
         if (vm.historyQuery.isNotBlank() || vm.historyFilter != null) Text(
             if (visible.isEmpty()) "Nothing matches" else "${visible.size} of ${vm.history.size}",
@@ -137,12 +137,12 @@ private fun FolderEditDialog(name: String, onRename: (String) -> Unit, onEmpty: 
     var text by remember { mutableStateOf(name) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.Folder, contentDescription = null) },
+        icon = { AppIcon(TableIcons.Folder, contentDescription = null) },
         title = { Text(tr("Folder")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(text, { text = it }, singleLine = true, label = { Text(tr("Name")) }, modifier = Modifier.fillMaxWidth())
-                TextButton(onClick = onEmpty) { Icon(Icons.Default.FolderOff, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(tr("Empty the folder (calculations stay)")) }
+                TextButton(onClick = onEmpty) { AppIcon(TableIcons.FolderOff, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(tr("Empty the folder (calculations stay)")) }
             }
         },
         confirmButton = { TextButton(enabled = text.isNotBlank(), onClick = { onRename(text) }) { Text(tr("Rename")) } },
@@ -157,7 +157,7 @@ fun MoveToFolderDialog(current: String?, folders: List<String>, onPick: (String?
     var name by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.CreateNewFolder, contentDescription = null) },
+        icon = { AppIcon(TableIcons.NewFolder, contentDescription = null) },
         title = { Text(tr("Move to folder")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -167,12 +167,12 @@ fun MoveToFolderDialog(current: String?, folders: List<String>, onPick: (String?
                             .combinedClickable(onClickLabel = "Move to $f") { onPick(f) }.padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.Default.Folder, null, tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(10.dp))
+                        AppIcon(TableIcons.Folder, null, tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(10.dp))
                         Text(f, style = MaterialTheme.typography.bodyLarge)
                     }
                 }
                 OutlinedTextField(name, { name = it }, singleLine = true, label = { Text(tr("New folder")) }, placeholder = { Text(tr("e.g. Homework 3")) }, modifier = Modifier.fillMaxWidth())
-                if (current != null) TextButton(onClick = { onPick(null) }) { Icon(Icons.Default.FolderOff, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Take it out of “$current”") }
+                if (current != null) TextButton(onClick = { onPick(null) }) { AppIcon(TableIcons.FolderOff, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Take it out of “$current”") }
             }
         },
         confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = { onPick(name) }) { Text(tr("Create and move")) } },
@@ -314,7 +314,7 @@ fun HistoryBrowser(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, mod
                     Modifier.fillMaxWidth().background(colors.surface).padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (title == "Pinned") { Icon(Icons.Default.PushPin, null, tint = colors.primary, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)) }
+                    if (title == "Pinned") { AppIcon(TableIcons.Pin, null, tint = colors.primary, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)) }
                     Text(tr(title), style = MaterialTheme.typography.titleMedium, color = colors.primary, modifier = Modifier.weight(1f))
                     Text("${list.size}", style = MaterialTheme.typography.labelLarge, color = colors.onSecondaryContainer,
                         modifier = Modifier.clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 10.dp, vertical = 2.dp))

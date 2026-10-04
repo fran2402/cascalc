@@ -656,18 +656,18 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Default.UploadFile, contentDescription = tr("Import data"), tint = colors.onSecondaryContainer)
+                AppIcon(TableIcons.ImportData, contentDescription = tr("Import data"), tint = colors.onSecondaryContainer)
             }
         }, tools = {
             // Circles of constant r mean nothing on log axes: turning the grid on goes back to linear ones.
             ToolToggle(PlotIcons.PolarGrid, "Polar grid", vm.polarGrid) { if (!vm.polarGrid) vm.setLogAxes(false, false); vm.polarGrid = !vm.polarGrid }
             // Equal scales on both axes, so circles look round.
             IconButton(onClick = { tap(); vm.zoomSquare(size.width, size.height) }) {
-                Icon(Icons.Default.CropSquare, contentDescription = tr("Square zoom: equal scales"), tint = colors.onSurface)
+                AppIcon(TableIcons.SquareZoom, contentDescription = tr("Square zoom: equal scales"), tint = colors.onSurface)
             }
             // The graph's settings, like Desmos's wrench: limits, grid, numbers, angle unit.
             IconButton(onClick = { tap(); graphSettings = true }) {
-                Icon(Icons.Default.Tune, contentDescription = tr("Graph settings"), tint = colors.onSurface)
+                AppIcon(TableIcons.Settings, contentDescription = tr("Graph settings"), tint = colors.onSurface)
             }
         })
         if (graphSettings && view != null) GraphSettingsDialog(vm, view, onDismiss = { graphSettings = false })
@@ -1433,7 +1433,7 @@ private fun SheetPickerDialog(
     var picked by remember { mutableStateOf(sheets.indices.toSet()) }
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.UploadFile, contentDescription = null) },
+        icon = { AppIcon(TableIcons.ImportData, contentDescription = null) },
         title = { Text(tr("Import sheets")) },
         text = {
             Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {

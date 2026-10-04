@@ -50,6 +50,7 @@ def table_icons():
         if not m: continue
         b = m.group(2)
         out[m.group(1)] = _svg(_args(b, 'stroke'), _args(b, 'thin'), _args(b, 'fill'), _args(b, 'shade'), set(_args(b, 'accent')))
+    out['Share'] = out.get('ShareTable', '')
     return out
 
 def key_icons():
@@ -66,7 +67,8 @@ def key_icons():
         else: spoken, b = m.group(4), defs[m.group(5)]
         g = lambda k: _args(b, k, consts)
         ink, acc, it, at, inf, af, ash = g('ink'), g('accent'), g('inkThin'), g('accentThin'), g('inkFill'), g('accentFill'), g('accentShade')
-        out[spoken] = _svg(ink + acc, it + at, inf + af, ash, set(acc + at + af + ash))
+        wm = re.search(r'width = ([0-9.]+)f', b)
+        out[spoken] = (_svg(ink + acc, it + at, inf + af, ash, set(acc + at + af + ash)), float(wm.group(1)) if wm else 24.0)
     return out
 
 if __name__ == '__main__':

@@ -15,8 +15,8 @@ import androidx.compose.ui.unit.dp
  * accent color (see [DuoIcon]).
  */
 
-internal fun tableIcon(name: String, stroke: List<String>, thin: List<String> = emptyList(), fill: List<String> = emptyList(), shade: List<String> = emptyList(), accent: Set<String> = emptySet()): ImageVector {
-    fun layer(layerName: String, keep: (String) -> Boolean) = ImageVector.Builder(layerName, 24.dp, 24.dp, 24f, 24f).apply {
+internal fun tableIcon(name: String, stroke: List<String>, thin: List<String> = emptyList(), fill: List<String> = emptyList(), shade: List<String> = emptyList(), accent: Set<String> = emptySet(), width: Float = 24f): ImageVector {
+    fun layer(layerName: String, keep: (String) -> Boolean) = ImageVector.Builder(layerName, width.dp, 24.dp, width, 24f).apply {
         val black = SolidColor(Color.Black)
         shade.filter(keep).forEach { addPath(PathParser().parsePathString(it).toNodes(), fill = black, fillAlpha = 0.35f) }
         stroke.filter(keep).forEach { addPath(PathParser().parsePathString(it).toNodes(), stroke = black, strokeLineWidth = 2f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) }
@@ -53,6 +53,57 @@ object TableIcons {
 
     /** A clipboard with the lines being pasted onto it: paste. */
     val Paste: ImageVector by lazy { tableIcon("Paste", stroke = listOf("M8 4.5H6a1.5 1.5 0 0 0-1.5 1.5v13.5A1.5 1.5 0 0 0 6 21h12a1.5 1.5 0 0 0 1.5-1.5V6A1.5 1.5 0 0 0 18 4.5h-2", "M9 3h6v3H9z", "M8.5 11h7", "M8.5 14.5h7", "M8.5 18h4"), accent = setOf("M8.5 11h7", "M8.5 14.5h7", "M8.5 18h4")) }
+
+    /** A push pin, its head filled: pinned (and Pin). */
+    val Pin: ImageVector by lazy { tableIcon("Pin", stroke = listOf("M9.5 3.5h5v6l3 4.5h-11l3-4.5z", "M12 14v6.5", "M8 3.5h8"), shade = listOf("M9.5 3.5h5v6l3 4.5h-11l3-4.5z"), accent = setOf("M9.5 3.5h5v6l3 4.5h-11l3-4.5z", "M8 3.5h8")) }
+
+    /** A push pin, outlined: not pinned (and Unpin). */
+    val PinOutline: ImageVector by lazy { tableIcon("PinOutline", stroke = listOf("M9.5 3.5h5v6l3 4.5h-11l3-4.5z", "M12 14v6.5", "M8 3.5h8")) }
+
+    /** A folder, its tab tinted. */
+    val Folder: ImageVector by lazy { tableIcon("Folder", stroke = listOf("M3.5 7v11a1.5 1.5 0 0 0 1.5 1.5h14a1.5 1.5 0 0 0 1.5-1.5V9.5A1.5 1.5 0 0 0 19 8h-7.5l-2-2.5H5A1.5 1.5 0 0 0 3.5 7z"), shade = listOf("M3.5 7A1.5 1.5 0 0 1 5 5.5h4.5l2 2.5H3.5z"), accent = setOf("M3.5 7A1.5 1.5 0 0 1 5 5.5h4.5l2 2.5H3.5z")) }
+
+    /** A folder open, its front flap tinted. */
+    val FolderOpen: ImageVector by lazy { tableIcon("FolderOpen", stroke = listOf("M3.5 18V7A1.5 1.5 0 0 1 5 5.5h4.5l2 2.5H17a1.5 1.5 0 0 1 1.5 1.5V11", "M3.5 19.5l3-8h15l-3 8z"), shade = listOf("M3.5 19.5l3-8h15l-3 8z"), accent = setOf("M3.5 19.5l3-8h15l-3 8z")) }
+
+    /** A folder with a plus: a new folder. */
+    val NewFolder: ImageVector by lazy { tableIcon("NewFolder", stroke = listOf("M3.5 7v11a1.5 1.5 0 0 0 1.5 1.5h14a1.5 1.5 0 0 0 1.5-1.5V9.5A1.5 1.5 0 0 0 19 8h-7.5l-2-2.5H5A1.5 1.5 0 0 0 3.5 7z", "M12 11v5.5", "M9.25 13.75h5.5"), accent = setOf("M12 11v5.5", "M9.25 13.75h5.5")) }
+
+    /** A folder struck through: out of its folder. */
+    val FolderOff: ImageVector by lazy { tableIcon("FolderOff", stroke = listOf("M3.5 7v11a1.5 1.5 0 0 0 1.5 1.5h14a1.5 1.5 0 0 0 1.5-1.5V9.5A1.5 1.5 0 0 0 19 8h-7.5l-2-2.5H5A1.5 1.5 0 0 0 3.5 7z", "M3 3l18 18"), accent = setOf("M3 3l18 18")) }
+
+    /** A bin, its lid lifted: delete. */
+    val Delete: ImageVector by lazy { tableIcon("Delete", stroke = listOf("M6.5 7.5l1 12a1.5 1.5 0 0 0 1.5 1.4h6a1.5 1.5 0 0 0 1.5-1.4l1-12", "M4 7.5h16", "M9.5 7.5V5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v2.5"), thin = listOf("M10.25 11v6.5", "M13.75 11v6.5"), accent = setOf("M4 7.5h16", "M9.5 7.5V5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v2.5")) }
+
+    /** ƒ(x) as a curve on axes: a line to plot. */
+    val Line: ImageVector by lazy { tableIcon("Line", stroke = listOf("M5 16.5c2.8 0 3.8-9 7-9s4 7.5 7.5 5.5"), thin = listOf("M3 20.5h18", "M3.5 3v18"), accent = setOf("M5 16.5c2.8 0 3.8-9 7-9s4 7.5 7.5 5.5")) }
+
+    /** Lines of text and a pencil: a note. */
+    val Note: ImageVector by lazy { tableIcon("Note", stroke = listOf("M4 6h16", "M4 10.5h16", "M4 15h8", "M14.5 20.5l.6-2.6l5-5l2 2l-5 5z"), accent = setOf("M14.5 20.5l.6-2.6l5-5l2 2l-5 5z")) }
+
+    /** A grid with its header row tinted: a table. */
+    val Table: ImageVector by lazy { tableIcon("Table", stroke = listOf("M3.5 4.5h17v15h-17z"), thin = listOf("M3.5 9h17", "M3.5 14.25h17", "M9.2 4.5v15", "M14.8 4.5v15"), shade = listOf("M3.5 4.5h17V9h-17z"), accent = setOf("M3.5 4.5h17V9h-17z")) }
+
+    /** A file with an arrow coming in: import data. */
+    val ImportData: ImageVector by lazy { tableIcon("ImportData", stroke = listOf("M6 3.5h8l4.5 4.5v12.5H6z", "M12.25 18v-7", "M9.5 13.5l2.75-2.75L15 13.5"), thin = listOf("M14 3.5V8h4.5"), accent = setOf("M12.25 18v-7", "M9.5 13.5l2.75-2.75L15 13.5")) }
+
+    /** A square with equal axes through it: equal scales (square zoom). */
+    val SquareZoom: ImageVector by lazy { tableIcon("SquareZoom", stroke = listOf("M4.5 4.5h15v15h-15z", "M8.5 12h7", "M12 8.5v7"), accent = setOf("M8.5 12h7", "M12 8.5v7")) }
+
+    /** Three sliders with their knobs: settings. */
+    val Settings: ImageVector by lazy { tableIcon("Settings", stroke = listOf("M3.5 6.5h17", "M3.5 12h17", "M3.5 17.5h17"), fill = listOf(oval(9f, 6.5f, 2.4f, 2.4f), oval(15.5f, 12f, 2.4f, 2.4f), oval(7f, 17.5f, 2.4f, 2.4f)), accent = setOf(oval(9f, 6.5f, 2.4f, 2.4f), oval(15.5f, 12f, 2.4f, 2.4f), oval(7f, 17.5f, 2.4f, 2.4f))) }
+
+    /** A calculator, its screen tinted: the calculator. */
+    val ModeCalculator: ImageVector by lazy { tableIcon("ModeCalculator", stroke = listOf("M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"), shade = listOf("M8 6h8v3.5H8z"), fill = listOf(oval(9f, 13.5f, 1.25f, 1.25f), oval(12f, 13.5f, 1.25f, 1.25f), oval(15f, 13.5f, 1.25f, 1.25f), oval(9f, 17.5f, 1.25f, 1.25f), oval(12f, 17.5f, 1.25f, 1.25f), oval(15f, 17.5f, 1.25f, 1.25f)), accent = setOf("M8 6h8v3.5H8z", oval(15f, 17.5f, 1.25f, 1.25f))) }
+
+    /** A curve on axes: 2D graphing. */
+    val Mode2D: ImageVector by lazy { tableIcon("Mode2D", stroke = listOf("M3.5 3.5v17h17", "M6 15c2.5 0 3.5-8 6.5-8s4 7 7.5 5"), accent = setOf("M6 15c2.5 0 3.5-8 6.5-8s4 7 7.5 5")) }
+
+    /** A cube, its top face tinted: 3D graphing. */
+    val Mode3D: ImageVector by lazy { tableIcon("Mode3D", stroke = listOf("M12 3l8 4.5v9L12 21l-8-4.5v-9z", "M4 7.5l8 4.5l8-4.5", "M12 12v9"), shade = listOf("M12 3l8 4.5l-8 4.5l-8-4.5z"), accent = setOf("M12 3l8 4.5l-8 4.5l-8-4.5z")) }
+
+    /** A point on the complex plane, its angle marked: complex plotting. */
+    val ModeComplex: ImageVector by lazy { tableIcon("ModeComplex", stroke = listOf("M4 20H21", "M4 20V3", "M4 20L15.5 8.5"), thin = listOf("M9.2 20A5.2 5.2 0 0 0 7.68 16.32"), fill = listOf(oval(15.5f, 8.5f, 2.1f, 2.1f)), accent = setOf("M4 20L15.5 8.5", oval(15.5f, 8.5f, 2.1f, 2.1f))) }
 
     /** A box with an arrow leaving it: share (the same drawing as [ShareTable]). */
     val Share: ImageVector get() = ShareTable

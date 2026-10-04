@@ -588,7 +588,7 @@ private fun androidx.compose.foundation.layout.RowScope.PlotTools(vm: ComplexVie
         // Circles of |z| mean nothing on log axes: turning the grid on goes back to linear ones.
         ToolToggle(PlotIcons.PolarGrid, "Polar grid: circles of |z| and rays of arg z", vm.polarGrid) { if (!vm.polarGrid) vm.setLogAxes(false, false); vm.polarGrid = !vm.polarGrid }
         IconButton(onClick = { settings = true }) {
-            Icon(Icons.Default.Tune, contentDescription = tr("Graph settings"), tint = MaterialTheme.colorScheme.onSurface)
+            AppIcon(TableIcons.Settings, contentDescription = tr("Graph settings"), tint = MaterialTheme.colorScheme.onSurface)
         }
     }
 }

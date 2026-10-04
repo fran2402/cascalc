@@ -131,7 +131,7 @@ fun Graph3DScreen(vm: Graph3DViewModel, onUseValue: (Double) -> Unit = {}, modif
                     vm.setCoordinates(Coordinates3D.Mode.Spherical)
                 }
                 IconButton(onClick = { settings = true }) {
-                    Icon(Icons.Default.Tune, contentDescription = tr("Graph settings"), tint = MaterialTheme.colorScheme.onSurface)
+                    AppIcon(TableIcons.Settings, contentDescription = tr("Graph settings"), tint = MaterialTheme.colorScheme.onSurface)
                     // (geometry's construct UI follows the bar, below)
                 }
             })

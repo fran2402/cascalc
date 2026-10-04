@@ -1086,7 +1086,7 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             // A list of points opens as a table (its columns, x, y and error bars), right here.
             if (vm.plotVars == listOf("x") && (f.plot is Plot2DKind.PointList || f.table != null)) {
                 IconButton(onClick = { vm.tableFor = f }) {
-                    Icon(Icons.Default.TableChart, contentDescription = tr("Edit as a table"), tint = colors.primary)
+                    AppIcon(TableIcons.Table, contentDescription = tr("Edit as a table"), tint = colors.primary)
                 }
             }
             IconButton(onClick = { vm.requestRemove(f) }) {
@@ -1197,7 +1197,7 @@ private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable andro
                 ExpressiveSlider(value = f.fillOpacity, onValueChange = { vm.setOptions(f, opacity = it) }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Fill opacity") })
             }
             if (kind is Plot2DKind.PointList) androidx.compose.material3.OutlinedButton(onClick = { vm.tableFor = f }, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Default.TableChart, contentDescription = null, modifier = Modifier.size(18.dp))
+                AppIcon(TableIcons.Table, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text(tr("Edit as a table"))
             }
@@ -1665,7 +1665,7 @@ private fun SwipeToRemove(onRemove: () -> Unit, asks: () -> Boolean = { false },
                 Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).background(colors.errorContainer).padding(horizontal = 20.dp),
                 contentAlignment = if (end) Alignment.CenterEnd else Alignment.CenterStart,
             ) {
-                Icon(Icons.Default.Delete, contentDescription = null, tint = colors.onErrorContainer)
+                AppIcon(TableIcons.Delete, contentDescription = null, tint = colors.onErrorContainer)
             }
         },
     ) { content() }
@@ -1711,10 +1711,10 @@ private fun AddFabMenu(vm: GraphViewModel, tables: Boolean) {
     fun adding(f: () -> Unit) { if (phone) (vm as? Graph2DViewModel)?.stopConstructing(); f() }
     // Nearest the button first.
     val items = buildList {
-        add(FabItem("Line", Icons.Default.Functions, "Add a line") { adding { vm.add(); if (phone) vm.typingFocus = true } })
-        add(FabItem("Note", Icons.Default.Notes, "Add a note") { adding { vm.addText(folder = false); if (phone) vm.typingFocus = true } })
-        add(FabItem("Folder", Icons.Default.CreateNewFolder, "Add a folder") { adding { vm.addText(folder = true); if (phone) vm.typingFocus = true } })
-        if (tables) add(FabItem("Table", Icons.Default.TableChart, "Add a table") { adding { vm.addTable() } })
+        add(FabItem("Line", TableIcons.Line, "Add a line") { adding { vm.add(); if (phone) vm.typingFocus = true } })
+        add(FabItem("Note", TableIcons.Note, "Add a note") { adding { vm.addText(folder = false); if (phone) vm.typingFocus = true } })
+        add(FabItem("Folder", TableIcons.NewFolder, "Add a folder") { adding { vm.addText(folder = true); if (phone) vm.typingFocus = true } })
+        if (tables) add(FabItem("Table", TableIcons.Table, "Add a table") { adding { vm.addTable() } })
     }
     FabMenu(items, size = 48.dp, description = "Add a line, note, folder or table")
 }
@@ -1850,7 +1850,7 @@ private fun TextRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
             .padding(start = 4.dp, end = 4.dp, top = 2.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Default.Notes, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp).size(20.dp))
+        AppIcon(TableIcons.Note, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.padding(horizontal = 12.dp).size(20.dp))
         Box(Modifier.weight(1f).padding(vertical = 10.dp)) {
             val style = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface)
             val focus = remember { androidx.compose.ui.focus.FocusRequester() }
@@ -1906,7 +1906,7 @@ private fun FolderRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
             if (f.collapsed) Icons.AutoMirrored.Filled.KeyboardArrowRight else Icons.Default.KeyboardArrowDown,
             contentDescription = null, tint = colors.onSurface, modifier = Modifier.padding(start = 8.dp, end = 4.dp).size(24.dp),
         )
-        Icon(if (f.collapsed) Icons.Default.Folder else Icons.Default.FolderOpen, contentDescription = null, tint = tint, modifier = Modifier.padding(horizontal = 6.dp).size(22.dp))
+        Icon(if (f.collapsed) TableIcons.Folder else TableIcons.FolderOpen, contentDescription = null, tint = tint, modifier = Modifier.padding(horizontal = 6.dp).size(22.dp))
         Text(
             f.note?.takeIf { it.isNotBlank() } ?: "Folder",
             style = MaterialTheme.typography.titleSmall, color = colors.onSurface, maxLines = 1,
@@ -3168,10 +3168,10 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                             if (picked == null) Box(Modifier.align(Alignment.BottomEnd).padding(end = if (wide) 32.dp else 24.dp, bottom = if (wide) 80.dp else 20.dp)) {
                                 FabMenu(
                                     listOf(
-                                        FabItem("Row", Icons.Default.TableRows, "Add a row") {
+                                        FabItem("Row", TableIcons.RowBelow, "Add a row") {
                                             addRow(); scope.launch { list.animateScrollToItem(maxOf(0, (cells.maxOfOrNull { it.size } ?: 1) - 1)) }
                                         },
-                                        FabItem("Column", Icons.Default.ViewColumn, "Add a column") {
+                                        FabItem("Column", TableIcons.ColumnAdd, "Add a column") {
                                             addColumn(); scope.launch { across.animateScrollTo(across.maxValue + 10_000) }
                                         },
                                         FabItem("Paste", TableIcons.Paste, "Paste a table from the clipboard") { paste() },
@@ -3201,7 +3201,7 @@ private fun ColumnStatsDialog(name: String, stats: com.example.cas.graph.DataTab
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.Calculate, contentDescription = null) },
+        icon = { AppIcon(TableIcons.ModeCalculator, contentDescription = null) },
         title = { Text(name) },
         text = {
             if (stats == null) Text(tr("No numbers in this column yet."), color = colors.onSurfaceVariant)
@@ -3509,7 +3509,7 @@ private fun ColumnCard(
                 )
             }
             androidx.compose.material3.HorizontalDivider()
-            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Calculate, null) }, text = { Text(tr("Statistics")) }, onClick = { open = false; onStats() })
+            DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Statistics, null) }, text = { Text(tr("Statistics")) }, onClick = { open = false; onStats() })
             DropdownMenuItem(leadingIcon = { Icon(Icons.Default.FilterList, null) }, text = { Text(tr(if (filtered) "Change the filter…" else "Filter…")) }, onClick = { open = false; onFilter() })
             DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Percent, null) }, text = { Text(tr("Number format…")) }, onClick = { open = false; onFormat() })
             DropdownMenuItem(
@@ -3530,7 +3530,7 @@ private fun ColumnCard(
             if (onMoveRight != null) DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) }, text = { Text(tr("Move right")) }, onClick = { open = false; onMoveRight() })
             DropdownMenuItem(leadingIcon = { Icon(Icons.Default.CleaningServices, null) }, text = { Text(tr("Clear the column")) }, onClick = { open = false; onClear() })
             if (onRemove != null) DropdownMenuItem(
-                leadingIcon = { Icon(Icons.Default.Delete, null, tint = colors.error) },
+                leadingIcon = { AppIcon(TableIcons.Delete, null, tint = colors.error) },
                 text = { Text(tr("Remove the column"), color = colors.error) }, onClick = { open = false; onRemove() },
             )
         }
@@ -3552,7 +3552,7 @@ private fun RowNumber(r: Int, onInsertAbove: () -> Unit, onInsertBelow: () -> Un
             DropdownMenuItem(leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) }, text = { Text(tr("Insert a row below")) }, onClick = { open = false; onInsertBelow() })
             DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Copy, null) }, text = { Text("Duplicate row ${r + 1}") }, onClick = { open = false; onDuplicate() })
             if (onRemove != null) DropdownMenuItem(
-                leadingIcon = { Icon(Icons.Default.Delete, null, tint = colors.error) },
+                leadingIcon = { AppIcon(TableIcons.Delete, null, tint = colors.error) },
                 text = { Text("Remove row ${r + 1}", color = colors.error) }, onClick = { open = false; onRemove() },
             )
         }
@@ -4463,7 +4463,9 @@ internal fun DuoIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, ink:
 @Composable
 internal fun AppIcon(
     icon: androidx.compose.ui.graphics.vector.ImageVector, contentDescription: String?, modifier: Modifier = Modifier,
-    tint: Color = androidx.compose.material3.LocalContentColor.current, accent: Color = MaterialTheme.colorScheme.primary,
+    tint: Color = androidx.compose.material3.LocalContentColor.current,
+    // On a primary-colored background (white-ish ink) the primary accent would vanish: use its container color there.
+    accent: Color = if (tint == MaterialTheme.colorScheme.onPrimary) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary,
 ) {
     if (TableIcons.accentOf(icon) == null) { Icon(icon, contentDescription, modifier, tint); return }
     DuoIcon(icon, tint, accent.copy(alpha = accent.alpha * tint.alpha),

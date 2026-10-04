@@ -78,7 +78,7 @@ import androidx.compose.ui.unit.sp
 /** A chapter's icon, by its key in [Docs]. */
 private fun docsIcon(key: String): ImageVector = when (key) {
     "start" -> Icons.Outlined.PlayCircle
-    "numbers" -> Icons.Outlined.Calculate
+    "numbers" -> TableIcons.ModeCalculator
     "exp" -> Icons.AutoMirrored.Outlined.TrendingUp
     "trig" -> Icons.Outlined.ChangeHistory
     "complex", "complexplane" -> Icons.Outlined.Lens
@@ -91,11 +91,11 @@ private fun docsIcon(key: String): ImageVector = when (key) {
     "contour" -> Icons.Outlined.Loop
     "units" -> Icons.Outlined.Science
     "history" -> Icons.Outlined.History
-    "graph2d", "fit" -> Icons.AutoMirrored.Outlined.ShowChart
-    "graph3d" -> Icons.Outlined.ViewInAr
-    "table", "sheet" -> Icons.Outlined.TableChart
+    "graph2d", "fit" -> TableIcons.Mode2D
+    "graph3d" -> TableIcons.Mode3D
+    "table", "sheet" -> TableIcons.Table
     "converter" -> Icons.Outlined.SwapHoriz
-    "files" -> Icons.Outlined.FolderOpen
+    "files" -> TableIcons.FolderOpen
     "keys" -> Icons.Outlined.Keyboard
     "geometry" -> PlotIcons.Geometry
     else -> Icons.Outlined.Description

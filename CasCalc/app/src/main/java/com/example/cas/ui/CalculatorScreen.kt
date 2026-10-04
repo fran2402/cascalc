@@ -546,7 +546,7 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
     ) {
         // Pinned, and its folder, as small marks above the question.
         if (item.pinned || item.folder != null) Row(Modifier.padding(bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (item.pinned) Icon(Icons.Default.PushPin, contentDescription = tr("Pinned"), tint = colors.primary, modifier = Modifier.size(14.dp))
+            if (item.pinned) AppIcon(TableIcons.Pin, contentDescription = tr("Pinned"), tint = colors.primary, modifier = Modifier.size(14.dp))
             item.folder?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = colors.onSecondaryContainer, modifier = Modifier.clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 8.dp, vertical = 2.dp)) }
         }
         // The question: small and muted, tap to use it again, hold to copy it.
@@ -611,7 +611,7 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                 }
                 val g = item.graph
                 if (g != null) action(
-                    if (g.dimensions == 1) TabIcons.Complex else Icons.AutoMirrored.Filled.ShowChart,
+                    if (g.dimensions == 1) TabIcons.Complex else TableIcons.Mode2D,
                     "Graph", when (g.dimensions) { 1 -> "Plot on the complex plane"; 2 -> "Graph this"; else -> "Graph this in 3D" }, tonal = true,
                 ) { onGraph(g) }
                 else action(Icons.AutoMirrored.Filled.KeyboardReturn, "Use", "Use this answer", tonal = true) { vm.reuse(shown) }
@@ -629,7 +629,7 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                 Row(horizontalArrangement = Arrangement.spacedBy(0.dp), verticalAlignment = Alignment.CenterVertically) {
                     small(TableIcons.Copy, "Copy the answer", colors.onSurfaceVariant) { copy(Formatter.plain(shown), "Answer") }
                     small(
-                        if (item.pinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
+                        if (item.pinned) TableIcons.Pin else TableIcons.PinOutline,
                         if (item.pinned) "Unpin" else "Pin: keep it whatever the history limit",
                         if (item.pinned) colors.primary else colors.onSurfaceVariant,
                     ) { vm.togglePin(item) }
@@ -645,7 +645,7 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                             onClick = { shareMenu = false; vm.reuse(shown) },
                         )
                         DropdownMenuItem(
-                            text = { Text(item.folder?.let { "Folder: $it" } ?: "Move to a folder") }, leadingIcon = { Icon(Icons.Default.Folder, null) },
+                            text = { Text(item.folder?.let { "Folder: $it" } ?: "Move to a folder") }, leadingIcon = { AppIcon(TableIcons.Folder, null) },
                             onClick = { shareMenu = false; movingToFolder = true },
                         )
                         HorizontalDivider()
@@ -659,7 +659,7 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                         // Delete, as swiping does (asking first when that's on).
                         DropdownMenuItem(
                             text = { Text(tr("Delete"), color = colors.error) },
-                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = colors.error) },
+                            leadingIcon = { AppIcon(TableIcons.Delete, contentDescription = null, tint = colors.error) },
                             onClick = { shareMenu = false; if (AppSettings.confirmDeleteEntry) confirm = true else vm.deleteHistory(item) },
                         )
                     }
@@ -1018,11 +1018,13 @@ private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, 
     ) {
         // Beta: a function key's picture instead of its label (Settings › Calculator).
         val picture = if (AppSettings.keyIcons && (spec.role == KeyRole.Function || spec.spoken == "previous answer")) KeyIcons.forKey(spec.spoken) else null
-        if (picture != null) DuoIcon(picture, fg, if (spec.role == KeyRole.Equals) colors.inversePrimary else if (defined) colors.tertiary else colors.primary, Modifier.size(26.dp))
+        if (picture != null) DuoIcon(picture, fg, if (spec.role == KeyRole.Equals) colors.inversePrimary else if (defined) colors.tertiary else colors.primary,
+            // Words like asinh and rref are drawn wider than they're tall.
+            Modifier.size(width = 26.dp * (picture.viewportWidth / picture.viewportHeight), height = 26.dp))
         else LabelView(spec.label, fg, fontSize, iconSize = if (spec.label == KeyLabel.BackspaceIcon || spec.label == KeyLabel.EnterIcon) 28.dp else 24.dp)
         if (pinned) {
             Icon(
-                Icons.Default.PushPin, contentDescription = tr("Pinned"), tint = fg.copy(alpha = 0.7f),
+                TableIcons.Pin, contentDescription = tr("Pinned"), tint = fg.copy(alpha = 0.7f),
                 modifier = Modifier.align(Alignment.TopStart).padding(start = 6.dp, top = 4.dp).size(11.dp).rotate(-30f),
             )
         }
@@ -1076,7 +1078,7 @@ private fun KeyHelpDialog(
                 if (pinned != null || onUndefine != null || onRemove != null) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (pinned != null) FilledTonalButton(onClick = onPin) {
-                            Icon(if (pinned) Icons.Outlined.PushPin else Icons.Default.PushPin, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(if (pinned) TableIcons.PinOutline else TableIcons.Pin, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(if (pinned) "Unpin" else "Pin")
                         }
@@ -1086,7 +1088,7 @@ private fun KeyHelpDialog(
                             Text(tr("Undefine") + (symbol?.let { s -> com.example.cas.cas.CustomSymbol.decode(s)?.let { "" } ?: " $s" } ?: ""))
                         }
                         if (onRemove != null) OutlinedButton(onClick = onRemove) {
-                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.error)
+                            AppIcon(TableIcons.Delete, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.error)
                             Spacer(Modifier.width(8.dp))
                             Text(tr("Remove symbol"), color = colors.error)
                         }
@@ -1171,7 +1173,7 @@ internal fun SwipeToDelete(onDelete: () -> Unit, content: @Composable () -> Unit
                     .padding(horizontal = 24.dp),
                 contentAlignment = if (end) Alignment.CenterEnd else Alignment.CenterStart,
             ) {
-                Icon(Icons.Default.Delete, contentDescription = null, tint = colors.onErrorContainer)
+                AppIcon(TableIcons.Delete, contentDescription = null, tint = colors.onErrorContainer)
             }
         },
     ) { content() }
@@ -1598,7 +1600,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             if (tablet) SettingsChoice("Keyboard side", listOf("Left", "Right"), AppSettings.keypadSide, AppSettings::changeKeypadSide)
             SettingsToggle("Expressive motion", "Springy animations; off for calmer ones", AppSettings.expressiveMotion, AppSettings::changeExpressiveMotion)
         },
-        PageSection("Calculator", Icons.Outlined.Calculate) {
+        PageSection("Calculator", TableIcons.ModeCalculator) {
             SettingsToggle("Live answer", "The result under what you're typing", AppSettings.livePreview, AppSettings::changeLivePreview)
             SettingsToggle("Continue from the answer", "An operator after = starts with Ans", AppSettings.continueFromAnswer, AppSettings::changeContinueFromAnswer)
             SettingsToggle("Explanations on long-press", "Formula, theory and how to use each key", AppSettings.keyHelp, AppSettings::changeKeyHelp)
@@ -1607,7 +1609,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 AppSettings.showSteps, AppSettings::changeShowSteps, badge = "Beta",
             )
             SettingsToggle(
-                "New calculator icons", "The function keys drawn as their math symbols, two-tone: π, e, powers and logs, calculus, statistics and complex numbers (trigonometry and matrices keep theirs). Hold a key for what it does",
+                "New calculator icons", "The function keys drawn as their math symbols, two-tone: π, e, powers and logs, trigonometry, calculus, matrices, statistics and complex numbers. Hold a key for what it does",
                 AppSettings.keyIcons, AppSettings::changeKeyIcons, badge = "Beta",
             )
         },
@@ -1647,7 +1649,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsToggle("Group digits", "1 000 000 rather than 1000000", AppSettings.groupDigits, AppSettings::changeGroupDigits)
             SettingsChoice("Complex decimals", listOf("a + bi", "Polar"), if (AppSettings.polarComplex) 1 else 0) { AppSettings.changePolarComplex(it == 1) }
         },
-        PageSection("Graphs", Icons.AutoMirrored.Outlined.ShowChart) {
+        PageSection("Graphs", TableIcons.Mode2D) {
             SettingsToggle("Grid lines", "The axes always show", AppSettings.showGrid, AppSettings::changeShowGrid)
             SettingsToggle("Legend", "Each line's name in the corner, and in exports. Hold a line to rename it", AppSettings.showLegend, AppSettings::changeShowLegend)
             SettingsToggle("Mark points on curves", "Zeros, extrema and crossings of the tapped curve", AppSettings.specialPoints, AppSettings::changeSpecialPoints)

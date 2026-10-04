@@ -171,7 +171,7 @@ private fun iconFor(group: String): androidx.compose.ui.graphics.vector.ImageVec
     "Libraries" -> Icons.AutoMirrored.Outlined.LibraryBooks
     "Data" -> Icons.Outlined.Dataset
     "Numerical methods" -> Icons.Outlined.Functions
-    "Graphics" -> Icons.AutoMirrored.Outlined.ShowChart
+    "Graphics" -> TableIcons.Mode2D
     "Inspiration" -> Icons.Outlined.Lightbulb
     "Checked against" -> Icons.Outlined.FactCheck
     else -> Icons.Outlined.Info

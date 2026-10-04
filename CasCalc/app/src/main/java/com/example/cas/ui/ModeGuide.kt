@@ -106,13 +106,13 @@ internal fun tipIcon(key: String): ImageVector = when (key) {
     "drag" -> Icons.Default.OpenWith
     "swipe" -> Icons.Default.SwipeLeft
     "swap" -> Icons.Default.SwapVert
-    "graph" -> Icons.AutoMirrored.Filled.ShowChart
+    "graph" -> TableIcons.Mode2D
     "units" -> Icons.Default.Science
-    "folder" -> Icons.Default.Folder
-    "table" -> Icons.Default.TableChart
+    "folder" -> TableIcons.Folder
+    "table" -> TableIcons.Table
     "export" -> TableIcons.Share
-    "axes" -> Icons.Default.ViewInAr
-    else -> Icons.Default.Tune
+    "axes" -> TableIcons.Mode3D
+    else -> TableIcons.Settings
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -164,7 +164,7 @@ private fun TabletGuide(mode: Mode, onMode: (Mode) -> Unit, onTry: (Mode, MathRo
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(m.icon, contentDescription = null, tint = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant, modifier = Modifier.size(24.dp))
+                            AppIcon(m.icon, contentDescription = null, tint = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant, modifier = Modifier.size(24.dp))
                             Spacer(Modifier.width(12.dp))
                             Column {
                                 Text(guideOf(m).title, style = MaterialTheme.typography.titleSmall, color = if (on) colors.onSecondaryContainer else colors.onSurface)
@@ -209,7 +209,7 @@ private fun ModeChips(mode: Mode, onMode: (Mode) -> Unit) {
                     .padding(start = 12.dp, end = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(m.icon, contentDescription = null, tint = if (on) colors.onPrimary else colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                AppIcon(m.icon, contentDescription = null, tint = if (on) colors.onPrimary else colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(guideOf(m).title, style = MaterialTheme.typography.labelLarge, color = if (on) colors.onPrimary else colors.onSurface, maxLines = 1)
             }
@@ -224,7 +224,7 @@ private fun Hero(mode: Mode, large: Boolean = false) {
     val g = guideOf(mode)
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(if (large) 88.dp else 72.dp).clip(Cookie).background(colors.primaryContainer), contentAlignment = Alignment.Center) {
-            Icon(mode.icon, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(if (large) 40.dp else 34.dp))
+            AppIcon(mode.icon, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(if (large) 40.dp else 34.dp))
         }
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f).padding(end = if (large) 40.dp else 0.dp)) {

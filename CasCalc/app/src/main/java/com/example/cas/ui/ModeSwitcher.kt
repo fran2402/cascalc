@@ -36,10 +36,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
 enum class Mode(val english: String, val icon: ImageVector) {
-    Calculator("Calculator", Icons.Default.Calculate),
-    Graph2D("2D graphing", Icons.AutoMirrored.Filled.ShowChart),
-    Graph3D("3D graphing", Icons.Default.ViewInAr),
-    Complex("Complex plotting", TabIcons.Complex);
+    Calculator("Calculator", TableIcons.ModeCalculator),
+    Graph2D("2D graphing", TableIcons.Mode2D),
+    Graph3D("3D graphing", TableIcons.Mode3D),
+    Complex("Complex plotting", TableIcons.ModeComplex);
 
     /** Its name in the app's language. */
     val label: String get() = tr(english)
@@ -93,7 +93,7 @@ fun ModeSwitcher(selected: Mode, onSelect: (Mode) -> Unit, modifier: Modifier = 
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(mode.icon, contentDescription = null, tint = fg, modifier = Modifier.size(24.dp))
+                AppIcon(mode.icon, contentDescription = null, tint = fg, modifier = Modifier.size(24.dp))
             }
         }
     }

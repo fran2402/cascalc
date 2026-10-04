@@ -203,6 +203,27 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, icon pass: keys, trig, matrices, app icons)
+- **Key icons:**
+  - Taylor is a power series (Σ xⁿ) and dsolve a clean y′ = f, both at the shared letter size.
+  - ln has no box, and Ans and = are one color.
+  - Every letter sits on one baseline and x-height.
+  - Trigonometry keeps its labels' spelling (asinh, cosh…), with an inverse's a and a
+    hyperbolic's h in the accent color.
+  - The matrix keys keep their bracketed matrix, with what's done to it (⁻¹, ᵀ, ᴴ, det, ·, ×, ∘,
+    ⊗, tr, rref, rk) in the accent color.
+  - The longer words are drawn wider (`preview-render/key_letters.py` generates them).
+- **The app's own two-tone icons** replace Material's for:
+  - pin and unpin;
+  - folders (open, new, out of a folder);
+  - delete;
+  - the graph + menu (line, note, folder, table);
+  - import data, square zoom and graph settings;
+  - the calculator, 2D, 3D and complex modes.
+
+  On a primary-colored background the accent switches to its container color so it stays
+  visible. (Mockup: `preview-render/round50.png`.)
+
 ## Latest changes (4 October, symbolic calculator icons)
 - **New calculator icons (beta) are now the keys' own symbols**, drawn with the app's round strokes
   as |x|, √ and Π were. Examples: π, e, n!, ln, log, ∂, ∫, lim, Σ, y′, ∇, ∇·, ∇×, x̄, x̃, σ, s²,

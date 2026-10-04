@@ -85,7 +85,7 @@ import java.util.Date
 fun ProjectsButton(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwitch: (Mode) -> Unit) {
     var open by remember { mutableStateOf(false) }
     IconButton(onClick = { open = true }) {
-        Icon(Icons.Default.FolderOpen, contentDescription = tr("Saved graphs"), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        AppIcon(TableIcons.FolderOpen, contentDescription = tr("Saved graphs"), tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     if (open) ProjectsPage(current, graphs, onSwitch, onClose = { open = false })
 }
@@ -278,7 +278,7 @@ private fun EmptyProjects(searching: Boolean, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
     Column(modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)) {
         Box(Modifier.size(96.dp).clip(RoundedCornerShape(32.dp)).background(colors.secondaryContainer), contentAlignment = Alignment.Center) {
-            Icon(if (searching) Icons.Default.Search else Icons.Default.FolderOpen, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(44.dp))
+            Icon(if (searching) Icons.Default.Search else TableIcons.FolderOpen, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(44.dp))
         }
         Text(if (searching) "No saved graphs with that name" else "No saved graphs yet", style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
         if (!searching) Text(tr("Save a graph to keep its lines, colors and sliders, and open it again later."),
@@ -332,7 +332,7 @@ private fun ProjectCard(s: Saved, current: Boolean, onOpen: () -> Unit, onRename
                     val ext = s.mode.graphFileKind?.extension.orEmpty()
                     DropdownMenuItem(text = { Text("Share as .$ext file") }, leadingIcon = { AppIcon(TableIcons.Share, null) }, onClick = { menu = false; onExportFile(true) })
                     DropdownMenuItem(text = { Text("Save as .$ext file") }, leadingIcon = { Icon(Icons.Default.SaveAlt, null) }, onClick = { menu = false; onExportFile(false) })
-                    DropdownMenuItem(text = { Text(tr("Delete"), color = colors.error) }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = colors.error) }, onClick = { menu = false; onDelete() })
+                    DropdownMenuItem(text = { Text(tr("Delete"), color = colors.error) }, leadingIcon = { AppIcon(TableIcons.Delete, null, tint = colors.error) }, onClick = { menu = false; onDelete() })
                 }
             }
         }
@@ -353,7 +353,7 @@ private fun ProjectCard(s: Saved, current: Boolean, onOpen: () -> Unit, onRename
                             Modifier.clip(CircleShape).background(colors.tertiaryContainer).padding(horizontal = 10.dp, vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            if (line.isData) Icon(Icons.Default.TableChart, contentDescription = null, tint = colors.onTertiaryContainer, modifier = Modifier.size(14.dp))
+                            if (line.isData) AppIcon(TableIcons.Table, contentDescription = null, tint = colors.onTertiaryContainer, modifier = Modifier.size(14.dp))
                             Text(if (line.isData) "Data set" else "Long formula", style = MaterialTheme.typography.labelMedium, color = colors.onTertiaryContainer)
                         }
                     } else {

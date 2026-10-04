@@ -253,7 +253,7 @@ fun SymbolBuilderPage(onDone: (String?) -> Unit) {
                     Box(Modifier.weight(1f)) { MathView(MathRow(mutableListOf(Sym(s))), 28.sp, colors.onSurface, computerModern = true) }
                     Text(CustomSymbol.decode(s)?.latex.orEmpty(), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(end = 8.dp))
                     IconButton(onClick = { SavedSymbols.remove(s) }) {
-                        Icon(Icons.Default.Delete, contentDescription = tr("Remove this symbol"), tint = colors.onSurfaceVariant)
+                        AppIcon(TableIcons.Delete, contentDescription = tr("Remove this symbol"), tint = colors.onSurfaceVariant)
                     }
                 }
             }
