@@ -17,6 +17,8 @@ data class ColumnFormat(
     val dataBars: Boolean = false,
     /** Cells meeting a rule tinted in one of [HighlightRule.COLORS] (conditional formatting). */
     val highlight: HighlightRule? = null,
+    /** Where the cells' text sits: 0 as usual (at the start), 1 left, 2 centered, 3 right. */
+    val align: Int = 0,
 ) {
     val isDefault get() = this == ColumnFormat()
     /** Whether numbers are shown differently from how they're typed. */
@@ -45,6 +47,7 @@ data class ColumnFormat(
         decimals?.let { add("d$it") }
         if (percent) add("p"); if (scientific) add("s"); if (thousands) add("t"); if (colorScale) add("c"); if (dataBars) add("b")
         highlight?.let { add("h" + it.encode()) }
+        if (align != 0) add("a$align")
     }.joinToString(".")
 
     companion object {
@@ -54,6 +57,7 @@ data class ColumnFormat(
                 t == "p" -> f.copy(percent = true); t == "s" -> f.copy(scientific = true)
                 t == "t" -> f.copy(thousands = true); t == "c" -> f.copy(colorScale = true); t == "b" -> f.copy(dataBars = true)
                 t.startsWith("h") -> f.copy(highlight = HighlightRule.decode(t.drop(1)))
+                t.startsWith("a") -> f.copy(align = t.drop(1).toIntOrNull()?.coerceIn(0, 3) ?: 0)
                 else -> f
             }
         }
@@ -251,6 +255,82 @@ object SheetTools {
                 if (Sheet.isFormula(text)) t.value(c, r)?.let { DataTable.text(it) } ?: t.sheet.value(c, r).toString() else text
             }
         }
+
+    // ---- The Name Box ------------------------------------------------------------------------
+
+    /**
+     * An address typed in the Name Box, as Excel reads it: a cell (B12, \$B\$12) or a range
+     * (A1:C5), as (first column, first row, last column, last row), zero-based; null if it isn't one.
+     */
+    fun parseAddress(text: String): IntArray? {
+        val m = Regex("""^\s*\$?([A-Za-z]{1,3})\$?(\d+)\s*(?::\s*\$?([A-Za-z]{1,3})\$?(\d+)\s*)?$""").find(text) ?: return null
+        val g = m.groupValues
+        val c0 = Sheet.columnIndex(g[1]); val r0 = g[2].toInt() - 1
+        if (r0 < 0) return null
+        if (g[3].isEmpty()) return intArrayOf(c0, r0, c0, r0)
+        val c1 = Sheet.columnIndex(g[3]); val r1 = g[4].toInt() - 1
+        if (r1 < 0) return null
+        return intArrayOf(minOf(c0, c1), minOf(r0, r1), maxOf(c0, c1), maxOf(r0, r1))
+    }
+
+    // ---- Custom sort --------------------------------------------------------------------------
+
+    /** One level of a custom sort: a column, smallest or largest first. */
+    class SortLevel(val column: Int, val descending: Boolean = false)
+
+    /**
+     * The row order sorting by [levels] in turn, as Excel's Custom Sort: numbers by value, then
+     * text alphabetically (ignoring case), empty cells always last; ties keep their order.
+     */
+    fun sortOrder(t: DataTable, levels: List<SortLevel>): List<Int> {
+        fun key(c: Int, r: Int): Triple<Int, Double, String> {
+            val text = t.cell(c, r)
+            val v = t.value(c, r)
+            return when {
+                text.isBlank() -> Triple(2, 0.0, "")
+                v != null -> Triple(0, v, "")
+                else -> Triple(1, 0.0, text.trim().lowercase())
+            }
+        }
+        val cmp = Comparator<Int> { a, b ->
+            for (lv in levels) {
+                val ka = key(lv.column, a); val kb = key(lv.column, b)
+                // Empty cells stay last either way round.
+                if (ka.first == 2 || kb.first == 2) { if (ka.first != kb.first) return@Comparator ka.first.compareTo(kb.first); continue }
+                var d = ka.first.compareTo(kb.first)
+                if (d == 0) d = if (ka.first == 0) ka.second.compareTo(kb.second) else ka.third.compareTo(kb.third)
+                if (d != 0) return@Comparator if (lv.descending) -d else d
+            }
+            0
+        }
+        return (0 until t.rowCount).sortedWith(cmp)
+    }
+
+    // ---- Text to columns ----------------------------------------------------------------------
+
+    /** Each cell of [column] split at [delimiter] (runs of spaces as one for " "), into as many columns as the longest needs. */
+    fun textToColumns(column: List<String>, delimiter: String): List<List<String>> {
+        if (delimiter.isEmpty()) return listOf(column)
+        val parts = column.map { t ->
+            if (Sheet.isFormula(t)) listOf(t)
+            else if (delimiter == " ") t.trim().split(Regex(" +")).let { if (it == listOf("")) listOf("") else it }
+            else t.split(delimiter).map { it.trim() }
+        }
+        val n = parts.maxOfOrNull { it.size } ?: 1
+        return (0 until n).map { k -> parts.map { it.getOrElse(k) { "" } } }
+    }
+
+    // ---- Copy and paste -------------------------------------------------------------------------
+
+    /**
+     * Cells copied from ([c0], [r0]) pasted at ([c], [r]), as Excel pastes: a formula's relative
+     * references move by the distance pasted; [values] pastes what formulas work out to instead.
+     */
+    fun pasted(t: DataTable, c0: Int, r0: Int, text: String, c: Int, r: Int, values: Boolean = false): String = when {
+        !Sheet.isFormula(text) -> text
+        values -> t.value(c0, r0)?.let { DataTable.text(it) } ?: t.sheet.value(c0, r0).toString()
+        else -> Sheet.shift(text, r - r0, c - c0)
+    }
 
     // ---- AutoSum ---------------------------------------------------------------------------
 

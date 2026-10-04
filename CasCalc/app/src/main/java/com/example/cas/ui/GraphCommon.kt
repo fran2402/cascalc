@@ -82,6 +82,11 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.StarBorder
@@ -1998,6 +2003,16 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     var highlightFor by remember(f) { mutableStateOf<Int?>(null) }
     var insightsFor by remember(f) { mutableStateOf<Int?>(null) }
     var marked by remember(f) { mutableStateOf<Set<Pair<Int, Int>>>(emptySet()) }
+    // Excel's window: the ribbon folded away, formulas shown instead of values, the zoom, cells
+    // copied or cut, and the dialogs for a custom sort, text to columns and inserting a function.
+    var ribbonFolded by remember(f) { mutableStateOf(false) }
+    var showFormulas by remember(f) { mutableStateOf(false) }
+    var zoom by remember(f) { mutableStateOf(1f) }
+    class Clip(val c0: Int, val r0: Int, val rows: List<List<String>>, val from: com.example.cas.graph.DataTable)
+    var clip by remember(f) { mutableStateOf<Clip?>(null) }
+    var sorting by remember(f) { mutableStateOf(false) }
+    var splitFor by remember(f) { mutableStateOf<Int?>(null) }
+    var functionsOpen by remember(f) { mutableStateOf<String?>(null) }
     val barFocus = remember(f) { androidx.compose.ui.focus.FocusRequester() }
     var roleX by remember(f) { mutableStateOf(start.x) }
     var roleY by remember(f) { mutableStateOf(start.y) }
@@ -2210,8 +2225,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     val list = androidx.compose.foundation.lazy.rememberLazyListState()
     val across = rememberScrollState()
     val scope = rememberCoroutineScope()
-    fun widthOf(c: Int) = widths[c] ?: defaultWidth
-    fun heightOf(r: Int) = heights[r] ?: defaultHeight
+    fun widthOf(c: Int) = (widths[c] ?: defaultWidth) * zoom
+    fun heightOf(r: Int) = (heights[r] ?: defaultHeight) * zoom
     // The rows the filters keep; each color-scaled column's smallest and largest number; the cells find matches.
     val visible by remember(f) { androidx.compose.runtime.derivedStateOf { if (filters.isEmpty()) (0 until current.rowCount).toList() else com.example.cas.graph.SheetTools.visibleRows(current, filters.values) } }
     val scales by remember(f) { androidx.compose.runtime.derivedStateOf { fmts.indices.filter { fmts[it].colorScale || fmts[it].dataBars }.associateWith { c -> current.numbers(c).let { v -> if (v.isEmpty()) 0.0 to 0.0 else v.min() to v.max() } } } }
@@ -2276,6 +2291,87 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         else while (at - 1 >= 0 && -left > sizeOf(at - 1) / 2) { left += sizeOf(at - 1); at-- }
         return at
     }
+    /** The cells the ribbon's commands work on: the picked range, else the selected cell, as (c0, r0, c1, r1). */
+    fun target(): IntArray? {
+        val a = selA
+        if (a != null) { val b = selB ?: a; return intArrayOf(minOf(a.first, b.first), minOf(a.second, b.second), maxOf(a.first, b.first), maxOf(a.second, b.second)) }
+        return editing?.let { (c, r) -> intArrayOf(c, r, c, r) }
+    }
+    /** Clear, as Excel's: the contents of the cells (or the whole column with none picked), their columns' formats, or both. */
+    fun clear(contents: Boolean, formats: Boolean) {
+        val t = target()
+        val cols = if (t != null) (t[0]..t[2]) else (focusCol..focusCol)
+        record()
+        if (contents) {
+            if (t != null) { for (c in t[0]..t[2]) for (r in t[1]..t[3]) cells.getOrNull(c)?.let { col -> if (r < col.size) col[r] = "" } }
+            else cells.getOrNull(focusCol)?.let { col -> col.indices.forEach { col[it] = "" } }
+        }
+        if (formats) cols.forEach { c -> if (c < fmts.size) fmts[c] = com.example.cas.graph.ColumnFormat() }
+    }
+    /** Copy (or cut) the picked cells, as Excel: kept for Paste here (formulas move with it), and on the clipboard as tab-separated text for other apps. */
+    fun copyCells(cut: Boolean) {
+        val t = target() ?: run { android.widget.Toast.makeText(context, "Select a cell, or hold one to pick a range", android.widget.Toast.LENGTH_SHORT).show(); return }
+        val rowsOut = (t[1]..t[3]).map { r -> (t[0]..t[2]).map { c -> cells.getOrNull(c)?.getOrNull(r) ?: "" } }
+        clip = Clip(t[0], t[1], rowsOut, current)
+        @Suppress("DEPRECATION")
+        (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("Cells", com.example.cas.graph.SheetTools.rangeText(current, t[0], t[1], t[2], t[3])))
+        if (cut) { record(); for (c in t[0]..t[2]) for (r in t[1]..t[3]) cells.getOrNull(c)?.let { col -> if (r < col.size) col[r] = "" } }
+        android.widget.Toast.makeText(context, if (cut) "Cut" else "Copied", android.widget.Toast.LENGTH_SHORT).show()
+    }
+    /** Paste the copied cells at the selected cell (columns and rows added if needed); [values] pastes what formulas work out to. */
+    fun pasteCells(values: Boolean) {
+        val k = clip ?: return paste()
+        val at = target() ?: run { android.widget.Toast.makeText(context, "Select where to paste", android.widget.Toast.LENGTH_SHORT).show(); return }
+        record(); quiet[0] = true
+        try {
+            val c = at[0]; val r = at[1]
+            while (cells.size < c + (k.rows.firstOrNull()?.size ?: 1)) addColumn()
+            while ((cells.maxOfOrNull { it.size } ?: 0) < r + k.rows.size) addRow()
+            k.rows.forEachIndexed { i, rowCells -> rowCells.forEachIndexed { j, text ->
+                cells[c + j][r + i] = com.example.cas.graph.SheetTools.pasted(k.from, k.c0 + j, k.r0 + i, text, c + j, r + i, values)
+            } }
+        } finally { quiet[0] = false }
+    }
+    /** New columns put in just after column [after], their roles and widths moved along. */
+    fun insertColumnsAfter(after: Int, columns: List<List<String>>) {
+        columns.forEachIndexed { k, values ->
+            val at = after + 1 + k
+            names.add(at, ""); fmts.add(at.coerceAtMost(fmts.size), com.example.cas.graph.ColumnFormat())
+            cells.add(at, androidx.compose.runtime.mutableStateListOf(*List(maxOf(rows, values.size)) { values.getOrElse(it) { "" } }.toTypedArray()))
+            shiftKeys(widths, at, 1)
+            fun shift(x: Int?) = x?.let { if (it >= at) it + 1 else it }
+            roleX = shift(roleX); roleY = shift(roleY); roleSx = shift(roleSx); roleSy = shift(roleSy)
+        }
+        cells.forEach { col -> while (col.size < (cells.maxOfOrNull { it.size } ?: 0)) col.add("") }
+    }
+    /** Text to Columns: column [c] split at [delimiter], its first part kept in place and the rest in new columns after it. */
+    fun splitColumn(c: Int, delimiter: String) {
+        val parts = com.example.cas.graph.SheetTools.textToColumns(cells[c].toList(), delimiter)
+        if (parts.size < 2) { android.widget.Toast.makeText(context, "Nothing to split at that", android.widget.Toast.LENGTH_SHORT).show(); return }
+        record(); quiet[0] = true
+        try {
+            parts[0].forEachIndexed { r, v -> cells[c][r] = v }
+            insertColumnsAfter(c, parts.drop(1)); filters.clear()
+        } finally { quiet[0] = false }
+    }
+    /** The Name Box: jump to a cell (and select it) or pick a range; false if the address isn't one. */
+    fun goTo(address: String): Boolean {
+        val a = com.example.cas.graph.SheetTools.parseAddress(address) ?: return false
+        while (cells.size <= a[2]) addColumn()
+        while ((cells.maxOfOrNull { it.size } ?: 0) <= a[3]) addRow()
+        if (a[0] == a[2] && a[1] == a[3]) { selA = null; selB = null; editing = a[0] to a[1] }
+        else { editing = null; selA = a[0] to a[1]; selB = a[2] to a[3] }
+        focusCol = a[0]
+        if (a[1] !in visible) filters.clear()
+        scope.launch {
+            list.animateScrollToItem(maxOf(0, visible.indexOf(a[1]) - 2))
+            across.animateScrollTo(with(density) { (0 until a[0]).sumOf { (widthOf(it) + 10.dp).toPx().toInt() } })
+        }
+        return true
+    }
+    // What the selected cell held when it was picked, for ✕ (cancel) in the formula bar.
+    var editStart by remember(f) { mutableStateOf<String?>(null) }
+    androidx.compose.runtime.LaunchedEffect(editing) { editStart = editing?.let { (c, r) -> cells.getOrNull(c)?.getOrNull(r) } }
     // The formula bar: the selected cell's address and contents, typed in here.
     val formulaBar: @Composable (Modifier) -> Unit = { m -> Column(m) {
         val sel = editing?.takeIf { (c, r) -> c in cells.indices && r < cells[c].size }
@@ -2316,6 +2412,12 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                 editing = c to r + 1
                 scope.launch { list.animateScrollToItem(maxOf(0, visible.indexOf(r) - 2)) }
             },
+            onGoTo = { goTo(it) },
+            onCancel = {
+                val (c, r) = editing ?: return@FormulaBar
+                editStart?.let { old -> if (r < cells[c].size && cells[c][r] != old) cells[c][r] = old }
+            },
+            onFunctions = { functionsOpen = "" },
         )
     } }
     // A cell picked: straight to typing in it, as tapping a cell did before.
@@ -2339,6 +2441,29 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
             onMark = { marked = out.map { c to it }.toSet(); insightsFor = null },
             onDismiss = { insightsFor = null },
         )
+    }
+    // Excel's dialogs: Custom Sort, Text to Columns, Insert Function.
+    if (sorting) CustomSortDialog(
+        columns = cells.indices.map { c -> com.example.cas.graph.Sheet.columnName(c) + names[c].let { if (it.isBlank()) "" else " · $it" } },
+        start = focusCol.coerceIn(0, maxOf(0, cells.size - 1)),
+        onDismiss = { sorting = false },
+    ) { levels -> sorting = false; reorder(com.example.cas.graph.SheetTools.sortOrder(current, levels)) }
+    splitFor?.takeIf { it in cells.indices }?.let { c ->
+        TextToColumnsDialog(names[c].ifBlank { "Column ${c + 1}" }, cells[c].take(6), onDismiss = { splitFor = null }) { delimiter -> splitFor = null; splitColumn(c, delimiter) }
+    }
+    functionsOpen?.let { category ->
+        InsertFunctionSheet(category, onDismiss = { functionsOpen = null }) { name ->
+            functionsOpen = null
+            val at = editing
+            if (at == null) android.widget.Toast.makeText(context, "Select a cell to put the function in", android.widget.Toast.LENGTH_SHORT).show()
+            else {
+                val (c, r) = at
+                val now = cells[c].getOrElse(r) { "" }
+                record(); typingRecorded = c to r
+                if (r < cells[c].size) cells[c][r] = if (com.example.cas.graph.Sheet.isFormula(now) || now.trim() == "=") now + "$name(" else "=$name("
+                scope.launch { runCatching { barFocus.requestFocus() } }
+            }
+        }
     }
     // A column's sheet: its role and every action.
     sheetFor?.takeIf { it in cells.indices }?.let { c ->
@@ -2420,90 +2545,159 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                             modifier = Modifier.height(48.dp),
                         ) { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text(tr("Done")) }
                     }
-                    // The toolbar: tabs, then their tools (on a phone, put away while the keyboard is up).
+                    // The ribbon, as Excel's (on a phone, put away while the keyboard is up).
                     val keyboardUp = androidx.compose.foundation.layout.WindowInsets.ime.getBottom(density) > 0
                     if (wide || !keyboardUp) {
                         val c = focusCol.coerceIn(0, maxOf(0, cells.size - 1))
                         val fmt = fmts.getOrElse(c) { com.example.cas.graph.ColumnFormat() }
                         fun setFmt(n: com.example.cas.graph.ColumnFormat) { record(); while (fmts.size <= c) fmts.add(com.example.cas.graph.ColumnFormat()); fmts[c] = n }
                         val selRow = editing?.second ?: selA?.second
+                        val autoSum = com.example.cas.graph.SheetTools.AUTO_FUNCTIONS.map { fn ->
+                            fn to {
+                                val at = editing
+                                val formula = at?.let { (cc, rr) -> com.example.cas.graph.SheetTools.autoSum(current, cc, rr, fn) }
+                                if (at == null || formula == null) android.widget.Toast.makeText(context, "Select the cell under (or right of) some numbers", android.widget.Toast.LENGTH_SHORT).show()
+                                else { record(); cells[at.first][at.second] = formula }
+                            }
+                        }
+                        val numberMenu = listOf(
+                            "General" to { setFmt(fmt.copy(decimals = null, percent = false, scientific = false, thousands = false)) },
+                            "Number (0.00)" to { setFmt(fmt.copy(decimals = fmt.decimals ?: 2, percent = false, scientific = false)) },
+                            "Percent" to { setFmt(fmt.copy(percent = true, scientific = false)) },
+                            "Scientific" to { setFmt(fmt.copy(scientific = true, percent = false, thousands = false)) },
+                            "Thousands (1 000)" to { setFmt(fmt.copy(thousands = !fmt.thousands, scientific = false)) },
+                            "More number formats…" to { formatFor = c },
+                        )
+                        val conditional = listOf(
+                            (if (fmt.colorScale) "Remove the color scale" else "Color scale") to { setFmt(fmt.copy(colorScale = !fmt.colorScale)) },
+                            (if (fmt.dataBars) "Remove the data bars" else "Data bars") to { setFmt(fmt.copy(dataBars = !fmt.dataBars)) },
+                            "Highlight cells rule…" to { highlightFor = c },
+                            "Clear rules" to { setFmt(fmt.copy(colorScale = false, dataBars = false, highlight = null)) },
+                        )
+                        val sortFilter = listOf(
+                            "Sort smallest to largest" to { sortBy(c) },
+                            "Sort largest to smallest" to { sortDown(c) },
+                            "Custom sort…" to { sorting = true },
+                            "Filter…" to { filterFor = c },
+                            "Clear filters" to { filters.clear() },
+                        )
                         val groups = when (tab) {
                             TableTab.Home -> listOf(
-                                // Excel's AutoSum: the selected cell gets the function of the numbers above (or to its left).
-                                ToolGroup("Formula", listOf(TableTool(TableIcons.AutoSum, "AutoSum", menu = com.example.cas.graph.SheetTools.AUTO_FUNCTIONS.map { fn ->
-                                    fn to {
-                                        val at = editing
-                                        val formula = at?.let { (cc, rr) -> com.example.cas.graph.SheetTools.autoSum(current, cc, rr, fn) }
-                                        if (at == null || formula == null) android.widget.Toast.makeText(context, "Select the cell under (or right of) some numbers", android.widget.Toast.LENGTH_SHORT).show()
-                                        else { record(); cells[at.first][at.second] = formula }
-                                    }
-                                }))),
-                                ToolGroup("Sort & filter", listOf(
-                                    TableTool(TableIcons.SortUp, "Sort up") { sortBy(c) },
-                                    TableTool(TableIcons.SortDown, "Sort down") { sortDown(c) },
-                                    TableTool(TableIcons.Filter, "Filter", on = c in filters) { filterFor = c },
+                                ToolGroup("Clipboard", listOf(
+                                    TableTool(TableIcons.PasteTable, "Paste", menu = listOf("Paste" to { pasteCells(false) }, "Paste values" to { pasteCells(true) }, "Paste a table from the clipboard" to { paste() })),
+                                    TableTool(TableIcons.Cut, "Cut", large = false) { copyCells(true) },
+                                    TableTool(TableIcons.CopyTable, "Copy", large = false) { copyCells(false) },
+                                )),
+                                ToolGroup("Alignment", listOf(
+                                    TableTool(TableIcons.AlignLeft, "Left", on = fmt.align == 1, large = false) { setFmt(fmt.copy(align = if (fmt.align == 1) 0 else 1)) },
+                                    TableTool(TableIcons.AlignCenter, "Center", on = fmt.align == 2, large = false) { setFmt(fmt.copy(align = if (fmt.align == 2) 0 else 2)) },
+                                    TableTool(TableIcons.AlignRight, "Right", on = fmt.align == 3, large = false) { setFmt(fmt.copy(align = if (fmt.align == 3) 0 else 3)) },
+                                )),
+                                ToolGroup("Number", listOf(
+                                    TableTool(TableIcons.NumberFormat, "Format", menu = numberMenu),
+                                    TableTool(TableIcons.Percent, "Percent", on = fmt.percent, large = false) { setFmt(fmt.copy(percent = !fmt.percent, scientific = false)) },
+                                    TableTool(TableIcons.DecimalsLess, "Fewer", enabled = (fmt.decimals ?: 2) > 0, large = false) { setFmt(fmt.copy(decimals = ((fmt.decimals ?: 3) - 1).coerceAtLeast(0))) },
+                                    TableTool(TableIcons.DecimalsMore, "More", large = false) { setFmt(fmt.copy(decimals = ((fmt.decimals ?: 1) + 1).coerceAtMost(8))) },
+                                ), launcher = { formatFor = c }),
+                                ToolGroup("Styles", listOf(TableTool(TableIcons.ConditionalFormat, "Conditional", on = fmt.colorScale || fmt.dataBars || fmt.highlight != null, menu = conditional))),
+                                ToolGroup("Cells", listOf(
+                                    TableTool(TableIcons.InsertCells, "Insert", menu = listOf(
+                                        "Row above" to { insertRow(selRow ?: 0) },
+                                        "Row below" to { if (selRow != null) insertRow(selRow + 1) else addRow() },
+                                        "Column" to { addColumn(); scope.launch { across.animateScrollTo(across.maxValue + 10_000) } },
+                                    )),
+                                    TableTool(TableIcons.DeleteCells, "Delete", menu = listOfNotNull(
+                                        if (selRow != null && rows > 1) "Row ${selRow + 1}" to { removeRow(selRow) } else null,
+                                        if (cells.size > 1) "Column ${com.example.cas.graph.Sheet.columnName(c)}" to { removeColumn(c) } else null,
+                                    ).ifEmpty { listOf("Nothing to delete" to {}) }),
+                                )),
+                                ToolGroup("Editing", listOf(
+                                    TableTool(TableIcons.AutoSum, "AutoSum", menu = autoSum),
+                                    TableTool(TableIcons.Series, "Fill", large = false, menu = listOfNotNull(
+                                        "1, 2, 3…" to { record(); cells[c].indices.forEach { r -> cells[c][r] = (r + 1).toString() } },
+                                        "Series…" to { seriesFor = c },
+                                        if (formulas && cells.getOrNull(c)?.any { com.example.cas.graph.Sheet.isFormula(it) } == true) "Formula down" to { fillFormulaDown(c) } else null,
+                                    )),
+                                    TableTool(TableIcons.Eraser, "Clear", large = false, menu = listOf(
+                                        "Clear contents" to { clear(contents = true, formats = false) },
+                                        "Clear formats" to { clear(contents = false, formats = true) },
+                                        "Clear all" to { clear(contents = true, formats = true) },
+                                    )),
+                                    TableTool(TableIcons.Filter, "Sort & Filter", on = filters.isNotEmpty(), menu = sortFilter),
                                     TableTool(TableIcons.Find, "Find", on = finding) { finding = !finding },
                                 )),
-                                ToolGroup("Fill", listOf(
-                                    TableTool(TableIcons.Numbering, "1, 2, 3") { record(); cells[c].indices.forEach { r -> cells[c][r] = (r + 1).toString() } },
-                                    TableTool(TableIcons.Series, "Series") { seriesFor = c },
-                                    TableTool(TableIcons.FillFormula, "Formula", enabled = formulas && cells.getOrNull(c)?.any { com.example.cas.graph.Sheet.isFormula(it) } == true) { fillFormulaDown(c) },
-                                )),
-                                ToolGroup("Column", listOf(TableTool(TableIcons.Statistics, "Stats") { statsFor = c })),
                             )
                             TableTab.Insert -> listOf(
                                 ToolGroup("Rows", listOf(
                                     TableTool(TableIcons.RowAbove, "Row above") { insertRow(selRow ?: 0) },
                                     TableTool(TableIcons.RowBelow, "Row below") { if (selRow != null) insertRow(selRow + 1) else addRow() },
-                                    TableTool(Icons.Default.ContentCopy, "Copy row", enabled = selRow != null) { selRow?.let { duplicateRow(it) } },
+                                    TableTool(Icons.Default.ContentCopy, "Copy row", enabled = selRow != null, large = false) { selRow?.let { duplicateRow(it) } },
                                 )),
                                 ToolGroup("Columns", listOf(
                                     TableTool(TableIcons.ColumnAdd, "Column") { addColumn(); scope.launch { across.animateScrollTo(across.maxValue + 10_000) } },
-                                    TableTool(TableIcons.DuplicateColumn, "Copy column") { duplicateColumn(c) },
+                                    TableTool(TableIcons.DuplicateColumn, "Copy column", large = false) { duplicateColumn(c) },
+                                    TableTool(TableIcons.MoveLeft, "Move left", enabled = c > 0, large = false) { moveColumn(c, c - 1); focusCol = c - 1 },
+                                    TableTool(TableIcons.MoveRight, "Move right", enabled = c < cells.size - 1, large = false) { moveColumn(c, c + 1); focusCol = c + 1 },
                                 )),
-                                ToolGroup("Clipboard", listOf(TableTool(TableIcons.PasteTable, "Paste") { paste() })),
+                                ToolGroup("Data", listOf(TableTool(TableIcons.PasteTable, "Paste table") { paste() })),
+                                ToolGroup("Function", listOf(TableTool(TableIcons.InsertFunction, "Insert function") { functionsOpen = "" })),
+                            )
+                            TableTab.Formulas -> listOf(
+                                ToolGroup("Function Library", listOf(
+                                    TableTool(TableIcons.InsertFunction, "Insert function") { functionsOpen = "" },
+                                    TableTool(TableIcons.AutoSum, "AutoSum", menu = autoSum),
+                                    TableTool(TableIcons.MathFunctions, "Math", large = false) { functionsOpen = "Math" },
+                                    TableTool(TableIcons.StatisticsFunctions, "Statistics", large = false) { functionsOpen = "Statistics" },
+                                    TableTool(TableIcons.LookupFunctions, "Lookup", large = false) { functionsOpen = "Lookup" },
+                                    TableTool(TableIcons.LogicFunctions, "Logical", large = false) { functionsOpen = "Logic" },
+                                    TableTool(TableIcons.TextFunctions, "Text", large = false) { functionsOpen = "Text" },
+                                    TableTool(TableIcons.DateFunctions, "Date & time", large = false) { functionsOpen = "Date & time" },
+                                    TableTool(TableIcons.FinancialFunctions, "Financial", large = false) { functionsOpen = "Financial" },
+                                ), launcher = { functionsOpen = "" }),
+                                ToolGroup("Formula Auditing", listOf(TableTool(TableIcons.ShowFormulas, "Show formulas", on = showFormulas) { showFormulas = !showFormulas })),
                             )
                             TableTab.Data -> listOf(
-                                ToolGroup("Tidy", listOf(
-                                    TableTool(TableIcons.Dedupe, "Duplicates") { removeDuplicates() },
-                                    TableTool(TableIcons.RemoveEmpty, "Empty rows") { removeEmptyRows() },
-                                    TableTool(TableIcons.Trim, "Trim") { trimAll() },
-                                    TableTool(TableIcons.Transpose, "Transpose") { transpose() },
+                                ToolGroup("Sort & Filter", listOf(
+                                    TableTool(TableIcons.SortUp, "A → Z", large = false) { sortBy(c) },
+                                    TableTool(TableIcons.SortDown, "Z → A", large = false) { sortDown(c) },
+                                    TableTool(TableIcons.CustomSort, "Sort") { sorting = true },
+                                    TableTool(TableIcons.Filter, "Filter", on = c in filters) { filterFor = c },
+                                    TableTool(TableIcons.Eraser, "Clear", enabled = filters.isNotEmpty(), large = false) { filters.clear() },
                                 )),
-                                ToolGroup("Explore", listOf(TableTool(TableIcons.Insights, "Insights") { insightsFor = c })),
-                                ToolGroup("View", listOf(TableTool(TableIcons.Freeze, "Freeze", on = frozen) { record(); frozen = !frozen })),
+                                ToolGroup("Data Tools", listOf(
+                                    TableTool(TableIcons.TextToColumns, "Text to columns") { splitFor = c },
+                                    TableTool(TableIcons.Dedupe, "Remove duplicates") { removeDuplicates() },
+                                    TableTool(TableIcons.Trim, "Trim", large = false) { trimAll() },
+                                    TableTool(TableIcons.RemoveEmpty, "Empty rows", large = false) { removeEmptyRows() },
+                                    TableTool(TableIcons.Transpose, "Transpose", large = false) { transpose() },
+                                )),
+                                ToolGroup("Analysis", listOf(
+                                    TableTool(TableIcons.Insights, "Insights") { insightsFor = c },
+                                    TableTool(TableIcons.Statistics, "Statistics") { statsFor = c },
+                                )),
                                 ToolGroup("Share", listOf(
-                                    TableTool(TableIcons.ShareTable, "Share CSV") {
+                                    TableTool(TableIcons.ShareTable, "Share CSV", large = false) {
                                         val send = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/csv").putExtra(android.content.Intent.EXTRA_TEXT, table().csv())
                                         context.startActivity(android.content.Intent.createChooser(send, "Share the table"))
                                     },
-                                    TableTool(TableIcons.CopyTable, "Copy CSV") {
+                                    TableTool(TableIcons.CopyTable, "Copy CSV", large = false) {
                                         @Suppress("DEPRECATION")
                                         (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("Table", table().csv()))
                                         android.widget.Toast.makeText(context, "Table copied", android.widget.Toast.LENGTH_SHORT).show()
                                     },
                                 )),
                             )
-                            TableTab.Format -> listOf(
-                                ToolGroup("Number", listOf(
-                                    TableTool(TableIcons.FormatAuto, "Auto", on = !fmt.changesNumbers) { setFmt(fmt.copy(decimals = null, percent = false, scientific = false, thousands = false)) },
-                                    TableTool(TableIcons.FormatFixed, "0.00", on = fmt.decimals != null && !fmt.percent && !fmt.scientific) { setFmt(fmt.copy(decimals = fmt.decimals ?: 2, percent = false, scientific = false)) },
-                                    TableTool(TableIcons.Percent, "Percent", on = fmt.percent) { setFmt(fmt.copy(percent = !fmt.percent, scientific = false)) },
-                                    TableTool(TableIcons.Scientific, "Scientific", on = fmt.scientific) { setFmt(fmt.copy(scientific = !fmt.scientific, percent = false, thousands = false)) },
-                                    TableTool(TableIcons.Thousands, "1 000", on = fmt.thousands, enabled = !fmt.scientific) { setFmt(fmt.copy(thousands = !fmt.thousands)) },
+                            TableTab.View -> listOf(
+                                ToolGroup("Show", listOf(TableTool(TableIcons.ShowFormulas, "Formulas", on = showFormulas) { showFormulas = !showFormulas })),
+                                ToolGroup("Zoom", listOf(
+                                    TableTool(TableIcons.ZoomOut, "Zoom out", enabled = zoom > 0.6f) { zoom = (zoom - 0.1f).coerceAtLeast(0.6f) },
+                                    TableTool(TableIcons.Zoom100, "100%", on = kotlin.math.abs(zoom - 1f) < 0.01f) { zoom = 1f },
+                                    TableTool(TableIcons.ZoomIn, "Zoom in", enabled = zoom < 1.6f) { zoom = (zoom + 0.1f).coerceAtMost(1.6f) },
                                 )),
-                                ToolGroup("Decimals", listOf(
-                                    TableTool(TableIcons.DecimalsLess, "Fewer", enabled = (fmt.decimals ?: 2) > 0) { setFmt(fmt.copy(decimals = ((fmt.decimals ?: 3) - 1).coerceAtLeast(0))) },
-                                    TableTool(TableIcons.DecimalsMore, "More") { setFmt(fmt.copy(decimals = ((fmt.decimals ?: 1) + 1).coerceAtMost(8))) },
-                                )),
-                                ToolGroup("Highlight", listOf(
-                                    TableTool(TableIcons.ColorScale, "Color scale", on = fmt.colorScale) { setFmt(fmt.copy(colorScale = !fmt.colorScale)) },
-                                    TableTool(TableIcons.DataBars, "Data bars", on = fmt.dataBars) { setFmt(fmt.copy(dataBars = !fmt.dataBars)) },
-                                    TableTool(TableIcons.Highlight, "Rule", on = fmt.highlight != null) { highlightFor = c },
-                                )),
+                                ToolGroup("Window", listOf(TableTool(TableIcons.Freeze, "Freeze first column", on = frozen) { record(); frozen = !frozen })),
                             )
                         }
-                        TableToolbar(tab, { tab = it }, groups, wide, Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+                        TableRibbon(tab, { tab = it }, groups, wide, ribbonFolded, { ribbonFolded = it }, Modifier.padding(horizontal = 8.dp))
                     }
                     if (finding) FindBar(
                         query = query, onQuery = { query = it; matchAt = 0 }, replacement = replacement, onReplacement = { replacement = it },
@@ -2595,7 +2789,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     ResizeGrip(
                                         vertical = true,
                                         description = "Resize column ${c + 1}",
-                                        onDrag = { px -> widths[c] = (widthOf(c) + with(density) { px.toDp() }).coerceIn(56.dp, 480.dp) },
+                                        onDrag = { px -> widths[c] = ((widthOf(c) + with(density) { px.toDp() }) / zoom).coerceIn(56.dp, 480.dp) },
                                         onReset = { widths.remove(c) },
                                         modifier = Modifier.width(10.dp).height(64.dp),
                                     )
@@ -2631,11 +2825,13 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     val found = finding && com.example.cas.graph.SheetTools.matches(t, query, matchCase, wholeCell)
                                     Box(Modifier.width(widthOf(c)).height(heightOf(r))) {
                                         TableCell(
-                                            t, error, Modifier.fillMaxSize(), role = role, shown = if (worked != null) (if (display != null && worked.number != null) display else worked.toString()) else null, formulas = formulas,
+                                            // With Show formulas on, every cell shows what's typed in it.
+                                            t, error, Modifier.fillMaxSize(), role = role, shown = if (showFormulas) null else if (worked != null) (if (display != null && worked.number != null) display else worked.toString()) else null, formulas = formulas,
                                             // Typed in the formula bar; the cell is outlined while it's the one selected.
                                             editing = false,
                                             highlight = if (inFill(c, r)) colors.primary else if (found) colors.tertiary else if ((c to r) in marked) colors.error else refColor(c, r),
-                                            display = display, fill = shade, selected = here || inSelection(c, r), bar = barLength,
+                                            display = if (showFormulas) null else display, fill = shade, selected = here || inSelection(c, r), bar = barLength,
+                                            align = fmt.align, textScale = zoom,
                                             onTap = {
                                                 // With a range picked, a tap stretches it; otherwise it selects the cell to type in.
                                                 if (selA != null) selB = c to r else { editing = c to r; focusCol = c }
@@ -2673,7 +2869,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                                 ResizeGrip(
                                                     vertical = false,
                                                     description = "Resize row ${r + 1}",
-                                                    onDrag = { px -> heights[r] = (heightOf(r) + with(density) { px.toDp() }).coerceIn(32.dp, 240.dp) },
+                                                    onDrag = { px -> heights[r] = ((heightOf(r) + with(density) { px.toDp() }) / zoom).coerceIn(32.dp, 240.dp) },
                                                     onReset = { heights.remove(r) },
                                                     modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(12.dp),
                                                 )
@@ -2689,6 +2885,18 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                 // While a function's name is typed in a formula: matching functions, one tap to use.
                                 val typing = editText?.let { com.example.cas.graph.Sheet.typingName(it) }
                                 val matches = remember(typing) { typing?.let { com.example.cas.graph.Sheet.suggestions(it) }.orEmpty() }
+                                // On a tablet, Excel's status bar along the bottom: what's going on, the selection summed up, and the zoom.
+                                if (wide) {
+                                    val sa2 = selA; val sb2 = selB ?: selA
+                                    val fc = focusCol.coerceIn(0, maxOf(0, cells.size - 1))
+                                    val summary = if (sa2 != null && sb2 != null) com.example.cas.graph.SheetTools.summary(current, sa2.first, sa2.second, sb2.first, sb2.second)
+                                        else com.example.cas.graph.SheetTools.summary(current, fc, 0, fc, maxOf(0, rows - 1))
+                                    TableStatusBar(
+                                        mode = when { editing != null && editText != null && com.example.cas.graph.Sheet.isFormula(editText) -> "Edit"; editing != null -> "Enter"; sa2 != null -> "Select"; else -> "Ready" },
+                                        summary = summary, filtered = if (filters.isNotEmpty()) "${visible.size} of $rows rows" else null,
+                                        zoom = zoom, onZoom = { zoom = it },
+                                    )
+                                }
                                 if (formulas && matches.isNotEmpty()) FormulaSuggestions(matches) { name ->
                                     val (c, r) = editing ?: return@FormulaSuggestions
                                     val now = cells.getOrNull(c)?.getOrNull(r) ?: return@FormulaSuggestions
@@ -2698,7 +2906,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                             }
                             // The summary pill, bottom left: the picked range's numbers, else the selected column's.
                             val pa = selA
-                            if (pa != null) {
+                            if (wide) Unit
+                            else if (pa != null) {
                                 val pb = selB ?: pa
                                 StatusPill("", com.example.cas.graph.SheetTools.summary(current, pa.first, pa.second, pb.first, pb.second), all = wide,
                                     Modifier.align(Alignment.BottomStart).padding(start = if (wide) 32.dp else 20.dp, bottom = 24.dp))
@@ -3115,6 +3324,8 @@ private fun TableCell(
     display: String? = null, fill: Color? = null, selected: Boolean = false,
     /** A data bar's length, 0 to 1, drawn behind the text. */
     bar: Float? = null,
+    /** Where the text sits (0 at the start, 1 left, 2 centered, 3 right) and the zoom's size for it. */
+    align: Int = 0, textScale: Float = 1f,
     onTap: () -> Unit = {}, onLongPress: (() -> Unit)? = null, onNext: () -> Unit = {}, onChange: (String) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -3150,7 +3361,8 @@ private fun TableCell(
         ) {
             Text(
                 shown ?: display ?: text, maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
-                style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = if (formula && error) colors.error else ink),
+                style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp * textScale, color = if (formula && error) colors.error else ink),
+                textAlign = when (align) { 2 -> androidx.compose.ui.text.style.TextAlign.Center; 3 -> androidx.compose.ui.text.style.TextAlign.End; else -> androidx.compose.ui.text.style.TextAlign.Start },
                 modifier = Modifier.weight(1f),
             )
             if (formula) Text(tr("ƒx"), style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 12.sp, color = colors.tertiary))
@@ -3963,85 +4175,136 @@ private fun FilterDialog(name: String, current: com.example.cas.graph.SheetTools
     )
 }
 
-/** A button in the data table's toolbar: its icon, label, whether it's on (a toggle), and what it does. */
+/** A button in the data table's ribbon: its icon, label, whether it's on (a toggle), and what it does. */
 internal class TableTool(
     val icon: androidx.compose.ui.graphics.vector.ImageVector, val label: String, val on: Boolean = false, val enabled: Boolean = true,
-    /** Choices offered in a menu under the button instead of one action (AutoSum's functions). */
+    /** Choices offered in a menu under the button instead of one action (a split button's ▾). */
     val menu: List<Pair<String, () -> Unit>>? = null,
+    /** A large button (icon over its label), or a small one (icon beside its label, stacked with the next small ones), as on Excel's ribbon. */
+    val large: Boolean = true,
     val action: () -> Unit = {},
 )
 
-/** Tools that belong together (a ribbon group on a tablet, separated by a line on a phone). */
-internal class ToolGroup(val label: String, val tools: List<TableTool>)
+/** A ribbon group: its tools, its label underneath, and the little launcher arrow at its corner for the full options. */
+internal class ToolGroup(val label: String, val tools: List<TableTool>, val launcher: (() -> Unit)? = null)
 
-/** The toolbar's tabs, as in Sheets and Excel. */
-internal enum class TableTab(val label: String) { Home("Home"), Insert("Insert"), Data("Data"), Format("Format") }
+/** The ribbon's tabs, as in Excel. */
+internal enum class TableTab(val label: String) { Home("Home"), Insert("Insert"), Formulas("Formulas"), Data("Data"), View("View") }
 
 /**
- * The data table's toolbar: the tabs as an expressive connected button group (the chosen one
- * a filled pill whose corners tighten), then the tab's tools as big tonal buttons. On a phone the
- * tools scroll in one row; on a tablet ([wide]) they stand in labelled groups, as a ribbon, beside
- * the tabs.
+ * The data table's ribbon, after Excel's: text tabs with an underline that slides to the chosen
+ * one, and under them the tab's groups, each with its large buttons (icon over label) and small
+ * ones stacked in columns (icon beside label), a ▾ on buttons that open a menu, the group's name
+ * underneath with a launcher arrow at its corner, and lines between groups. ⌃ folds the ribbon
+ * down to its tabs. In Material 3 Expressive colors and shapes; on a phone ([wide] false) the
+ * small buttons stack two high and everything scrolls sideways.
  */
 @Composable
-internal fun TableToolbar(tab: TableTab, onTab: (TableTab) -> Unit, groups: List<ToolGroup>, wide: Boolean, modifier: Modifier = Modifier) {
+internal fun TableRibbon(tab: TableTab, onTab: (TableTab) -> Unit, groups: List<ToolGroup>, wide: Boolean, collapsed: Boolean, onCollapse: (Boolean) -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     val tap = rememberKeyTap()
-    @Composable
-    fun Tabs(m: Modifier) = Row(m.clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainer).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        TableTab.entries.forEach { t ->
-            val on = t == tab
-            val corner by androidx.compose.animation.core.animateDpAsState(if (on) 12.dp else 20.dp, label = "tab corner")
-            Box(
-                Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(corner)).background(if (on) colors.secondaryContainer else Color.Transparent)
-                    .selectable(selected = on, role = androidx.compose.ui.semantics.Role.Tab) { tap(); onTab(t) },
-                contentAlignment = Alignment.Center,
-            ) { Text(tr(t.label), style = MaterialTheme.typography.labelLarge, color = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant, maxLines = 1) }
-        }
-    }
-    @Composable
-    fun Tool(t: TableTool) = Box {
-        var menuOpen by remember { mutableStateOf(false) }
-        val corner by androidx.compose.animation.core.animateDpAsState(if (t.on || menuOpen) 14.dp else 18.dp, label = "tool corner")
-        Column(
-            Modifier.widthIn(min = 60.dp).height(60.dp).clip(RoundedCornerShape(corner))
-                .background(if (t.on) colors.primary else if (menuOpen) colors.secondaryContainer else if (wide) Color.Transparent else colors.surfaceContainer)
-                .clickable(enabled = t.enabled, onClickLabel = tr(t.label)) { tap(); if (t.menu != null) menuOpen = true else t.action() }
-                .padding(horizontal = 8.dp)
-                .semantics { if (t.on) stateDescription = "on" },
-            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
-        ) {
-            val ink = when { t.on -> colors.onPrimary; !t.enabled -> colors.onSurface.copy(alpha = 0.38f); else -> colors.primary }
-            Icon(t.icon, contentDescription = null, tint = ink, modifier = Modifier.size(22.dp))
-            Spacer(Modifier.height(3.dp))
-            Text(tr(t.label), style = MaterialTheme.typography.labelSmall, color = if (t.on) colors.onPrimary else if (t.enabled) colors.onSurface else colors.onSurface.copy(alpha = 0.38f), maxLines = 1)
-        }
-        t.menu?.let { items ->
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, shape = RoundedCornerShape(16.dp)) {
-                items.forEach { (label, act) -> DropdownMenuItem(text = { Text(label) }, onClick = { menuOpen = false; act() }) }
+    val density = LocalDensity.current
+    val perColumn = if (wide) 3 else 2
+    val smallHeight = if (wide) 26.dp else 30.dp
+    val bodyHeight = smallHeight * perColumn
+    Column(modifier.fillMaxWidth()) {
+        // The tabs: text, with an underline under the chosen one that slides across.
+        val tabX = remember { mutableStateMapOf<TableTab, Pair<Float, Float>>() }
+        val target = tabX[tab]
+        val lineX by androidx.compose.animation.core.animateFloatAsState(target?.first ?: 0f, label = "tab line x")
+        val lineW by androidx.compose.animation.core.animateFloatAsState(target?.second ?: 0f, label = "tab line width")
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
+                Row {
+                    TableTab.entries.forEach { t ->
+                        val on = t == tab
+                        Box(
+                            Modifier.height(44.dp).clip(RoundedCornerShape(12.dp))
+                                .selectable(selected = on, role = androidx.compose.ui.semantics.Role.Tab) { tap(); onTab(t); if (collapsed) onCollapse(false) }
+                                .onGloballyPositioned { tabX[t] = it.positionInParent().x to it.size.width.toFloat() }
+                                .padding(horizontal = 16.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(tr(t.label), style = MaterialTheme.typography.titleSmall, color = if (on) colors.primary else colors.onSurfaceVariant, maxLines = 1)
+                        }
+                    }
+                }
+                // The underline: a rounded bar under the chosen tab's label.
+                if (target != null) Box(
+                    Modifier.offset { androidx.compose.ui.unit.IntOffset((lineX + with(density) { 12.dp.toPx() }).toInt(), with(density) { 40.dp.toPx() }.toInt()) }
+                        .width(with(density) { (lineW - 24.dp.toPx()).coerceAtLeast(0f).toDp() }).height(3.dp)
+                        .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)).background(colors.primary),
+                )
+            }
+            IconButton(onClick = { onCollapse(!collapsed) }) {
+                Icon(if (collapsed) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = tr(if (collapsed) "Show the ribbon" else "Fold the ribbon away"), tint = colors.onSurfaceVariant)
             }
         }
-    }
-    if (wide) {
-        Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Tabs(Modifier.width(360.dp))
-            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                groups.forEach { g ->
-                    Column(Modifier.clip(RoundedCornerShape(22.dp)).background(colors.surfaceContainer).padding(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) { g.tools.forEach { Tool(it) } }
-                        Text(tr(g.label), style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+        androidx.compose.material3.HorizontalDivider(color = colors.outlineVariant)
+        androidx.compose.animation.AnimatedVisibility(!collapsed, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                groups.forEachIndexed { k, g ->
+                    if (k > 0) Box(Modifier.padding(horizontal = 6.dp).width(1.dp).height(bodyHeight + 18.dp).background(colors.outlineVariant))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row(Modifier.height(bodyHeight), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Top) {
+                            // Large buttons on their own; runs of small ones stacked in columns.
+                            var k2 = 0
+                            val tools = g.tools
+                            while (k2 < tools.size) {
+                                val t = tools[k2]
+                                if (t.large) { RibbonButton(t, large = true, height = bodyHeight); k2++ }
+                                else {
+                                    val run = tools.drop(k2).takeWhile { !it.large }.take(perColumn)
+                                    Column { run.forEach { RibbonButton(it, large = false, height = smallHeight) } }
+                                    k2 += run.size
+                                }
+                            }
+                        }
+                        Row(Modifier.height(18.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(tr(g.label), style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant, maxLines = 1)
+                            g.launcher?.let { open ->
+                                Icon(TableIcons.Launcher, contentDescription = tr("More {0} options", tr(g.label)), tint = colors.onSurfaceVariant,
+                                    modifier = Modifier.padding(start = 4.dp).size(16.dp).clip(CircleShape).clickable { tap(); open() })
+                            }
+                        }
                     }
                 }
             }
         }
-    } else {
-        Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Tabs(Modifier.fillMaxWidth())
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                groups.forEachIndexed { k, g ->
-                    if (k > 0) Box(Modifier.width(1.dp).height(36.dp).background(colors.outlineVariant))
-                    g.tools.forEach { Tool(it) }
-                }
+    }
+}
+
+/** One ribbon button: large (icon over label, a ▾ under if it opens a menu) or small (icon, label, ▾ in a row). */
+@Composable
+private fun RibbonButton(t: TableTool, large: Boolean, height: androidx.compose.ui.unit.Dp) {
+    val colors = MaterialTheme.colorScheme
+    val tap = rememberKeyTap()
+    var menuOpen by remember { mutableStateOf(false) }
+    val corner by androidx.compose.animation.core.animateDpAsState(if (t.on || menuOpen) 10.dp else 14.dp, label = "ribbon corner")
+    val bg = when { t.on -> colors.secondaryContainer; menuOpen -> colors.surfaceContainerHighest; else -> Color.Transparent }
+    val ink = if (!t.enabled) colors.onSurface.copy(alpha = 0.38f) else if (t.on) colors.onSecondaryContainer else colors.primary
+    val text = if (!t.enabled) colors.onSurface.copy(alpha = 0.38f) else colors.onSurface
+    Box {
+        val m = Modifier.clip(RoundedCornerShape(corner)).background(bg)
+            .clickable(enabled = t.enabled, onClickLabel = tr(t.label)) { tap(); if (t.menu != null) menuOpen = true else t.action() }
+            .semantics { if (t.on) stateDescription = "on" }
+        if (large) Column(m.height(height).widthIn(min = 56.dp).padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Icon(t.icon, contentDescription = null, tint = ink, modifier = Modifier.size(26.dp))
+            Spacer(Modifier.height(3.dp))
+            Text(tr(t.label), style = MaterialTheme.typography.labelSmall, color = text, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 13.sp)
+            if (t.menu != null) Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(14.dp))
+        } else Row(m.height(height).padding(start = 6.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(t.icon, contentDescription = null, tint = ink, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(tr(t.label), style = MaterialTheme.typography.labelMedium, color = text, maxLines = 1)
+            if (t.menu != null) Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(16.dp))
+        }
+        t.menu?.let { items ->
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, shape = RoundedCornerShape(16.dp)) {
+                items.forEach { (label, act) -> DropdownMenuItem(text = { Text(tr(label)) }, onClick = { menuOpen = false; act() }) }
             }
         }
     }
@@ -4057,9 +4320,19 @@ internal fun FormulaBar(
     address: String?, text: String, formulas: Boolean, referenceColors: List<Pair<IntRange, Color>>,
     anchored: String?, onAnchor: () -> Unit, focus: androidx.compose.ui.focus.FocusRequester,
     onChange: (String) -> Unit, onNext: () -> Unit, modifier: Modifier = Modifier,
+    /** The Name Box: an address typed there (B12, A1:C5) to jump to; false if it isn't one. */
+    onGoTo: (String) -> Boolean = { false },
+    /** ✕ puts the cell back as it was; ✓ finishes typing; ƒx opens Insert Function. */
+    onCancel: () -> Unit = {}, onCommit: () -> Unit = {}, onFunctions: () -> Unit = {},
 ) {
     val colors = MaterialTheme.colorScheme
     var focused by remember { mutableStateOf(false) }
+    // The Name Box being typed in (Excel's Go To), and whether the last address was wrong.
+    var naming by remember { mutableStateOf(false) }
+    var nameText by remember { mutableStateOf("") }
+    var nameWrong by remember { mutableStateOf(false) }
+    val nameFocus = remember { androidx.compose.ui.focus.FocusRequester() }
+    val barFocusManager = androidx.compose.ui.platform.LocalFocusManager.current
     var value by remember(address) { mutableStateOf(androidx.compose.ui.text.input.TextFieldValue(text, androidx.compose.ui.text.TextRange(text.length))) }
     // Changed from outside (a suggestion, an anchor, undo): the field follows, cursor at the end.
     androidx.compose.runtime.LaunchedEffect(text) { if (text != value.text) value = androidx.compose.ui.text.input.TextFieldValue(text, androidx.compose.ui.text.TextRange(text.length)) }
@@ -4070,11 +4343,35 @@ internal fun FormulaBar(
             .padding(start = 7.dp, end = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // The Name Box: the address; tap it to type one and jump there.
         Box(
-            Modifier.height(38.dp).widthIn(min = 52.dp).clip(RoundedCornerShape(19.dp)).background(if (address != null) colors.primaryContainer else colors.surfaceContainerHighest).padding(horizontal = 10.dp),
+            Modifier.height(38.dp).widthIn(min = 56.dp).clip(RoundedCornerShape(19.dp))
+                .background(if (naming) colors.surface else if (address != null) colors.primaryContainer else colors.surfaceContainerHighest)
+                .border(if (naming) 2.dp else 0.dp, if (nameWrong) colors.error else if (naming) colors.primary else Color.Transparent, RoundedCornerShape(19.dp))
+                .clickable(enabled = !naming, onClickLabel = tr("Go to a cell")) { nameText = ""; nameWrong = false; naming = true }
+                .padding(horizontal = 10.dp),
             contentAlignment = Alignment.Center,
-        ) { Text(address ?: "—", style = MaterialTheme.typography.labelLarge, color = if (address != null) colors.onPrimaryContainer else colors.onSurfaceVariant, maxLines = 1) }
-        Text("ƒx", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 17.sp, color = colors.tertiary), modifier = Modifier.padding(horizontal = 10.dp))
+        ) {
+            if (naming) {
+                androidx.compose.runtime.LaunchedEffect(Unit) { runCatching { nameFocus.requestFocus() } }
+                androidx.compose.foundation.text.BasicTextField(
+                    value = nameText, onValueChange = { nameText = it.uppercase(); nameWrong = false }, singleLine = true,
+                    textStyle = MaterialTheme.typography.labelLarge.copy(color = colors.onSurface),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.primary),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Ascii, capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Characters, imeAction = androidx.compose.ui.text.input.ImeAction.Go),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onGo = { if (onGoTo(nameText)) naming = false else nameWrong = true }),
+                    decorationBox = { inner -> Box(contentAlignment = Alignment.CenterStart) { if (nameText.isEmpty()) Text("B12", style = MaterialTheme.typography.labelLarge, color = colors.outline); inner() } },
+                    modifier = Modifier.width(64.dp).focusRequester(nameFocus).onFocusChanged { if (!it.isFocused && naming && nameText.isEmpty()) naming = false }.semantics { contentDescription = "Name box: a cell or range to go to" },
+                )
+            } else Text(address ?: "—", style = MaterialTheme.typography.labelLarge, color = if (address != null) colors.onPrimaryContainer else colors.onSurfaceVariant, maxLines = 1)
+        }
+        // While typing: ✕ to put the cell back, ✓ to finish, as in Excel; ƒx always opens Insert Function.
+        if (focused && address != null) {
+            IconButton(onClick = { onCancel(); barFocusManager.clearFocus() }, modifier = Modifier.size(36.dp)) { Icon(Icons.Default.Close, contentDescription = tr("Cancel the change"), tint = colors.error) }
+            IconButton(onClick = { onCommit(); barFocusManager.clearFocus() }, modifier = Modifier.size(36.dp)) { Icon(Icons.Default.Check, contentDescription = tr("Enter"), tint = colors.primary) }
+        }
+        Text("ƒx", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 17.sp, color = colors.tertiary),
+            modifier = Modifier.clip(CircleShape).clickable(onClickLabel = tr("Insert a function")) { onFunctions() }.padding(horizontal = 10.dp, vertical = 6.dp))
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             if (address == null) Text(tr("Tap a cell to type in it"), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
             else androidx.compose.foundation.text.BasicTextField(
@@ -4381,6 +4678,171 @@ internal fun InsightsSheet(
                         style = MaterialTheme.typography.bodySmall, color = if (outliers.isEmpty()) colors.onSurfaceVariant else colors.onErrorContainer)
                 }
                 if (outliers.isNotEmpty()) androidx.compose.material3.FilledTonalButton(onClick = onMark) { Text(tr("Mark them")) }
+            }
+        }
+    }
+}
+
+
+/** Excel's status bar, along the bottom of a tablet's sheet: the mode, the selection summed up, rows a filter hides, and the zoom. */
+@Composable
+internal fun TableStatusBar(mode: String, summary: com.example.cas.graph.SheetTools.Summary, filtered: String?, zoom: Float, onZoom: (Float) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        Modifier.fillMaxWidth().height(44.dp).background(colors.surfaceContainer).padding(start = 16.dp, end = 8.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Text(tr(mode), style = MaterialTheme.typography.labelLarge, color = colors.primary)
+        filtered?.let { Text(it, style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant) }
+        Spacer(Modifier.weight(1f))
+        @Composable
+        fun stat(name: String, v: String) = Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(tr(name) + ": ", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+            Text(geometryValueText(v), style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 15.sp, color = colors.onSurface))
+        }
+        summary.average?.let { stat("Average", shortNumber(it)) }
+        stat("Count", summary.filled.toString())
+        if (summary.numbers > 0) stat("Sum", shortNumber(summary.sum))
+        IconButton(onClick = { onZoom((zoom - 0.1f).coerceAtLeast(0.6f)) }, modifier = Modifier.size(32.dp)) { Icon(TableIcons.ZoomOut, contentDescription = tr("Zoom out"), modifier = Modifier.size(18.dp)) }
+        ExpressiveSlider(value = zoom, onValueChange = { onZoom((Math.round(it * 10) / 10f).coerceIn(0.6f, 1.6f)) }, valueRange = 0.6f..1.6f, modifier = Modifier.width(140.dp).semantics { contentDescription = tr("Zoom") })
+        IconButton(onClick = { onZoom((zoom + 0.1f).coerceAtMost(1.6f)) }, modifier = Modifier.size(32.dp)) { Icon(TableIcons.ZoomIn, contentDescription = tr("Zoom in"), modifier = Modifier.size(18.dp)) }
+        Text("${Math.round(zoom * 100)}%", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.width(44.dp))
+    }
+}
+
+/**
+ * Excel's Custom Sort: levels, each a column and an order (smallest to largest, or the reverse);
+ * rows sort by the first, ties by the next, and so on. Up to four levels.
+ */
+@Composable
+private fun CustomSortDialog(columns: List<String>, start: Int, onDismiss: () -> Unit, onApply: (List<com.example.cas.graph.SheetTools.SortLevel>) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val levels = remember { androidx.compose.runtime.mutableStateListOf(start to false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(TableIcons.CustomSort, contentDescription = null) },
+        title = { Text(tr("Custom sort")) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                levels.forEachIndexed { k, (col, down) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(tr(if (k == 0) "Sort by" else "Then by"), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.width(56.dp))
+                        // The column, from a menu.
+                        var open by remember { mutableStateOf(false) }
+                        Box(Modifier.weight(1f)) {
+                            Row(
+                                Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(12.dp)).background(colors.surfaceContainerHighest).clickable { open = true }.padding(horizontal = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(columns.getOrElse(col) { "" }, style = MaterialTheme.typography.bodyMedium, maxLines = 1, modifier = Modifier.weight(1f))
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                            }
+                            DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+                                columns.forEachIndexed { c, name -> DropdownMenuItem(text = { Text(name) }, onClick = { open = false; levels[k] = c to down }) }
+                            }
+                        }
+                        Spacer(Modifier.width(6.dp))
+                        // The order: up or down.
+                        IconButton(onClick = { levels[k] = col to !down }) {
+                            Icon(if (down) TableIcons.SortDown else TableIcons.SortUp, contentDescription = tr(if (down) "Largest first" else "Smallest first"), tint = colors.primary)
+                        }
+                        if (levels.size > 1) IconButton(onClick = { levels.removeAt(k) }) { Icon(Icons.Default.Close, contentDescription = tr("Remove this level")) }
+                    }
+                }
+                if (levels.size < 4 && columns.size > 1) androidx.compose.material3.TextButton(onClick = { levels.add((levels.last().first + 1).coerceAtMost(columns.size - 1) to false) }) {
+                    Icon(Icons.Default.Add, contentDescription = null); Spacer(Modifier.width(6.dp)); Text(tr("Add a level"))
+                }
+                Text(tr("Numbers sort by value and before text; empty cells stay last."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            }
+        },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = { onApply(levels.map { (c, d) -> com.example.cas.graph.SheetTools.SortLevel(c, d) }) }) { Text(tr("Sort")) } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
+    )
+}
+
+/** Excel's Text to Columns: split a column's cells at a delimiter, with a preview of the first rows. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TextToColumnsDialog(name: String, sample: List<String>, onDismiss: () -> Unit, onApply: (String) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val choices = listOf("Comma" to ",", "Semicolon" to ";", "Space" to " ", "Tab" to "\t", "Slash" to "/", "Other" to "")
+    var picked by remember { mutableStateOf(0) }
+    var other by remember { mutableStateOf("") }
+    val delimiter = if (choices[picked].first == "Other") other else choices[picked].second
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(TableIcons.TextToColumns, contentDescription = null) },
+        title = { Text("Text to columns: $name") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(tr("Split each cell at"), style = MaterialTheme.typography.bodyMedium)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    choices.forEachIndexed { k, (label, _) -> FilterChip(selected = picked == k, onClick = { picked = k }, label = { Text(tr(label)) }) }
+                }
+                if (choices[picked].first == "Other") OutlinedTextField(other, { other = it.take(3) }, singleLine = true, label = { Text(tr("Delimiter")) }, modifier = Modifier.fillMaxWidth())
+                // The first rows as they'd split.
+                val preview = com.example.cas.graph.SheetTools.textToColumns(sample, delimiter)
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainerHighest).padding(10.dp).horizontalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    sample.indices.forEach { r ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            preview.forEach { col ->
+                                Text(col[r], style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 14.sp, color = colors.onSurface), maxLines = 1,
+                                    modifier = Modifier.widthIn(min = 56.dp).clip(RoundedCornerShape(8.dp)).background(colors.surface).padding(horizontal = 8.dp, vertical = 4.dp))
+                            }
+                        }
+                    }
+                }
+                Text(tr("The first part stays in this column; the rest go in new columns after it."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            }
+        },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = { onApply(delimiter) }, enabled = delimiter.isNotEmpty()) { Text(tr("Split")) } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
+    )
+}
+
+/**
+ * Excel's Insert Function: search, or browse by category, every spreadsheet function with how
+ * it's written and what it does; pick a name to start it in the selected cell.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+internal fun InsertFunctionSheet(start: String, onDismiss: () -> Unit, onPick: (String) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    var query by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf(start) }
+    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerLow) {
+        Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(colors.tertiaryContainer), contentAlignment = Alignment.Center) {
+                    Icon(TableIcons.InsertFunction, contentDescription = null, tint = colors.onTertiaryContainer)
+                }
+                Text(tr("Insert function"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 12.dp))
+            }
+            OutlinedTextField(query, { query = it }, singleLine = true, leadingIcon = { Icon(TableIcons.Find, contentDescription = null) }, label = { Text(tr("Search for a function")) }, modifier = Modifier.fillMaxWidth())
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                (listOf("") + com.example.cas.graph.Sheet.CATEGORIES).forEach { cat ->
+                    FilterChip(selected = category == cat, onClick = { category = cat }, label = { Text(tr(if (cat.isEmpty()) "All" else cat)) })
+                }
+            }
+            val q = query.trim()
+            val shown = com.example.cas.graph.Sheet.FUNCTIONS.filter { h ->
+                (category.isEmpty() || h.category == category) && (q.isEmpty() || h.names.contains(q, ignoreCase = true) || h.what.contains(q, ignoreCase = true))
+            }
+            androidx.compose.foundation.lazy.LazyColumn(Modifier.fillMaxWidth().heightIn(max = 460.dp), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
+                items(shown.size) { k ->
+                    val h = shown[k]
+                    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.surfaceContainer).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        // Each name is a chip: tap to use it.
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            h.names.split("·").map { it.trim() }.filter { it.isNotEmpty() }.forEach { n ->
+                                androidx.compose.material3.AssistChip(onClick = { onPick(n) }, label = { Text(n, style = MaterialTheme.typography.labelLarge) })
+                            }
+                        }
+                        Text(h.example, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 15.sp, color = colors.tertiary))
+                        Text(h.what, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                    }
+                }
+                if (shown.isEmpty()) item { Text(tr("No functions match"), color = colors.onSurfaceVariant) }
             }
         }
     }

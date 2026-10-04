@@ -203,6 +203,25 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, Excel-style ribbon)
+- **The ribbon, as in Excel:** text tabs (Home, Insert, Formulas, Data, View) with a sliding
+  underline; groups of large buttons with small ones stacked beside them, ▾ split buttons,
+  group names underneath (with a launcher arrow), lines between groups, and ⌃ to fold it away.
+- **Home:** Clipboard (Paste ▾ with Paste values, Cut, Copy; pasted formulas shift their
+  references), Alignment (left, center, right), Number (format ▾, percent, decimals),
+  Styles (Conditional formatting ▾), Cells (Insert ▾, Delete ▾) and Editing (AutoSum ▾, Fill ▾,
+  Clear ▾ contents / formats / all, Sort & Filter ▾, Find).
+- **Formulas:** Insert function (search every function or browse by category, also from ƒx in
+  the formula bar), and Show formulas.
+- **Data:** Custom sort by up to four columns, Text to columns (comma, semicolon, space, tab,
+  slash or any text, with a preview), plus the earlier tools.
+- **View:** Show formulas, zoom out / 100% / zoom in, freeze the first column.
+- **Formula bar:** a Name Box (type B12 or A1:C5 to go there), and ✕ / ✓ while typing.
+- **Tablet status bar:** the mode (Ready, Enter, Edit, Select), the selection's average, count
+  and sum, and a zoom slider.
+- **Icons:** 22 more custom icons. (`graph/SheetTools.kt`, `SheetToolsTest`; mockup:
+  `preview-render/round43.png`.)
+
 ## Latest changes (4 October, more spreadsheet power)
 - **AutoSum (Home):** Σ puts =SUM, AVERAGE, COUNT, MIN or MAX of the numbers above (or to
   the left of) the selected cell into it, as Excel does.

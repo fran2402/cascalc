@@ -133,4 +133,76 @@ object TableIcons {
 
     /** A light bulb over a little chart: insights about a column. */
     val Insights: ImageVector by lazy { tableIcon("Insights", stroke = listOf("M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z", "M9.5 19.5h5", "M10.5 22h3"), thin = listOf("M9.5 10.5l1.5-1.5l1.5 1.5l2-2.5")) }
+
+    /** Scissors: cut. */
+    val Cut: ImageVector by lazy { tableIcon("Cut", stroke = listOf(oval(6.5f, 17.5f, 3f, 3f), oval(17.5f, 17.5f, 3f, 3f), "M8.6 15.4L18.5 3.5", "M15.4 15.4L5.5 3.5")) }
+
+    /** Lines flush left: align left. */
+    val AlignLeft: ImageVector by lazy { tableIcon("AlignLeft", stroke = listOf("M4 5h16", "M4 10h10", "M4 15h16", "M4 20h10")) }
+
+    /** Lines centered: align center. */
+    val AlignCenter: ImageVector by lazy { tableIcon("AlignCenter", stroke = listOf("M4 5h16", "M7 10h10", "M4 15h16", "M7 20h10")) }
+
+    /** Lines flush right: align right. */
+    val AlignRight: ImageVector by lazy { tableIcon("AlignRight", stroke = listOf("M4 5h16", "M10 10h10", "M4 15h16", "M10 20h10")) }
+
+    /** A grid with some cells tinted and a bar: conditional formatting. */
+    val ConditionalFormat: ImageVector by lazy { tableIcon("ConditionalFormat", stroke = listOf("M3.5 3.5h17v17h-17z"), thin = listOf("M3.5 9.2h17", "M3.5 14.8h17", "M12 3.5v17"), shade = listOf("M12 3.5h8.5v5.7H12z"), fill = listOf("M3.5 14.8H12v5.7H3.5z", "M13.5 10.7h4.5v2.6h-4.5z")) }
+
+    /** A grid with a cell added: insert cells. */
+    val InsertCells: ImageVector by lazy { tableIcon("InsertCells", stroke = listOf("M17.5 14v7", "M14 17.5h7"), thin = listOf("M3.5 3.5h13v10h-13z", "M3.5 8.5h13", "M10 3.5v10")) }
+
+    /** A grid with a cell taken away: delete cells. */
+    val DeleteCells: ImageVector by lazy { tableIcon("DeleteCells", stroke = listOf("M14.5 15l6 6", "M20.5 15l-6 6"), thin = listOf("M3.5 3.5h13v10h-13z", "M3.5 8.5h13", "M10 3.5v10")) }
+
+    /** An eraser: clear. */
+    val Eraser: ImageVector by lazy { tableIcon("Eraser", stroke = listOf("M8 20.5h12.5", "M3.8 14.7l9.9-9.9a1.5 1.5 0 0 1 2.1 0l4.4 4.4a1.5 1.5 0 0 1 0 2.1L12 19.5H8.5z"), thin = listOf("M8.3 10.2l6.5 6.5")) }
+
+    /** Sort levels one under another: custom sort. */
+    val CustomSort: ImageVector by lazy { tableIcon("CustomSort", stroke = listOf("M3.5 5h9", "M6.5 10.5h9", "M9.5 16h9", "M19 3.5v6", "M17 7.5l2 2l2-2"), thin = listOf("M3.5 5v11h6")) }
+
+    /** One column splitting into two: text to columns. */
+    val TextToColumns: ImageVector by lazy { tableIcon("TextToColumns", stroke = listOf("M2.5 9.5h6v5h-6z", "M11 12h3", "M12.5 10.5L14 12l-1.5 1.5"), thin = listOf("M16 5h5.5v14H16z", "M16 9.5h5.5", "M16 14.5h5.5")) }
+
+    /** ƒx over cells: show formulas. */
+    val ShowFormulas: ImageVector by lazy { tableIcon("ShowFormulas", stroke = listOf("M10 3.5c-2-.5-3.2.5-3.2 2.6V14", "M4.5 8.5h5", "M12.5 8l4 5", "M16.5 8l-4 5"), thin = listOf("M3.5 17.5h17v3.5h-17z")) }
+
+    /** A magnifier with +: zoom in. */
+    val ZoomIn: ImageVector by lazy { tableIcon("ZoomIn", stroke = listOf(oval(10.5f, 10.5f, 6.5f, 6.5f), "M15.3 15.3l5.2 5.2", "M7.5 10.5h6", "M10.5 7.5v6")) }
+
+    /** A magnifier with −: zoom out. */
+    val ZoomOut: ImageVector by lazy { tableIcon("ZoomOut", stroke = listOf(oval(10.5f, 10.5f, 6.5f, 6.5f), "M15.3 15.3l5.2 5.2", "M7.5 10.5h6")) }
+
+    /** 1:1 in a frame: zoom back to 100%. */
+    val Zoom100: ImageVector by lazy { tableIcon("Zoom100", stroke = listOf("M7 9.5l1.5-1V16", "M15.5 9.5l1.5-1V16"), thin = listOf("M3.5 4.5h17v15h-17z"), fill = listOf(oval(12f, 10.5f, 1f, 1f), oval(12f, 14f, 1f, 1f))) }
+
+    /** ƒx: insert a function. */
+    val InsertFunction: ImageVector by lazy { tableIcon("InsertFunction", stroke = listOf("M11.5 4c-2.4-.6-3.8.6-3.8 3V20", "M4.5 10h6.5", "M13.5 10l6 8", "M19.5 10l-6 8")) }
+
+    /** The little arrow at a ribbon group's corner: more options. */
+    val Launcher: ImageVector by lazy { tableIcon("Launcher", stroke = listOf("M9 15l8-8", "M11.5 7H17v5.5"), thin = listOf("M5 9V19h10")) }
+
+    /** π: math and trigonometry functions. */
+    val MathFunctions: ImageVector by lazy { tableIcon("MathFunctions", stroke = listOf("M4 7.5h16", "M8.5 7.5c0 5-1 9.5-3 12", "M15 7.5v9.5c0 1.5.8 2.5 2.2 2.5c.9 0 1.6-.3 2.3-.9")) }
+
+    /** A fork in a path: logical functions (IF). */
+    val LogicFunctions: ImageVector by lazy { tableIcon("LogicFunctions", stroke = listOf("M12 21v-8", "M12 13L6 6", "M12 13l6-7", "M3.5 7.5L6 6l1 2.8", "M20.5 7.5L18 6l-1 2.8")) }
+
+    /** "Aa": text functions. */
+    val TextFunctions: ImageVector by lazy { tableIcon("TextFunctions", stroke = listOf("M2.5 19L7 5l4.5 14", "M4.2 14h5.6", "M21.5 19v-6.5a3 3 0 0 0-5.5-1.6", "M21.5 15.5c-3.5-.6-6.5 0-6.5 2a2 2 0 0 0 3.7 1")) }
+
+    /** A calendar: date and time functions. */
+    val DateFunctions: ImageVector by lazy { tableIcon("DateFunctions", stroke = listOf("M4.5 6h15v14.5h-15z", "M8 3.5v4", "M16 3.5v4"), thin = listOf("M4.5 10.5h15"), fill = listOf("M8 13h3v3H8z")) }
+
+    /** A magnifier over a table: lookup functions. */
+    val LookupFunctions: ImageVector by lazy { tableIcon("LookupFunctions", stroke = listOf(oval(15.5f, 15.5f, 3.5f, 3.5f), "M18 18l3 3"), thin = listOf("M3.5 3.5h15v6", "M3.5 3.5v15h7", "M3.5 8.5h15", "M10 3.5v15")) }
+
+    /** A coin: financial functions. */
+    val FinancialFunctions: ImageVector by lazy { tableIcon("FinancialFunctions", stroke = listOf(oval(12f, 12f, 8.5f, 8.5f)), thin = listOf("M14.5 9c-.5-.9-1.5-1.4-2.5-1.4c-1.5 0-2.6.9-2.6 2.1c0 2.8 5.4 1.6 5.4 4.5c0 1.2-1.2 2.2-2.8 2.2c-1.1 0-2.1-.5-2.6-1.4", "M12 6v1.6", "M12 16.4V18")) }
+
+    /** A bell curve: statistical functions. */
+    val StatisticsFunctions: ImageVector by lazy { tableIcon("StatisticsFunctions", stroke = listOf("M2.5 19.5h19", "M3 18.5c3.5 0 5-12 9-12s5.5 12 9 12"), thin = listOf("M12 6.5v13")) }
+
+    /** "123" with a down arrow: the number format menu. */
+    val NumberFormat: ImageVector by lazy { tableIcon("NumberFormat", stroke = listOf("M2.5 9l1.8-1.5V16", "M7.5 9.2c.3-1 1.1-1.6 2.1-1.6c1.1 0 1.9.8 1.9 1.8c0 2-4 3.2-4 6.6h4.2", "M14.5 8.2c.5-.4 1.1-.6 1.8-.6c1.2 0 2 .7 2 1.8s-.9 1.7-2 1.7c1.3 0 2.3.7 2.3 2c0 1.4-1.1 2.3-2.4 2.3c-.8 0-1.5-.3-2-.8")) }
 }

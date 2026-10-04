@@ -312,6 +312,11 @@ Only the look changes: formulas, fits and the graph use the full numbers.
 Show only the rows where this column…	
 Value	
 Apply	
+More {0} options	
+Go to a cell	
+Cancel the change	
+Enter	
+Insert a function	
 Tap a cell to type in it	
 Anchor the reference with $	
 Show the next summary	
@@ -321,6 +326,19 @@ Insights
 Distribution	
 Needs at least three pairs of numbers that vary.	
 Mark them	
+Zoom	
+Custom sort	
+Remove this level	
+Add a level	
+Numbers sort by value and before text; empty cells stay last.	
+Sort	
+Split each cell at	
+Delimiter	
+The first part stays in this column; the rest go in new columns after it.	
+Split	
+Insert function	
+Search for a function	
+No functions match	
 This color	
 By length	
 Arrow color	
@@ -364,7 +382,6 @@ You type
 Answer	
 Start a cell with =. Cells are A1, B2…; ranges A1:A10 or whole columns A:A; $A$1 stays put when filled down. Operators + − * / ^ % & and comparisons = <> < > <= >=. Text goes in "quotes".	
 Search, e.g. lookup, NORM, date	
-No functions match	
 Guide	
 Show the guide to {0}	
 Try	
@@ -583,6 +600,12 @@ Data table
 Data	
 Change the filter…	
 Filter…	
+Show the ribbon	
+Fold the ribbon away	
+Sort by	
+Then by	
+Largest first	
+Smallest first	
 Pick a tool	
 The tools stand in groups beside the graph. Tap Segment to try one, or let the guide pick it.	
 The tools are under the graph, in groups. Tap Segment to try one, or let the guide pick it.	
@@ -610,40 +633,55 @@ Highlight rule
 Fill 1, 2, 3	
 Fill series	
 Fill formula down	
-Formula	
+Clipboard	
+Cut	
+Alignment	
+Number	
+Format	
+Percent	
+Fewer	
+Styles	
+Conditional	
+Cells	
+Editing	
 AutoSum	
-Sort & filter	
-Filter	
-Series	
-Stats	
+Sort & Filter	
 Rows	
 Row above	
 Row below	
 Copy row	
 Columns	
 Copy column	
-Clipboard	
-Tidy	
-Duplicates	
-Empty rows	
+Paste table	
+Function	
+Function Library	
+Math	
+Lookup	
+Logical	
+Text	
+Date & time	
+Financial	
+Formula Auditing	
+Show formulas	
+Filter	
+Data Tools	
+Text to columns	
+Remove duplicates	
 Trim	
+Empty rows	
 Transpose	
-Explore	
-View	
-Freeze	
+Analysis	
 Share CSV	
 Copy CSV	
-Number	
-Percent	
-Fewer	
-Highlight	
-Rule	
+Show	
+Formulas	
+Window	
+Freeze first column	
 Cell to the left	
 Cell above	
 Cell below	
 Cell to the right	
 Home	
-Format	
 Sum	
 Average	
 Count	

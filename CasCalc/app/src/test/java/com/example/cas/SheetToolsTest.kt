@@ -131,4 +131,36 @@ class SheetToolsTest {
         val t = table(listOf("10", "11", "12", "11", "10", "12", "50"))
         assertEquals(listOf(6), SheetTools.outliers(t, 0))
     }
+
+    @Test fun nameBoxAddresses() {
+        assertEquals(listOf(1, 11, 1, 11), SheetTools.parseAddress("B12")!!.toList())
+        assertEquals(listOf(1, 11, 1, 11), SheetTools.parseAddress(" \$b\$12 ")!!.toList())
+        assertEquals(listOf(0, 0, 2, 4), SheetTools.parseAddress("C5:A1")!!.toList())
+        assertEquals(null, SheetTools.parseAddress("B0"))
+        assertEquals(null, SheetTools.parseAddress("hello"))
+    }
+
+    @Test fun customSort() {
+        val t = table(listOf("b", "a", "b", "a", ""), listOf("1", "5", "3", "2", "9"))
+        // By column A (text, empty last), then B largest first.
+        assertEquals(listOf(1, 3, 2, 0, 4), SheetTools.sortOrder(t, listOf(SheetTools.SortLevel(0), SheetTools.SortLevel(1, descending = true))))
+        // Numbers before text; descending keeps empty cells last.
+        val u = table(listOf("x", "2", "", "10"))
+        assertEquals(listOf(1, 3, 0, 2), SheetTools.sortOrder(u, listOf(SheetTools.SortLevel(0))))
+        assertEquals(listOf(0, 3, 1, 2), SheetTools.sortOrder(u, listOf(SheetTools.SortLevel(0, descending = true))))
+    }
+
+    @Test fun textToColumns() {
+        assertEquals(listOf(listOf("a", "c"), listOf("b", ""), listOf("x", "")), SheetTools.textToColumns(listOf("a, b, x", "c"), ","))
+        assertEquals(listOf(listOf("John", "Ada"), listOf("Smith", "Lovelace")), SheetTools.textToColumns(listOf("John  Smith", " Ada Lovelace"), " "))
+        assertEquals(listOf(listOf("=A1,1")), SheetTools.textToColumns(listOf("=A1,1"), ","))
+    }
+
+    @Test fun pasteMovesFormulas() {
+        val t = table(listOf("2", "=A1*3"))
+        assertEquals("=B2*3", SheetTools.pasted(t, 0, 1, "=A1*3", 1, 2))
+        assertEquals("6", SheetTools.pasted(t, 0, 1, "=A1*3", 1, 2, values = true))
+        assertEquals("hi", SheetTools.pasted(t, 0, 0, "hi", 3, 3))
+        assertEquals(ColumnFormat(align = 2), ColumnFormat.decode(ColumnFormat(align = 2).encode()))
+    }
 }
