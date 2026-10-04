@@ -1,0 +1,203 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:NCMR;src:url(../app/src/main/res/font/ncm_roman.otf)}
+@font-face{font-family:NCMI;src:url(../app/src/main/res/font/ncm_latin_italic.otf)}
+@font-face{font-family:NCMM;src:url(../app/src/main/res/font/ncm_math.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px;width:1900px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1600px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px;line-height:1.4}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--lowest:#fff;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sec:#5E6045;--onsec:#fff;--sc:#E2E4C4;--onsc:#1B1D0A;--ter:#3C6A5A;--onter:#fff;--tc:#BEECDB;--ontc:#002019;--outv:#C8C7B5;--out:#77786A;--err:#BA1A1A;--ec:#FFDAD6;--onec:#410002}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--lowest:#0D0F08;--c:#1F2018;--ch:#292A22;--chh:#34352C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sec:#C6C8A9;--onsec:#2F321B;--sc:#45483A;--onsc:#E2E4C4;--ter:#A2D0BF;--onter:#05372B;--tc:#214E41;--ontc:#BEECDB;--outv:#47473B;--out:#919283;--err:#FFB4AB;--ec:#93000A;--onec:#FFDAD6}
+.phone{position:relative;width:412px;height:900px;border-radius:44px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+
+.phone .status{padding:0 44px !important}
+.tbar{display:flex;align-items:center;padding:4px 10px 4px 4px;gap:2px}
+.tbar .ib{width:36px;height:42px;font-size:19px;flex:none}
+.ttl{font:400 20px GSF;padding-left:2px;white-space:nowrap}
+.fchip{white-space:nowrap;font:500 12px GSF;background:var(--tc);color:var(--ontc);border-radius:12px;padding:3px 10px;margin-left:8px}
+.donebtn{height:44px;border-radius:16px;background:var(--pri);color:var(--onpri);display:flex;align-items:center;gap:6px;padding:0 14px 0 10px;font:600 15px GSF;margin-left:2px;white-space:nowrap;flex:none}
+.cards{display:flex;gap:10px;padding:8px 0 8px 52px}
+.cc{width:110px;border-radius:18px;padding:8px 4px 6px 8px;display:flex;flex-direction:column;gap:6px;flex:none}
+.cc .h{display:flex;align-items:center;gap:8px}
+.rb{height:28px;min-width:28px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font:italic 16px CMI;padding:0 6px}
+.cc .l{font:600 13px GSF;color:var(--onv)}.cc .dots{margin-left:auto;color:var(--onv);font:700 16px GSF;padding-right:4px}
+.cc .nm{font:13px GSF}
+.trow{display:flex;align-items:center;gap:10px;padding:3px 0}
+.rn{width:42px;flex:none;text-align:center;font:600 14px GSF;color:var(--onv)}
+.cell{width:110px;flex:none;height:42px;border-radius:10px;display:flex;align-items:center;padding:0 12px;font:17px CMR;position:relative}
+.cell small{position:absolute;right:6px;bottom:3px;font:italic 10px CMI;color:var(--ter)}
+.menu{position:absolute;background:var(--c);border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:6px 0;width:250px;z-index:5}
+.menu div{display:flex;align-items:center;gap:12px;padding:9px 16px;font:15px GSF}
+.menu div .mi{width:22px;text-align:center;color:var(--onv);font:17px GSF}
+.menu div.on{background:color-mix(in srgb,var(--pri) 10%,transparent)}
+.menu div.new:after{content:"new";margin-left:auto;font:600 10px GSF;color:var(--onpri);background:var(--pri);border-radius:8px;padding:2px 6px}
+.menu hr{border:none;border-top:1px solid var(--outv);margin:4px 0}
+.err{color:var(--err)}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.32);z-index:4}
+.dlg{position:absolute;left:28px;right:28px;background:var(--chh);border-radius:28px;padding:22px 22px 14px;z-index:6;box-shadow:0 12px 32px rgba(0,0,0,.3)}
+.dlg .ic{text-align:center;font:24px GSF;color:var(--sec)}.dlg h3{text-align:center;font:400 22px GSF;margin:10px 0 14px}
+.srow{display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-radius:10px}.srow span{color:var(--onv);font:15px GSF}.srow b{font:400 19px CMR}
+.srow.tap{background:color-mix(in srgb,var(--pri) 10%,transparent)}
+.dnote{font:12.5px GSF;color:var(--onv);margin-top:8px}
+.btns{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.btns span{font:500 14px GSF;color:var(--pri);padding:10px 12px}
+.field{border:1px solid var(--out);border-radius:6px;height:56px;padding:0 14px;display:flex;align-items:center;font:16px GSF;position:relative;margin-bottom:14px}
+.field label{position:absolute;top:-9px;left:10px;background:var(--chh);padding:0 4px;font:12px GSF;color:var(--onv)}
+.field.f{border:2px solid var(--pri)}.field.f label{color:var(--pri)}
+.fab2{position:absolute;right:24px;bottom:24px;width:56px;height:56px;border-radius:18px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;justify-content:center;font:26px GSF;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.toast{position:absolute;left:50%;transform:translateX(-50%);bottom:96px;background:#303030;color:#fff;border-radius:20px;padding:8px 16px;font:14px GSF;z-index:7}
+
+.bar{margin:4px 12px;border-radius:20px;padding:6px 6px 6px 12px}
+.of{border:1px solid var(--out);border-radius:6px;height:50px;padding:0 12px;display:flex;align-items:center;font:16px GSF;position:relative;flex:1}
+.of label{position:absolute;top:-9px;left:8px;background:var(--chh);padding:0 4px;font:12px GSF;color:var(--onv)}
+.of.f{border:2px solid var(--pri)}.of.f label{color:var(--pri)}
+.brow{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.bi{width:36px;height:36px;display:flex;align-items:center;justify-content:center;font:18px GSF;color:var(--onv);flex:none}
+.tb{font:500 14px GSF;color:var(--pri);padding:8px 8px;white-space:nowrap}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--out);border-radius:8px;padding:5px 10px;font:500 13px GSF;margin-right:6px}
+.chip.on{background:var(--sc);border-color:transparent}
+.cell.found{outline:2px solid var(--ter);background:color-mix(in srgb,var(--ter) 12%,var(--ch)) !important}
+.cell.cur{outline:3px solid var(--ter)}
+.cell.sel{outline:2px solid var(--pri)}
+.frozen{box-shadow:4px 0 6px -3px rgba(0,0,0,.25)}
+.hand{position:absolute;right:-5px;bottom:-5px;width:12px;height:12px;border-radius:6px;background:var(--pri);border:2px solid var(--bg)}
+.ghost{color:var(--onv);font-style:normal}
+.seg2{display:flex;border:1px solid var(--out);border-radius:20px;overflow:hidden;margin-bottom:12px}.seg2 span{flex:1;text-align:center;padding:9px 0;font:500 14px GSF;border-left:1px solid var(--out)}.seg2 span:first-child{border-left:none}.seg2 span.on{background:var(--sc)}
+.sl{height:16px;border-radius:8px;background:var(--sc);position:relative;margin:8px 0 14px}.sl b{position:absolute;left:0;top:0;bottom:0;border-radius:8px;background:var(--pri)}.sl i{position:absolute;top:-8px;width:4px;height:32px;border-radius:2px;background:var(--pri)}
+.sw{width:52px;height:32px;border-radius:16px;background:var(--pri);position:relative;flex:none}.sw:after{content:"";position:absolute;right:4px;top:4px;width:24px;height:24px;border-radius:12px;background:var(--onpri)}
+
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 44px;font:500 14px GSF}
+.tabs2{display:flex;gap:2px;margin:2px 12px 6px;background:var(--c);border-radius:24px;padding:4px}
+.tabs2 span{flex:1;height:40px;border-radius:20px;display:flex;align-items:center;justify-content:center;font:500 14px GSF;color:var(--onv)}
+.tabs2 span.on{background:var(--sc);color:var(--onsc);border-radius:12px}
+.tools2{display:flex;gap:6px;margin:0 12px 6px;align-items:center;overflow:hidden}
+.tl{flex:none;min-width:60px;height:60px;border-radius:18px;background:var(--c);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:11px GSF;padding:0 8px}
+.tl svg{width:22px;height:22px}
+.tl.on{background:var(--pri);color:var(--onpri);border-radius:14px}.tl.open{background:var(--sc);border-radius:14px}
+.vsep{width:1px;height:36px;background:var(--outv);flex:none}
+.sub2{font:12.5px GSF;color:var(--onv)}
+.fb{display:flex;align-items:center;gap:8px;height:52px;border-radius:26px;background:var(--bg);outline:2px solid var(--pri);padding:0 6px 0 7px;margin:0 10px 8px}
+.ad{height:38px;min-width:52px;border-radius:19px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;justify-content:center;font:600 14px GSF;padding:0 10px}
+.arr{display:flex;justify-content:flex-end;gap:6px;margin:0 10px 6px}.arr span{width:52px;height:36px;border-radius:18px;background:var(--sc);color:var(--onsc);display:flex;align-items:center;justify-content:center;font:16px GSF}
+.pill{position:absolute;left:20px;height:48px;border-radius:24px;background:var(--chh);box-shadow:0 3px 10px rgba(0,0,0,.2);display:flex;align-items:center;gap:8px;padding:0 16px;font:500 14px GSF;z-index:3}
+.pill b{font:400 17px CMR}
+.kb{height:200px;background:var(--c);border-top:1px solid var(--outv);display:grid;grid-template-columns:repeat(10,1fr);gap:6px;padding:10px 6px}.kb span{height:40px;border-radius:9px;background:var(--chh);display:flex;align-items:center;justify-content:center;font:16px GSF}
+.bar{position:absolute;left:4px;top:4px;bottom:4px;border-radius:6px;background:color-mix(in srgb,var(--pri) 28%,transparent)}
+.cell{overflow:hidden}.cell span.v{position:relative}
+.sheet2{position:absolute;left:0;right:0;bottom:0;background:var(--low);border-radius:28px 28px 0 0;box-shadow:0 -6px 20px rgba(0,0,0,.25);z-index:8;padding:8px 20px 22px}
+.grab{width:36px;height:4px;border-radius:2px;background:var(--onv);opacity:.4;margin:4px auto 12px}
+.card2{background:var(--c);border-radius:24px;padding:14px 16px;margin-bottom:12px}
+.ct{font:600 14px GSF;color:var(--pri);margin-bottom:6px}
+.tiles3{display:flex;gap:8px;margin-bottom:12px}.tiles3 div{flex:1;background:var(--chh);border-radius:20px;padding:10px 12px}.tiles3 small{display:block;font:500 12px GSF;color:var(--onv)}.tiles3 b{font:400 19px CMR}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.32);z-index:7}
+.menu2{position:absolute;background:var(--c);border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:6px 0;width:170px;z-index:9}.menu2 div{padding:11px 18px;font:15px GSF}
+.tablet{position:relative;width:1280px;height:800px;border-radius:36px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 12px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.tablet .status{padding:0 30px}
+.grp2{background:var(--c);border-radius:22px;padding:4px 6px;display:flex;flex-direction:column;align-items:center}
+.grp2 .row2{display:flex;gap:2px}.grp2 .tl{background:transparent}.grp2 .tl.on{background:var(--pri)}
+.grp2 small{font:500 11px GSF;color:var(--onv)}
+.sw{width:40px;height:40px;border-radius:20px;display:inline-flex;align-items:center;justify-content:center;margin-right:10px}
+</style></head>
+<body style="width:2900px">
+<h2>Round 42: More spreadsheet power in the data table (as built)</h2>
+<p class="note">What's now in the app, keeping the rounded cells: tabs (Home, Insert, Data, Format) with custom icons; the formula bar at the bottom on phones with arrow keys over it; AutoSum (Σ: sum, average, count, min or max of the numbers above); data bars and highlight rules beside the color scale; Insights (histogram, trend against x with r and r², outliers you can mark); and on a tablet, a ribbon of labelled groups with the column inspector beside the grid.</p>
+<div class="row" id="row"></div><div class="row" id="row2"></div>
+<script>
+const I={
+ sum:'<path d="M13.5 4H4.5l4.5 6l-4.5 6h9" stroke-width="2"/><path d="M17 4h4.5v4h-4.5zM17 10h4.5v4h-4.5z" stroke-width="1.6"/><path d="M17 16h4.5v4h-4.5z" fill="currentColor" stroke="none"/>',
+ sortup:'<path d="M3.5 6h5M3.5 12h8M3.5 18h11M19 19V5M16 8l3-3l3 3" stroke-width="2"/>',
+ sortdn:'<path d="M3.5 6h11M3.5 12h8M3.5 18h5M19 5v14M16 16l3 3l3-3" stroke-width="2"/>',
+ filter:'<path d="M3.5 5h17l-6.5 8v5.5l-4 2.5v-8z" stroke-width="2"/>',
+ find:'<circle cx="10.5" cy="10.5" r="6" stroke-width="2"/><path d="M15 15l5.5 5.5" stroke-width="2"/><path d="M8 10.5h5" stroke-width="1.6"/>',
+ num:'<path d="M4 6.5l2-1.5v5M4 13.5c0-1 .8-1.6 1.8-1.6s1.7.7 1.7 1.5c0 1.6-3.5 2.5-3.5 4.6h3.6M11 7h9M11 12h9M11 17h9" stroke-width="2"/>',
+ series:'<path d="M3 20L21 4" stroke-width="1.6"/><circle cx="5" cy="18.2" r="2" fill="currentColor"/><circle cx="10" cy="13.8" r="2" fill="currentColor"/><circle cx="15" cy="9.4" r="2" fill="currentColor"/><circle cx="20" cy="5" r="2" fill="currentColor"/>',
+ stats:'<path d="M17.5 5H6.5l6 7l-6 7h11" stroke-width="2"/>',
+ auto:'<path d="M3.5 19.5L8.5 5l5 14.5M5.4 14h6.2M18.5 3.5v5M16 6h5" stroke-width="2"/>',
+ fixed:'<ellipse cx="5.5" cy="12" rx="2.5" ry="5" stroke-width="2"/><circle cx="9.7" cy="16.4" r="1.3" fill="currentColor"/><ellipse cx="14.2" cy="12" rx="2.2" ry="4.5" stroke-width="2"/><ellipse cx="20.2" cy="12" rx="2.2" ry="4.5" stroke-width="2"/>',
+ pct:'<path d="M19 5L5 19" stroke-width="2"/><circle cx="7" cy="7" r="2.6" stroke-width="1.6"/><circle cx="17" cy="17" r="2.6" stroke-width="1.6"/>',
+ scale:'<rect x="3.5" y="3.5" width="17" height="17" rx="1.5" stroke-width="2"/><path d="M3.5 9.2h17M3.5 14.8h17" stroke-width="1.6"/><path d="M3.5 9.2h17v5.6h-17z" fill="currentColor" opacity=".35" stroke="none"/><path d="M3.5 14.8h17v4.2a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5z" fill="currentColor" stroke="none"/>',
+ bars:'<rect x="3.5" y="3.5" width="17" height="17" stroke-width="2"/><path d="M3.5 9.2h17M3.5 14.8h17" stroke-width="1.6"/><path d="M5 5h6v2.7H5zM5 10.7h12.5v2.7H5zM5 16.3h9v2.7H5z" fill="currentColor" stroke="none"/>',
+ hl:'<path d="M14.5 3.5l6 6l-8 8h-6v-6zM3 21h18" stroke-width="2"/><path d="M11 7l6 6" stroke-width="1.6"/><path d="M6.5 11.5l6 6h-6z" fill="currentColor" opacity=".35" stroke="none"/>',
+ ins:'<path d="M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3zM9.5 19.5h5M10.5 22h3" stroke-width="2"/><path d="M9.5 10.5l1.5-1.5l1.5 1.5l2-2.5" stroke-width="1.6"/>',
+ less:'<circle cx="4" cy="18.6" r="1.4" fill="currentColor"/><ellipse cx="9" cy="15" rx="2.3" ry="4.5" stroke-width="2"/><path d="M21 6h-7M16.5 3.5L14 6l2.5 2.5" stroke-width="2"/>',
+ more:'<circle cx="3.6" cy="18.6" r="1.4" fill="currentColor"/><ellipse cx="8.5" cy="15" rx="2.1" ry="4.3" stroke-width="2"/><ellipse cx="14.5" cy="15" rx="2.1" ry="4.3" stroke-width="2"/><path d="M14 6h7M18.5 3.5L21 6l-2.5 2.5" stroke-width="2"/>',
+ dedupe:'<path d="M3.5 5h17M3.5 10h17M15 15.5l5 5M20 15.5l-5 5" stroke-width="2"/><path d="M3.5 18h8" stroke-width="1.6"/>',
+ trim:'<path d="M2.5 12h4M4.5 9.5L7 12l-2.5 2.5M21.5 12h-4M19.5 9.5L17 12l2.5 2.5" stroke-width="2"/><path d="M10 8v8M14 8v8" stroke-width="1.6"/>',
+ trans:'<path d="M4 4h6v6H4zM13 7h4a3 3 0 0 1 3 3v6M17.5 13.5L20 16l2.5-2.5" stroke-width="2"/><path d="M4 14h6v6H4zM14 14h6v6h-6z" stroke-width="1.6"/>',
+ freeze:'<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9" stroke-width="2"/>',
+};
+const ic=(k,c='currentColor')=>`<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-linecap="round" stroke-linejoin="round">${I[k]}</svg>`;
+const tl=(k,l,cls='')=>`<div class="tl ${cls}" style="${cls?'':'color:var(--on)'}">${ic(k, cls=='on'?'var(--onpri)':'var(--pri)')}<span>${l}</span></div>`;
+const roles={x:['var(--pri)','var(--onpri)'],y:['var(--ter)','var(--onter)'],s:['var(--sec)','var(--onsec)']};
+const T=['0','0.5','1','1.5','2','2.5','3','3.5','4'];const H=[1.02,1.31,2.24,3.30,5.01,7.48,11.2,16.4,24.9];const S=['0.05','0.05','0.08','0.10','0.12','0.20','0.30','0.40','0.60'];
+const st=`<div class="status"><span>12:30</span><span>▴ ▮</span></div>`;
+const topBar=(sub)=>`<div class="tbar"><span class="ib">✕</span><div style="flex:1;padding-left:2px"><div class="ttl" style="font:400 21px GSF">Data</div><div class="sub2">${sub||'9 points · 3 columns'}</div></div><span class="ib">↶</span><span class="ib" style="opacity:.4">↷</span><span class="ib">⋮</span><span class="donebtn">✓ Done</span></div>`;
+const tabs=on=>`<div class="tabs2">${['Home','Insert','Data','Format'].map(t=>`<span class="${t==on?'on':''}">${t}</span>`).join('')}</div>`;
+function grid(o){
+ const cols=[['x','A','time t'],['y','B','height h'],['s','C','σ(h)']];
+ let h=`<div style="background:var(--bg);border-radius:28px;margin:0 8px;height:${o.h}px;position:relative;overflow:hidden">`;
+ h+=`<div class="cards" style="padding-left:52px">`+cols.map(([r,l,n],i)=>`<div class="cc" style="background:color-mix(in srgb, ${roles[r][0]} 16%, var(--low));${o.chosen===i?'outline:2px solid var(--pri)':''}"><div class="h"><span class="rb" style="background:${roles[r][0]};color:${roles[r][1]}">${r=='s'?'σ':r}</span><span class="l">${l}</span><span class="dots">⋮</span></div><div class="nm">${n}</div></div>`).join('')+`</div>`;
+ const n=o.rows||9;
+ for(let r=0;r<n;r++){
+  h+=`<div class="trow"><div class="rn">${r+1}</div>`;
+  [T[r]??'',H[r]!=null?H[r].toFixed(2):'',S[r]??''].forEach((v,c)=>{
+   let tint=c==0?'color-mix(in srgb, var(--pri) 9%, var(--low))':c==1?'color-mix(in srgb, var(--ter) 9%, var(--low))':'color-mix(in srgb, var(--sec) 9%, var(--low))';
+   let inner=`<span class="v">${v}</span>`; let extra='';
+   if(o.bars&&c==1&&H[r]!=null) inner=`<span class="bar" style="width:${(H[r]/24.9*96).toFixed(0)}px"></span>`+inner;
+   if(o.rule&&c==2&&parseFloat(S[r])>0.25) tint='rgba(242,139,130,.55)';
+   if(o.mark&&c==1&&r==8) extra='outline:2px solid var(--err);';
+   if(o.sel&&o.sel[0]==r&&o.sel[1]==c) extra+='outline:2px solid var(--pri);';
+   if(o.newSum&&c==1&&r==n-1){inner='<span class="v">72.86</span><small>ƒx</small>';}
+   h+=`<div class="cell" style="background:${tint};justify-content:flex-start;${extra}">${inner}</div>`});
+  h+=`</div>`}
+ return h+(o.pill||'')+`<div class="fab2" style="right:16px;bottom:16px">＋</div></div>`;
+}
+const P=(cls,inner,cap,w)=>`<div><div class="${cls}"><div class="${w||'phone'}">${inner}</div></div><div class="cap" style="${w?'width:1280px':''}">${cap}</div></div>`;
+const row=document.getElementById('row');
+// 1 AutoSum
+T.push('');H.push(null);S.push('');
+row.innerHTML+=P('light',st+topBar()+tabs('Home')+`<div class="tools2">${tl('sum','AutoSum','open')}<span class="vsep"></span>${tl('sortup','Sort up')}${tl('sortdn','Sort down')}${tl('filter','Filter')}${tl('find','Find')}</div>`+
+grid({h:500,rows:10,sel:[9,1],newSum:true,chosen:1,pill:`<div class="pill" style="bottom:16px">${ic('stats','var(--pri)').replace('<svg','<svg width="18" height="18"')} B · Sum <b>145.72</b> ▾</div>`})+
+`<div class="arr" style="margin-top:8px"><span>‹</span><span>˄</span><span>˅</span><span>›</span></div><div class="fb"><span class="ad">B10</span><span style="font:italic 17px CMI;color:var(--ter)">ƒx</span><span style="flex:1;font:18px CMR">=SUM(<b style="color:#1A73E8">B1:B9</b>)</span></div>`+
+`<div class="menu2" style="left:12px;top:228px"><div style="background:color-mix(in srgb,var(--pri) 12%,transparent)">SUM</div><div>AVERAGE</div><div>COUNT</div><div>MIN</div><div>MAX</div></div>`,
+`<b>1 · AutoSum.</b> Select the cell under a column of numbers and pick a function from Σ: =SUM(B1:B9) goes into B10, as in Excel. The formula bar is at the bottom, with arrow keys over it to move the selected cell without closing the keyboard. The pill sums column B.`);
+T.pop();H.pop();S.pop();
+// 2 Format: data bars + rule
+row.innerHTML+=P('light',st+topBar('Column C selected')+tabs('Format')+`<div class="tools2">${tl('scale','Color scale')}${tl('bars','Data bars','on')}${tl('hl','Rule','on')}<span class="vsep"></span>${tl('fixed','0.00','on')}${tl('pct','Percent')}</div>`+
+grid({h:600,bars:true,rule:true,chosen:2,pill:`<div class="pill" style="bottom:16px">C · Max <b>0.6</b> ▾</div>`})+`<div class="fb" style="outline:none;background:var(--chh);margin-top:8px"><span class="ad" style="background:var(--chh);color:var(--onv)">—</span><span style="font:italic 17px CMI;color:var(--ter)">ƒx</span><span style="flex:1;font:15px GSF;color:var(--onv)">Tap a cell to type in it</span></div>`,
+`<b>2 · Data bars and a highlight rule.</b> Format › Data bars puts a bar in each of column B's cells, as long as its number is far along the column. Format › Rule tints column C's cells above 0.25 in red. Both are saved with the table, beside the color scale and number formats.`);
+// 3 Highlight dialog
+row.innerHTML+=P('light',st+topBar()+tabs('Format')+`<div class="tools2">${tl('scale','Color scale')}${tl('bars','Data bars')}${tl('hl','Rule','open')}<span class="vsep"></span>${tl('fixed','0.00')}</div>`+grid({h:600})+
+`<div class="scrim"></div><div class="dlg" style="top:200px"><div class="ic">${ic('hl','var(--sec)').replace('<svg','<svg width="26" height="26"')}</div><h3>Highlight: σ(h)</h3><div style="font:15px GSF;margin-bottom:10px">Tint the cells whose value…</div><div style="display:flex;flex-wrap:wrap;gap:6px 0;margin-bottom:12px">${['Is equal to',"Isn't equal to",'✓ Greater than','Less than','Text contains','Is empty',"Isn't empty"].map(x=>`<span class="chip ${x[0]=='✓'?'on':''}">${x}</span>`).join('')}</div><div class="field f"><label>Value</label>0.25</div><div>${['#F28B82','#FDD663','#81C995','#8AB4F8','#C58AF9'].map((c,i)=>`<span class="sw" style="background:${c};${i==0?'outline:3px solid var(--on)':''}">${i==0?'✓':''}</span>`).join('')}</div><div class="btns"><span>Cancel</span><span>Apply</span></div></div>`,
+`<b>3 · A highlight rule.</b> The same tests as a filter (equal, greater, less, contains, empty), a value, and one of five light tints. Remove takes it away. A rule's tint shows over the color scale.`);
+// 4 insights
+const hist=[1,2,1,2,1,1,0,0,1];const mx=Math.max(...hist);
+row.innerHTML+=P('light',st+topBar()+tabs('Data')+`<div class="tools2">${tl('dedupe','Duplicates')}${tl('trim','Trim')}${tl('trans','Transpose')}<span class="vsep"></span>${tl('ins','Insights','open')}</div>`+grid({h:600,mark:true})+
+`<div class="scrim"></div><div class="sheet2"><div class="grab"></div><div style="display:flex;align-items:center;gap:12px;margin-bottom:12px"><span class="sw" style="background:var(--tc);width:44px;height:44px;border-radius:14px;margin:0">${ic('ins','var(--ontc)').replace('<svg','<svg width="24" height="24"')}</span><div><div style="font:500 21px GSF">Insights</div><div class="sub2">B · height h</div></div></div>
+<div class="card2"><div class="ct">Distribution</div><div style="display:flex;align-items:flex-end;gap:5px;height:110px;border-bottom:1px solid var(--outv)">${hist.map(v=>`<div style="flex:1;height:${v/mx*100}%;background:var(--pri);border-radius:8px 8px 0 0"></div>`).join('')}</div><div style="display:flex;justify-content:space-between;font:13px CMR;color:var(--onv);margin-top:4px"><span>0</span><span>27</span></div></div>
+<div class="tiles3"><div><small>Mean</small><b>8.096</b></div><div><small>Median</small><b>5.01</b></div><div><small>Std dev</small><b>8.095</b></div></div>
+<div class="card2"><div class="ct">Trend against time t</div><div style="font:17px CMR">slope 5.44 · intercept −2.79</div><div style="font:17px CMR"><em style="font:italic 17px CMI">r</em> = 0.9026 · <em style="font:italic 17px CMI">r</em>² = 0.8147 · <em style="font:italic 17px CMI">n</em> = 9</div><div style="font:14px GSF;color:var(--onv);margin-top:4px">A very strong rising straight-line relationship: 81% of the spread follows the line.</div></div>
+<div class="card2" style="background:var(--ec);display:flex;align-items:center;margin-bottom:0"><div style="flex:1"><div style="font:600 14px GSF;color:var(--onec)">1 outlier</div><div style="font:13px GSF;color:var(--onec)">Row 9</div></div><span style="background:var(--sc);border-radius:20px;padding:10px 16px;font:500 14px GSF">Mark them</span></div></div>`,
+`<b>4 · Insights.</b> Data › Insights (or a column's sheet): the column's histogram, mean, median and spread, its straight-line trend against x with r and r² in words, and its outliers by Tukey's fences. Mark them outlines them in the table (row 9 here, behind).`);
+// tablet
+document.getElementById('row2').innerHTML=P('light',st+`<div class="tbar" style="padding:2px 16px"><span class="ib">✕</span><div style="padding-left:4px"><div style="font:400 22px GSF">Data table</div><div class="sub2">9 points · 3 columns</div></div><span style="flex:1"></span><span class="ib">↶</span><span class="ib" style="opacity:.4">↷</span><span class="ib">⋮</span><span class="donebtn">✓ Done</span></div>
+<div style="display:flex;gap:10px;margin:0 16px 8px;align-items:center"><div class="tabs2" style="width:360px;margin:0">${['Home','Insert','Data','Format'].map(t=>`<span class="${t=='Format'?'on':''}">${t}</span>`).join('')}</div>
+<div class="grp2"><div class="row2">${tl('auto','Auto')}${tl('fixed','0.00','on')}${tl('pct','Percent')}</div><small>Number</small></div>
+<div class="grp2"><div class="row2">${tl('less','Fewer')}${tl('more','More')}</div><small>Decimals</small></div>
+<div class="grp2"><div class="row2">${tl('scale','Color scale')}${tl('bars','Data bars','on')}${tl('hl','Rule')}</div><small>Highlight</small></div></div>
+<div style="display:flex;gap:14px;padding:0 16px">
+<div style="width:320px;display:flex;flex-direction:column;gap:10px"><div class="card2" style="margin:0;height:200px;position:relative">${(()=>{let p='<svg width="288" height="170">';const X=x=>16+x/4*260,Y=y=>160-y/25*150;let d='';for(let i=0;i<=40;i++){const x=i/10;d+=(i?'L':'M')+X(x)+' '+Y(1.02*Math.exp(0.8*x))}p+=`<path d="${d}" fill="none" stroke="var(--pri)" stroke-width="2" stroke-dasharray="5 4"/>`;T.forEach((t,i)=>{p+=`<circle cx="${X(+t)}" cy="${Y(H[i])}" r="4" fill="var(--ter)"/>`});return p+'</svg>'})()}</div>
+<div class="card2" style="margin:0"><div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><span class="sw" style="background:var(--tc);width:32px;height:32px;border-radius:10px;margin:0;font:600 14px GSF;color:var(--ontc)"><b style="color:var(--ontc)">B</b></span><b style="font:500 15px GSF;flex:1">height h</b>⋮</div>
+<div style="display:flex;gap:2px;background:var(--chh);border-radius:22px;padding:3px;margin-bottom:10px">${['x','y','σx','σy','None'].map(r=>`<span style="flex:1;height:38px;border-radius:${r=='y'?12:19}px;display:flex;align-items:center;justify-content:center;font:${r=='None'?'500 13px GSF':'italic 16px CMI'};${r=='y'?'background:var(--ter);color:var(--onter)':''}">${r}</span>`).join('')}</div>
+${[['Format','2 decimals · data bars'],['Count','9'],['Mean','8.096'],['Median','5.01'],['Standard deviation','8.095'],['Range','1.02 to 24.9']].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:4px 0;font:14px GSF"><span style="color:var(--onv)">${k}</span><span style="font:16px CMR">${v}</span></div>`).join('')}</div></div>
+<div style="flex:1;background:var(--bg);border-radius:28px;padding:12px;position:relative">
+<div class="fb" style="margin:0 0 6px"><span class="ad">B4</span><span style="font:italic 17px CMI;color:var(--ter)">ƒx</span><span style="flex:1;font:18px CMR">3.3</span></div>
+${grid({h:470,bars:true,sel:[3,1],chosen:1}).replace('margin:0 8px','margin:0').replace(/<div class="fab2"[^<]*<\/div>/,'')}
+<div class="pill" style="bottom:20px;left:24px">${ic('stats','var(--pri)').replace('<svg','<svg width="18" height="18"')} B · Sum <b>72.86</b> · Average <b>8.096</b> · Count <b>9</b> · Min <b>1.02</b> · Max <b>24.9</b></div><div class="fab2" style="right:24px;bottom:20px">＋</div></div></div>`,
+`<b>5 · Tablet.</b> The tabs sit beside a ribbon of labelled groups (Format: Number, Decimals, Highlight). The formula bar is above the grid. The side panel shows the points live and the selected column's role, format and statistics. The pill shows every summary at once.`,'tablet');
+document.title='ready';
+</script></body></html>

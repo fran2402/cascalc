@@ -13,6 +13,10 @@ data class ColumnFormat(
     val scientific: Boolean = false,
     val thousands: Boolean = false,
     val colorScale: Boolean = false,
+    /** A bar inside each cell, as long as its number is far between the column's smallest and largest (Excel's data bars). */
+    val dataBars: Boolean = false,
+    /** Cells meeting a rule tinted in one of [HighlightRule.COLORS] (conditional formatting). */
+    val highlight: HighlightRule? = null,
 ) {
     val isDefault get() = this == ColumnFormat()
     /** Whether numbers are shown differently from how they're typed. */
@@ -39,7 +43,8 @@ data class ColumnFormat(
 
     fun encode(): String = buildList {
         decimals?.let { add("d$it") }
-        if (percent) add("p"); if (scientific) add("s"); if (thousands) add("t"); if (colorScale) add("c")
+        if (percent) add("p"); if (scientific) add("s"); if (thousands) add("t"); if (colorScale) add("c"); if (dataBars) add("b")
+        highlight?.let { add("h" + it.encode()) }
     }.joinToString(".")
 
     companion object {
@@ -47,7 +52,8 @@ data class ColumnFormat(
             when {
                 t.startsWith("d") -> f.copy(decimals = t.drop(1).toIntOrNull()?.coerceIn(0, 10))
                 t == "p" -> f.copy(percent = true); t == "s" -> f.copy(scientific = true)
-                t == "t" -> f.copy(thousands = true); t == "c" -> f.copy(colorScale = true)
+                t == "t" -> f.copy(thousands = true); t == "c" -> f.copy(colorScale = true); t == "b" -> f.copy(dataBars = true)
+                t.startsWith("h") -> f.copy(highlight = HighlightRule.decode(t.drop(1)))
                 else -> f
             }
         }
@@ -67,6 +73,33 @@ data class ColumnFormat(
         }
 
         private fun superscript(n: Int) = n.toString().map { c -> if (c == '-') '⁻' else "⁰¹²³⁴⁵⁶⁷⁸⁹"[c - '0'] }.joinToString("")
+    }
+}
+
+/**
+ * A conditional format: cells whose value passes [op] against [value] are tinted with color
+ * [color] (an index into [COLORS]), as Sheets' and Excel's highlight rules.
+ */
+data class HighlightRule(val op: SheetTools.FilterOp, val value: String = "", val color: Int = 0) {
+    /** Whether row [row] of column [column] gets the tint. */
+    fun matches(t: DataTable, column: Int, row: Int): Boolean = SheetTools.Filter(column, op, value).keeps(t, row)
+
+    /** Kept inside a format's dot-separated tokens: the op's index, the value (escaped), the color. */
+    fun encode(): String = "${op.ordinal}~${escape(value)}~$color"
+
+    companion object {
+        /** The tints offered: red, amber, green, blue, purple (light, so the text stays readable). */
+        val COLORS = listOf(0xFFF28B82.toInt(), 0xFFFDD663.toInt(), 0xFF81C995.toInt(), 0xFF8AB4F8.toInt(), 0xFFC58AF9.toInt())
+        val COLOR_NAMES = listOf("Red", "Amber", "Green", "Blue", "Purple")
+
+        fun decode(s: String): HighlightRule? = runCatching {
+            val parts = s.split('~')
+            HighlightRule(SheetTools.FilterOp.entries[parts[0].toInt()], unescape(parts.getOrElse(1) { "" }), parts.getOrElse(2) { "0" }.toInt().coerceIn(0, COLORS.size - 1))
+        }.getOrNull()
+
+        // The format is saved as dot- and comma-separated tokens on a tab-separated line.
+        private fun escape(v: String) = buildString { v.forEach { c -> if (c in "%.,~\t\n") append('%').append("%02X".format(c.code)) else append(c) } }
+        private fun unescape(v: String) = Regex("%([0-9A-F]{2})").replace(v) { it.groupValues[1].toInt(16).toChar().toString() }
     }
 }
 
@@ -218,6 +251,69 @@ object SheetTools {
                 if (Sheet.isFormula(text)) t.value(c, r)?.let { DataTable.text(it) } ?: t.sheet.value(c, r).toString() else text
             }
         }
+
+    // ---- AutoSum ---------------------------------------------------------------------------
+
+    /** The functions AutoSum offers, as Excel's Σ button does. */
+    val AUTO_FUNCTIONS = listOf("SUM", "AVERAGE", "COUNT", "MIN", "MAX")
+
+    /**
+     * Excel's AutoSum for cell ([c], [r]): [fn] of the run of numbers directly above it (or, if
+     * there are none above, directly to its left), as a formula; null when there's nothing to sum.
+     */
+    fun autoSum(t: DataTable, c: Int, r: Int, fn: String = "SUM"): String? {
+        fun isNumber(cc: Int, rr: Int) = t.value(cc, rr) != null
+        var top = r
+        while (top - 1 >= 0 && isNumber(c, top - 1)) top--
+        if (top < r) return "=$fn(${Sheet.columnName(c)}${top + 1}:${Sheet.columnName(c)}$r)"
+        var left = c
+        while (left - 1 >= 0 && isNumber(left - 1, r)) left--
+        if (left < c) return "=$fn(${Sheet.columnName(left)}${r + 1}:${Sheet.columnName(c - 1)}${r + 1})"
+        return null
+    }
+
+    // ---- Insights ----------------------------------------------------------------------------
+
+    /** A histogram: [edges] has one more entry than [counts]. */
+    class Histogram(val edges: List<Double>, val counts: List<Int>)
+
+    /** [values] in about √n bins (5 to 12) between their smallest and largest, with tidy edges. */
+    fun histogram(values: List<Double>): Histogram? {
+        if (values.isEmpty()) return null
+        val lo = values.min(); val hi = values.max()
+        if (hi == lo) return Histogram(listOf(lo - 0.5, lo + 0.5), listOf(values.size))
+        val bins = kotlin.math.sqrt(values.size.toDouble()).toInt().coerceIn(5, 12)
+        val step = Plot2D.niceStep(hi - lo, bins)
+        val start = kotlin.math.floor(lo / step) * step
+        val n = (kotlin.math.ceil((hi - start) / step).toInt()).coerceAtLeast(1)
+        val counts = IntArray(n)
+        values.forEach { v -> counts[((v - start) / step).toInt().coerceIn(0, n - 1)]++ }
+        return Histogram((0..n).map { start + it * step }, counts.toList())
+    }
+
+    /** A straight-line trend y = slope·x + intercept through paired values, with Pearson's r. */
+    class Trend(val slope: Double, val intercept: Double, val r: Double, val n: Int) { val r2 get() = r * r }
+
+    fun trend(xs: List<Double>, ys: List<Double>): Trend? {
+        val n = minOf(xs.size, ys.size)
+        if (n < 3) return null
+        val mx = xs.take(n).average(); val my = ys.take(n).average()
+        var sxx = 0.0; var syy = 0.0; var sxy = 0.0
+        for (k in 0 until n) { val dx = xs[k] - mx; val dy = ys[k] - my; sxx += dx * dx; syy += dy * dy; sxy += dx * dy }
+        if (sxx == 0.0 || syy == 0.0) return null
+        val slope = sxy / sxx
+        return Trend(slope, my - slope * mx, sxy / kotlin.math.sqrt(sxx * syy), n)
+    }
+
+    /** The rows of [column] whose numbers lie beyond 1.5 interquartile ranges of the quartiles (Tukey's fences). */
+    fun outliers(t: DataTable, column: Int): List<Int> {
+        val rows = (0 until t.rowCount).filter { t.value(column, it) != null }
+        if (rows.size < 4) return emptyList()
+        val sorted = rows.map { t.value(column, it)!! }.sorted()
+        fun quantile(p: Double): Double { val pos = p * (sorted.size - 1); val i = pos.toInt(); return sorted[i] + (sorted[minOf(i + 1, sorted.size - 1)] - sorted[i]) * (pos - i) }
+        val q1 = quantile(0.25); val q3 = quantile(0.75); val iqr = q3 - q1
+        return rows.filter { val v = t.value(column, it)!!; v < q1 - 1.5 * iqr || v > q3 + 1.5 * iqr }
+    }
 
     /** Where [value] sits between [min] and [max], 0 to 1, for a color scale. */
     fun scalePosition(value: Double, min: Double, max: Double): Float = if (max <= min) 0.5f else ((value - min) / (max - min)).toFloat().coerceIn(0f, 1f)

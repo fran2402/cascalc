@@ -1994,6 +1994,10 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     var tab by remember(f) { mutableStateOf(TableTab.Home) }
     var focusCol by remember(f) { mutableStateOf(start.y ?: 0) }
     var sheetFor by remember(f) { mutableStateOf<Int?>(null) }
+    // A column's highlight rule or insights being shown; cells marked as outliers by the insights.
+    var highlightFor by remember(f) { mutableStateOf<Int?>(null) }
+    var insightsFor by remember(f) { mutableStateOf<Int?>(null) }
+    var marked by remember(f) { mutableStateOf<Set<Pair<Int, Int>>>(emptySet()) }
     val barFocus = remember(f) { androidx.compose.ui.focus.FocusRequester() }
     var roleX by remember(f) { mutableStateOf(start.x) }
     var roleY by remember(f) { mutableStateOf(start.y) }
@@ -2210,7 +2214,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     fun heightOf(r: Int) = heights[r] ?: defaultHeight
     // The rows the filters keep; each color-scaled column's smallest and largest number; the cells find matches.
     val visible by remember(f) { androidx.compose.runtime.derivedStateOf { if (filters.isEmpty()) (0 until current.rowCount).toList() else com.example.cas.graph.SheetTools.visibleRows(current, filters.values) } }
-    val scales by remember(f) { androidx.compose.runtime.derivedStateOf { fmts.indices.filter { fmts[it].colorScale }.associateWith { c -> current.numbers(c).let { v -> if (v.isEmpty()) 0.0 to 0.0 else v.min() to v.max() } } } }
+    val scales by remember(f) { androidx.compose.runtime.derivedStateOf { fmts.indices.filter { fmts[it].colorScale || fmts[it].dataBars }.associateWith { c -> current.numbers(c).let { v -> if (v.isEmpty()) 0.0 to 0.0 else v.min() to v.max() } } } }
     val found by remember(f) { androidx.compose.runtime.derivedStateOf { if (!finding || query.isEmpty()) emptyList() else com.example.cas.graph.SheetTools.find(cells.map { it.toList() }, query, matchCase, wholeCell) } }
     /** The next (or previous) match: shown, scrolled to and opened, with its filters cleared if they hide it. */
     fun goToMatch(step: Int) {
@@ -2273,8 +2277,20 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         return at
     }
     // The formula bar: the selected cell's address and contents, typed in here.
-    val formulaBar: @Composable (Modifier) -> Unit = { m ->
+    val formulaBar: @Composable (Modifier) -> Unit = { m -> Column(m) {
         val sel = editing?.takeIf { (c, r) -> c in cells.indices && r < cells[c].size }
+        // Arrow keys: move the selected cell without leaving the keyboard (down adds a row at the end).
+        if (sel != null) CellArrows(
+            onMove = { dc, dr ->
+                val (c, r) = sel
+                val nc = (c + dc).coerceIn(0, cells.size - 1)
+                if (r + dr >= rows) addRow()
+                val nr = (r + dr).coerceAtLeast(0)
+                editing = nc to nr; focusCol = nc
+                scope.launch { list.animateScrollToItem(maxOf(0, visible.indexOf(nr) - 2)) }
+            },
+            modifier = Modifier.padding(bottom = 6.dp),
+        )
         val anchoredNow = if (formulas && editText != null) com.example.cas.graph.Sheet.cycleAnchor(editText) else null
         FormulaBar(
             address = sel?.let { (c, r) -> com.example.cas.graph.Sheet.columnName(c) + (r + 1) },
@@ -2300,11 +2316,30 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                 editing = c to r + 1
                 scope.launch { list.animateScrollToItem(maxOf(0, visible.indexOf(r) - 2)) }
             },
-            modifier = m,
         )
-    }
+    } }
     // A cell picked: straight to typing in it, as tapping a cell did before.
     androidx.compose.runtime.LaunchedEffect(editing) { if (editing != null) runCatching { barFocus.requestFocus() } }
+    highlightFor?.takeIf { it in cells.indices }?.let { c ->
+        val fmt = fmts.getOrElse(c) { com.example.cas.graph.ColumnFormat() }
+        HighlightDialog(names[c].ifBlank { "Column ${c + 1}" }, fmt.highlight, onDismiss = { highlightFor = null }, onRemove = {
+            record(); highlightFor = null; while (fmts.size <= c) fmts.add(com.example.cas.graph.ColumnFormat()); fmts[c] = fmt.copy(highlight = null)
+        }) { rule -> record(); highlightFor = null; while (fmts.size <= c) fmts.add(com.example.cas.graph.ColumnFormat()); fmts[c] = fmt.copy(highlight = rule) }
+    }
+    insightsFor?.takeIf { it in cells.indices }?.let { c ->
+        val x = roleX?.takeIf { it != c && it in cells.indices }
+        val pairs = (0 until rows).mapNotNull { r -> val yv = current.value(c, r); val xv = if (x != null) current.value(x, r) else (r + 1).toDouble(); if (yv != null && xv != null) xv to yv else null }
+        val out = com.example.cas.graph.SheetTools.outliers(current, c)
+        InsightsSheet(
+            letter = com.example.cas.graph.Sheet.columnName(c), name = names[c].ifBlank { "Column ${c + 1}" },
+            stats = current.stats(c), histogram = com.example.cas.graph.SheetTools.histogram(current.numbers(c)),
+            against = x?.let { names[it].ifBlank { com.example.cas.graph.Sheet.columnName(it) } } ?: "the row number",
+            trend = com.example.cas.graph.SheetTools.trend(pairs.map { it.first }, pairs.map { it.second }),
+            outliers = out.map { it + 1 },
+            onMark = { marked = out.map { c to it }.toSet(); insightsFor = null },
+            onDismiss = { insightsFor = null },
+        )
+    }
     // A column's sheet: its role and every action.
     sheetFor?.takeIf { it in cells.indices }?.let { c ->
         val st = current.stats(c)
@@ -2322,6 +2357,9 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                 ColumnAction(TableIcons.Statistics, "Statistics") { close(); statsFor = c },
                 ColumnAction(TableIcons.FormatFixed, "Number format") { close(); formatFor = c },
                 ColumnAction(TableIcons.ColorScale, "Color scale", on = fmt.colorScale) { record(); while (fmts.size <= c) fmts.add(com.example.cas.graph.ColumnFormat()); fmts[c] = fmt.copy(colorScale = !fmt.colorScale) },
+                ColumnAction(TableIcons.DataBars, "Data bars", on = fmt.dataBars) { record(); while (fmts.size <= c) fmts.add(com.example.cas.graph.ColumnFormat()); fmts[c] = fmt.copy(dataBars = !fmt.dataBars) },
+                ColumnAction(TableIcons.Highlight, "Highlight rule", on = fmt.highlight != null) { close(); highlightFor = c },
+                ColumnAction(TableIcons.Insights, "Insights") { close(); insightsFor = c },
                 ColumnAction(TableIcons.Numbering, "Fill 1, 2, 3") { close(); record(); cells[c].indices.forEach { r -> cells[c][r] = (r + 1).toString() } },
                 ColumnAction(TableIcons.Series, "Fill series") { close(); seriesFor = c },
                 if (formulas && cells[c].any { com.example.cas.graph.Sheet.isFormula(it) }) ColumnAction(TableIcons.FillFormula, "Fill formula down") { close(); fillFormulaDown(c) } else null,
@@ -2391,6 +2429,15 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                         val selRow = editing?.second ?: selA?.second
                         val groups = when (tab) {
                             TableTab.Home -> listOf(
+                                // Excel's AutoSum: the selected cell gets the function of the numbers above (or to its left).
+                                ToolGroup("Formula", listOf(TableTool(TableIcons.AutoSum, "AutoSum", menu = com.example.cas.graph.SheetTools.AUTO_FUNCTIONS.map { fn ->
+                                    fn to {
+                                        val at = editing
+                                        val formula = at?.let { (cc, rr) -> com.example.cas.graph.SheetTools.autoSum(current, cc, rr, fn) }
+                                        if (at == null || formula == null) android.widget.Toast.makeText(context, "Select the cell under (or right of) some numbers", android.widget.Toast.LENGTH_SHORT).show()
+                                        else { record(); cells[at.first][at.second] = formula }
+                                    }
+                                }))),
                                 ToolGroup("Sort & filter", listOf(
                                     TableTool(TableIcons.SortUp, "Sort up") { sortBy(c) },
                                     TableTool(TableIcons.SortDown, "Sort down") { sortDown(c) },
@@ -2423,6 +2470,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     TableTool(TableIcons.Trim, "Trim") { trimAll() },
                                     TableTool(TableIcons.Transpose, "Transpose") { transpose() },
                                 )),
+                                ToolGroup("Explore", listOf(TableTool(TableIcons.Insights, "Insights") { insightsFor = c })),
                                 ToolGroup("View", listOf(TableTool(TableIcons.Freeze, "Freeze", on = frozen) { record(); frozen = !frozen })),
                                 ToolGroup("Share", listOf(
                                     TableTool(TableIcons.ShareTable, "Share CSV") {
@@ -2448,7 +2496,11 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     TableTool(TableIcons.DecimalsLess, "Fewer", enabled = (fmt.decimals ?: 2) > 0) { setFmt(fmt.copy(decimals = ((fmt.decimals ?: 3) - 1).coerceAtLeast(0))) },
                                     TableTool(TableIcons.DecimalsMore, "More") { setFmt(fmt.copy(decimals = ((fmt.decimals ?: 1) + 1).coerceAtMost(8))) },
                                 )),
-                                ToolGroup("Shade", listOf(TableTool(TableIcons.ColorScale, "Color scale", on = fmt.colorScale) { setFmt(fmt.copy(colorScale = !fmt.colorScale)) })),
+                                ToolGroup("Highlight", listOf(
+                                    TableTool(TableIcons.ColorScale, "Color scale", on = fmt.colorScale) { setFmt(fmt.copy(colorScale = !fmt.colorScale)) },
+                                    TableTool(TableIcons.DataBars, "Data bars", on = fmt.dataBars) { setFmt(fmt.copy(dataBars = !fmt.dataBars)) },
+                                    TableTool(TableIcons.Highlight, "Rule", on = fmt.highlight != null) { highlightFor = c },
+                                )),
                             )
                         }
                         TableToolbar(tab, { tab = it }, groups, wide, Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
@@ -2570,17 +2622,20 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     val worked = if (formulas && com.example.cas.graph.Sheet.isFormula(t)) current.sheet.value(c, r) else null
                                     val error = worked?.error != null || (role != null && t.isNotBlank() && worked == null && com.example.cas.graph.DataTable.number(t) == null) || (role != null && worked != null && worked.number == null)
                                     val here = editing == (c to r)
-                                    val number = if (fmt.changesNumbers || fmt.colorScale) current.value(c, r) else null
+                                    val number = if (fmt.changesNumbers || fmt.colorScale || fmt.dataBars) current.value(c, r) else null
                                     val display = if (fmt.changesNumbers) number?.let { fmt.show(it) } else null
-                                    val shade = if (fmt.colorScale && number != null) scales[c]?.let { (lo, hi) -> Color(com.example.cas.graph.SheetTools.scaleColor(com.example.cas.graph.SheetTools.scalePosition(number, lo, hi))) } else null
+                                    // A highlight rule's tint wins over the color scale, as the first matching rule does in Sheets.
+                                    val ruleTint = fmt.highlight?.takeIf { it.matches(current, c, r) }?.let { Color(com.example.cas.graph.HighlightRule.COLORS[it.color]) }
+                                    val shade = ruleTint ?: if (fmt.colorScale && number != null) scales[c]?.let { (lo, hi) -> Color(com.example.cas.graph.SheetTools.scaleColor(com.example.cas.graph.SheetTools.scalePosition(number, lo, hi))) } else null
+                                    val barLength = if (fmt.dataBars && number != null) scales[c]?.let { (lo, hi) -> val a = minOf(0.0, lo); val b = maxOf(0.0, hi); if (b > a) ((number - a) / (b - a)).toFloat() else null } else null
                                     val found = finding && com.example.cas.graph.SheetTools.matches(t, query, matchCase, wholeCell)
                                     Box(Modifier.width(widthOf(c)).height(heightOf(r))) {
                                         TableCell(
                                             t, error, Modifier.fillMaxSize(), role = role, shown = if (worked != null) (if (display != null && worked.number != null) display else worked.toString()) else null, formulas = formulas,
                                             // Typed in the formula bar; the cell is outlined while it's the one selected.
                                             editing = false,
-                                            highlight = if (inFill(c, r)) colors.primary else if (found) colors.tertiary else refColor(c, r),
-                                            display = display, fill = shade, selected = here || inSelection(c, r),
+                                            highlight = if (inFill(c, r)) colors.primary else if (found) colors.tertiary else if ((c to r) in marked) colors.error else refColor(c, r),
+                                            display = display, fill = shade, selected = here || inSelection(c, r), bar = barLength,
                                             onTap = {
                                                 // With a range picked, a tap stretches it; otherwise it selects the cell to type in.
                                                 if (selA != null) selB = c to r else { editing = c to r; focusCol = c }
@@ -3058,6 +3113,8 @@ private fun TableCell(
     highlight: Color? = null, referenceColors: List<Pair<IntRange, Color>> = emptyList(),
     /** A number as its column's format shows it; a color scale's shade; part of a picked range. */
     display: String? = null, fill: Color? = null, selected: Boolean = false,
+    /** A data bar's length, 0 to 1, drawn behind the text. */
+    bar: Float? = null,
     onTap: () -> Unit = {}, onLongPress: (() -> Unit)? = null, onNext: () -> Unit = {}, onChange: (String) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -3072,6 +3129,13 @@ private fun TableCell(
             else if (role == null) colors.surfaceContainerHigh else tint.copy(alpha = 0.08f).compositeOver(colors.surfaceContainerHighest),
         )
         .then(if (fill != null && !editing) Modifier.background(fill.copy(alpha = 0.55f)) else Modifier)
+        .then(if (bar != null && !editing) {
+            val barColor = colors.primary.copy(alpha = 0.28f)
+            Modifier.drawBehind {
+                val inset = 4.dp.toPx()
+                drawRoundRect(barColor, topLeft = Offset(inset, inset), size = androidx.compose.ui.geometry.Size(((size.width - 2 * inset) * bar.coerceIn(0f, 1f)).coerceAtLeast(0f), size.height - 2 * inset), cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx()))
+            }
+        } else Modifier)
         .then(if (highlight != null && !editing) Modifier.background(highlight.copy(alpha = 0.10f)) else Modifier)
         .then(if (selected && !editing) Modifier.background(colors.primary.copy(alpha = 0.18f)) else Modifier)
         .border(
@@ -3900,7 +3964,12 @@ private fun FilterDialog(name: String, current: com.example.cas.graph.SheetTools
 }
 
 /** A button in the data table's toolbar: its icon, label, whether it's on (a toggle), and what it does. */
-internal class TableTool(val icon: androidx.compose.ui.graphics.vector.ImageVector, val label: String, val on: Boolean = false, val enabled: Boolean = true, val action: () -> Unit)
+internal class TableTool(
+    val icon: androidx.compose.ui.graphics.vector.ImageVector, val label: String, val on: Boolean = false, val enabled: Boolean = true,
+    /** Choices offered in a menu under the button instead of one action (AutoSum's functions). */
+    val menu: List<Pair<String, () -> Unit>>? = null,
+    val action: () -> Unit = {},
+)
 
 /** Tools that belong together (a ribbon group on a tablet, separated by a line on a phone). */
 internal class ToolGroup(val label: String, val tools: List<TableTool>)
@@ -3931,12 +4000,13 @@ internal fun TableToolbar(tab: TableTab, onTab: (TableTab) -> Unit, groups: List
         }
     }
     @Composable
-    fun Tool(t: TableTool) {
-        val corner by androidx.compose.animation.core.animateDpAsState(if (t.on) 14.dp else 18.dp, label = "tool corner")
+    fun Tool(t: TableTool) = Box {
+        var menuOpen by remember { mutableStateOf(false) }
+        val corner by androidx.compose.animation.core.animateDpAsState(if (t.on || menuOpen) 14.dp else 18.dp, label = "tool corner")
         Column(
             Modifier.widthIn(min = 60.dp).height(60.dp).clip(RoundedCornerShape(corner))
-                .background(if (t.on) colors.primary else if (wide) Color.Transparent else colors.surfaceContainer)
-                .clickable(enabled = t.enabled, onClickLabel = tr(t.label)) { tap(); t.action() }
+                .background(if (t.on) colors.primary else if (menuOpen) colors.secondaryContainer else if (wide) Color.Transparent else colors.surfaceContainer)
+                .clickable(enabled = t.enabled, onClickLabel = tr(t.label)) { tap(); if (t.menu != null) menuOpen = true else t.action() }
                 .padding(horizontal = 8.dp)
                 .semantics { if (t.on) stateDescription = "on" },
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
@@ -3945,6 +4015,11 @@ internal fun TableToolbar(tab: TableTab, onTab: (TableTab) -> Unit, groups: List
             Icon(t.icon, contentDescription = null, tint = ink, modifier = Modifier.size(22.dp))
             Spacer(Modifier.height(3.dp))
             Text(tr(t.label), style = MaterialTheme.typography.labelSmall, color = if (t.on) colors.onPrimary else if (t.enabled) colors.onSurface else colors.onSurface.copy(alpha = 0.38f), maxLines = 1)
+        }
+        t.menu?.let { items ->
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, shape = RoundedCornerShape(16.dp)) {
+                items.forEach { (label, act) -> DropdownMenuItem(text = { Text(label) }, onClick = { menuOpen = false; act() }) }
+            }
         }
     }
     if (wide) {
@@ -4168,5 +4243,145 @@ internal fun ColumnInspector(letter: String, name: String, role: String?, onRole
             stats.sd?.let { row("Standard deviation", geometryValueText(shortNumber(it))) }
             row("Range", geometryValueText(shortNumber(stats.min) + " to " + shortNumber(stats.max)))
         } else Text(tr("No numbers in this column yet."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+    }
+}
+
+/** Arrow keys for the selected cell, beside the formula bar: left, up, down, right. */
+@Composable
+internal fun CellArrows(onMove: (Int, Int) -> Unit, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    val tap = rememberKeyTap()
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End)) {
+        listOf(
+            Triple(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Cell to the left", -1 to 0),
+            Triple(Icons.Default.KeyboardArrowUp, "Cell above", 0 to -1),
+            Triple(Icons.Default.KeyboardArrowDown, "Cell below", 0 to 1),
+            Triple(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Cell to the right", 1 to 0),
+        ).forEach { (icon, label, d) ->
+            Box(
+                Modifier.size(width = 52.dp, height = 36.dp).clip(RoundedCornerShape(18.dp)).background(colors.secondaryContainer)
+                    .clickable(onClickLabel = tr(label)) { tap(); onMove(d.first, d.second) },
+                contentAlignment = Alignment.Center,
+            ) { Icon(icon, contentDescription = tr(label), tint = colors.onSecondaryContainer) }
+        }
+    }
+}
+
+/** A highlight rule for a column: the test, its value, and the tint (conditional formatting). */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun HighlightDialog(name: String, current: com.example.cas.graph.HighlightRule?, onDismiss: () -> Unit, onRemove: () -> Unit, onApply: (com.example.cas.graph.HighlightRule) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    var op by remember { mutableStateOf(current?.op ?: com.example.cas.graph.SheetTools.FilterOp.Greater) }
+    var value by remember { mutableStateOf(current?.value ?: "") }
+    var tint by remember { mutableStateOf(current?.color ?: 0) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(TableIcons.Highlight, contentDescription = null) },
+        title = { Text("Highlight: $name") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(tr("Tint the cells whose value…"), style = MaterialTheme.typography.bodyMedium)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    com.example.cas.graph.SheetTools.FilterOp.entries.forEach { o -> FilterChip(selected = op == o, onClick = { op = o }, label = { Text(tr(o.label)) }) }
+                }
+                if (op.needsValue) OutlinedTextField(value, { value = it }, singleLine = true, label = { Text(tr("Value")) }, modifier = Modifier.fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    com.example.cas.graph.HighlightRule.COLORS.forEachIndexed { k, argb ->
+                        Box(
+                            Modifier.size(40.dp).clip(CircleShape).background(Color(argb))
+                                .border(if (k == tint) 3.dp else 0.dp, if (k == tint) colors.onSurface else Color.Transparent, CircleShape)
+                                .clickable(onClickLabel = com.example.cas.graph.HighlightRule.COLOR_NAMES[k]) { tint = k }
+                                .semantics { contentDescription = com.example.cas.graph.HighlightRule.COLOR_NAMES[k] + if (k == tint) ", chosen" else "" },
+                            contentAlignment = Alignment.Center,
+                        ) { if (k == tint) Icon(Icons.Default.Check, contentDescription = null, tint = Color.Black.copy(alpha = 0.7f)) }
+                    }
+                }
+            }
+        },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = { onApply(com.example.cas.graph.HighlightRule(op, value, tint)) }, enabled = !op.needsValue || value.isNotBlank()) { Text(tr("Apply")) } },
+        dismissButton = {
+            Row {
+                if (current != null) androidx.compose.material3.TextButton(onClick = onRemove) { Text(tr("Remove")) }
+                androidx.compose.material3.TextButton(onClick = onDismiss) { Text(tr("Cancel")) }
+            }
+        },
+    )
+}
+
+/**
+ * A column's insights, as Sheets' Explore: its histogram, its summary, its straight-line trend
+ * against the x column (or the row number) with r and r², and its outliers (Tukey's fences), which
+ * one button outlines in the table.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+internal fun InsightsSheet(
+    letter: String, name: String, stats: com.example.cas.graph.DataTable.Stats?, histogram: com.example.cas.graph.SheetTools.Histogram?,
+    against: String, trend: com.example.cas.graph.SheetTools.Trend?, outliers: List<Int>, onMark: () -> Unit, onDismiss: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerLow) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(colors.tertiaryContainer), contentAlignment = Alignment.Center) {
+                    Icon(TableIcons.Insights, contentDescription = null, tint = colors.onTertiaryContainer)
+                }
+                Column(Modifier.padding(start = 12.dp)) {
+                    Text(tr("Insights"), style = MaterialTheme.typography.titleLarge)
+                    Text("$letter · $name", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                }
+            }
+            if (stats == null || histogram == null) { Text(tr("No numbers in this column yet."), color = colors.onSurfaceVariant); return@Column }
+            // The histogram: one rounded bar per bin, the tallest full height.
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainer).padding(16.dp)) {
+                Text(tr("Distribution"), style = MaterialTheme.typography.titleSmall, color = colors.primary)
+                val barColor = colors.primary; val axis = colors.outlineVariant
+                androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(140.dp).padding(top = 10.dp)) {
+                    val n = histogram.counts.size; val most = histogram.counts.max().coerceAtLeast(1)
+                    val gap = 4.dp.toPx(); val w = (size.width - gap * (n - 1)) / n
+                    histogram.counts.forEachIndexed { k, count ->
+                        val h = (size.height - 2.dp.toPx()) * count / most
+                        if (count > 0) drawRoundRect(barColor, topLeft = Offset(k * (w + gap), size.height - h), size = androidx.compose.ui.geometry.Size(w, h), cornerRadius = androidx.compose.ui.geometry.CornerRadius(8.dp.toPx()))
+                    }
+                    drawLine(axis, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx())
+                }
+                Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                    Text(geometryValueText(shortNumber(histogram.edges.first())), style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 13.sp, color = colors.onSurfaceVariant))
+                    Spacer(Modifier.weight(1f))
+                    Text(geometryValueText(shortNumber(histogram.edges.last())), style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 13.sp, color = colors.onSurfaceVariant))
+                }
+            }
+            @Composable
+            fun tile(label: String, value: String, modifier: Modifier) = Column(modifier.clip(RoundedCornerShape(20.dp)).background(colors.surfaceContainerHigh).padding(horizontal = 12.dp, vertical = 10.dp)) {
+                Text(tr(label), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+                Text(geometryValueText(value), style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 19.sp, color = colors.onSurface), maxLines = 1)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                tile("Mean", shortNumber(stats.mean), Modifier.weight(1f)); tile("Median", shortNumber(stats.median), Modifier.weight(1f))
+                tile("Std dev", stats.sd?.let { shortNumber(it) } ?: "—", Modifier.weight(1f))
+            }
+            // The trend against x: its line, how strong, and in words.
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainer).padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Trend against $against", style = MaterialTheme.typography.titleSmall, color = colors.primary)
+                if (trend == null) Text(tr("Needs at least three pairs of numbers that vary."), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                else {
+                    val strength = kotlin.math.abs(trend.r).let { a -> when { a >= 0.9 -> "very strong"; a >= 0.7 -> "strong"; a >= 0.4 -> "moderate"; a >= 0.2 -> "weak"; else -> "no clear" } }
+                    val direction = if (kotlin.math.abs(trend.r) < 0.2) "" else if (trend.r > 0) " rising" else " falling"
+                    Text(geometryValueText("slope " + shortNumber(trend.slope) + " · intercept " + shortNumber(trend.intercept)), style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = colors.onSurface))
+                    Text(geometryValueText("r = " + shortNumber(trend.r) + " · r² = " + shortNumber(trend.r2) + " · n = " + trend.n), style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = colors.onSurface))
+                    Text("A $strength$direction straight-line relationship${if (trend.r2 >= 0.5) ": ${Math.round(trend.r2 * 100)}% of the spread follows the line" else ""}.", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                }
+            }
+            // Outliers: beyond 1.5 interquartile ranges of the quartiles.
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(if (outliers.isEmpty()) colors.surfaceContainer else colors.errorContainer).padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(if (outliers.isEmpty()) "No outliers" else "${outliers.size} outlier${if (outliers.size == 1) "" else "s"}", style = MaterialTheme.typography.titleSmall, color = if (outliers.isEmpty()) colors.onSurface else colors.onErrorContainer)
+                    Text(if (outliers.isEmpty()) "Every number is within 1.5 interquartile ranges of the quartiles." else "Row${if (outliers.size == 1) "" else "s"} " + outliers.take(12).joinToString(", ") + if (outliers.size > 12) "…" else "",
+                        style = MaterialTheme.typography.bodySmall, color = if (outliers.isEmpty()) colors.onSurfaceVariant else colors.onErrorContainer)
+                }
+                if (outliers.isNotEmpty()) androidx.compose.material3.FilledTonalButton(onClick = onMark) { Text(tr("Mark them")) }
+            }
+        }
     }
 }

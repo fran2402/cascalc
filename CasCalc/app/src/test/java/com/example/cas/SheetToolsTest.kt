@@ -103,4 +103,32 @@ class SheetToolsTest {
         assertEquals(0xFF63BE7B.toInt(), SheetTools.scaleColor(1f))
         assertEquals(0.25f, SheetTools.scalePosition(2.0, 1.0, 5.0), 1e-6f)
     }
+
+    @Test fun highlightRulesAndDataBarsAreSaved() {
+        val f = ColumnFormat(dataBars = true, highlight = com.example.cas.graph.HighlightRule(FilterOp.Contains, "a.b,c~%", 3))
+        val t = DataTable(listOf("a"), listOf(listOf("1")), null, 0, formats = listOf(f))
+        assertEquals(f, DataTable.decode(t.encode())!!.formats[0])
+        val g = table(listOf("1", "5", "x"))
+        val rule = com.example.cas.graph.HighlightRule(FilterOp.Greater, "2")
+        assertEquals(listOf(false, true, false), (0..2).map { rule.matches(g, 0, it) })
+    }
+
+    @Test fun autoSum() {
+        val t = table(listOf("1", "2", "3", ""), listOf("4", "", "", ""))
+        assertEquals("=SUM(A1:A3)", SheetTools.autoSum(t, 0, 3))
+        assertEquals("=AVERAGE(A1:A3)", SheetTools.autoSum(t, 0, 3, "AVERAGE"))
+        // Nothing above: the numbers to the left.
+        assertEquals("=SUM(A1:A1)", SheetTools.autoSum(table(listOf("7"), listOf("")), 1, 0))
+        assertEquals(null, SheetTools.autoSum(t, 1, 1).takeIf { false } ?: SheetTools.autoSum(table(listOf("x"), listOf("")), 1, 0))
+    }
+
+    @Test fun insights() {
+        val h = SheetTools.histogram(listOf(1.0, 2.0, 2.5, 3.0, 9.0, 4.0, 4.5))!!
+        assertEquals(h.edges.size, h.counts.size + 1)
+        assertEquals(7, h.counts.sum())
+        val tr = SheetTools.trend(listOf(0.0, 1.0, 2.0, 3.0), listOf(1.0, 3.0, 5.0, 7.0))!!
+        assertEquals(2.0, tr.slope, 1e-12); assertEquals(1.0, tr.intercept, 1e-12); assertEquals(1.0, tr.r, 1e-12)
+        val t = table(listOf("10", "11", "12", "11", "10", "12", "50"))
+        assertEquals(listOf(6), SheetTools.outliers(t, 0))
+    }
 }

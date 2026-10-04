@@ -121,4 +121,16 @@ object TableIcons {
 
     /** Two cards, one over the other: copy. */
     val CopyTable: ImageVector by lazy { tableIcon("CopyTable", stroke = listOf("M8.5 8.5h11v12h-11z"), thin = listOf("M5.5 15.5h-1v-12h11v1", "M8.5 12.5h11", "M14 8.5v12")) }
+
+    /** Σ over a column of cells: AutoSum. */
+    val AutoSum: ImageVector by lazy { tableIcon("AutoSum", stroke = listOf("M13.5 4H4.5l4.5 6l-4.5 6h9"), thin = listOf("M17 4h4.5v4h-4.5z", "M17 10h4.5v4h-4.5z", "M17 16h4.5v4h-4.5z"), fill = listOf("M17 16h4.5v4h-4.5z")) }
+
+    /** Cells with bars of different lengths inside: data bars. */
+    val DataBars: ImageVector by lazy { tableIcon("DataBars", stroke = listOf("M3.5 3.5h17v17h-17z"), thin = listOf("M3.5 9.2h17", "M3.5 14.8h17"), fill = listOf("M5 5h6v2.7H5z", "M5 10.7h12.5v2.7H5z", "M5 16.3h9v2.7H5z")) }
+
+    /** A highlighter over a cell: highlight cells by a rule. */
+    val Highlight: ImageVector by lazy { tableIcon("Highlight", stroke = listOf("M14.5 3.5l6 6l-8 8h-6v-6z", "M3 21h18"), thin = listOf("M11 7l6 6"), shade = listOf("M6.5 11.5l6 6h-6z")) }
+
+    /** A light bulb over a little chart: insights about a column. */
+    val Insights: ImageVector by lazy { tableIcon("Insights", stroke = listOf("M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z", "M9.5 19.5h5", "M10.5 22h3"), thin = listOf("M9.5 10.5l1.5-1.5l1.5 1.5l2-2.5")) }
 }

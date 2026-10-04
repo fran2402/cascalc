@@ -203,6 +203,22 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, more spreadsheet power)
+- **AutoSum (Home):** Σ puts =SUM, AVERAGE, COUNT, MIN or MAX of the numbers above (or to
+  the left of) the selected cell into it, as Excel does.
+- **Arrow keys** over the formula bar move the selected cell without closing the keyboard
+  (down adds a row at the end).
+- **Data bars and highlight rules (Format):** a bar in each cell as long as its number is far
+  along the column's range. A rule tints the cells that are equal to, greater or less than a
+  value, contain some text, or are empty, in one of five tints. Both are saved with the table.
+- **Insights (Data, or a column's sheet):**
+  - A histogram, with the mean, median and standard deviation.
+  - The straight-line trend against the x column (or the row number), with slope, intercept,
+    r and r², said in words.
+  - Outliers by Tukey's fences, which Mark them outlines in the table.
+- **Icons:** four more custom icons (AutoSum, Data bars, Highlight, Insights).
+  (`graph/SheetTools.kt`, `SheetToolsTest`; mockup: `preview-render/round42.png`.)
+
 ## Latest changes (4 October, data table redesign)
 - **The data table, organized like Sheets and Excel (Material 3 Expressive), with its rounded
   cells kept:**

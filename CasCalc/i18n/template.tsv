@@ -316,6 +316,11 @@ Tap a cell to type in it
 Anchor the reference with $	
 Show the next summary	
 All of the column's actions	
+Tint the cells whose value…	
+Insights	
+Distribution	
+Needs at least three pairs of numbers that vary.	
+Mark them	
 This color	
 By length	
 Arrow color	
@@ -596,15 +601,20 @@ Complex tools
 Multiply and divide points as numbers, take nth roots, or draw where a function f(z) from your list takes a point or a shape.	
 Options and names	
 Tap a line's color dot for its size, name and fill. Every construction is a line of text too: edit A = (1, 2), or type Circle(A, 3).	
+Cursor left	
+Cursor right	
 Sort up	
 Sort down	
+Data bars	
+Highlight rule	
 Fill 1, 2, 3	
 Fill series	
 Fill formula down	
+Formula	
+AutoSum	
 Sort & filter	
 Filter	
 Series	
-Formula	
 Stats	
 Rows	
 Row above	
@@ -618,6 +628,7 @@ Duplicates
 Empty rows	
 Trim	
 Transpose	
+Explore	
 View	
 Freeze	
 Share CSV	
@@ -625,7 +636,12 @@ Copy CSV
 Number	
 Percent	
 Fewer	
-Shade	
+Highlight	
+Rule	
+Cell to the left	
+Cell above	
+Cell below	
+Cell to the right	
 Home	
 Format	
 Sum	
@@ -633,6 +649,9 @@ Average
 Count	
 Min	
 Max	
+Mean	
+Median	
+Std dev	
 Is equal to	
 Isn't equal to	
 Greater than	
