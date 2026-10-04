@@ -38,7 +38,8 @@ L = {
  'Λ': (7, lambda x: ([f"M{f(x)} 19.5L{f(x+3.5)} 4.5L{f(x+7)} 19.5"], [])),
  'Δ': (7.4, lambda x: ([f"M{f(x)} 19.5L{f(x+3.7)} 4.5L{f(x+7.4)} 19.5z"], [])),
  'K': (6, lambda x: ([f"M{f(x)} 4.5v15", f"M{f(x+6)} 4.5L{f(x)} 13", f"M{f(x+2.3)} 10.6L{f(x+6)} 19.5"], [])),
- 'Φ': (8, lambda x: ([ring(x+4, 12, 4, 4.2), f"M{f(x+4)} 4.5v15"], [])),
+ # Capital phi (as in the normal distribution's Φ): a wide oval, the stem, serifs top and bottom.
+ 'Φ': (10, lambda x: ([ring(x+5, 12, 5, 4.2), f"M{f(x+5)} 4.5v15", f"M{f(x+2.8)} 4.5h4.4", f"M{f(x+2.8)} 19.5h4.4"], [])),
  'Z': (6.5, lambda x: ([f"M{f(x)} 4.5h6.5L{f(x)} 19.5h6.5"], [])),
  'E': (5.6, lambda x: ([f"M{f(x+5.6)} 4.5H{f(x)}v15h5.6", f"M{f(x)} 12h4.6"], [])),
  'F': (5.6, lambda x: ([f"M{f(x+5.6)} 4.5H{f(x)}v15", f"M{f(x)} 12h4.6"], [])),
@@ -77,7 +78,8 @@ L = {
  '∞': (10.8, lambda x: ([f"M{f(x+5.4)} 15c-1-1.6-2-2.4-3-2.4a2.4 2.4 0 0 0 0 4.8c1 0 2-.8 3-2.4s2-2.4 3-2.4a2.4 2.4 0 0 1 0 4.8c-1 0-2-.8-3-2.4z"], [])),
  # Superscripts: −1, T, H, raised above the x-height.
  '⁻¹': (5.4, lambda x: ([f"M{f(x)} 6.5h2.4", f"M{f(x+3.8)} 4.4l1.6-1.2v7.6"], [])),
- 'ᵀ': (4.6, lambda x: ([f"M{f(x)} 3.2h4.6", f"M{f(x+2.3)} 3.2v7.8"], [])),
+ # The transpose mark ⊤ (as \top, wider than a T).
+ 'ᵀ': (6.2, lambda x: ([f"M{f(x)} 3.2h6.2", f"M{f(x+3.1)} 3.2v7.6"], [])),
  'ᴴ': (4.4, lambda x: ([f"M{f(x)} 3.2v7.8", f"M{f(x+4.4)} 3.2v7.8", f"M{f(x)} 7.1h4.4"], [])),
  # A matrix: brackets and four entries.
  'M': (12, lambda x: ([f"M{f(x+2.5)} 4.5H{f(x)}v15h2.5", f"M{f(x+9.5)} 4.5H{f(x+12)}v15h-2.5"], [ring(x+4.2, 9, 1.4), ring(x+7.8, 9, 1.4), ring(x+4.2, 15, 1.4), ring(x+7.8, 15, 1.4)])),
@@ -239,6 +241,25 @@ def constant(pieces):
     import math
     W = max(24, math.ceil(total + 4))
     o, _ = lay((W - total) / 2)
+    # Vertically: a constant written in short letters (m, μ, e…) is centred on them, not on the
+    # baseline, so m_p and m_μ keep their subscripts' tails inside the key; nothing may poke out.
+    from fontTools.pens.boundsPen import ControlBoundsPen
+    def bounds(paths):
+        b = ControlBoundsPen(None)
+        for d in paths: parse_path(d, b)
+        return b.bounds
+    main = [ch for kind, ch in items if kind == 'main']
+    top = min(bounds(L['Ṁ' if c == 'M' else c][1](0)[0])[1] for c in main) if main else 4.5
+    _, y0, _, y1 = bounds([d for v in o.values() for d in v])
+    dy = -2.4 if top >= 9.5 else 0
+    dy = min(dy, 22.6 - y1)
+    dy = max(dy, 1.4 - y0)
+    if abs(dy) > 0.01:
+        def move(d):
+            pen = SVGPathPen(None, ntos=lambda v: ('%.2f' % v).rstrip('0').rstrip('.'))
+            parse_path(d, TransformPen(pen, (1, 0, 0, 1, 0, dy)))
+            return pen.getCommands()
+        o = {k: [move(d) for d in v] for k, v in o.items()}
     return o, W
 import re as _re
 src = open('../app/src/main/java/com/example/cas/engine/Constants.kt').read()

@@ -39,7 +39,7 @@ object LatexParser {
         "ldots" to "…", "dots" to "…", "cdots" to "⋯", "mid" to "|", "vert" to "|", "lfloor" to "⌊", "rfloor" to "⌋",
         "lceil" to "⌈", "rceil" to "⌉", "langle" to "⟨", "rangle" to "⟩", "{" to "{", "}" to "}", "angle" to "∠",
         "Re" to "ℜ", "Im" to "ℑ", "hbar" to "ℏ", "aleph" to "ℵ", "beth" to "ℶ", "gimel" to "ℷ", "daleth" to "ℸ", "varrho" to "ϱ", "varsigma" to "ς", "varpi" to "ϖ", "ell" to "ℓ", "circ" to "∘", "otimes" to "⊗", "oplus" to "⊕", "prime" to "′",
-        "odot" to "⊙", "vdots" to "⋮", "leftarrow" to "←", "gets" to "←", "leftrightarrow" to "↔", "Rightarrow" to "⇒", "implies" to "⇒", "Leftrightarrow" to "⇔", "iff" to "⇔", "cap" to "∩", "cup" to "∪", "subset" to "⊂", "forall" to "∀", "exists" to "∃", "neg" to "¬", "propto" to "∝", "equiv" to "≡", "perp" to "⊥", "parallel" to "∥",
+        "odot" to "⊙", "vdots" to "⋮", "leftarrow" to "←", "gets" to "←", "leftrightarrow" to "↔", "Rightarrow" to "⇒", "implies" to "⇒", "Leftrightarrow" to "⇔", "iff" to "⇔", "cap" to "∩", "cup" to "∪", "subset" to "⊂", "forall" to "∀", "exists" to "∃", "neg" to "¬", "propto" to "∝", "equiv" to "≡", "perp" to "⊥", "top" to "⊤", "parallel" to "∥",
     )
     /** Upright function names: \sin → sin. */
     private val WORDS = setOf(

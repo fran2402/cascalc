@@ -260,6 +260,7 @@ object Formatter {
             "binom" -> out.add(Binom(args[0], args[1]))
             "mod" -> { factor(out, f.args[0], true); out.add(SymNode("mod")); factor(out, f.args[1], true) }
             "transpose" -> { append(out, f.args[0]); out.add(PowNode(com.example.cas.editor.row("T"))) }
+            "hermitian" -> { append(out, f.args[0]); out.add(PowNode(com.example.cas.editor.row("H"))) }
             else -> out.add(Func(f.name, args))
         }
     }

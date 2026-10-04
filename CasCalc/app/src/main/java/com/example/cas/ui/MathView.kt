@@ -504,7 +504,8 @@ private fun SymView(s: Sym, row: MathRow, index: Int, level: Int) {
         else -> {
             val spaced = t in SPACED && level == 0 && !(t == "−" && index == 0)
             // The previous answer shows as "Ans", like the key.
-            val shown = if (t == "ans") "Ans" else t
+            val mark = LocalTransposeMark.current && (t == "T" || t == "H")
+            val shown = if (t == "ans") "Ans" else if (mark && t == "T") "⊤" else t
             // Variables are italic; constants, the "d" of derivatives and the transpose T are upright.
             val custom = com.example.cas.cas.CustomSymbol.decode(t)
             if (custom != null) {
@@ -528,7 +529,7 @@ private fun SymView(s: Sym, row: MathRow, index: Int, level: Int) {
                 // Letters are italic, i, e and π included; capital Greek stays upright (as in TeX), and so
                 // does T, the transpose.
                 val upperGreek = t.firstOrNull() in 'Α'..'Ω'
-                val italic = letter && t != "T" && !upperGreek && !(t == "d" && !env.computerModern)
+                val italic = letter && !mark && t != "T" && !upperGreek && !(t == "d" && !env.computerModern)
                 val pad = with(density) { (env.size(level).toPx() * if (spaced) 0.16f else 0f).toDp() }
                 // A little room after commas in lists like solve(x + y = 3, x − y = 1).
                 val after = with(density) { (env.size(level).toPx() * if (t == ",") 0.25f else 0f).toDp() }
@@ -619,10 +620,15 @@ private fun Scripts(
     }
 }
 
+/** True inside an exponent that is just T or H: the transpose and Hermitian marks, not variables. */
+private val LocalTransposeMark = androidx.compose.runtime.compositionLocalOf { false }
+
 @Composable
 private fun PowView(p: Pow, level: Int) {
     val env = LocalMath.current
-    Layout(content = { RowView(p.exp, level + 1) }, modifier = Modifier.layoutId("pow")) { ms, _ ->
+    // A lone T or H exponent is the transpose (drawn ⊤) or the Hermitian conjugate (an upright H).
+    val transposeMark = (p.exp.items.singleOrNull() as? Sym)?.text.let { it == "T" || it == "H" }
+    Layout(content = { CompositionLocalProvider(LocalTransposeMark provides transposeMark) { RowView(p.exp, level + 1) } }, modifier = Modifier.layoutId("pow")) { ms, _ ->
         val e = ms[0].measure(Loose)
         val raise = (em(env, level) * 0.38f).roundToInt()
         val axis = e.axis() + raise

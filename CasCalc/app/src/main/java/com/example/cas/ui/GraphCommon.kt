@@ -4413,7 +4413,10 @@ internal fun AppIcon(
     icon: androidx.compose.ui.graphics.vector.ImageVector, contentDescription: String?, modifier: Modifier = Modifier,
     tint: Color = androidx.compose.material3.LocalContentColor.current,
     // On a primary-colored background (white-ish ink) the primary accent would vanish: use its container color there.
-    accent: Color = if (tint == MaterialTheme.colorScheme.onPrimary) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary,
+    // On tertiary the two tones clash, so the icon is drawn in one tone.
+    accent: Color = with(MaterialTheme.colorScheme) {
+        when (tint) { onPrimary -> primaryContainer; onTertiary, onTertiaryContainer, tertiary -> tint; else -> primary }
+    },
 ) {
     if (TableIcons.accentOf(icon) == null) { Icon(icon, contentDescription, modifier, tint); return }
     DuoIcon(icon, tint, accent.copy(alpha = accent.alpha * tint.alpha),

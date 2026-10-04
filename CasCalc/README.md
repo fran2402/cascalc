@@ -203,6 +203,20 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, bigger key symbols, gesture hands, ⊤)
+
+- **One tone on tertiary**: a defined symbol's key (tertiary container) and tertiary tips draw
+  their icon in a single color instead of two clashing ones.
+- **Bigger key symbols**: key pictures grow to fit the key (up to 34dp tall, never below 26dp).
+- **Gesture hands** in the mode guides: hold (rings around the fingertip), swipe (a sideways
+  arrow), drag (a trail), alongside tap; the modulus-bands tip gets its own icon.
+- **Acknowledgements** use an award rosette instead of a heart.
+- **Constants with m or μ** (m_p, m_μ, μ_B…) are centred on the letter, so subscript tails no
+  longer get cut off at the bottom.
+- **Inverse normal** is a capital Φ⁻¹ (wide oval with serifs, like the distribution key).
+- **Transpose** shows as A^⊤ (key label, key icon and the equation), and the Hermitian
+  conjugate's H is upright, not italic. A^H results now display as such, too.
+
 ## Latest changes (4 October, constants list icon, consistent ⁻¹)
 
 - **List of constants** key redrawn: two tidy rows, an accent *c* and *ħ*-style *h*, each

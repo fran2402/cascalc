@@ -87,7 +87,7 @@ F' = f""", """The area under \(f\). Leave the limits empty for an antiderivative
         "matrix" to h("Matrix", """A = \begin{bmatrix} a & b \\ c & d \end{bmatrix}""", """A grid of numbers or expressions.""", """Pick the size, then fill the boxes."""),
         "inverse" to h("Inverse", """A A^{-1} = I
 \begin{bmatrix} a & b \\ c & d \end{bmatrix}^{-1} = \frac{1}{ad - bc}\begin{bmatrix} d & -b \\ -c & a \end{bmatrix}""", """Exists when \(\det A \ne 0\).""", """Put it after a matrix."""),
-        "transpose" to h("Transpose", """(A^T)_{ij} = A_{ji}""", """Swaps rows and columns.""", ""),
+        "transpose" to h("Transpose", """(A^\top)_{ij} = A_{ji}""", """Swaps rows and columns.""", ""),
         "determinant" to h("Determinant", """\det \begin{bmatrix} a & b \\ c & d \end{bmatrix} = ad - bc""", """The factor by which \(A\) scales areas and volumes.""", ""),
         "eigenvalues" to h("Eigenvalues", """\det(A - \lambda I) = 0""", """The numbers \(\lambda\) with \(Av = \lambda v\) for some \(v \ne 0\).""", ""),
         "eigenvectors" to h("Eigenvectors", """A v = \lambda v""", """The directions \(A\) only stretches.""", ""),
@@ -170,7 +170,7 @@ F' = f""", """The area under \(f\). Leave the limits empty for an antiderivative
         "Bessel function of the second kind" to h("Bessel function Y", """Y_a(x) = \frac{J_a(x)\cos a\pi - J_{-a}(x)}{\sin a\pi}""", """The second solution of Bessel's equation; it goes to \(-\infty\) at 0.""", """The order \(a\) goes in the small box."""),
         "Hadamard product" to h("Hadamard product", """A \circ B""", """Multiplies matching entries; both matrices must be the same size.""", ""),
         "Kronecker product" to h("Kronecker product", """A \otimes B""", """Every entry of A multiplied by the whole of B, giving an \(mp \times nq\) matrix.""", ""),
-        "conjugate transpose" to h("Hermitian conjugate", """A^H = \overline{A^T}""", """The transpose with every entry conjugated (the adjoint).""", """Real matrices: the same as the transpose."""),
+        "conjugate transpose" to h("Hermitian conjugate", """A^{\mathrm{H}} = \overline{A^\top}""", """The transpose with every entry conjugated (the adjoint).""", """Real matrices: the same as the transpose."""),
         "list brackets" to h("List of points", """[(1,\ 2),\ (2,\ 3.5),\ (4,\ 5)]""", """A list of points, drawn as dots. With a list on the graph, a function with unknowns (like \(ax + b\)) gets a Fit button that sets its sliders to the best fit.""", """Write each point as (x, y), separated by commas."""),
         "store in variable" to h("Store in a variable", """a := 5""", """Gives a letter a value that later calculations use.""", """Type the letter, :=, then the value. Store a function the same way: \(f(x) := x^2\)."""),
         "symbol builder" to h("Symbol builder", """\hat{x}_{1},\ \dot{\theta}^{2},\ \vec{\mathfrak{g}}_{i}""", """Make your own symbol: a letter (Latin, Greek, calligraphic or Fraktur), an accent, a subscript and a superscript. It works as a variable like any letter.""", """Saved symbols appear at the top of this tab."""),

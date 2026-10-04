@@ -133,6 +133,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
@@ -922,6 +923,19 @@ private fun KeyGrid(rows: List<List<KeySpec>>, rowHeight: Dp, onKey: (KeyAction)
     } else if (helpFor != null) helpFor = null
 }
 
+/** A key picture of the given aspect ratio, as large as fits the key (between 26 and 34dp tall). */
+private fun Modifier.keyPicture(aspect: Float): Modifier = layout { measurable, constraints ->
+    val minH = 26.dp.roundToPx()
+    val room = minOf(
+        if (constraints.hasBoundedHeight) (constraints.maxHeight * 0.62f).toInt() else minH,
+        if (constraints.hasBoundedWidth) ((constraints.maxWidth - 12.dp.roundToPx()) / aspect).toInt() else minH,
+    )
+    val h = room.coerceIn(minH, 34.dp.roundToPx())
+    val w = (h * aspect).toInt()
+    val p = measurable.measure(androidx.compose.ui.unit.Constraints.fixed(w, h))
+    layout(p.width, p.height) { p.place(0, 0) }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, modifier: Modifier, host: KeypadHost? = null, onHelp: () -> Unit = {}) {
@@ -977,10 +991,11 @@ private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, 
     ) {
         // Beta: a function key's picture instead of its label (Settings › Calculator).
         val picture = if (AppSettings.keyIcons && (spec.role == KeyRole.Function || spec.spoken in KeyIcons.colouredKeys)) KeyIcons.forKey(spec.spoken) else null
-        if (picture != null) DuoIcon(picture, fg, if (spec.role == KeyRole.Equals) colors.inversePrimary else if (defined) colors.tertiary else colors.primary,
-            // Words like asinh and rref are drawn wider than they're tall.
-            // Always at full height: nothing (a matrix least of all) is shrunk to fit.
-            Modifier.width((26f * picture.viewportWidth / picture.viewportHeight).dp).aspectRatio(picture.viewportWidth / picture.viewportHeight))
+        if (picture != null) DuoIcon(picture, fg, if (spec.role == KeyRole.Equals) colors.inversePrimary else if (defined) fg else colors.primary,
+            // Words like asinh and rref are drawn wider than they're tall. As big as the key allows
+            // (up to 34dp tall, with room around it), but never below the 26dp full height: nothing,
+            // a matrix least of all, is shrunk to fit.
+            Modifier.keyPicture(picture.viewportWidth / picture.viewportHeight))
         else LabelView(spec.label, fg, fontSize, iconSize = if (spec.label == KeyLabel.BackspaceIcon || spec.label == KeyLabel.EnterIcon) 28.dp else 24.dp)
         if (pinned) {
             Icon(

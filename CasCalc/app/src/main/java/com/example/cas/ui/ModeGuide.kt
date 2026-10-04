@@ -87,9 +87,9 @@ private val Cookie = GenericShape { size, _ ->
 
 internal fun tipIcon(key: String): ImageVector = when (key) {
     "tap" -> TableIcons.Tap
-    "hold" -> TableIcons.Hand
-    "drag" -> TableIcons.Move
-    "swipe" -> TableIcons.Hand
+    "hold" -> TableIcons.GestureHold
+    "drag" -> TableIcons.GestureDrag
+    "swipe" -> TableIcons.GestureSwipe
     "swap" -> TableIcons.Swap
     "graph" -> TableIcons.Mode2D
     "units" -> TabIcons.Atom
@@ -97,6 +97,7 @@ internal fun tipIcon(key: String): ImageVector = when (key) {
     "table" -> TableIcons.Table
     "export" -> TableIcons.Share
     "axes" -> TableIcons.Mode3D
+    "bands" -> PlotIcons.Bands
     else -> TableIcons.Settings
 }
 

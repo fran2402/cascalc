@@ -181,7 +181,8 @@ object TableIcons {
     val Converter: ImageVector by lazy { tableIcon("Converter", stroke = listOf("M4 8h13", "M14 4.5L17.5 8L14 11.5", "M20 16H7", "M10 12.5L6.5 16l3.5 3.5"), accent = setOf("M20 16H7", "M10 12.5L6.5 16l3.5 3.5")) }
 
     /** A heart: acknowledgements. */
-    val Thanks: ImageVector by lazy { tableIcon("Thanks", stroke = listOf("M12 20s-7.5-4.6-7.5-10a4 4 0 0 1 7.5-2a4 4 0 0 1 7.5 2c0 5.4-7.5 10-7.5 10z"), shade = listOf("M12 20s-7.5-4.6-7.5-10a4 4 0 0 1 7.5-2a4 4 0 0 1 7.5 2c0 5.4-7.5 10-7.5 10z"), accent = setOf("M12 20s-7.5-4.6-7.5-10a4 4 0 0 1 7.5-2a4 4 0 0 1 7.5 2c0 5.4-7.5 10-7.5 10z")) }
+    // An award rosette: a medal on two ribbons (not a heart).
+    val Thanks: ImageVector by lazy { tableIcon("Thanks", stroke = listOf("M12 3a5.5 5.5 0 1 0 0 11a5.5 5.5 0 1 0 0-11z", "M8.6 13l-1.6 8 5-2.6 5 2.6-1.6-8"), fill = listOf("M12 6.2a2.3 2.3 0 1 0 0 4.6a2.3 2.3 0 1 0 0-4.6z"), accent = setOf("M12 6.2a2.3 2.3 0 1 0 0 4.6a2.3 2.3 0 1 0 0-4.6z")) }
 
     /** The history clock with a cross: clear history. */
     val ClearHistory: ImageVector by lazy { tableIcon("ClearHistory", stroke = listOf("M4.5 12a7.5 7.5 0 1 0 2.2-5.3", "M3.8 4.3v3.6h3.6", "M12 8v4.4l3 2", "M16 16l5 5", "M21 16l-5 5"), accent = setOf("M16 16l5 5", "M21 16l-5 5")) }
@@ -278,6 +279,10 @@ object TableIcons {
 
     /** A finger tapping: touch. */
     val Tap: ImageVector by lazy { tableIcon("Tap", stroke = listOf("M10 13V5.5a1.5 1.5 0 0 1 3 0V12l4.2.9a2 2 0 0 1 1.6 2.3l-.8 5.3H10.5L7 16.5a1.6 1.6 0 0 1 2.4-2.1z"), thin = listOf("M7.5 6a4 4 0 0 1 8 0"), accent = setOf("M7.5 6a4 4 0 0 1 8 0")) }
+    // Gesture hands for the guides: hold (rings held around the fingertip), swipe (a sideways arrow), drag (a trail).
+    val GestureHold: ImageVector by lazy { tableIcon("GestureHold", stroke = listOf("M10 13V5.5a1.5 1.5 0 0 1 3 0V12l4.2.9a2 2 0 0 1 1.6 2.3l-.8 5.3H10.5L7 16.5a1.6 1.6 0 0 1 2.4-2.1z", "M4.5 6a7 7 0 0 1 14 0"), thin = listOf("M7.5 6a4 4 0 0 1 8 0"), accent = setOf("M4.5 6a7 7 0 0 1 14 0", "M7.5 6a4 4 0 0 1 8 0")) }
+    val GestureSwipe: ImageVector by lazy { tableIcon("GestureSwipe", stroke = listOf("M10 15V9.5a1.5 1.5 0 0 1 3 0V14l4.2.9a2 2 0 0 1 1.6 2.3l-.6 4H10.5L7 18.5a1.6 1.6 0 0 1 2.4-2.1z", "M4 4.5h15", "M6.3 2.3L4 4.5l2.3 2.2", "M16.7 2.3L19 4.5l-2.3 2.2"), accent = setOf("M4 4.5h15", "M6.3 2.3L4 4.5l2.3 2.2", "M16.7 2.3L19 4.5l-2.3 2.2")) }
+    val GestureDrag: ImageVector by lazy { tableIcon("GestureDrag", stroke = listOf("M10 15V9.5a1.5 1.5 0 0 1 3 0V14l4.2.9a2 2 0 0 1 1.6 2.3l-.6 4H10.5L7 18.5a1.6 1.6 0 0 1 2.4-2.1z", "M5.2 7.6l2.9.2-.6 2.8"), thin = listOf("M3.5 21C3 15.5 4.2 11 8 8"), accent = setOf("M5.2 7.6l2.9.2-.6 2.8", "M3.5 21C3 15.5 4.2 11 8 8")) }
 
     /** A circle. */
     val Lens: ImageVector by lazy { tableIcon("Lens", stroke = listOf(oval(12f, 12f, 7f, 7f))) }

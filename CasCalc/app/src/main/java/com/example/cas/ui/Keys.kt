@@ -318,7 +318,7 @@ val FunctionTabs: List<FunctionTab> = listOf(
             listOf(
                 KeySpec(KeyLabel.Matrix(), KeyAction.PickMatrix, KeyRole.Function, "matrix"),
                 KeySpec(KeyLabel.Matrix(sup = "−1"), KeyAction.Power("−1"), KeyRole.Function, "inverse"),
-                KeySpec(KeyLabel.Matrix(sup = "T"), KeyAction.Power("T"), KeyRole.Function, "transpose"),
+                KeySpec(KeyLabel.Matrix(sup = "⊤"), KeyAction.Power("T"), KeyRole.Function, "transpose"),
                 KeySpec(KeyLabel.Matrix(sup = "H"), KeyAction.Power("H"), KeyRole.Function, "conjugate transpose"),
                 KeySpec(KeyLabel.Matrix(prefix = "det"), KeyAction.Insert(0) { Func("det") }, KeyRole.Function, "determinant"),
             ),
