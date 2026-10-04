@@ -1,6 +1,5 @@
 package com.example.cas.ui
 
-import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.ui.platform.LocalDensity
@@ -16,19 +15,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
-import androidx.compose.material.icons.filled.CropSquare
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ClearAll
-import androidx.compose.material.icons.filled.Straighten
-import androidx.compose.material.icons.filled.North
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.filled.Apps
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.heightIn
@@ -81,7 +70,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
@@ -94,7 +82,6 @@ import com.example.cas.graph.Plot2D
 import com.example.cas.graph.Viewport
 import com.example.cas.graph.Scene
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.Spacer
@@ -103,10 +90,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.material.icons.filled.UploadFile
 import com.example.cas.graph.Pgf
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.material.icons.filled.IosShare
 import com.example.cas.ui.theme.CasFonts
 import kotlin.math.abs
 
@@ -160,7 +145,7 @@ internal fun ConstructStatus(vm: GraphViewModel, modifier: Modifier) {
             if (tool.multi && picks.size >= tool.least) androidx.compose.material3.FilledTonalButton(onClick = { vm.finishMulti() }, contentPadding = PaddingValues(horizontal = 14.dp)) { Text(tr(if (tool == GeometryTool.Polygon) "Close" else "Finish")) }
             // The guide again, from its start.
             if (!vm.guideOpen) IconButton(onClick = { vm.guideStep = 0; vm.guideOpen = true }) {
-                Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = tr("Show the geometry guide"), tint = colors.onSurfaceVariant)
+                AppIcon(TableIcons.Help, contentDescription = tr("Show the geometry guide"), tint = colors.onSurfaceVariant)
             }
             androidx.compose.material3.TextButton(onClick = { vm.stopConstructing() }) { Text(tr("Done")) }
         }
@@ -514,12 +499,12 @@ internal fun GeometryGuide(vm: GraphViewModel, modifier: Modifier) {
                 }
             }
             Text(tr("Step {0} of {1}", k + 1, steps.size), style = MaterialTheme.typography.labelMedium, color = colors.onTertiaryContainer.copy(alpha = 0.8f))
-            IconButton(onClick = { finish() }) { Icon(Icons.Filled.Close, contentDescription = tr("Close the guide"), tint = colors.onTertiaryContainer) }
+            IconButton(onClick = { finish() }) { AppIcon(TableIcons.Close, contentDescription = tr("Close the guide"), tint = colors.onTertiaryContainer) }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(tr(step.title), style = MaterialTheme.typography.titleMedium, color = colors.onTertiaryContainer, modifier = Modifier.semantics { heading() })
             AnimatedVisibility(met, enter = fadeIn() + androidx.compose.animation.scaleIn(), exit = fadeOut()) {
-                Icon(Icons.Filled.CheckCircle, contentDescription = tr("Done"), tint = colors.onTertiaryContainer, modifier = Modifier.padding(start = 8.dp).size(20.dp))
+                AppIcon(TableIcons.Check, contentDescription = tr("Done"), tint = colors.onTertiaryContainer, modifier = Modifier.padding(start = 8.dp).size(20.dp))
             }
         }
         Text(tr(step.text), style = MaterialTheme.typography.bodyMedium, color = colors.onTertiaryContainer, modifier = Modifier.padding(top = 4.dp, end = 8.dp))

@@ -66,7 +66,7 @@ object TabIcons {
     val Stats: ImageVector by lazy { icon("Stats", stroke = listOf("M3 20.5H21", "M3 18.5c3.5 0 5-12.5 9-12.5s5.5 12.5 9 12.5"), fill = listOf("M7 20.5v-5.5h2.2v5.5z", "M10.9 20.5V10h2.2v10.5z", "M14.8 20.5v-5.5H17v5.5z"), accent = setOf("M7 20.5v-5.5h2.2v5.5z", "M10.9 20.5V10h2.2v10.5z", "M14.8 20.5v-5.5H17v5.5z")) }
 
     /** The symbol builder: an x with a hat, a superscript box and a +. */
-    val SymbolBuilder: ImageVector by lazy { icon("SymbolBuilder", stroke = listOf("M4 10.5l7 9.5", "M11 10.5l-7 9.5", "M4.5 7.5l3-3l3 3"), thin = listOf("M14 3.5h5v5h-5z", "M15 17.5h6", "M18 14.5v6"), accent = setOf("M4.5 7.5l3-3l3 3", "M15 17.5h6", "M18 14.5v6")) }
+    val SymbolBuilder: ImageVector by lazy { icon("SymbolBuilder", stroke = listOf("M4 10.5l7 9.5", "M11 10.5l-7 9.5", "M4.5 7.5l3-3l3 3"), thin = listOf("M14 3.5h5v5h-5z", "M15 17.5h6", "M18 14.5v6")) }
 
     /** Aα: Latin and Greek letters. */
     val Letters: ImageVector by lazy { icon("Letters", stroke = listOf("M2.5 19L7 5l4.5 14", "M4.2 14h5.6", "M22 11.5c-.8 3-2.2 7.5-4.3 7.5c-1.9 0-3.2-1.6-3.2-3.8c0-2.2 1.4-3.9 3.3-3.9c2.6 0 3.2 5.1 4.7 7.7"), accent = setOf("M22 11.5c-.8 3-2.2 7.5-4.3 7.5c-1.9 0-3.2-1.6-3.2-3.8c0-2.2 1.4-3.9 3.3-3.9c2.6 0 3.2 5.1 4.7 7.7")) }

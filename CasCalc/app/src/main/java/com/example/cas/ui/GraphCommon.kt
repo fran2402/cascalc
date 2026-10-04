@@ -1,17 +1,7 @@
 package com.example.cas.ui
 
 import com.example.cas.engine.Readout
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.FormatClear
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Percent
-import androidx.compose.material.icons.filled.Calculate
-import androidx.compose.material.icons.filled.Timeline
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.foundation.layout.fillMaxHeight
 
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -20,42 +10,23 @@ import kotlinx.coroutines.launch
 
 import androidx.compose.runtime.rememberCoroutineScope
 
-import androidx.compose.material.icons.automirrored.filled.FormatIndentDecrease
 
-import androidx.compose.material.icons.automirrored.filled.FormatIndentIncrease
 
-import androidx.compose.material.icons.filled.MoreVert
 
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Edit
 
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 
-import androidx.compose.material.icons.filled.VisibilityOff
 
-import androidx.compose.material.icons.filled.Visibility
 
-import androidx.compose.material.icons.filled.Functions
 
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.CreateNewFolder
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.ui.graphics.luminance
 
-import androidx.compose.material.icons.filled.Notes
-
-import androidx.compose.material.icons.filled.TableChart
 
 
 
-import androidx.compose.material.icons.filled.SwapHoriz
 
 
-import androidx.compose.material.icons.filled.ExpandMore
 
-import androidx.compose.material.icons.filled.ExpandLess
+
 
 
 
@@ -70,11 +41,8 @@ import androidx.compose.runtime.key
 
 import androidx.compose.ui.draw.shadow
 
-import androidx.compose.material.icons.filled.IosShare
 
-import androidx.compose.material.icons.filled.Delete
 
-import androidx.compose.material.icons.filled.DragIndicator
 
 import androidx.compose.foundation.background
 import androidx.compose.ui.platform.LocalDensity
@@ -91,9 +59,6 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.StarBorder
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -102,7 +67,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -153,29 +117,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
 import androidx.compose.ui.graphics.Path
-import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.material3.Button
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.material.icons.filled.ContentPaste
-import androidx.compose.material.icons.filled.ViewColumn
-import androidx.compose.material.icons.filled.TableRows
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.material.icons.filled.CleaningServices
-import androidx.compose.material.icons.filled.ScatterPlot
-import androidx.compose.material.icons.filled.FormatListNumbered
-import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.ui.graphics.compositeOver
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.LaunchedEffect
@@ -388,7 +336,7 @@ private fun ColormapCard(
             Text(map.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, color = if (chosen) colors.onSecondaryContainer else colors.onSurface, modifier = Modifier.weight(1f).padding(start = 2.dp))
             if (star != null) {
                 Icon(
-                    if (star) Icons.Default.Star else Icons.Default.StarBorder,
+                    if (star) TableIcons.Star else TableIcons.StarOutline,
                     contentDescription = if (star) "Remove ${map.label} from yours" else "Add ${map.label} to yours",
                     tint = if (star) colors.primary else colors.onSurfaceVariant,
                     modifier = Modifier.size(28.dp).clip(CircleShape).clickable { onStar() }.padding(3.dp),
@@ -420,7 +368,7 @@ private fun ColormapRow(
             .padding(end = 12.dp, top = 2.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (handle != null) Icon(Icons.Default.DragIndicator, contentDescription = tr("Drag to reorder"), tint = colors.onSurfaceVariant, modifier = handle.size(40.dp).padding(10.dp))
+        if (handle != null) AppIcon(TableIcons.Grip, contentDescription = tr("Drag to reorder"), tint = colors.onSurfaceVariant, modifier = handle.size(40.dp).padding(10.dp))
         Text(map.label, color = if (chosen) colors.onSecondaryContainer else colors.onSurface, style = MaterialTheme.typography.bodyLarge, maxLines = 1, modifier = Modifier.width(96.dp))
         Box(Modifier.weight(1f).height(18.dp).clip(RoundedCornerShape(9.dp)).background(Brush.horizontalGradient(colormapStops(map, reversed = chosen && reversed))))
     }
@@ -1090,12 +1038,12 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
                 }
             }
             IconButton(onClick = { vm.requestRemove(f) }) {
-                Icon(Icons.Default.Close, contentDescription = tr("Remove"), tint = colors.onSurfaceVariant)
+                AppIcon(TableIcons.Close, contentDescription = tr("Remove"), tint = colors.onSurfaceVariant)
             }
             // Drag here to move the line up or down the list.
             if (handle != null) {
                 Icon(
-                    Icons.Default.DragIndicator,
+                    TableIcons.Grip,
                     contentDescription = tr("Drag to reorder"),
                     tint = colors.onSurfaceVariant,
                     modifier = handle.size(40.dp).padding(8.dp),
@@ -1745,7 +1693,7 @@ internal fun FabMenu(items: List<FabItem>, size: androidx.compose.ui.unit.Dp, de
                 .semantics { contentDescription = if (open) "Close the add menu" else description },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.Add, contentDescription = null, tint = if (open) colors.onPrimary else colors.onPrimaryContainer, modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = turn })
+            AppIcon(TableIcons.Add, contentDescription = null, tint = if (open) colors.onPrimary else colors.onPrimaryContainer, modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = turn })
         }
         if (open) {
             val lift = with(density) { (size + 10.dp).roundToPx() }
@@ -1869,9 +1817,9 @@ private fun TextRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
             if (f.note.isNullOrEmpty()) Text(tr("Note"), style = style, color = colors.onSurfaceVariant)
         }
         IconButton(onClick = { vm.requestRemove(f) }) {
-            Icon(Icons.Default.Close, contentDescription = tr("Remove"), tint = colors.onSurfaceVariant)
+            AppIcon(TableIcons.Close, contentDescription = tr("Remove"), tint = colors.onSurfaceVariant)
         }
-        if (handle != null) Icon(Icons.Default.DragIndicator, contentDescription = tr("Drag to reorder"), tint = colors.onSurfaceVariant, modifier = handle.size(40.dp).padding(8.dp))
+        if (handle != null) AppIcon(TableIcons.Grip, contentDescription = tr("Drag to reorder"), tint = colors.onSurfaceVariant, modifier = handle.size(40.dp).padding(8.dp))
     }
 }
 
@@ -1903,7 +1851,7 @@ private fun FolderRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            if (f.collapsed) Icons.AutoMirrored.Filled.KeyboardArrowRight else Icons.Default.KeyboardArrowDown,
+            if (f.collapsed) TableIcons.ChevronRight else TableIcons.ChevronDown,
             contentDescription = null, tint = colors.onSurface, modifier = Modifier.padding(start = 8.dp, end = 4.dp).size(24.dp),
         )
         Icon(if (f.collapsed) TableIcons.Folder else TableIcons.FolderOpen, contentDescription = null, tint = tint, modifier = Modifier.padding(horizontal = 6.dp).size(22.dp))
@@ -1920,9 +1868,9 @@ private fun FolderRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
             Icon(if (f.visible) TableIcons.Visible else TableIcons.Hidden, contentDescription = if (f.visible) "Hide the folder's lines" else "Show the folder's lines", tint = colors.onSurfaceVariant)
         }
         IconButton(onClick = { vm.requestRemove(f) }) {
-            Icon(Icons.Default.Close, contentDescription = tr("Delete folder"), tint = colors.onSurfaceVariant)
+            AppIcon(TableIcons.Close, contentDescription = tr("Delete folder"), tint = colors.onSurfaceVariant)
         }
-        if (handle != null) Icon(Icons.Default.DragIndicator, contentDescription = tr("Drag to reorder"), tint = colors.onSurfaceVariant, modifier = handle.size(40.dp).padding(8.dp))
+        if (handle != null) AppIcon(TableIcons.Grip, contentDescription = tr("Drag to reorder"), tint = colors.onSurfaceVariant, modifier = handle.size(40.dp).padding(8.dp))
     }
     if (editing) FolderDialog(vm, f, onDismiss = { editing = false; vm.typingFocus = false })
 }
@@ -1942,10 +1890,10 @@ private fun FolderDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () -> U
             OutlinedTextField(name, { name = it }, singleLine = true, label = { Text(tr("Name")) }, modifier = Modifier.fillMaxWidth())
             if (vm.canNest(f) || vm.folderOf(f) != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (vm.canNest(f)) androidx.compose.material3.OutlinedButton(onClick = { vm.nest(f, 1); onDismiss() }) {
-                    Icon(Icons.AutoMirrored.Filled.FormatIndentIncrease, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("Into folder above"))
+                    AppIcon(TableIcons.IndentMore, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("Into folder above"))
                 }
                 if (vm.folderOf(f) != null) androidx.compose.material3.OutlinedButton(onClick = { vm.nest(f, -1); onDismiss() }) {
-                    Icon(Icons.AutoMirrored.Filled.FormatIndentDecrease, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("Out of folder"))
+                    AppIcon(TableIcons.IndentLess, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("Out of folder"))
                 }
             }
         },
@@ -2609,7 +2557,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                 Column(Modifier.fillMaxSize()) {
                     // Top bar: close, the title, Done.
                     Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 6.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = tr("Close without saving")) }
+                        IconButton(onClick = onDismiss) { AppIcon(TableIcons.Close, contentDescription = tr("Close without saving")) }
                         Column(Modifier.weight(1f).padding(start = 4.dp)) {
                             // Short on a phone, where the top bar is crowded.
                             Text(tr(if (wide) "Data table" else "Data"), style = MaterialTheme.typography.titleLarge, maxLines = 1)
@@ -2623,7 +2571,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                         // More: the table as CSV (shared or copied), and tidying up.
                         var more by remember { mutableStateOf(false) }
                         Box {
-                            IconButton(onClick = { more = true }) { Icon(Icons.Default.MoreVert, contentDescription = tr("More")) }
+                            IconButton(onClick = { more = true }) { AppIcon(TableIcons.More, contentDescription = tr("More")) }
                             DropdownMenu(expanded = more, onDismissRequest = { more = false }, shape = RoundedCornerShape(16.dp)) {
                                 DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Share, null) }, text = { Text(tr("Share as CSV")) }, onClick = {
                                     more = false
@@ -2645,7 +2593,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                             shape = RoundedCornerShape(16.dp),
                             contentPadding = PaddingValues(start = 16.dp, end = 20.dp),
                             modifier = Modifier.height(48.dp),
-                        ) { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text(tr("Done")) }
+                        ) { AppIcon(TableIcons.Check, contentDescription = null, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text(tr("Done")) }
                     }
                     // The ribbon, as Excel's (on a phone, put away while the keyboard is up).
                     val keyboardUp = androidx.compose.foundation.layout.WindowInsets.ime.getBottom(density) > 0
@@ -3235,7 +3183,7 @@ private fun SeriesDialog(rows: Int, onDismiss: () -> Unit, onFill: (Double, Doub
     val a = com.example.cas.graph.DataTable.number(start); val d = com.example.cas.graph.DataTable.number(step)
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.Timeline, contentDescription = null) },
+        icon = { AppIcon(TableIcons.Series, contentDescription = null) },
         title = { Text(tr("Fill with a series")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -3489,7 +3437,7 @@ private fun ColumnCard(
                 Spacer(Modifier.weight(1f))
                 // A filter in use on this column.
                 if (filtered) AppIcon(TableIcons.Filter, contentDescription = tr("Filtered"), tint = colors.primary, modifier = Modifier.size(18.dp))
-                Icon(Icons.Default.MoreVert, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                AppIcon(TableIcons.More, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp))
             }
             androidx.compose.foundation.text.BasicTextField(
                 value = name, onValueChange = onName, singleLine = true,
@@ -3504,31 +3452,31 @@ private fun ColumnCard(
                 DropdownMenuItem(
                     leadingIcon = { RoleBadge(r) },
                     text = { Text(if (r == null) what else what.replaceFirstChar { it.uppercase() }) },
-                    trailingIcon = if (r == role) ({ Icon(Icons.Default.Check, contentDescription = tr("Chosen")) }) else null,
+                    trailingIcon = if (r == role) ({ AppIcon(TableIcons.Check, contentDescription = tr("Chosen")) }) else null,
                     onClick = { open = false; onRole(r) },
                 )
             }
             androidx.compose.material3.HorizontalDivider()
             DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Statistics, null) }, text = { Text(tr("Statistics")) }, onClick = { open = false; onStats() })
             DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Filter, null) }, text = { Text(tr(if (filtered) "Change the filter…" else "Filter…")) }, onClick = { open = false; onFilter() })
-            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Percent, null) }, text = { Text(tr("Number format…")) }, onClick = { open = false; onFormat() })
+            DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Percent, null) }, text = { Text(tr("Number format…")) }, onClick = { open = false; onFormat() })
             DropdownMenuItem(
                 leadingIcon = { AppIcon(TableIcons.Palette, null) }, text = { Text(tr("Color scale")) },
-                trailingIcon = if (format.colorScale) ({ Icon(Icons.Default.Check, contentDescription = tr("On")) }) else null,
+                trailingIcon = if (format.colorScale) ({ AppIcon(TableIcons.Check, contentDescription = tr("On")) }) else null,
                 onClick = { open = false; onColorScale(!format.colorScale) },
             )
-            DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, null) }, text = { Text(tr("Sort smallest first")) }, onClick = { open = false; onSort() })
-            DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, null, modifier = Modifier.graphicsLayer(scaleY = -1f)) }, text = { Text(tr("Sort largest first")) }, onClick = { open = false; onSortDown() })
-            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.FormatListNumbered, null) }, text = { Text(tr("Fill with 1, 2, 3…")) }, onClick = { open = false; onFill() })
-            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Timeline, null) }, text = { Text(tr("Fill with a series…")) }, onClick = { open = false; onSeries() })
+            DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.SortUp, null) }, text = { Text(tr("Sort smallest first")) }, onClick = { open = false; onSort() })
+            DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.SortUp, null, modifier = Modifier.graphicsLayer(scaleY = -1f)) }, text = { Text(tr("Sort largest first")) }, onClick = { open = false; onSortDown() })
+            DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Numbering, null) }, text = { Text(tr("Fill with 1, 2, 3…")) }, onClick = { open = false; onFill() })
+            DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Series, null) }, text = { Text(tr("Fill with a series…")) }, onClick = { open = false; onSeries() })
             if (onFillDown != null) DropdownMenuItem(
-                leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) }, text = { Text(tr("Fill the formula down")) }, onClick = { open = false; onFillDown() },
+                leadingIcon = { AppIcon(TableIcons.ChevronDown, null) }, text = { Text(tr("Fill the formula down")) }, onClick = { open = false; onFillDown() },
             )
             androidx.compose.material3.HorizontalDivider()
             DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Copy, null) }, text = { Text(tr("Duplicate the column")) }, onClick = { open = false; onDuplicate() })
-            if (onMoveLeft != null) DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null) }, text = { Text(tr("Move left")) }, onClick = { open = false; onMoveLeft() })
-            if (onMoveRight != null) DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) }, text = { Text(tr("Move right")) }, onClick = { open = false; onMoveRight() })
-            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.CleaningServices, null) }, text = { Text(tr("Clear the column")) }, onClick = { open = false; onClear() })
+            if (onMoveLeft != null) DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.ChevronLeft, null) }, text = { Text(tr("Move left")) }, onClick = { open = false; onMoveLeft() })
+            if (onMoveRight != null) DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.ChevronRight, null) }, text = { Text(tr("Move right")) }, onClick = { open = false; onMoveRight() })
+            DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.ClearColumn, null) }, text = { Text(tr("Clear the column")) }, onClick = { open = false; onClear() })
             if (onRemove != null) DropdownMenuItem(
                 leadingIcon = { AppIcon(TableIcons.Delete, null, tint = colors.error) },
                 text = { Text(tr("Remove the column"), color = colors.error) }, onClick = { open = false; onRemove() },
@@ -3548,8 +3496,8 @@ private fun RowNumber(r: Int, onInsertAbove: () -> Unit, onInsertBelow: () -> Un
             contentAlignment = Alignment.Center,
         ) { Text("${r + 1}", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant) }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = RoundedCornerShape(16.dp)) {
-            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, null) }, text = { Text(tr("Insert a row above")) }, onClick = { open = false; onInsertAbove() })
-            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) }, text = { Text(tr("Insert a row below")) }, onClick = { open = false; onInsertBelow() })
+            DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.ChevronUp, null) }, text = { Text(tr("Insert a row above")) }, onClick = { open = false; onInsertAbove() })
+            DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.ChevronDown, null) }, text = { Text(tr("Insert a row below")) }, onClick = { open = false; onInsertBelow() })
             DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Copy, null) }, text = { Text("Duplicate row ${r + 1}") }, onClick = { open = false; onDuplicate() })
             if (onRemove != null) DropdownMenuItem(
                 leadingIcon = { AppIcon(TableIcons.Delete, null, tint = colors.error) },
@@ -3916,7 +3864,7 @@ private fun PointCard(color: Color?, kind: String?, name: String?, rows: List<Ca
                     Modifier.size(32.dp).clip(CircleShape).clickable(onClickLabel = tr("Close")) { tap(); onClose() },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(androidx.compose.material.icons.Icons.Default.Close, contentDescription = tr("Close"), tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                    AppIcon(TableIcons.Close, contentDescription = tr("Close"), tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
                 }
             }
             rows.forEach { v ->
@@ -3938,7 +3886,7 @@ private fun PointCard(color: Color?, kind: String?, name: String?, rows: List<Ca
                             .padding(start = 10.dp, end = 13.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardReturn, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(16.dp))
+                        AppIcon(TableIcons.Enter, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
                         Text(tr("Use"), color = colors.onPrimaryContainer, style = MaterialTheme.typography.labelLarge)
                     }
@@ -4006,8 +3954,8 @@ fun ResultCard(
                     fun action(vector: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) =
                         IconButton(onClick = { tap(); onClick() }, modifier = Modifier.size(36.dp)) { Icon(vector, contentDescription = label, tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp)) }
                     if (copyText != null) action(TableIcons.Copy, "Copy the value") { clipboard.setText(androidx.compose.ui.text.AnnotatedString(copyText)) }
-                    if (onUse != null) action(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardReturn, "Use the value in the calculator", onUse)
-                    action(Icons.Default.Close, "Close", onClose)
+                    if (onUse != null) action(TableIcons.Enter, "Use the value in the calculator", onUse)
+                    action(TableIcons.Close, "Close", onClose)
                 }
                 Column(Modifier.padding(end = 10.dp)) {
                     if (math != null) Box(Modifier.horizontalScroll(rememberScrollState())) { MathView(math, 14.sp, colors.onSurfaceVariant, computerModern = true) }
@@ -4041,7 +3989,7 @@ fun ResultCard(
                 }
                 Spacer(Modifier.width(12.dp))
                 Text(tr(title), style = MaterialTheme.typography.titleSmall, color = colors.onSurface, modifier = Modifier.weight(1f))
-                IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = tr("Close"), tint = colors.onSurfaceVariant) }
+                IconButton(onClick = onClose) { AppIcon(TableIcons.Close, contentDescription = tr("Close"), tint = colors.onSurfaceVariant) }
             }
             Column(Modifier.padding(end = 8.dp)) {
                 if (math != null) Box(Modifier.padding(top = 6.dp).horizontalScroll(rememberScrollState())) { MathView(math, 17.sp, colors.onSurfaceVariant, computerModern = true) }
@@ -4067,7 +4015,7 @@ fun ResultCard(
                             .padding(start = 12.dp, end = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardReturn, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(18.dp))
+                        AppIcon(TableIcons.Enter, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(tr("Use"), color = colors.onPrimaryContainer, style = MaterialTheme.typography.labelLarge)
                     }
@@ -4290,9 +4238,9 @@ private fun FindBar(
                 if (query.isEmpty()) "" else if (count == 0) tr("None") else "${at + 1}/$count",
                 style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp),
             )
-            IconButton(onClick = onPrevious, enabled = count > 0) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = tr("Previous match")) }
-            IconButton(onClick = onNext, enabled = count > 0) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = tr("Next match")) }
-            IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = tr("Close find and replace")) }
+            IconButton(onClick = onPrevious, enabled = count > 0) { AppIcon(TableIcons.ChevronUp, contentDescription = tr("Previous match")) }
+            IconButton(onClick = onNext, enabled = count > 0) { AppIcon(TableIcons.ChevronDown, contentDescription = tr("Next match")) }
+            IconButton(onClick = onClose) { AppIcon(TableIcons.Close, contentDescription = tr("Close find and replace")) }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(replacement, onReplacement, singleLine = true, label = { Text(tr("Replace with")) }, modifier = Modifier.weight(1f))
@@ -4324,7 +4272,7 @@ private fun FilterBanner(shown: Int, total: Int, chips: List<Pair<String, Int>>,
             chips.forEach { (label, c) ->
                 androidx.compose.material3.InputChip(
                     selected = true, onClick = { onEdit(c) }, label = { Text(label, maxLines = 1) },
-                    trailingIcon = { Icon(Icons.Default.Close, contentDescription = tr("Remove the filter"), modifier = Modifier.size(16.dp).clickable { onRemove(c) }) },
+                    trailingIcon = { AppIcon(TableIcons.Close, contentDescription = tr("Remove the filter"), modifier = Modifier.size(16.dp).clickable { onRemove(c) }) },
                 )
             }
         }
@@ -4352,8 +4300,8 @@ private fun SelectionBar(address: String, s: com.example.cas.graph.SheetTools.Su
             )
         }
         IconButton(onClick = onCopy) { AppIcon(TableIcons.Copy, contentDescription = tr("Copy the cells"), tint = colors.onPrimaryContainer) }
-        IconButton(onClick = onClear) { Icon(Icons.Default.CleaningServices, contentDescription = tr("Clear the cells"), tint = colors.onPrimaryContainer) }
-        IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = tr("Stop selecting"), tint = colors.onPrimaryContainer) }
+        IconButton(onClick = onClear) { AppIcon(TableIcons.ClearColumn, contentDescription = tr("Clear the cells"), tint = colors.onPrimaryContainer) }
+        IconButton(onClick = onClose) { AppIcon(TableIcons.Close, contentDescription = tr("Stop selecting"), tint = colors.onPrimaryContainer) }
     }
 }
 
@@ -4523,7 +4471,7 @@ internal fun TableRibbon(tab: TableTab, onTab: (TableTab) -> Unit, groups: List<
             }
             val turn by androidx.compose.animation.core.animateFloatAsState(if (collapsed) 180f else 0f, label = "fold turn")
             androidx.compose.material3.FilledTonalIconButton(onClick = { tap(); onCollapse(!collapsed) }) {
-                Icon(Icons.Default.KeyboardArrowUp, contentDescription = tr(if (collapsed) "Show the ribbon" else "Fold the ribbon away"),
+                AppIcon(TableIcons.ChevronUp, contentDescription = tr(if (collapsed) "Show the ribbon" else "Fold the ribbon away"),
                     modifier = Modifier.graphicsLayer { rotationZ = turn })
             }
         }
@@ -4613,7 +4561,7 @@ private fun RibbonButton(t: TableTool, large: Boolean, height: androidx.compose.
             Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(tr(t.label), style = MaterialTheme.typography.labelSmall, color = text, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 13.sp)
-                if (t.menu != null) Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(16.dp).graphicsLayer { rotationZ = turn })
+                if (t.menu != null) AppIcon(TableIcons.DropDown, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(16.dp).graphicsLayer { rotationZ = turn })
             }
         } else Row(
             Modifier.height(height).clip(shape)
@@ -4624,7 +4572,7 @@ private fun RibbonButton(t: TableTool, large: Boolean, height: androidx.compose.
             DuoIcon(t.icon, ink, accent, Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
             Text(tr(t.label), style = MaterialTheme.typography.labelMedium, color = text, maxLines = 1)
-            if (t.menu != null) Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(16.dp).graphicsLayer { rotationZ = turn })
+            if (t.menu != null) AppIcon(TableIcons.DropDown, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(16.dp).graphicsLayer { rotationZ = turn })
         }
         t.menu?.let { items ->
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, shape = RoundedCornerShape(20.dp), containerColor = colors.surfaceContainerHigh) {
@@ -4722,13 +4670,13 @@ internal fun PhoneCommandBar(tab: TableTab, onTab: (TableTab) -> Unit, groups: L
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(tr(tab.label), style = MaterialTheme.typography.labelLarge, color = colors.onSecondaryContainer, maxLines = 1)
-                Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.onSecondaryContainer)
+                AppIcon(TableIcons.DropDown, contentDescription = null, tint = colors.onSecondaryContainer)
             }
             DropdownMenu(expanded = tabs, onDismissRequest = { tabs = false }, shape = RoundedCornerShape(16.dp)) {
                 TableTab.entries.forEach { t ->
                     DropdownMenuItem(
                         text = { Text(tr(t.label), color = if (t == tab) colors.primary else colors.onSurface) },
-                        trailingIcon = if (t == tab) ({ Icon(Icons.Default.Check, contentDescription = null, tint = colors.primary) }) else null,
+                        trailingIcon = if (t == tab) ({ AppIcon(TableIcons.Check, contentDescription = null, tint = colors.primary) }) else null,
                         onClick = { tabs = false; onTab(t) },
                     )
                 }
@@ -4745,7 +4693,7 @@ internal fun PhoneCommandBar(tab: TableTab, onTab: (TableTab) -> Unit, groups: L
         Box(
             Modifier.size(44.dp).clip(CircleShape).background(colors.primary).clickable(onClickLabel = tr("All commands")) { tap(); onExpand() },
             contentAlignment = Alignment.Center,
-        ) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = tr("All commands"), tint = colors.onPrimary) }
+        ) { AppIcon(TableIcons.ChevronUp, contentDescription = tr("All commands"), tint = colors.onPrimary) }
     }
 }
 
@@ -4766,7 +4714,7 @@ private fun CommandIcon(t: TableTool) {
         ) {
             DuoIcon(t.icon, if (!t.enabled) colors.onSurface.copy(alpha = 0.38f) else if (t.on) colors.onSecondaryContainer else colors.onSurface,
                 if (!t.enabled) colors.onSurface.copy(alpha = 0.38f) else colors.primary, Modifier.size(22.dp))
-            if (t.menu != null) Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.outline,
+            if (t.menu != null) AppIcon(TableIcons.DropDown, contentDescription = null, tint = colors.outline,
                 modifier = Modifier.align(Alignment.BottomEnd).size(14.dp))
         }
         t.menu?.let { items ->
@@ -4816,7 +4764,7 @@ internal fun TableCommandSheet(tab: TableTab, onTab: (TableTab) -> Unit, groups:
                 }
             } else {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { menu = null }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Back")) }
+                    IconButton(onClick = { menu = null }) { AppIcon(TableIcons.Back, contentDescription = tr("Back")) }
                     DuoIcon(open.icon, colors.onSurface, colors.primary, Modifier.size(22.dp))
                     Text(tr(open.label), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 10.dp))
                 }
@@ -4844,8 +4792,8 @@ private fun CommandRow(icon: androidx.compose.ui.graphics.vector.ImageVector?, l
             contentAlignment = Alignment.Center,
         ) { DuoIcon(icon, if (!enabled) ink else if (on) colors.onSecondaryContainer else colors.onSurface, if (!enabled) ink else colors.primary, Modifier.size(20.dp)) }
         Text(tr(label), style = MaterialTheme.typography.bodyLarge, color = ink, modifier = Modifier.weight(1f).padding(start = if (icon != null) 14.dp else 4.dp))
-        if (on) Icon(Icons.Default.Check, contentDescription = null, tint = colors.primary)
-        else if (opens) Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.onSurfaceVariant)
+        if (on) AppIcon(TableIcons.Check, contentDescription = null, tint = colors.primary)
+        else if (opens) AppIcon(TableIcons.ChevronRight, contentDescription = null, tint = colors.onSurfaceVariant)
     }
 }
 
@@ -4877,7 +4825,7 @@ internal fun SelectionToolbar(
         CommandIcon(TableTool(TableIcons.InsertCells, "Insert", menu = insert))
         CommandIcon(TableTool(TableIcons.DeleteCells, "Delete", menu = delete))
         Box(Modifier.padding(horizontal = 4.dp).width(1.dp).height(24.dp).background(colors.outlineVariant))
-        CommandIcon(TableTool(Icons.Default.Close, "Stop selecting", action = onClose))
+        CommandIcon(TableTool(TableIcons.Close, "Stop selecting", action = onClose))
     }
 }
 
@@ -4968,8 +4916,8 @@ internal fun FormulaBar(
         }
         // While typing: ✕ to put the cell back, ✓ to finish, as in Excel; ƒx always opens Insert Function.
         if (focused && address != null) {
-            IconButton(onClick = { onCancel(); barFocusManager.clearFocus() }, modifier = Modifier.size(36.dp)) { Icon(Icons.Default.Close, contentDescription = tr("Cancel the change"), tint = colors.error) }
-            IconButton(onClick = { onCommit(); barFocusManager.clearFocus() }, modifier = Modifier.size(36.dp)) { Icon(Icons.Default.Check, contentDescription = tr("Enter"), tint = colors.primary) }
+            IconButton(onClick = { onCancel(); barFocusManager.clearFocus() }, modifier = Modifier.size(36.dp)) { AppIcon(TableIcons.Close, contentDescription = tr("Cancel the change"), tint = colors.error) }
+            IconButton(onClick = { onCommit(); barFocusManager.clearFocus() }, modifier = Modifier.size(36.dp)) { AppIcon(TableIcons.Check, contentDescription = tr("Enter"), tint = colors.primary) }
         }
         Text("ƒx", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 17.sp, color = colors.tertiary),
             modifier = Modifier.clip(CircleShape).clickable(onClickLabel = tr("Insert a function")) { onFunctions() }.padding(horizontal = 10.dp, vertical = 6.dp))
@@ -5048,7 +4996,7 @@ internal fun StatusPill(label: String, s: com.example.cas.graph.SheetTools.Summa
             Text(tr(name), style = MaterialTheme.typography.labelLarge, color = colors.onSurface)
             Text(geometryValueText(v), style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = colors.onSurface))
         }
-        if (!all && parts.size > 1) Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.onSurfaceVariant)
+        if (!all && parts.size > 1) AppIcon(TableIcons.DropDown, contentDescription = null, tint = colors.onSurfaceVariant)
     }
 }
 
@@ -5134,7 +5082,7 @@ internal fun ColumnInspector(letter: String, name: String, role: String?, onRole
                 Text(letter, style = MaterialTheme.typography.labelLarge, color = colors.onTertiaryContainer)
             }
             Text(name, style = MaterialTheme.typography.titleSmall, color = colors.onSurface, modifier = Modifier.weight(1f).padding(start = 10.dp), maxLines = 1)
-            IconButton(onClick = onOpen) { Icon(Icons.Default.MoreVert, contentDescription = tr("All of the column's actions")) }
+            IconButton(onClick = onOpen) { AppIcon(TableIcons.More, contentDescription = tr("All of the column's actions")) }
         }
         RoleSegments(role, onRole)
         @Composable
@@ -5182,7 +5130,7 @@ private fun HighlightDialog(name: String, current: com.example.cas.graph.Highlig
                                 .clickable(onClickLabel = com.example.cas.graph.HighlightRule.COLOR_NAMES[k]) { tint = k }
                                 .semantics { contentDescription = com.example.cas.graph.HighlightRule.COLOR_NAMES[k] + if (k == tint) ", chosen" else "" },
                             contentAlignment = Alignment.Center,
-                        ) { if (k == tint) Icon(Icons.Default.Check, contentDescription = null, tint = Color.Black.copy(alpha = 0.7f)) }
+                        ) { if (k == tint) AppIcon(TableIcons.Check, contentDescription = null, tint = Color.Black.copy(alpha = 0.7f)) }
                     }
                 }
             }
@@ -5326,7 +5274,7 @@ private fun CustomSortDialog(columns: List<String>, start: Int, onDismiss: () ->
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(columns.getOrElse(col) { "" }, style = MaterialTheme.typography.bodyMedium, maxLines = 1, modifier = Modifier.weight(1f))
-                                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                                AppIcon(TableIcons.DropDown, contentDescription = null)
                             }
                             DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
                                 columns.forEachIndexed { c, name -> DropdownMenuItem(text = { Text(name) }, onClick = { open = false; levels[k] = c to down }) }
@@ -5337,11 +5285,11 @@ private fun CustomSortDialog(columns: List<String>, start: Int, onDismiss: () ->
                         IconButton(onClick = { levels[k] = col to !down }) {
                             Icon(if (down) TableIcons.SortDown else TableIcons.SortUp, contentDescription = tr(if (down) "Largest first" else "Smallest first"), tint = colors.primary)
                         }
-                        if (levels.size > 1) IconButton(onClick = { levels.removeAt(k) }) { Icon(Icons.Default.Close, contentDescription = tr("Remove this level")) }
+                        if (levels.size > 1) IconButton(onClick = { levels.removeAt(k) }) { AppIcon(TableIcons.Close, contentDescription = tr("Remove this level")) }
                     }
                 }
                 if (levels.size < 4 && columns.size > 1) androidx.compose.material3.TextButton(onClick = { levels.add((levels.last().first + 1).coerceAtMost(columns.size - 1) to false) }) {
-                    Icon(Icons.Default.Add, contentDescription = null); Spacer(Modifier.width(6.dp)); Text(tr("Add a level"))
+                    AppIcon(TableIcons.Add, contentDescription = null); Spacer(Modifier.width(6.dp)); Text(tr("Add a level"))
                 }
                 Text(tr("Numbers sort by value and before text; empty cells stay last."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             }

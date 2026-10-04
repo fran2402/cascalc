@@ -23,8 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,7 +50,7 @@ fun FullScreenPage(title: String, onBack: () -> Unit, content: @Composable Colum
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Back"), tint = MaterialTheme.colorScheme.onSurface)
+                        AppIcon(TableIcons.Back, contentDescription = tr("Back"), tint = MaterialTheme.colorScheme.onSurface)
                     }
                     Text(tr(title), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(start = 4.dp))
                 }
@@ -99,7 +97,7 @@ fun SectionedPage(title: String, sections: List<PageSection>, onBack: () -> Unit
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Row(Modifier.padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Back"), tint = colors.onSurface) }
+                        IconButton(onClick = onBack) { AppIcon(TableIcons.Back, contentDescription = tr("Back"), tint = colors.onSurface) }
                         Text(tr(title), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, maxLines = 1, modifier = Modifier.padding(start = 4.dp))
                     }
                     sections.forEachIndexed { i, s ->

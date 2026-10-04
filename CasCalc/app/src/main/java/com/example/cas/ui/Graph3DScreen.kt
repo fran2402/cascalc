@@ -26,9 +26,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -77,8 +74,6 @@ import kotlin.math.abs
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.Edit
 import com.example.cas.graph.Coordinates3D
 import androidx.compose.ui.graphics.toArgb
 import com.example.cas.graph.Viewport
@@ -175,7 +170,7 @@ private fun RangeControl(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
     if (editing) LimitsDialog(vm, onDismiss = { editing = false })
     Row(modifier.clip(CircleShape).background(colors.surfaceContainerHigh), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = { tap(); vm.scaleRanges(0.5) }) {
-            Icon(Icons.Default.Remove, contentDescription = tr("Zoom in"), tint = colors.onSurface)
+            AppIcon(TableIcons.Remove, contentDescription = tr("Zoom in"), tint = colors.onSurface)
         }
         MathText(
             limitsText(vm),
@@ -185,7 +180,7 @@ private fun RangeControl(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
             modifier = Modifier.clickable(onClickLabel = tr("Set the limits")) { editing = true }.padding(vertical = 8.dp),
         )
         IconButton(onClick = { tap(); vm.scaleRanges(2.0) }) {
-            Icon(Icons.Default.Add, contentDescription = tr("Zoom out"), tint = colors.onSurface)
+            AppIcon(TableIcons.Add, contentDescription = tr("Zoom out"), tint = colors.onSurface)
         }
     }
 }

@@ -35,14 +35,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -167,7 +159,7 @@ private fun TabletSteps(expression: MathRow, solution: Steps.Solution?, ready: B
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     Row(Modifier.fillMaxWidth().padding(start = 28.dp, end = 12.dp, top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(tr("Steps"), style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.weight(1f))
-                        IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = tr("Close"), tint = colors.onSurfaceVariant) }
+                        IconButton(onClick = onDismiss) { AppIcon(TableIcons.Close, contentDescription = tr("Close"), tint = colors.onSurfaceVariant) }
                     }
                     Box(Modifier.weight(1f)) { Body(solution, ready, state, list, Modifier.padding(horizontal = 28.dp)) }
                 }
@@ -266,8 +258,8 @@ private fun StepNode(number: Int, step: Steps.Step, last: Boolean) {
         Column(Modifier.width(40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.size(36.dp).clip(if (step.kind == Steps.Kind.Result) RoundedCornerShape(12.dp) else CircleShape).background(fill), contentAlignment = Alignment.Center) {
                 when (step.kind) {
-                    Steps.Kind.Check -> Icon(Icons.Default.Check, contentDescription = null, tint = ink, modifier = Modifier.size(20.dp))
-                    Steps.Kind.Result -> Icon(Icons.Default.Flag, contentDescription = null, tint = ink, modifier = Modifier.size(20.dp))
+                    Steps.Kind.Check -> AppIcon(TableIcons.Check, contentDescription = null, tint = ink, modifier = Modifier.size(20.dp))
+                    Steps.Kind.Result -> AppIcon(TableIcons.Flag, contentDescription = null, tint = ink, modifier = Modifier.size(20.dp))
                     else -> Text("$number", style = MaterialTheme.typography.labelLarge, color = ink)
                 }
             }

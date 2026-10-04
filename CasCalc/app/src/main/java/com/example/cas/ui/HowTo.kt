@@ -9,20 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.outlined.TrendingUp
-import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.BarChart
-import androidx.compose.material.icons.outlined.ChangeHistory
-import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.GridOn
-import androidx.compose.material.icons.outlined.Lightbulb
-import androidx.compose.material.icons.outlined.Loop
-import androidx.compose.material.icons.outlined.OpenWith
-import androidx.compose.material.icons.outlined.PlayCircle
-import androidx.compose.material.icons.outlined.SwapHoriz
-import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.graphics.Color
@@ -43,19 +29,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ShowChart
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Calculate
-import androidx.compose.material.icons.outlined.Functions
-import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.Keyboard
-import androidx.compose.material.icons.outlined.Science
-import androidx.compose.material.icons.outlined.TableChart
-import androidx.compose.material.icons.outlined.Timeline
-import androidx.compose.material.icons.outlined.ViewInAr
-import androidx.compose.material.icons.outlined.FolderOpen
-import androidx.compose.material.icons.outlined.Lens
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -77,28 +50,28 @@ import androidx.compose.ui.unit.sp
 
 /** A chapter's icon, by its key in [Docs]. */
 private fun docsIcon(key: String): ImageVector = when (key) {
-    "start" -> Icons.Outlined.PlayCircle
+    "start" -> TableIcons.Play
     "numbers" -> TableIcons.ModeCalculator
-    "exp" -> Icons.AutoMirrored.Outlined.TrendingUp
-    "trig" -> Icons.Outlined.ChangeHistory
-    "complex", "complexplane" -> Icons.Outlined.Lens
-    "algebra" -> Icons.Outlined.Functions
-    "calculus" -> Icons.Outlined.Timeline
-    "vector" -> Icons.Outlined.OpenWith
-    "matrix" -> Icons.Outlined.GridOn
-    "stats" -> Icons.Outlined.BarChart
-    "special" -> Icons.Outlined.AutoAwesome
-    "contour" -> Icons.Outlined.Loop
-    "units" -> Icons.Outlined.Science
+    "exp" -> TableIcons.TrendUp
+    "trig" -> TabIcons.Triangle
+    "complex", "complexplane" -> TableIcons.Lens
+    "algebra" -> TableIcons.Line
+    "calculus" -> TableIcons.Series
+    "vector" -> TableIcons.Move
+    "matrix" -> TableIcons.Table
+    "stats" -> TabIcons.Stats
+    "special" -> TableIcons.Sparkle
+    "contour" -> PlotIcons.Loop
+    "units" -> TabIcons.Atom
     "history" -> TableIcons.History
     "graph2d", "fit" -> TableIcons.Mode2D
     "graph3d" -> TableIcons.Mode3D
     "table", "sheet" -> TableIcons.Table
-    "converter" -> Icons.Outlined.SwapHoriz
+    "converter" -> TableIcons.SwapH
     "files" -> TableIcons.FolderOpen
     "keys" -> TableIcons.Keyboard
     "geometry" -> PlotIcons.Geometry
-    else -> Icons.Outlined.Description
+    else -> TableIcons.Document
 }
 
 /**
@@ -119,7 +92,7 @@ fun DocsPage(onBack: () -> Unit) {
         androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = if (tablet) colors.surfaceContainerLow else colors.surface) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Back"), tint = colors.onSurface) }
+                    IconButton(onClick = back) { AppIcon(TableIcons.Back, contentDescription = tr("Back"), tint = colors.onSurface) }
                     Text(
                         if (!tablet && chapter != null) Docs.chapters[chapter!!].title else "Documentation",
                         style = MaterialTheme.typography.titleLarge, color = colors.onSurface, maxLines = 1,
@@ -215,7 +188,7 @@ private fun DocsContents(onChapter: (Int) -> Unit, onSection: (Int, Int) -> Unit
                         Text("${c + 1}. ${ch.title}", style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
                         MathText(ch.summary, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
                     }
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.onSurfaceVariant)
+                    AppIcon(TableIcons.ChevronRight, contentDescription = null, tint = colors.onSurfaceVariant)
                 }
             }
         }
@@ -355,7 +328,7 @@ private fun DocsBlock(b: Docs.Block) {
         is Docs.Block.Note -> Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (b.warning) colors.errorContainer.copy(alpha = 0.6f) else colors.secondaryContainer.copy(alpha = 0.7f)).padding(14.dp),
         ) {
-            Icon(if (b.warning) Icons.Outlined.WarningAmber else TableIcons.Tip, contentDescription = if (b.warning) "Note" else "Tip", tint = if (b.warning) colors.onErrorContainer else colors.onSecondaryContainer, modifier = Modifier.size(20.dp))
+            Icon(if (b.warning) TableIcons.Warning else TableIcons.Tip, contentDescription = if (b.warning) "Note" else "Tip", tint = if (b.warning) colors.onErrorContainer else colors.onSecondaryContainer, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(12.dp))
             MathText(b.text, style = MaterialTheme.typography.bodyMedium, color = if (b.warning) colors.onErrorContainer else colors.onSecondaryContainer)
         }

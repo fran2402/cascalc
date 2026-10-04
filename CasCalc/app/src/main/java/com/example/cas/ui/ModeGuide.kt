@@ -29,21 +29,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.ShowChart
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.IosShare
-import androidx.compose.material.icons.filled.OpenWith
-import androidx.compose.material.icons.filled.PanTool
-import androidx.compose.material.icons.filled.Science
-import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material.icons.filled.SwipeLeft
-import androidx.compose.material.icons.filled.TableChart
-import androidx.compose.material.icons.filled.ViewInAr
-import androidx.compose.material.icons.filled.TouchApp
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -101,13 +86,13 @@ private val Cookie = GenericShape { size, _ ->
 }
 
 internal fun tipIcon(key: String): ImageVector = when (key) {
-    "tap" -> Icons.Default.TouchApp
-    "hold" -> Icons.Default.PanTool
-    "drag" -> Icons.Default.OpenWith
-    "swipe" -> Icons.Default.SwipeLeft
-    "swap" -> Icons.Default.SwapVert
+    "tap" -> TableIcons.Tap
+    "hold" -> TableIcons.Hand
+    "drag" -> TableIcons.Move
+    "swipe" -> TableIcons.Hand
+    "swap" -> TableIcons.Swap
     "graph" -> TableIcons.Mode2D
-    "units" -> Icons.Default.Science
+    "units" -> TabIcons.Atom
     "folder" -> TableIcons.Folder
     "table" -> TableIcons.Table
     "export" -> TableIcons.Share
@@ -187,7 +172,7 @@ private fun TabletGuide(mode: Mode, onMode: (Mode) -> Unit, onTry: (Mode, MathRo
                         }
                     }
                     IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = tr("Close"), tint = colors.onSurfaceVariant)
+                        AppIcon(TableIcons.Close, contentDescription = tr("Close"), tint = colors.onSurfaceVariant)
                     }
                 }
             }
@@ -288,7 +273,7 @@ private fun ExampleGrid(mode: Mode, examples: List<ModeGuides.Example>, columns:
                             val tryInk = if (emphasized) colors.onTertiary else colors.onPrimaryContainer
                             Text(tr("Try"), style = MaterialTheme.typography.labelMedium, color = tryInk)
                             Spacer(Modifier.width(4.dp))
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = tryInk, modifier = Modifier.size(16.dp))
+                            AppIcon(TableIcons.Forward, contentDescription = null, tint = tryInk, modifier = Modifier.size(16.dp))
                         }
                     }
                 }

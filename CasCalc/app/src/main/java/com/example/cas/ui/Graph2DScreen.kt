@@ -1,7 +1,6 @@
 package com.example.cas.ui
 
 import androidx.compose.ui.zIndex
-import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.ui.platform.LocalDensity
@@ -17,18 +16,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
-import androidx.compose.material.icons.filled.CropSquare
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ClearAll
-import androidx.compose.material.icons.filled.Straighten
-import androidx.compose.material.icons.filled.North
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Apps
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.heightIn
@@ -91,7 +81,6 @@ import com.example.cas.graph.Plot2D
 import com.example.cas.graph.Viewport
 import com.example.cas.graph.Scene
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.Spacer
@@ -100,10 +89,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.material.icons.filled.UploadFile
 import com.example.cas.graph.Pgf
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.material.icons.filled.IosShare
 import com.example.cas.ui.theme.CasFonts
 import kotlin.math.abs
 
@@ -721,8 +708,8 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 areaFunction?.let { f -> CardAction(TabIcons.Normal, "Normal", "Add the normal line here") { addTangent(vm, f, tx, normal = true); trace = null } },
                 areaFunction?.let { f -> CardAction(TabIcons.ArcLength, "Arc length", "Arc length from here") { vm.clearArea(); vm.areaStart = Graph2DViewModel.AreaStart(f, null, tx, arc = true); trace = null } },
                 // On a slope field's solution: remove it, or all of them.
-                line?.takeIf { it.plot is Plot2DKind.SlopeField && it.seeds.isNotEmpty() }?.let { f -> CardAction(Icons.Default.Close, "Remove", "Remove this solution") { vm.removeSeedNear(f, tx, ty); trace = null } },
-                line?.takeIf { it.plot is Plot2DKind.SlopeField && it.seeds.size > 1 }?.let { f -> CardAction(Icons.Default.ClearAll, "Clear all", "Remove every solution") { vm.clearSeeds(f); trace = null } },
+                line?.takeIf { it.plot is Plot2DKind.SlopeField && it.seeds.isNotEmpty() }?.let { f -> CardAction(TableIcons.Close, "Remove", "Remove this solution") { vm.removeSeedNear(f, tx, ty); trace = null } },
+                line?.takeIf { it.plot is Plot2DKind.SlopeField && it.seeds.size > 1 }?.let { f -> CardAction(TableIcons.Eraser, "Clear all", "Remove every solution") { vm.clearSeeds(f); trace = null } },
             )
             PointCardAt(px, py, palette[t.colorIndex], kind, line?.let { legendSource(it) }?.takeIf { it.isNotBlank() }, rows, actions, onClose = { trace = null })
         }

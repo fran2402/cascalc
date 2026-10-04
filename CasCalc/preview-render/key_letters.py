@@ -32,6 +32,49 @@ L = {
  'λ': (6.4, lambda x: ([f"M{f(x)} 19.5l3.5-6.6", f"M{f(x+.6)} 4.5c1.1 0 1.9.6 2.4 1.9L{f(x+6.4)} 19.5"], [])),
  '(': (2.6, lambda x: ([f"M{f(x+2.6)} 4.5c-1.7 1.9-2.6 4.6-2.6 7.5s.9 5.6 2.6 7.5"], [])),
  ')': (2.6, lambda x: ([f"M{f(x)} 4.5c1.7 1.9 2.6 4.6 2.6 7.5s-.9 5.6-2.6 7.5"], [])),
+ # Capitals (cap height 4.5, baseline 19.5).
+ 'G': (7, lambda x: ([f"M{f(x+7)} 7.6c-.9-2-2.3-3.1-3.9-3.1c-2 0-3.1 3.4-3.1 7.5s1.1 7.5 3.1 7.5c1.9 0 3.4-1.2 3.9-3.4V12.6H{f(x+4)}"], [])),
+ 'C': (7, lambda x: ([f"M{f(x+7)} 7.6c-.9-2-2.3-3.1-3.9-3.1c-2 0-3.1 3.4-3.1 7.5s1.1 7.5 3.1 7.5c1.6 0 3-1.1 3.9-3.1"], [])),
+ 'Λ': (7, lambda x: ([f"M{f(x)} 19.5L{f(x+3.5)} 4.5L{f(x+7)} 19.5"], [])),
+ 'Δ': (7.4, lambda x: ([f"M{f(x)} 19.5L{f(x+3.7)} 4.5L{f(x+7.4)} 19.5z"], [])),
+ 'K': (6, lambda x: ([f"M{f(x)} 4.5v15", f"M{f(x+6)} 4.5L{f(x)} 13", f"M{f(x+2.3)} 10.6L{f(x+6)} 19.5"], [])),
+ 'Φ': (8, lambda x: ([ring(x+4, 12, 4, 4.2), f"M{f(x+4)} 4.5v15"], [])),
+ 'Z': (6.5, lambda x: ([f"M{f(x)} 4.5h6.5L{f(x)} 19.5h6.5"], [])),
+ 'E': (5.6, lambda x: ([f"M{f(x+5.6)} 4.5H{f(x)}v15h5.6", f"M{f(x)} 12h4.6"], [])),
+ 'F': (5.6, lambda x: ([f"M{f(x+5.6)} 4.5H{f(x)}v15", f"M{f(x)} 12h4.6"], [])),
+ 'N': (6.6, lambda x: ([f"M{f(x)} 19.5v-15l6.6 15v-15"], [])),
+ 'Ṁ': (8.4, lambda x: ([f"M{f(x)} 19.5v-15l4.2 9.5l4.2-9.5v15"], [])),
+ 'V': (7, lambda x: ([f"M{f(x)} 4.5l3.5 15l3.5-15"], [])),
+ 'B': (6.4, lambda x: ([f"M{f(x)} 4.5v15h3.4a3.8 3.8 0 0 0 0-7.6H{f(x)}", f"M{f(x)} 11.9h2.9a3.7 3.7 0 0 0 0-7.4H{f(x)}"], [])),
+ 'J': (5, lambda x: ([f"M{f(x+5)} 4.5v11c0 2.6-1.2 4-3 4c-1 0-1.8-.5-2.3-1.4"], [])),
+ 'W': (9.6, lambda x: ([f"M{f(x)} 4.5l2.3 15l2.5-10.5l2.5 10.5l2.3-15"], [])),
+ 'L': (5, lambda x: ([f"M{f(x)} 4.5v15h5"], [])),
+ 'S': (6.4, lambda x: ([f"M{f(x+6.2)} 7.4c-.7-1.8-1.9-2.9-3.3-2.9c-1.7 0-2.9 1.3-2.9 3.2c0 4.3 6.4 3 6.4 7.4c0 2.1-1.4 4.4-3.4 4.4c-1.6 0-2.8-1-3.4-2.8"], [])),
+ 'T': (6, lambda x: ([f"M{f(x)} 4.5h6", f"M{f(x+3)} 4.5v15"], [])),
+ 'H': (6, lambda x: ([f"M{f(x)} 4.5v15", f"M{f(x+6)} 4.5v15", f"M{f(x)} 12h6"], [])),
+ 'P': (6.2, lambda x: ([f"M{f(x)} 19.5v-15h3.2a3.6 3.6 0 0 1 0 7.2H{f(x)}"], [])),
+ # More lower case.
+ 'b': (5, lambda x: ([f"M{f(x)} 4.5v15", ring(x+2.5, 14.75, 2.5, 5)], [])),
+ 'u': (5.4, lambda x: ([f"M{f(x)} 10v6.5c0 1.9.8 3 2.3 3c1.1 0 2.2-.9 3.1-2.6", f"M{f(x+5.4)} 10v9.5"], [])),
+ 'v': (5, lambda x: ([f"M{f(x)} 10l2.5 9.5l2.5-9.5"], [])),
+ 'y': (5.2, lambda x: ([f"M{f(x)} 10l2.6 9.5", f"M{f(x+5.2)} 10l-3.6 13"], [])),
+ 'ℏ': (5.4, lambda x: ([f"M{f(x)} 4.5v15", f"M{f(x)} 12.6c.9-1.7 2-2.6 3.1-2.6c1.5 0 2.3 1.1 2.3 3v6.5", f"M{f(x-1.2)} 8.4l3.6-1.6"], [])),
+ # Greek.
+ 'σ': (7.4, lambda x: ([ring(x+3, 14.75, 3, 4.75), f"M{f(x+3)} 10h4.4"], [])),
+ 'α': (6.6, lambda x: ([f"M{f(x+6.6)} 10.2C{f(x+5.7)} 14.6 {f(x+4.5)} 19.6 {f(x+2.4)} 19.6S{f(x)} 17.4 {f(x)} 14.8S{f(x+1)} 9.9 {f(x+2.4)} 9.9S{f(x+5.7)} 14.9 {f(x+6.6)} 19.6"], [])),
+ 'μ': (5.4, lambda x: ([f"M{f(x)} 10v13", f"M{f(x)} 16.5c0 1.9.8 3 2.3 3c1.1 0 2.2-.9 3.1-2.6", f"M{f(x+5.4)} 10v9.5"], [])),
+ 'ε': (5, lambda x: ([f"M{f(x+4.8)} 11.3c-.6-.9-1.4-1.4-2.5-1.4c-1.4 0-2.3.9-2.3 2.2s.9 2.3 2.4 2.3h1.1", f"M{f(x+3.5)} 14.4H{f(x+2.4)}c-1.5 0-2.4 1-2.4 2.4s1.1 2.8 2.7 2.8c1.1 0 2-.5 2.6-1.4"], [])),
+ 'θ': (5.2, lambda x: ([ring(x+2.6, 12, 2.6, 7.5), f"M{f(x)} 12h5.2"], [])),
+ 'τ': (5.4, lambda x: ([f"M{f(x)} 10h5.4", f"M{f(x+2.7)} 10v7.6c0 1.3.6 1.9 1.6 1.9"], [])),
+ 'ν': (5, lambda x: ([f"M{f(x)} 10l2.4 9.5c1.6-2.6 2.6-5.6 2.6-9.5"], [])),
+ # Digits and signs.
+ '0': (5, lambda x: ([ring(x+2.5, 12, 2.5, 7.5)], [])),
+ '1': (3.4, lambda x: ([f"M{f(x)} 7l2.4-2.5v15"], [])),
+ '2': (5.2, lambda x: ([f"M{f(x)} 8c.4-2.2 1.6-3.5 3-3.5s2.2 1.2 2.2 3c0 4-5.2 6.5-5.2 12h5.2"], [])),
+ '′': (2, lambda x: ([f"M{f(x+2)} 4l-1.4 5"], [])),
+ '−': (4.6, lambda x: ([f"M{f(x)} 12h4.6"], [])),
+ '/': (4.4, lambda x: ([f"M{f(x+4.4)} 4.5L{f(x)} 19.5"], [])),
+ '∞': (10.8, lambda x: ([f"M{f(x+5.4)} 15c-1-1.6-2-2.4-3-2.4a2.4 2.4 0 0 0 0 4.8c1 0 2-.8 3-2.4s2-2.4 3-2.4a2.4 2.4 0 0 1 0 4.8c-1 0-2-.8-3-2.4z"], [])),
  # Superscripts: −1, T, H, raised above the x-height.
  '⁻¹': (5.4, lambda x: ([f"M{f(x)} 6.5h2.4", f"M{f(x+3.8)} 4.4l1.6-1.2v7.6"], [])),
  'ᵀ': (4.6, lambda x: ([f"M{f(x)} 3.2h4.6", f"M{f(x+2.3)} 3.2v7.8"], [])),
@@ -64,7 +107,7 @@ def stretch(d, x0, k):
     pen = SVGPathPen(None, ntos=lambda v: ('%.2f' % v).rstrip('0').rstrip('.'))
     parse_path(d, TransformPen(pen, (k, 0, 0, 1, x0 * (1 - k), 0)))
     return pen.getCommands()
-def k_of(ch): return MATRIX_STRETCH if ch == 'M' else (1 if ch in ('·', '×', '∘', '⊗', 'Msm', 'Mrow', 'Mcol') else STRETCH)
+def k_of(ch): return MATRIX_STRETCH if ch == 'M' else (STRETCH if (len(ch) == 1 and 'a' <= ch <= 'z') or ch == 'ℏ' else 1)
 def word(parts, W):
     """parts: list of (letters, role) with role 'ink' or 'accent'. Centred in a W-wide box."""
     seq = [(ch, role) for text, role in parts for ch in ([text] if text in L else list(text))]
@@ -123,7 +166,7 @@ lines += [
  kt('real part', 'Re', [('R', 'accent'), ('e', 'ink')]),
  kt('imaginary part', 'Im', [('I', 'accent'), ('m', 'ink')]),
  kt('residue', 'Residue', [('R', 'accent'), ('es', 'ink')]),
- kt('matrix', 'Matrix', [('M', 'accent')]),
+ kt('matrix', 'Matrix', [('M', 'ink')]),
  kt('inverse', 'Inverse', [('M', 'ink'), ('⁻¹', 'accent')]),
  kt('transpose', 'Transpose', [('M', 'ink'), ('ᵀ', 'accent')]),
  kt('conjugate transpose', 'Adjoint', [('M', 'ink'), ('ᴴ', 'accent')]),
@@ -139,4 +182,72 @@ lines += [
  kt('reduced row echelon form', 'Rref', [('rref', 'accent'), ('M', 'ink')]),
  kt('rank', 'Rank', [('rk', 'accent'), ('M', 'ink')]),
 ]
+
+SMALL = 0.56
+def small(ch, x, sub):
+    """A small glyph (sub- or superscript) at x, its strokes thin."""
+    k = k_of(ch)
+    ps, fl = L[ch][1](0)
+    ty = 22.8 - SMALL * 19.5 if sub else 2.6 - SMALL * 4.5
+    out = []
+    for d in ps + fl:
+        pen = SVGPathPen(None, ntos=lambda v: ('%.2f' % v).rstrip('0').rstrip('.'))
+        parse_path(d, TransformPen(pen, (SMALL * k, 0, 0, SMALL, x, ty)))
+        out.append(pen.getCommands())
+    return out[:len(ps)], out[len(ps):], L[ch][0] * k * SMALL
+def constant(pieces):
+    """pieces: [(text, sub, sup)] → Kotlin key arguments and width."""
+    items = []  # (kind, ch) kind: main / sub / sup / sep
+    for text, sub, sup in pieces:
+        for ch in text:
+            if ch in '¹²': items.append(('supd', '1' if ch == '¹' else '2'))
+            elif ch in '()/': items.append(('sep', ch))
+            else: items.append(('main', ch))
+        if sub or sup: items.append(('script', (sub, sup)))
+    # Lay out once to measure, then again centred.
+    def lay(x0):
+        o = {'accent': [], 'inkThin': [], 'ink': [], 'accentFill': [], 'inkFill': []}
+        x = x0; prev = None
+        for kind, ch in items:
+            if kind == 'script':
+                sub, sup = ch; w = 0
+                for txt, is_sub in ((sub, True), (sup, False)):
+                    # A clear gap after the letter (its stroke reaches 1 past its outline), then the small letters spaced.
+                    xx = x - GAP + 4.0
+                    for c in txt:
+                        c = 'Ṁ' if c == 'M' else c
+                        st, fl, wc = small(c, xx, is_sub); o['inkThin'] += st; o['inkFill'] += fl; xx += wc + 1.9
+                    w = max(w, xx - 1.9 - (x - GAP + 4.0))
+                x += w + 4.0 + 1.6; continue
+            if kind == 'supd':
+                st, fl, wc = small(ch, x - GAP + 3.0, False); o["inkThin"] += st; x += wc - GAP + 3.0 + 2.4; continue
+            c = 'Ṁ' if ch == 'M' else ch
+            k = k_of(c)
+            st, fl = L[c][1](x)
+            st = [stretch(d, x, k) for d in st]
+            role = 'ink' if kind == 'sep' else 'accent'
+            o[role] += st; o[role + 'Fill'] += fl
+            x += L[c][0] * k + GAP
+        return o, x - GAP - x0
+    _, total = lay(0)
+    import math
+    W = max(24, math.ceil(total + 4))
+    o, _ = lay((W - total) / 2)
+    return o, W
+import re as _re
+src = open('../app/src/main/java/com/example/cas/engine/Constants.kt').read()
+for m in _re.finditer(r'\n    \w+\("[^"]+", listOf\((.*?)\), "([^"]+)"', src):
+    pieces = []
+    for pm in _re.finditer(r'Piece\("([^"]*)"((?:, \w+ = (?:"[^"]*"|\w+))*)\)', m.group(1)):
+        kw = dict(_re.findall(r'(\w+) = "([^"]*)"', pm.group(2)))
+        pieces.append((pm.group(1), kw.get('sub', ''), kw.get('sup', '')))
+    desc = m.group(2).split(' (')[0]
+    try:
+        o, W = constant(pieces)
+    except KeyError as e:
+        import sys; print('// skipped', desc, e, file=sys.stderr); continue
+    args = [f'{k} = listOf({", ".join(chr(34) + p + chr(34) for p in v)})' for k, v in o.items() if v]
+    w = '' if W == 24 else f', width = {W}f'
+    name = 'C' + _re.sub(r'[^A-Za-z0-9]', '', desc.title())[:28]
+    lines.append(f'            "{desc}" to key("{name}"{w}, {", ".join(args)}),')
 print('\n'.join(lines))

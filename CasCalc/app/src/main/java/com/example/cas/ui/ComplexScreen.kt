@@ -28,8 +28,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -70,13 +68,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.cas.cas.CD
 import com.example.cas.graph.DomainColoring
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import com.example.cas.graph.Scene
 import com.example.cas.graph.Pgf
-import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.ui.graphics.toArgb
 import com.example.cas.graph.Plot2D
 import com.example.cas.graph.Viewport

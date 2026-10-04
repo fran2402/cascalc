@@ -147,6 +147,162 @@ object TableIcons {
     /** A ruler and its marks: a length. */
     val Ruler: ImageVector by lazy { tableIcon("Ruler", stroke = listOf("M3 15.5L15.5 3l5.5 5.5L8.5 21z"), thin = listOf("M7 11.5l2 2", "M10 8.5l1.5 1.5", "M13 5.5l2 2"), accent = setOf("M7 11.5l2 2", "M10 8.5l1.5 1.5", "M13 5.5l2 2")) }
 
+    /** A pin struck through: unpin. */
+    val Unpin: ImageVector by lazy { tableIcon("Unpin", stroke = listOf("M9.5 3.5h5v6l3 4.5h-11l3-4.5z", "M12 14v6.5", "M8 3.5h8", "M3.5 3.5l17 17"), accent = setOf("M3.5 3.5l17 17")) }
+
+    /** A cross: close. */
+    val Close: ImageVector by lazy { tableIcon("Close", stroke = listOf("M6 6l12 12", "M18 6L6 18")) }
+
+    /** A tick: done, chosen. */
+    val Check: ImageVector by lazy { tableIcon("Check", stroke = listOf("M4.5 12.5l5 5L19.5 7"), accent = setOf("M4.5 12.5l5 5L19.5 7")) }
+
+    /** A plus: add. */
+    val Add: ImageVector by lazy { tableIcon("Add", stroke = listOf("M12 5v14", "M5 12h14"), accent = setOf("M12 5v14", "M5 12h14")) }
+
+    /** A minus: remove, zoom out. */
+    val Remove: ImageVector by lazy { tableIcon("Remove", stroke = listOf("M5 12h14"), accent = setOf("M5 12h14")) }
+
+    /** Three dots down: more. */
+    val More: ImageVector by lazy { tableIcon("More", stroke = listOf(), fill = listOf(oval(12f, 5.5f, 1.9f, 1.9f), oval(12f, 12f, 1.9f, 1.9f), oval(12f, 18.5f, 1.9f, 1.9f))) }
+
+    /** Three dots across: more. */
+    val MoreHoriz: ImageVector by lazy { tableIcon("MoreHoriz", stroke = listOf(), fill = listOf(oval(5.5f, 12f, 1.9f, 1.9f), oval(12f, 12f, 1.9f, 1.9f), oval(18.5f, 12f, 1.9f, 1.9f))) }
+
+    /** A key shape pointing back with a cross: delete back. */
+    val Backspace: ImageVector by lazy { tableIcon("Backspace", stroke = listOf("M8 5.5h11.5a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5H8L2.5 12z", "M11 9l6 6", "M17 9l-6 6"), accent = setOf("M11 9l6 6", "M17 9l-6 6")) }
+
+    /** A return arrow: enter, use. */
+    val Enter: ImageVector by lazy { tableIcon("Enter", stroke = listOf("M19.5 5v6.5a2.5 2.5 0 0 1-2.5 2.5H5", "M9 10l-4 4l4 4"), accent = setOf("M9 10l-4 4l4 4")) }
+
+    /** An arrow bringing a line down into the input: use the answer. */
+    val UseAnswer: ImageVector by lazy { tableIcon("UseAnswer", stroke = listOf("M4 5.5h10", "M4 9.5h6", "M17 4.5v9a2.5 2.5 0 0 1-2.5 2.5H8", "M11 13l-3 3l3 3", "M4 20.5h16"), accent = setOf("M17 4.5v9a2.5 2.5 0 0 1-2.5 2.5H8", "M11 13l-3 3l3 3")) }
+
+    /** Two arrows trading places between units: the unit converter. */
+    val Converter: ImageVector by lazy { tableIcon("Converter", stroke = listOf("M4 8h13", "M14 4.5L17.5 8L14 11.5", "M20 16H7", "M10 12.5L6.5 16l3.5 3.5"), accent = setOf("M20 16H7", "M10 12.5L6.5 16l3.5 3.5")) }
+
+    /** A heart: acknowledgements. */
+    val Thanks: ImageVector by lazy { tableIcon("Thanks", stroke = listOf("M12 20s-7.5-4.6-7.5-10a4 4 0 0 1 7.5-2a4 4 0 0 1 7.5 2c0 5.4-7.5 10-7.5 10z"), shade = listOf("M12 20s-7.5-4.6-7.5-10a4 4 0 0 1 7.5-2a4 4 0 0 1 7.5 2c0 5.4-7.5 10-7.5 10z"), accent = setOf("M12 20s-7.5-4.6-7.5-10a4 4 0 0 1 7.5-2a4 4 0 0 1 7.5 2c0 5.4-7.5 10-7.5 10z")) }
+
+    /** The history clock with a cross: clear history. */
+    val ClearHistory: ImageVector by lazy { tableIcon("ClearHistory", stroke = listOf("M4.5 12a7.5 7.5 0 1 0 2.2-5.3", "M3.8 4.3v3.6h3.6", "M12 8v4.4l3 2", "M16 16l5 5", "M21 16l-5 5"), accent = setOf("M16 16l5 5", "M21 16l-5 5")) }
+
+    /** x := struck through: forget the variables. */
+    val Undefine: ImageVector by lazy { tableIcon("Undefine", stroke = listOf("M3 7l6 9", "M9 7l-6 9", "M13.5 9.5h7.5", "M13.5 13.5h7.5", "M2.5 20.5L21.5 3.5"), fill = listOf(oval(11f, 9.5f, 1.1f, 1.1f), oval(11f, 13.5f, 1.1f, 1.1f)), accent = setOf("M2.5 20.5L21.5 3.5")) }
+
+    /** An answer line and a copy: copy the last answer. */
+    val CopyAnswer: ImageVector by lazy { tableIcon("CopyAnswer", stroke = listOf("M10 8.5h8.5a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H10A1.5 1.5 0 0 1 8.5 19v-9A1.5 1.5 0 0 1 10 8.5z", "M15.5 5V4.5A1.5 1.5 0 0 0 14 3H5.5A1.5 1.5 0 0 0 4 4.5V14a1.5 1.5 0 0 0 1.5 1.5H6", "M11.5 13h5", "M11.5 16.5h5"), accent = setOf("M11.5 13h5", "M11.5 16.5h5")) }
+
+    /** Six dots: drag to move. */
+    val Grip: ImageVector by lazy { tableIcon("Grip", stroke = listOf(), fill = listOf(oval(9f, 6f, 1.6f, 1.6f), oval(15f, 6f, 1.6f, 1.6f), oval(9f, 12f, 1.6f, 1.6f), oval(15f, 12f, 1.6f, 1.6f), oval(9f, 18f, 1.6f, 1.6f), oval(15f, 18f, 1.6f, 1.6f))) }
+
+    /** Arrows up and down: swap. */
+    val Swap: ImageVector by lazy { tableIcon("Swap", stroke = listOf("M8 19V5", "M4.5 8.5L8 5l3.5 3.5", "M16 5v14", "M12.5 15.5L16 19l3.5-3.5"), accent = setOf("M16 5v14", "M12.5 15.5L16 19l3.5-3.5")) }
+
+    /** Arrows left and right: swap. */
+    val SwapH: ImageVector by lazy { tableIcon("SwapH", stroke = listOf("M5 8h14", "M15.5 4.5L19 8l-3.5 3.5", "M19 16H5", "M8.5 12.5L5 16l3.5 3.5"), accent = setOf("M19 16H5", "M8.5 12.5L5 16l3.5 3.5")) }
+
+    /** A box with an arrow leaving its corner: open elsewhere. */
+    val External: ImageVector by lazy { tableIcon("External", stroke = listOf("M19 13.5V18a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 18V7a1.5 1.5 0 0 1 1.5-1.5H11", "M14 4.5h5.5V10", "M19.5 4.5L11 13"), accent = setOf("M14 4.5h5.5V10", "M19.5 4.5L11 13")) }
+
+    /** A globe: language. */
+    val Globe: ImageVector by lazy { tableIcon("Globe", stroke = listOf(oval(12f, 12f, 8.5f, 8.5f)), thin = listOf("M3.5 12h17", oval(12f, 12f, 3.6f, 8.5f)), accent = setOf(oval(12f, 12f, 3.6f, 8.5f))) }
+
+    /** A bug: report a problem. */
+    val Bug: ImageVector by lazy { tableIcon("Bug", stroke = listOf("M8 10a4 4 0 0 1 8 0v4a4 4 0 0 1-8 0z", "M12 10v8"), thin = listOf("M8 12H4.5", "M19.5 12H16", "M8.5 7.5L6 5", "M15.5 7.5L18 5", "M8 16l-3 2", "M16 16l3 2"), accent = setOf("M8.5 7.5L6 5", "M15.5 7.5L18 5")) }
+
+    /** A question mark in a circle: help. */
+    val Help: ImageVector by lazy { tableIcon("Help", stroke = listOf(oval(12f, 12f, 9f, 9f), "M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.6v.6"), fill = listOf(oval(12f, 17f, 1.25f, 1.25f)), accent = setOf("M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .9-1 1.6v.6", oval(12f, 17f, 1.25f, 1.25f))) }
+
+    /** A sparkle: something new. */
+    val Sparkle: ImageVector by lazy { tableIcon("Sparkle", stroke = listOf("M12 3.5c.6 4.2 2.3 5.9 6.5 6.5c-4.2.6-5.9 2.3-6.5 6.5c-.6-4.2-2.3-5.9-6.5-6.5c4.2-.6 5.9-2.3 6.5-6.5z"), thin = listOf("M18 16v4", "M16 18h4"), shade = listOf("M12 3.5c.6 4.2 2.3 5.9 6.5 6.5c-4.2.6-5.9 2.3-6.5 6.5c-.6-4.2-2.3-5.9-6.5-6.5c4.2-.6 5.9-2.3 6.5-6.5z"), accent = setOf("M12 3.5c.6 4.2 2.3 5.9 6.5 6.5c-4.2.6-5.9 2.3-6.5 6.5c-.6-4.2-2.3-5.9-6.5-6.5c4.2-.6 5.9-2.3 6.5-6.5z")) }
+
+    /** A triangle with an exclamation mark: a warning. */
+    val Warning: ImageVector by lazy { tableIcon("Warning", stroke = listOf("M12 4l9 15.5H3z", "M12 10v4.5"), fill = listOf(oval(12f, 17f, 1.2f, 1.2f)), accent = setOf("M12 10v4.5", oval(12f, 17f, 1.2f, 1.2f))) }
+
+    /** An exclamation mark in a circle: an error. */
+    val ErrorCircle: ImageVector by lazy { tableIcon("ErrorCircle", stroke = listOf(oval(12f, 12f, 9f, 9f), "M12 7.5v5.5"), fill = listOf(oval(12f, 16.5f, 1.25f, 1.25f)), accent = setOf("M12 7.5v5.5", oval(12f, 16.5f, 1.25f, 1.25f))) }
+
+    /** A star, filled: a favourite. */
+    val Star: ImageVector by lazy { tableIcon("Star", stroke = listOf("M12 3.5l2.6 5.4l5.9.8l-4.3 4.1l1 5.8L12 16.8l-5.2 2.8l1-5.8l-4.3-4.1l5.9-.8z"), shade = listOf("M12 3.5l2.6 5.4l5.9.8l-4.3 4.1l1 5.8L12 16.8l-5.2 2.8l1-5.8l-4.3-4.1l5.9-.8z"), accent = setOf("M12 3.5l2.6 5.4l5.9.8l-4.3 4.1l1 5.8L12 16.8l-5.2 2.8l1-5.8l-4.3-4.1l5.9-.8z")) }
+
+    /** A star, outlined: not a favourite. */
+    val StarOutline: ImageVector by lazy { tableIcon("StarOutline", stroke = listOf("M12 3.5l2.6 5.4l5.9.8l-4.3 4.1l1 5.8L12 16.8l-5.2 2.8l1-5.8l-4.3-4.1l5.9-.8z")) }
+
+    /** An arrow down into a tray: save. */
+    val Download: ImageVector by lazy { tableIcon("Download", stroke = listOf("M12 4v10.5", "M8 10.5l4 4l4-4", "M4.5 15.5V19a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-3.5"), accent = setOf("M12 4v10.5", "M8 10.5l4 4l4-4")) }
+
+    /** A page with lines: a document. */
+    val Document: ImageVector by lazy { tableIcon("Document", stroke = listOf("M6 3.5h8l4.5 4.5v12.5H6z"), thin = listOf("M14 3.5V8h4.5", "M9 12h6", "M9 15.5h6"), accent = setOf("M9 12h6", "M9 15.5h6")) }
+
+    /** Aa: fonts. */
+    val Font: ImageVector by lazy { tableIcon("Font", stroke = listOf("M2.5 19L7.5 5l5 14", "M4.4 14h6.2", "M21.5 19v-6a2.8 2.8 0 0 0-5.2-1.4", "M21.5 15.4c-3.2-.5-6 0-6 1.9a1.9 1.9 0 0 0 3.5 1"), accent = setOf("M21.5 19v-6a2.8 2.8 0 0 0-5.2-1.4", "M21.5 15.4c-3.2-.5-6 0-6 1.9a1.9 1.9 0 0 0 3.5 1")) }
+
+    /** Chevrons apart: show more. */
+    val Expand: ImageVector by lazy { tableIcon("Expand", stroke = listOf("M7.5 9.5L12 5l4.5 4.5", "M7.5 14.5L12 19l4.5-4.5")) }
+
+    /** Chevrons together: show less. */
+    val Collapse: ImageVector by lazy { tableIcon("Collapse", stroke = listOf("M7.5 5L12 9.5L16.5 5", "M7.5 19L12 14.5l4.5 4.5")) }
+
+    /** Corners outward: bigger. */
+    val Fullscreen: ImageVector by lazy { tableIcon("Fullscreen", stroke = listOf("M4 9V4h5", "M15 4h5v5", "M20 15v5h-5", "M9 20H4v-5")) }
+
+    /** Corners inward: smaller. */
+    val ExitFullscreen: ImageVector by lazy { tableIcon("ExitFullscreen", stroke = listOf("M9 4v5H4", "M20 9h-5V4", "M15 20v-5h5", "M4 15h5v5")) }
+
+    /** An open hand: move the view. */
+    val Hand: ImageVector by lazy { tableIcon("Hand", stroke = listOf("M8 12V6a1.5 1.5 0 0 1 3 0v5", "M11 10.5V4.5a1.5 1.5 0 0 1 3 0v6", "M14 10.5v-4a1.5 1.5 0 0 1 3 0v6.5", "M8 12v-1.5a1.5 1.5 0 0 0-3 0V14c0 4 2.7 6.5 6.5 6.5S17 18 17 14v-1")) }
+
+    /** A wand with sparks: tidy up. */
+    val Wand: ImageVector by lazy { tableIcon("Wand", stroke = listOf("M4 20L15 9", "M13.5 7.5l3 3"), thin = listOf("M18 3.5v3", "M16.5 5h3", "M20 10v2.5", "M18.8 11.2h2.5", "M10.5 3.5v2", "M9.5 4.5h2"), accent = setOf("M18 3.5v3", "M16.5 5h3", "M20 10v2.5", "M18.8 11.2h2.5", "M10.5 3.5v2", "M9.5 4.5h2")) }
+
+    /** A flag: mark. */
+    val Flag: ImageVector by lazy { tableIcon("Flag", stroke = listOf("M5 21V4", "M5 4.5h12l-2.5 4l2.5 4H5"), shade = listOf("M5 4.5h12l-2.5 4l2.5 4H5z"), accent = setOf("M5 4.5h12l-2.5 4l2.5 4H5", "M5 4.5h12l-2.5 4l2.5 4H5z")) }
+
+    /** A bulleted list. */
+    val Bullets: ImageVector by lazy { tableIcon("Bullets", stroke = listOf("M9 6h11", "M9 12h11", "M9 18h11"), fill = listOf(oval(4.5f, 6f, 1.5f, 1.5f), oval(4.5f, 12f, 1.5f, 1.5f), oval(4.5f, 18f, 1.5f, 1.5f)), accent = setOf(oval(4.5f, 6f, 1.5f, 1.5f), oval(4.5f, 12f, 1.5f, 1.5f), oval(4.5f, 18f, 1.5f, 1.5f))) }
+
+    /** A path splitting in two. */
+    val Split: ImageVector by lazy { tableIcon("Split", stroke = listOf("M12 20v-7", "M12 13L6 6", "M12 13l6-7", "M6 9.5V6h3.5", "M14.5 6H18v3.5"), accent = setOf("M6 9.5V6h3.5", "M14.5 6H18v3.5")) }
+
+    /** Two paths joining. */
+    val Merge: ImageVector by lazy { tableIcon("Merge", stroke = listOf("M12 4v7", "M12 11l-6 7", "M12 11l6 7", "M8.5 7.5L12 4l3.5 3.5"), accent = setOf("M8.5 7.5L12 4l3.5 3.5")) }
+
+    /** Lines indented further. */
+    val IndentMore: ImageVector by lazy { tableIcon("IndentMore", stroke = listOf("M4 5h16", "M11 10h9", "M11 14h9", "M4 19h16", "M4 9.5L7 12l-3 2.5"), accent = setOf("M4 9.5L7 12l-3 2.5")) }
+
+    /** Lines indented less. */
+    val IndentLess: ImageVector by lazy { tableIcon("IndentLess", stroke = listOf("M4 5h16", "M11 10h9", "M11 14h9", "M4 19h16", "M7 9.5L4 12l3 2.5"), accent = setOf("M7 9.5L4 12l3 2.5")) }
+
+    /** A line climbing: a trend. */
+    val TrendUp: ImageVector by lazy { tableIcon("TrendUp", stroke = listOf("M3 17l6-6l4 4l8-8", "M15 7h6v6"), accent = setOf("M15 7h6v6")) }
+
+    /** A finger tapping: touch. */
+    val Tap: ImageVector by lazy { tableIcon("Tap", stroke = listOf("M10 13V5.5a1.5 1.5 0 0 1 3 0V12l4.2.9a2 2 0 0 1 1.6 2.3l-.8 5.3H10.5L7 16.5a1.6 1.6 0 0 1 2.4-2.1z"), thin = listOf("M7.5 6a4 4 0 0 1 8 0"), accent = setOf("M7.5 6a4 4 0 0 1 8 0")) }
+
+    /** A circle. */
+    val Lens: ImageVector by lazy { tableIcon("Lens", stroke = listOf(oval(12f, 12f, 7f, 7f))) }
+
+    /** Four arrows: move. */
+    val Move: ImageVector by lazy { tableIcon("Move", stroke = listOf("M12 3v18", "M3 12h18", "M9.5 5.5L12 3l2.5 2.5", "M9.5 18.5L12 21l2.5-2.5", "M5.5 9.5L3 12l2.5 2.5", "M18.5 9.5L21 12l-2.5 2.5"), accent = setOf("M9.5 5.5L12 3l2.5 2.5", "M9.5 18.5L12 21l2.5-2.5", "M5.5 9.5L3 12l2.5 2.5", "M18.5 9.5L21 12l-2.5 2.5")) }
+
+    /** A phone with a plus: add to the home screen. */
+    val Shortcut: ImageVector by lazy { tableIcon("Shortcut", stroke = listOf("M8 2.5h8a1.5 1.5 0 0 1 1.5 1.5v16a1.5 1.5 0 0 1-1.5 1.5H8A1.5 1.5 0 0 1 6.5 20V4A1.5 1.5 0 0 1 8 2.5z", "M12 9v6", "M9 12h6"), accent = setOf("M12 9v6", "M9 12h6")) }
+
+    /** An arrow pointing back. */
+    val Back: ImageVector by lazy { tableIcon("Back", stroke = listOf("M19.5 12h-15", "M10.5 6l-6 6l6 6")) }
+
+    /** An arrow pointing on. */
+    val Forward: ImageVector by lazy { tableIcon("Forward", stroke = listOf("M4.5 12h15", "M13.5 6l6 6l-6 6")) }
+
+    /** Chevrons: right, left, up, down. */
+    val ChevronRight: ImageVector by lazy { tableIcon("ChevronRight", stroke = listOf("M9.5 6l6 6l-6 6")) }
+    val ChevronLeft: ImageVector by lazy { tableIcon("ChevronLeft", stroke = listOf("M14.5 6l-6 6l6 6")) }
+    val ChevronUp: ImageVector by lazy { tableIcon("ChevronUp", stroke = listOf("M6 14.5l6-6l6 6")) }
+    val ChevronDown: ImageVector by lazy { tableIcon("ChevronDown", stroke = listOf("M6 9.5l6 6l6-6")) }
+
+    /** A small rounded triangle: a menu opens here. */
+    val DropDown: ImageVector by lazy { tableIcon("DropDown", stroke = listOf("M8 10.5h8l-4 4.5z"), fill = listOf("M8 10.5h8l-4 4.5z")) }
+
     /** A box with an arrow leaving it: share (the same drawing as [ShareTable]). */
     val Share: ImageVector get() = ShareTable
 

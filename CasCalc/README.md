@@ -203,6 +203,26 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, custom icons everywhere)
+- **Physical constants** get symbol icons like π and e: the symbol in the accent color, sub- and
+  superscripts small in ink (c, h, ℏ, k_B, G, ε₀, μ₀, mₑ, N_A, R_∞, m_p/mₑ, sin²θ_W…), generated
+  from `engine/Constants.kt` by `preview-render/key_letters.py`.
+- **Keys:**
+  - := (define a symbol) and the list of constants have their own icons.
+  - The matrix key is in plain ink, like the other matrices.
+  - The symbol builder is one color again.
+- **Unpin** is a pin struck through, so it never looks like Pin.
+- **Menus:**
+  - The ⋮ menus have icons: copy last answer, clear variables, unit converter, settings,
+    acknowledgements and clear history.
+  - Use the answer has its own icon.
+- **Every remaining Material icon is now one of the app's own:**
+  - close, check, add, remove, ⋮, backspace and enter (on the number pad too);
+  - grip, swap, open elsewhere, language, bug report, help, warnings, stars, save, fonts;
+  - expand, full screen, move, the back and forward arrows, chevrons and dropdowns.
+
+  (Mockup: `preview-render/round53.png`.)
+
 ## Latest changes (4 October, wider trig and matrix icons)
 - **Trig and matrix key icons widened:**
   - The letters are drawn 30% wider (strokes unchanged), with more space between them.

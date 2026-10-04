@@ -1,13 +1,7 @@
 package com.example.cas.ui
 
-import androidx.compose.material.icons.outlined.AddToHomeScreen
 
-import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ContentCopy
 import android.view.HapticFeedbackConstants
 import android.content.Context
 import androidx.compose.foundation.layout.offset
@@ -18,9 +12,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
-import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import com.example.cas.engine.LatexParser
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.layout.FlowRow
@@ -38,16 +29,12 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material.icons.filled.Keyboard
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.key
 import androidx.compose.ui.graphics.Brush
 import android.content.Intent
 import android.graphics.Bitmap
-import androidx.compose.material.icons.automirrored.filled.ShowChart
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.rememberCoroutineScope
@@ -84,9 +71,6 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.outlined.PushPin
-import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -116,42 +100,17 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.layout.onPlaced
-import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material.icons.outlined.Language
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.semantics.Role
-import androidx.compose.material.icons.outlined.Calculate
-import androidx.compose.material.icons.outlined.Pin
-import androidx.compose.material.icons.automirrored.outlined.ShowChart
-import androidx.compose.material.icons.outlined.TouchApp
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.BugReport
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.outlined.Backspace
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.automirrored.filled.CallSplit
-import androidx.compose.material.icons.filled.AutoFixHigh
-import androidx.compose.material.icons.filled.CallMerge
-import androidx.compose.material.icons.filled.CloseFullscreen
-import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material.icons.filled.OpenInFull
-import androidx.compose.material.icons.filled.Replay
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.UnfoldLess
-import androidx.compose.material.icons.filled.UnfoldMore
-import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -193,7 +152,6 @@ import com.example.cas.editor.row
 import com.example.cas.engine.AngleUnit
 import com.example.cas.engine.UnitSystem
 import com.example.cas.cas.CoordinateKind
-import androidx.compose.material.icons.filled.Edit
 import com.example.cas.engine.Constant
 import com.example.cas.engine.Formatter
 import com.example.cas.engine.Steps
@@ -341,11 +299,11 @@ fun CalculatorTrailingAction(vm: CalculatorViewModel) {
     run {
         Box {
             IconButton(onClick = { menu = true }) {
-                Icon(Icons.Default.MoreVert, contentDescription = tr("More options"), tint = colors.onSurfaceVariant)
+                AppIcon(TableIcons.More, contentDescription = tr("More options"), tint = colors.onSurfaceVariant)
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(
-                    text = { Text(tr("Copy last answer")) },
+                    text = { Text(tr("Copy last answer")) }, leadingIcon = { AppIcon(TableIcons.CopyAnswer, null) },
                     enabled = vm.history.isNotEmpty(),
                     onClick = {
                         menu = false
@@ -354,24 +312,24 @@ fun CalculatorTrailingAction(vm: CalculatorViewModel) {
                 )
                 if (vm.variables.isNotEmpty()) {
                     DropdownMenuItem(
-                        text = { Text(tr("Clear variables (") + vm.variables.keys.sorted().joinToString(", ") + ")") },
+                        text = { Text(tr("Clear variables (") + vm.variables.keys.sorted().joinToString(", ") + ")") }, leadingIcon = { AppIcon(TableIcons.Undefine, null) },
                         onClick = { menu = false; vm.clearVariables() },
                     )
                 }
                 if (AppSettings.unitConverter) DropdownMenuItem(
-                    text = { Text(tr("Unit converter")) },
+                    text = { Text(tr("Unit converter")) }, leadingIcon = { AppIcon(TableIcons.Converter, null) },
                     onClick = { menu = false; converter = true },
                 )
                 DropdownMenuItem(
-                    text = { Text(tr("Settings")) },
+                    text = { Text(tr("Settings")) }, leadingIcon = { AppIcon(TableIcons.Settings, null) },
                     onClick = { menu = false; settings = true },
                 )
                 DropdownMenuItem(
-                    text = { Text(tr("Acknowledgements")) },
+                    text = { Text(tr("Acknowledgements")) }, leadingIcon = { AppIcon(TableIcons.Thanks, null) },
                     onClick = { menu = false; acknowledgements = true },
                 )
                 DropdownMenuItem(
-                    text = { Text(tr("Clear history")) },
+                    text = { Text(tr("Clear history")) }, leadingIcon = { AppIcon(TableIcons.ClearHistory, null) },
                     enabled = vm.history.isNotEmpty(),
                     onClick = { menu = false; if (AppSettings.confirmClearHistory) confirmClear = true else vm.clearHistory() },
                 )
@@ -615,10 +573,10 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                     if (g.dimensions == 1) TabIcons.Complex else TableIcons.Mode2D,
                     "Graph", when (g.dimensions) { 1 -> "Plot on the complex plane"; 2 -> "Graph this"; else -> "Graph this in 3D" }, tonal = true,
                 ) { onGraph(g) }
-                else action(Icons.AutoMirrored.Filled.KeyboardReturn, "Use", "Use this answer", tonal = true) { vm.reuse(shown) }
+                else action(TableIcons.Enter, "Use", "Use this answer", tonal = true) { vm.reuse(shown) }
                 // Beta: the working.
                 if (AppSettings.showSteps && remember(item) { Steps.supports(item.expression) }) {
-                    action(Icons.AutoMirrored.Filled.FormatListBulleted, "Steps", "Show the steps") { showingSteps = true }
+                    action(TableIcons.Bullets, "Steps", "Show the steps") { showingSteps = true }
                 }
                 Spacer(Modifier.weight(1f))
                 // Copy and pin: small, side by side, right by the ⋮ menu.
@@ -639,10 +597,10 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                     Box(
                         Modifier.size(34.dp).clip(CircleShape).clickable(onClickLabel = tr("More: folder, share, delete")) { tap(); shareMenu = true },
                         contentAlignment = Alignment.Center,
-                    ) { Icon(Icons.Default.MoreVert, contentDescription = tr("More: folder, share, delete"), tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp)) }
+                    ) { AppIcon(TableIcons.More, contentDescription = tr("More: folder, share, delete"), tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp)) }
                     DropdownMenu(expanded = shareMenu, onDismissRequest = { shareMenu = false }, shape = RoundedCornerShape(16.dp)) {
                         if (g != null) DropdownMenuItem(
-                            text = { Text(tr("Use the answer")) }, leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardReturn, null) },
+                            text = { Text(tr("Use the answer")) }, leadingIcon = { AppIcon(TableIcons.UseAnswer, null) },
                             onClick = { shareMenu = false; vm.reuse(shown) },
                         )
                         DropdownMenuItem(
@@ -691,7 +649,7 @@ private fun ApproxChip(expanded: Boolean, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val fg = if (expanded) colors.onPrimary else colors.onPrimaryContainer
-        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = fg, modifier = Modifier.size(20.dp).rotate(turn))
+        AppIcon(TableIcons.ChevronRight, contentDescription = null, tint = fg, modifier = Modifier.size(20.dp).rotate(turn))
         Spacer(Modifier.width(4.dp))
         MathText(if (expanded) "exact" else "\$\\approx\$", color = fg, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 16.sp), mathScale = 1f)
     }
@@ -707,7 +665,7 @@ private fun ControlRow(vm: KeypadHost) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = vm::togglePanel) {
             Icon(
-                if (vm.panelOpen) Icons.Default.UnfoldLess else Icons.Default.UnfoldMore,
+                if (vm.panelOpen) TableIcons.Collapse else TableIcons.Expand,
                 contentDescription = if (vm.panelOpen) "Hide functions" else "Show functions",
                 tint = colors.onSurfaceVariant,
             )
@@ -771,8 +729,8 @@ private fun ControlRow(vm: KeypadHost) {
         Spacer(Modifier.weight(1f))
         // The cursor buttons sit at the right as squarish blocks, as in the keypad design.
         listOf(
-            Triple(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Cursor left", vm::moveLeft),
-            Triple(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Cursor right", vm::moveRight),
+            Triple(TableIcons.ChevronLeft, "Cursor left", vm::moveLeft),
+            Triple(TableIcons.ChevronRight, "Cursor right", vm::moveRight),
         ).forEach { (icon, label, act) ->
             Box(
                 Modifier
@@ -1018,7 +976,7 @@ private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, 
         contentAlignment = Alignment.Center,
     ) {
         // Beta: a function key's picture instead of its label (Settings › Calculator).
-        val picture = if (AppSettings.keyIcons && (spec.role == KeyRole.Function || spec.spoken == "previous answer")) KeyIcons.forKey(spec.spoken) else null
+        val picture = if (AppSettings.keyIcons && (spec.role == KeyRole.Function || spec.spoken in KeyIcons.colouredKeys)) KeyIcons.forKey(spec.spoken) else null
         if (picture != null) DuoIcon(picture, fg, if (spec.role == KeyRole.Equals) colors.inversePrimary else if (defined) colors.tertiary else colors.primary,
             // Words like asinh and rref are drawn wider than they're tall.
             // Always at full height: nothing (a matrix least of all) is shrunk to fit.
@@ -1080,12 +1038,12 @@ private fun KeyHelpDialog(
                 if (pinned != null || onUndefine != null || onRemove != null) {
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (pinned != null) FilledTonalButton(onClick = onPin) {
-                            Icon(if (pinned) TableIcons.PinOutline else TableIcons.Pin, contentDescription = null, modifier = Modifier.size(18.dp))
+                            AppIcon(if (pinned) TableIcons.Unpin else TableIcons.Pin, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(if (pinned) "Unpin" else "Pin")
                         }
                         if (onUndefine != null) FilledTonalButton(onClick = onUndefine) {
-                            Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(18.dp))
+                            AppIcon(TableIcons.Close, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(tr("Undefine") + (symbol?.let { s -> com.example.cas.cas.CustomSymbol.decode(s)?.let { "" } ?: " $s" } ?: ""))
                         }
@@ -1112,7 +1070,7 @@ private fun KeyHelpDialog(
                             .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = colors.primary, modifier = Modifier.size(18.dp))
+                        AppIcon(TableIcons.External, contentDescription = null, tint = colors.primary, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(tr("NIST CODATA value and uncertainty"),
                             style = MaterialTheme.typography.bodyMedium.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline),
@@ -1235,8 +1193,8 @@ private fun LabelView(label: KeyLabel, fg: Color, fontSize: Float, iconSize: Dp)
         is KeyLabel.Math -> FitInside { MathView(label.row, (fontSize * 0.9f).sp, fg, emptyAsDot = true, computerModern = label.latex) }
         is KeyLabel.Icon -> AppIcon(iconFor(label.id), contentDescription = null, tint = fg, modifier = Modifier.size(iconSize))
         is KeyLabel.Matrix -> MatrixLabel(label, fg)
-        KeyLabel.BackspaceIcon -> Icon(Icons.AutoMirrored.Outlined.Backspace, contentDescription = null, tint = fg, modifier = Modifier.size(iconSize))
-        KeyLabel.EnterIcon -> Icon(Icons.AutoMirrored.Filled.KeyboardReturn, contentDescription = null, tint = fg, modifier = Modifier.size(iconSize))
+        KeyLabel.BackspaceIcon -> AppIcon(TableIcons.Backspace, contentDescription = null, tint = fg, modifier = Modifier.size(iconSize))
+        KeyLabel.EnterIcon -> AppIcon(TableIcons.Enter, contentDescription = null, tint = fg, modifier = Modifier.size(iconSize))
     }
 }
 
@@ -1253,13 +1211,13 @@ private fun iconFor(id: IconId): ImageVector = when (id) {
     IconId.Atom -> TabIcons.Atom
     IconId.Abs -> TabIcons.Abs
     IconId.Letters -> TabIcons.Letters
-    IconId.Simplify -> Icons.Default.AutoFixHigh
-    IconId.Expand -> Icons.Default.OpenInFull
-    IconId.Factor -> Icons.Default.CloseFullscreen
-    IconId.Apart -> Icons.AutoMirrored.Filled.CallSplit
-    IconId.Together -> Icons.Default.CallMerge
+    IconId.Simplify -> TableIcons.Wand
+    IconId.Expand -> TableIcons.Fullscreen
+    IconId.Factor -> TableIcons.ExitFullscreen
+    IconId.Apart -> TableIcons.Split
+    IconId.Together -> TableIcons.Merge
     IconId.Answer -> TableIcons.Replay
-    IconId.MoreConstants -> Icons.Default.MoreHoriz
+    IconId.MoreConstants -> TableIcons.MoreHoriz
     IconId.Triangle -> TabIcons.Triangle
 }
 
@@ -1366,7 +1324,7 @@ private fun ConstantsSheet(units: UnitSystem, onPick: (String) -> Unit, onDismis
                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Search constants") },
                 )
             }
-            if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Default.Close, contentDescription = tr("Clear the search"), tint = colors.onSurfaceVariant) }
+            if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { AppIcon(TableIcons.Close, contentDescription = tr("Clear the search"), tint = colors.onSurfaceVariant) }
         }
         // A chip for each section of the list.
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1476,7 +1434,7 @@ private fun SettingsLink(title: String, detail: String?, clickLabel: String, onC
             Text(tr(title), color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
             if (detail != null) MathText(tr(detail), color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.onSurfaceVariant)
+        AppIcon(TableIcons.ChevronRight, contentDescription = null, tint = colors.onSurfaceVariant)
     }
 }
 
@@ -1582,7 +1540,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
     // One scrolling page on a phone; on a tablet, the sections down the left and one at a time on the right.
     SectionedPage("Settings", onBack = onBack, sections = (if (I18n.languages.size < 2) emptyList<PageSection>() else listOf(
         // Only once a translation has been added (assets/i18n): the system's language, or one picked here.
-        PageSection("Language", Icons.Outlined.Language) {
+        PageSection("Language", TableIcons.Globe) {
             val codes = listOf("") + I18n.languages.map { it.code }
             // Its title says "Language" in English too, so it can be found from any language.
             SettingsRadio(if (I18n.code == "en") "Language" else tr("Language") + " (Language)", listOf(tr("System")) + I18n.languages.map { it.name }, codes.indexOf(AppSettings.language).coerceAtLeast(0)) { AppSettings.changeLanguage(codes[it]) }
@@ -1622,7 +1580,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsToggle("Ask before clearing history", null, AppSettings.confirmClearHistory, AppSettings::changeConfirmClearHistory)
             SettingsToggle("Ask before deleting", "A calculation, or a line in a graph", AppSettings.confirmDeleteEntry, AppSettings::changeConfirmDeleteEntry)
         },
-        PageSection("Numbers", Icons.Outlined.Pin) {
+        PageSection("Numbers", TableIcons.NumberFormat) {
             // Tapping an answer switches between its exact form and its decimal; this picks which comes first.
             if (vm != null) SettingsChoice("Show answers as", listOf("Exact", "Decimal"), if (vm.decimalFirst) 1 else 0) { vm.changeDecimalFirst(it == 1) }
             // Auto: plain digits up to the length below; scientific and engineering: always a × 10ⁿ.
@@ -1669,26 +1627,26 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 AppSettings.changeComplexQuality(listOf(2, 0, 1)[it])
             }
         },
-        PageSection("Touch and screen", Icons.Outlined.TouchApp) {
+        PageSection("Touch and screen", TableIcons.Tap) {
             SettingsToggle("Haptic feedback", "A tap on each key and button", AppSettings.haptics, AppSettings::changeHaptics)
             SettingsToggle("Key sounds", "A click on each key (uses the system's touch sounds)", AppSettings.keySounds, AppSettings::changeKeySounds)
             SettingsToggle("Keep the screen on", "While the app is open", AppSettings.keepScreenOn, AppSettings::changeKeepScreenOn)
         },
-        PageSection("Home screen", Icons.Outlined.AddToHomeScreen) {
+        PageSection("Home screen", TableIcons.Shortcut) {
             val context = LocalContext.current
             Text(tr("Put a shortcut on your home screen that opens straight to one of these. Holding the app's icon shows them too."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             Shortcuts.entries.forEach { e ->
                 SettingsLink(e.longLabel, "Add to the home screen", "Add a ${e.longLabel} shortcut to the home screen") { Shortcuts.pin(context, e) }
             }
         },
-        PageSection("Feedback", androidx.compose.material.icons.Icons.Outlined.BugReport) {
+        PageSection("Feedback", TableIcons.Bug) {
             val context = LocalContext.current
             val scope = rememberCoroutineScope()
             SettingsLink("Report a bug", "An email to the developer with the app's log attached", "Report a bug") { scope.launch { Feedback.reportBug(context) } }
             SettingsLink("Request a feature", "An email to the developer with your idea", "Request a feature") { Feedback.requestFeature(context) }
         },
         // The documentation opens as its own page, on phones and tablets alike.
-        PageSection("Documentation", Icons.AutoMirrored.Outlined.HelpOutline) {
+        PageSection("Documentation", TableIcons.Help) {
             SettingsLink("Documentation", "How everything works: ${Docs.chapters.size} chapters with ${Docs.allExamples.size} worked examples, every key, and the spreadsheet functions", "Open the documentation") { howTo = true }
         },
         PageSection("About", TableIcons.Info) {

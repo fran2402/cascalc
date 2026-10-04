@@ -20,9 +20,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Backspace
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -230,7 +227,7 @@ fun SymbolBuilderPage(onDone: (String?) -> Unit) {
                 }
             }
             Chip(selected = false, description = "Delete the last character", onClick = { tap(); scripts[slot] = s(slot).dropLast(1); changed() }) {
-                Icon(Icons.AutoMirrored.Outlined.Backspace, contentDescription = null, tint = colors.onSurface)
+                AppIcon(TableIcons.Backspace, contentDescription = null, tint = colors.onSurface)
             }
             Chip(selected = false, description = "Clear", onClick = { tap(); scripts[slot] = ""; changed() }) {
                 Text(tr("Clear"), style = MaterialTheme.typography.labelLarge, color = colors.onSurface)

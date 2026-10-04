@@ -25,20 +25,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.FileOpen
-import androidx.compose.material.icons.filled.SaveAlt
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -153,7 +139,7 @@ private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwi
                 Column(Modifier.fillMaxSize()) {
                     // The top bar: back, the title (or the search field), search and order.
                     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Back"), tint = colors.onSurface) }
+                        IconButton(onClick = onClose) { AppIcon(TableIcons.Back, contentDescription = tr("Back"), tint = colors.onSurface) }
                         if (searching) {
                             TextField(
                                 value = query, onValueChange = { query = it }, singleLine = true,
@@ -162,11 +148,11 @@ private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwi
                                 colors = TextFieldDefaults.colors(focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
                                 modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
                             )
-                            IconButton(onClick = { searching = false; query = "" }) { Icon(Icons.Default.Close, contentDescription = tr("Close the search"), tint = colors.onSurfaceVariant) }
+                            IconButton(onClick = { searching = false; query = "" }) { AppIcon(TableIcons.Close, contentDescription = tr("Close the search"), tint = colors.onSurfaceVariant) }
                         } else {
                             Text(tr("Saved graphs"), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.weight(1f).padding(start = 4.dp))
                             IconButton(onClick = { searching = true }) { AppIcon(TableIcons.Search, contentDescription = tr("Search"), tint = colors.onSurfaceVariant) }
-                            IconButton(onClick = importFile) { Icon(Icons.Default.FileOpen, contentDescription = tr("Import a graph file (.g2d, .g3d, .gcp)"), tint = colors.onSurfaceVariant) }
+                            IconButton(onClick = importFile) { AppIcon(TableIcons.ImportData, contentDescription = tr("Import a graph file (.g2d, .g3d, .gcp)"), tint = colors.onSurfaceVariant) }
                         }
                         Box {
                             TextButton(onClick = { orderMenu = true }) { Text(order.label) }
@@ -228,7 +214,7 @@ private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwi
                 // Saving the graph on screen.
                 ExtendedFloatingActionButton(
                     onClick = { saving = true },
-                    icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                    icon = { AppIcon(TableIcons.Add, contentDescription = null) },
                     text = { Text("Save this ${if (current == Mode.Complex) "plot" else "graph"}") },
                     expanded = true,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(20.dp),
@@ -325,13 +311,13 @@ private fun ProjectCard(s: Saved, current: Boolean, onOpen: () -> Unit, onRename
                 contentAlignment = Alignment.Center,
             ) { Icon(s.mode.icon, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(22.dp)) }
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Options for ${p.name}", tint = colors.onSurfaceVariant) }
+                IconButton(onClick = { menu = true }) { AppIcon(TableIcons.More, contentDescription = "Options for ${p.name}", tint = colors.onSurfaceVariant) }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(text = { Text(tr("Rename")) }, leadingIcon = { AppIcon(TableIcons.Edit, null) }, onClick = { menu = false; onRename() })
                     DropdownMenuItem(text = { Text(tr("Duplicate")) }, leadingIcon = { AppIcon(TableIcons.Copy, null) }, onClick = { menu = false; onDuplicate() })
                     val ext = s.mode.graphFileKind?.extension.orEmpty()
                     DropdownMenuItem(text = { Text("Share as .$ext file") }, leadingIcon = { AppIcon(TableIcons.Share, null) }, onClick = { menu = false; onExportFile(true) })
-                    DropdownMenuItem(text = { Text("Save as .$ext file") }, leadingIcon = { Icon(Icons.Default.SaveAlt, null) }, onClick = { menu = false; onExportFile(false) })
+                    DropdownMenuItem(text = { Text("Save as .$ext file") }, leadingIcon = { AppIcon(TableIcons.Download, null) }, onClick = { menu = false; onExportFile(false) })
                     DropdownMenuItem(text = { Text(tr("Delete"), color = colors.error) }, leadingIcon = { AppIcon(TableIcons.Delete, null, tint = colors.error) }, onClick = { menu = false; onDelete() })
                 }
             }

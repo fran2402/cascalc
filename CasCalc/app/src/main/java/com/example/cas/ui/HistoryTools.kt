@@ -22,14 +22,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CreateNewFolder
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.FolderOff
-import androidx.compose.material.icons.filled.IosShare
-import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -96,7 +88,7 @@ fun HistoryToolbar(vm: CalculatorViewModel, modifier: Modifier = Modifier) {
                         modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Search calculations") },
                     )
                 }
-                if (vm.historyQuery.isNotEmpty()) IconButton(onClick = { vm.historyQuery = "" }) { Icon(Icons.Default.Close, contentDescription = tr("Clear the search")) }
+                if (vm.historyQuery.isNotEmpty()) IconButton(onClick = { vm.historyQuery = "" }) { AppIcon(TableIcons.Close, contentDescription = tr("Clear the search")) }
             }
             Spacer(Modifier.width(6.dp))
             // Export what's listed, as a PDF or LaTeX.

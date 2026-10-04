@@ -14,14 +14,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CenterFocusStrong
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -138,15 +134,15 @@ private fun GraphMenuAction() {
     if (converter) UnitConverterPage(onBack = { converter = false })
     Box {
         IconButton(onClick = { menu = true }) {
-            Icon(Icons.Default.MoreVert, contentDescription = tr("More options"), tint = colors.onSurfaceVariant)
+            AppIcon(TableIcons.More, contentDescription = tr("More options"), tint = colors.onSurfaceVariant)
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             if (AppSettings.unitConverter) DropdownMenuItem(
-                text = { Text(tr("Unit converter")) },
+                text = { Text(tr("Unit converter")) }, leadingIcon = { AppIcon(TableIcons.Converter, null) },
                 onClick = { menu = false; converter = true },
             )
-            DropdownMenuItem(text = { Text(tr("Settings")) }, onClick = { menu = false; settings = true })
-            DropdownMenuItem(text = { Text(tr("Acknowledgements")) }, onClick = { menu = false; acknowledgements = true })
+            DropdownMenuItem(text = { Text(tr("Settings")) }, leadingIcon = { AppIcon(TableIcons.Settings, null) }, onClick = { menu = false; settings = true })
+            DropdownMenuItem(text = { Text(tr("Acknowledgements")) }, leadingIcon = { AppIcon(TableIcons.Thanks, null) }, onClick = { menu = false; acknowledgements = true })
         }
     }
 }

@@ -1,6 +1,5 @@
 package com.example.cas.ui
 
-import androidx.compose.material.icons.outlined.FactCheck
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,18 +16,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
-import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.Icons
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.material.icons.outlined.FontDownload
-import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
-import androidx.compose.material.icons.outlined.Dataset
-import androidx.compose.material.icons.outlined.Functions
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.Lightbulb
-import androidx.compose.material.icons.automirrored.outlined.ShowChart
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.size
@@ -167,13 +157,13 @@ fun AcknowledgementsDialog(onDismiss: () -> Unit) {
 }
 
 private fun iconFor(group: String): androidx.compose.ui.graphics.vector.ImageVector = when (group) {
-    "Fonts" -> Icons.Outlined.FontDownload
-    "Libraries" -> Icons.AutoMirrored.Outlined.LibraryBooks
-    "Data" -> Icons.Outlined.Dataset
-    "Numerical methods" -> Icons.Outlined.Functions
+    "Fonts" -> TableIcons.Font
+    "Libraries" -> TableIcons.Document
+    "Data" -> TableIcons.Table
+    "Numerical methods" -> TableIcons.Line
     "Graphics" -> TableIcons.Mode2D
     "Inspiration" -> TableIcons.Tip
-    "Checked against" -> Icons.Outlined.FactCheck
+    "Checked against" -> TableIcons.Check
     else -> TableIcons.Info
 }
 
@@ -192,7 +182,7 @@ private fun CreditCard(c: Credit, modifier: Modifier) {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(c.name, style = MaterialTheme.typography.titleSmall, color = colors.onSurface, modifier = Modifier.weight(1f))
-            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(16.dp))
+            AppIcon(TableIcons.External, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(16.dp))
         }
         if (c.by != "—") Text(c.by, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
         MathText("Used for: " + c.use, style = MaterialTheme.typography.bodyMedium, color = colors.onSurface)

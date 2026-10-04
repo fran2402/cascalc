@@ -43,20 +43,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -164,7 +150,7 @@ fun UnitConverterPage(onBack: () -> Unit, onUse: ((Double) -> Unit)? = null) {
                         }
                         ToCard(to, { to = it }, state, digits, compatible, onPick = { picking = Field.To }, onUse = onUse?.let { use -> { v: Double -> AppSettings.changeConverterState(value, from, to); use(v) } })
                         state.bridge?.let { Notice(TableIcons.Info, it.describe(), MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer) }
-                        state.error?.let { Notice(Icons.Outlined.ErrorOutline, it, MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer) }
+                        state.error?.let { Notice(TableIcons.ErrorCircle, it, MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer) }
                     }
                     val results: @Composable ColumnScope.() -> Unit = {
                         if (state.alternatives.isNotEmpty()) AlsoCard(state, digits) { to = it }
@@ -292,7 +278,7 @@ private fun plainUnit(q: Units.Quantity): String = q.parts.joinToString(" ") { p
 private fun Header(onBack: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Back"), tint = colors.onSurface) }
+        IconButton(onClick = onBack) { AppIcon(TableIcons.Back, contentDescription = tr("Back"), tint = colors.onSurface) }
         Text(tr("Unit converter"), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.padding(start = 4.dp).semantics { heading() })
         Spacer(Modifier.weight(1f))
     }
@@ -381,7 +367,7 @@ private fun ToCard(unit: String, onUnit: (String) -> Unit, state: ConverterState
                     clipboard.setText(androidx.compose.ui.text.AnnotatedString(Units.plain(r.value, digits) + " " + plainUnit(r.to)))
                     android.widget.Toast.makeText(context, "Copied", android.widget.Toast.LENGTH_SHORT).show()
                 }
-                if (onUse != null) ActionPill(Icons.AutoMirrored.Filled.KeyboardReturn, "Use in calculator") { onUse(r.value) }
+                if (onUse != null) ActionPill(TableIcons.Enter, "Use in calculator") { onUse(r.value) }
             }
         }
     }
@@ -417,7 +403,7 @@ private fun UnitButton(q: Units.Quantity?, error: String?, caption: String?, con
             }
         }
         Box(Modifier.size(40.dp).clip(CircleShape).background(colors.secondaryContainer), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.onSecondaryContainer)
+            AppIcon(TableIcons.DropDown, contentDescription = null, tint = colors.onSecondaryContainer)
         }
     }
 }
@@ -453,7 +439,7 @@ private fun SwapButton(spin: Float, onSwap: () -> Unit) {
                 .clickable(onClickLabel = tr("Swap the units")) { tap(); onSwap() },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.SwapVert, contentDescription = tr("Swap"), tint = colors.onTertiary, modifier = Modifier.size(28.dp).rotate(-turn))
+            AppIcon(TableIcons.Swap, contentDescription = tr("Swap"), tint = colors.onTertiary, modifier = Modifier.size(28.dp).rotate(-turn))
         }
     }
 }
@@ -753,7 +739,7 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
                         modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Type a unit") },
                     )
                 }
-                if (expr.isNotEmpty()) IconButton(onClick = { expr = "" }) { Icon(Icons.Default.Close, contentDescription = tr("Clear the unit"), tint = colors.onPrimaryContainer) }
+                if (expr.isNotEmpty()) IconButton(onClick = { expr = "" }) { AppIcon(TableIcons.Close, contentDescription = tr("Clear the unit"), tint = colors.onPrimaryContainer) }
             }
             if (expr.isNotBlank()) parsed.exceptionOrNull()?.message?.let { MathText(it, style = MaterialTheme.typography.bodySmall, color = colors.error) }
             Suggestions(expr, visible = true) { token, symbol -> expr = expr.dropLast(token.length) + symbol }
@@ -805,7 +791,7 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Search units") },
                 )
             }
-            if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(androidx.compose.material.icons.Icons.Default.Close, contentDescription = tr("Clear the search"), tint = colors.onSurfaceVariant) }
+            if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { AppIcon(TableIcons.Close, contentDescription = tr("Clear the search"), tint = colors.onSurfaceVariant) }
         }
         // A chip for each category.
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -869,7 +855,7 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
                             }
                         }
                         IconButton(onClick = { add(p + symbol) }) {
-                            Icon(androidx.compose.material.icons.Icons.Default.Add, contentDescription = "Add ${u.name}", tint = colors.primary)
+                            AppIcon(TableIcons.Add, contentDescription = "Add ${u.name}", tint = colors.primary)
                         }
                     }
                 }
