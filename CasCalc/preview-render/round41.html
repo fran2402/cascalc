@@ -1,0 +1,175 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:NCMR;src:url(../app/src/main/res/font/ncm_roman.otf)}
+@font-face{font-family:NCMI;src:url(../app/src/main/res/font/ncm_latin_italic.otf)}
+@font-face{font-family:NCMM;src:url(../app/src/main/res/font/ncm_math.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px;width:1900px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1600px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px;line-height:1.4}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--lowest:#fff;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sec:#5E6045;--onsec:#fff;--sc:#E2E4C4;--onsc:#1B1D0A;--ter:#3C6A5A;--onter:#fff;--tc:#BEECDB;--ontc:#002019;--outv:#C8C7B5;--out:#77786A;--err:#BA1A1A;--ec:#FFDAD6;--onec:#410002}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--lowest:#0D0F08;--c:#1F2018;--ch:#292A22;--chh:#34352C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sec:#C6C8A9;--onsec:#2F321B;--sc:#45483A;--onsc:#E2E4C4;--ter:#A2D0BF;--onter:#05372B;--tc:#214E41;--ontc:#BEECDB;--outv:#47473B;--out:#919283;--err:#FFB4AB;--ec:#93000A;--onec:#FFDAD6}
+
+.phone{position:relative;width:412px;height:900px;border-radius:44px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.tablet{position:relative;width:1280px;height:800px;border-radius:36px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 12px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 44px;font:500 14px GSF}
+.tablet .status{padding:0 30px}
+.app{display:flex;align-items:center;gap:4px;padding:2px 12px 6px 6px}
+.ib{width:44px;height:44px;border-radius:22px;display:flex;align-items:center;justify-content:center;font:19px GSF;color:var(--onv);flex:none}
+.ttl{font:500 22px GSF;white-space:nowrap}
+.sub{font:12.5px GSF;color:var(--onv);white-space:nowrap}
+.done{height:44px;border-radius:22px;background:var(--pri);color:var(--onpri);display:flex;align-items:center;gap:6px;padding:0 18px 0 14px;font:600 15px GSF;flex:none}
+/* formula bar */
+.fbar{display:flex;align-items:center;gap:8px;margin:0 12px 8px;height:48px;background:var(--chh);border-radius:24px;padding:0 6px}
+.addr{height:36px;min-width:52px;border-radius:18px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;justify-content:center;font:600 14px GSF;padding:0 10px}
+.fx{font:italic 17px CMI;color:var(--ter);padding:0 2px}
+.fval{flex:1;font:17px CMR;white-space:nowrap;overflow:hidden}
+.fbar.ed{background:var(--bg);outline:2px solid var(--pri)}
+/* toolbar */
+.tabs{display:flex;gap:2px;margin:0 12px 6px;background:var(--c);border-radius:22px;padding:4px}
+.tabs span{flex:1;height:36px;border-radius:18px;display:flex;align-items:center;justify-content:center;font:500 14px GSF;color:var(--onv)}
+.tabs span.on{background:var(--sc);color:var(--onsc);border-radius:12px}
+.tools{display:flex;gap:6px;margin:0 12px 8px;overflow:hidden}
+.tool{flex:none;min-width:58px;height:58px;border-radius:18px;background:var(--c);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:11.5px GSF;color:var(--on);padding:0 8px}
+.tool i{font:19px GSF;font-style:normal;color:var(--pri)}
+.tool.on{background:var(--pri);color:var(--onpri);border-radius:14px}.tool.on i{color:var(--onpri)}
+.tool.wide{flex-direction:row;gap:8px;height:40px;border-radius:20px;font:500 13px GSF}
+.sep{width:1px;background:var(--outv);margin:8px 2px;flex:none}
+/* grid */
+.grid{position:relative;background:var(--bg);overflow:hidden}
+.gh,.gr{display:flex}
+.corner{width:44px;flex:none;background:var(--c);border-right:1px solid var(--outv);border-bottom:1px solid var(--outv)}
+.lh{flex:none;height:28px;display:flex;align-items:center;justify-content:center;font:600 12.5px GSF;color:var(--onv);background:var(--c);border-right:1px solid var(--outv);border-bottom:1px solid var(--outv)}
+.lh.on{background:var(--sc);color:var(--onsc)}
+.rolecell{flex:none;height:40px;display:flex;align-items:center;gap:6px;padding:0 8px;background:var(--low);border-right:1px solid var(--outv);border-bottom:2px solid var(--outv);font:500 13px GSF;white-space:nowrap;overflow:hidden}
+.rb{height:22px;min-width:22px;border-radius:11px;display:inline-flex;align-items:center;justify-content:center;font:italic 14px CMI;padding:0 5px;flex:none}
+.rn{width:44px;flex:none;height:40px;display:flex;align-items:center;justify-content:center;font:500 12.5px GSF;color:var(--onv);background:var(--c);border-right:1px solid var(--outv);border-bottom:1px solid var(--outv)}
+.rn.on{background:var(--sc);color:var(--onsc)}
+.c{flex:none;height:40px;display:flex;align-items:center;justify-content:flex-end;padding:0 10px;font:16.5px CMR;border-right:1px solid var(--outv);border-bottom:1px solid var(--outv);position:relative;white-space:nowrap;overflow:hidden}
+.c.t{justify-content:flex-start}
+.c.sel{outline:2px solid var(--pri);outline-offset:-2px;z-index:2;overflow:visible}
+.c.rng{background:color-mix(in srgb,var(--pri) 14%,var(--bg))}
+.c.ref1{outline:2px dashed #1A73E8;outline-offset:-2px}
+.c small{position:absolute;left:4px;top:2px;font:italic 9px CMI;color:var(--ter)}
+.hdl{position:absolute;right:-6px;bottom:-6px;width:12px;height:12px;border-radius:6px;background:var(--pri);border:2px solid var(--bg);z-index:3}
+.frz{box-shadow:3px 0 6px -2px rgba(0,0,0,.28);position:relative;z-index:1}
+/* bottom */
+.spill{position:absolute;left:14px;bottom:16px;height:48px;border-radius:24px;background:var(--chh);box-shadow:0 3px 10px rgba(0,0,0,.2);display:flex;align-items:center;gap:8px;padding:0 16px;font:500 14px GSF;z-index:6}
+.spill b{font:400 17px CMR}
+.efab{position:absolute;right:16px;bottom:16px;width:64px;height:64px;border-radius:20px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;justify-content:center;font:30px GSF;box-shadow:0 4px 14px rgba(0,0,0,.28);z-index:6}
+.chipsr{display:flex;gap:6px;margin:0 12px 8px;overflow:hidden}
+.ch{flex:none;height:32px;border-radius:16px;border:1px solid var(--outv);display:flex;align-items:center;gap:6px;padding:0 12px;font:500 13px GSF}
+.ch.on{background:var(--sc);border-color:transparent}
+.kbd{position:absolute;left:0;right:0;bottom:0;height:250px;background:var(--c);border-top:1px solid var(--outv);padding:10px 6px;display:grid;grid-template-columns:repeat(10,1fr);gap:6px;z-index:7}
+.kbd span{height:44px;border-radius:10px;background:var(--chh);display:flex;align-items:center;justify-content:center;font:17px GSF}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--c);border-radius:28px 28px 0 0;box-shadow:0 -6px 20px rgba(0,0,0,.25);z-index:8;padding:8px 18px 24px}
+.grab{width:36px;height:4px;border-radius:2px;background:var(--onv);opacity:.4;margin:4px auto 12px}
+.seg{display:flex;gap:2px;background:var(--chh);border-radius:20px;padding:3px;margin:8px 0 14px}
+.seg span{flex:1;height:40px;border-radius:17px;display:flex;align-items:center;justify-content:center;font:italic 16px CMI;gap:4px}
+.seg span.on{background:var(--ter);color:var(--onter);border-radius:12px}
+.agrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.act{height:72px;border-radius:20px;background:var(--chh);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font:12px GSF;text-align:center}
+.act i{font:20px GSF;font-style:normal;color:var(--pri)}
+.act.d{color:var(--err)}.act.d i{color:var(--err)}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.32);z-index:7}
+.card{background:var(--bg);border-radius:24px;padding:14px 16px}
+.cardt{font:600 14px GSF;color:var(--onv);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.kv{display:flex;justify-content:space-between;font:14px GSF;padding:4px 0}.kv b{font:400 16px CMR}
+.rib{display:flex;gap:10px;margin:0 16px 8px;align-items:stretch}
+.grp{background:var(--c);border-radius:22px;padding:6px 8px 4px;display:flex;flex-direction:column;gap:2px}
+.grp .gt{display:flex;gap:4px}
+.grp .gl{text-align:center;font:500 11px GSF;color:var(--onv)}
+.grp .tool{background:transparent;height:52px;min-width:56px}.grp .tool.on{background:var(--pri);color:var(--onpri)}
+.legend{font:12px GSF;color:var(--onv)}
+</style></head>
+<body style="width:2900px">
+<h2>Round 41: The data table, redesigned after Sheets and Excel (Material 3 Expressive)</h2>
+<p class="note">A real spreadsheet grid (lettered column headers, numbered rows, thin gridlines, a selected cell with a fill handle) instead of separate cards. Above it, a formula bar shows and edits the selected cell, as in Sheets and Excel, with its address in a pill. A toolbar in tabs (Home, Insert, Data, Format) gathers what was spread over menus: an expressive connected button group for the tabs and big tonal buttons. A column's header opens a bottom sheet with its role as a segmented button and its actions as tiles. A floating pill sums the selection; the expressive FAB adds rows, columns or a paste. On a tablet the toolbar becomes a ribbon of labelled groups, and a side panel shows the points live and the selected column's role, format, filter and statistics.</p>
+<div class="row" id="row"></div>
+<div class="row" id="row2"></div>
+<script>
+const roles={x:['var(--pri)','var(--onpri)'],y:['var(--ter)','var(--onter)'],sy:['var(--sec)','var(--onsec)']};
+const T=['0','0.5','1','1.5','2','2.5','3','3.5','4','4.5','5','5.5','6'];
+const H=[1.02,1.31,2.24,3.30,5.01,7.48,11.2,16.4,24.9,36.1,52.6,77.0,112];
+const S=['0.05','0.05','0.08','0.10','0.12','0.20','0.30','0.40','0.60','0.80','1.1','1.5','2.2'];
+const L=['Week 1','Week 2','Week 3','Week 4','Week 5','Week 6','Week 7','Week 8','Week 9','Week 10','Week 11','Week 12','Week 13'];
+function scaleC(v){const lo=1.02,hi=24.9,p=Math.min(1,(v-lo)/(hi-lo));const M=(a,b,f)=>Math.round(a+(b-a)*f);let A,B,f;if(p<.5){A=[248,105,107];B=[255,235,132];f=p*2}else{A=[255,235,132];B=[99,190,123];f=(p-.5)*2}return `rgba(${M(A[0],B[0],f)},${M(A[1],B[1],f)},${M(A[2],B[2],f)},.5)`}
+const st=`<div class="status"><span>12:30</span><span>▴ ▮</span></div>`;
+function app(sub){return `<div class="app"><span class="ib">✕</span><div style="flex:1;min-width:0;padding-left:2px"><div class="ttl">Data</div><div class="sub">${sub}</div></div><span class="ib">↶</span><span class="ib" style="opacity:.4">↷</span><span class="ib">⋮</span><span class="done">✓ Done</span></div>`}
+function fbar(addr,val,ed){return `<div class="fbar${ed?' ed':''}"><span class="addr">${addr}</span><span class="fx">ƒx</span><span class="fval">${val}</span>${ed?'<span class="ib" style="width:36px;height:36px;background:var(--sc);color:var(--onsc);font:600 14px GSF">$</span>':''}</div>`}
+function tabs(on){return `<div class="tabs">${['Home','Insert','Data','Format'].map(t=>`<span class="${t==on?'on':''}">${t}</span>`).join('')}</div>`}
+function grid(o){
+ // columns: [letter, role, name, width, values fn, text?]
+ const cols=o.cols;const n=o.rows||9;
+ let g=`<div class="grid" style="height:${o.h}px">`;
+ g+=`<div class="gh"><div class="corner" style="height:28px"></div>${cols.map((c,i)=>`<div class="lh${o.selCol===i||o.hiCol===i?' on':''} ${o.frozen&&i==0?'frz':''}" style="width:${c[3]}px">${c[0]}</div>`).join('')}</div>`;
+ g+=`<div class="gh"><div class="corner" style="height:40px;border-bottom:2px solid var(--outv)"></div>${cols.map((c,i)=>`<div class="rolecell ${o.frozen&&i==0?'frz':''}" style="width:${c[3]}px;${o.selCol===i?'background:var(--sc)':''}">${c[1]?`<span class="rb" style="background:${roles[c[1]][0]};color:${roles[c[1]][1]}">${c[1]=='sy'?'σ<sub style="font-size:9px">y</sub>':c[1]}</span>`:'<span class="rb" style="background:var(--chh);color:var(--onv)">–</span>'}<span>${c[2]}</span>${o.filt===i?'<span style="margin-left:auto;color:var(--pri)">⚲</span>':''}</div>`).join('')}</div>`;
+ for(let r=0;r<n;r++){
+  g+=`<div class="gr"><div class="rn${o.selRow===r?' on':''}">${r+1}</div>`;
+  cols.forEach((c,i)=>{let v=c[4](r);let cls='c'+(c[5]?' t':'');let bg='';
+   if(o.scaleCol===i)bg=`background:${scaleC(H[r])}`;
+   if(o.rng&&r>=o.rng[0]&&r<=o.rng[1]&&i>=o.rng[2]&&i<=o.rng[3])cls+=' rng';
+   if(o.ref&&r>=o.ref[0]&&r<=o.ref[1]&&i==o.ref[2])cls+=' ref1';
+   if(o.selCol===i)cls+=' rng';
+   if(o.frozen&&i==0)cls+=' frz';
+   const sel=o.sel&&o.sel[0]==r&&o.sel[1]==i;if(sel)cls+=' sel';
+   g+=`<div class="${cls}" style="width:${c[3]}px;${bg}${o.frozen&&i==0?';background:var(--bg)':''}">${v}${sel?'<span class="hdl"></span>':''}</div>`});
+  g+=`</div>`}
+ return g+`</div>`;
+}
+const P=(cls,inner,cap,w)=>`<div><div class="${cls}"><div class="${w||'phone'}">${inner}</div></div><div class="cap" style="${w?'width:1280px':''}">${cap}</div></div>`;
+const colsPhone=[['A','x','time t',96,r=>T[r]],['B','y','height h',104,r=>H[r].toFixed(2).replace(/0$/,'').replace(/\.0$/,'')],['C','sy','σ(h)',92,r=>S[r]],['D',null,'label',104,r=>L[r],1]];
+const row=document.getElementById('row');
+// 1 home
+row.innerHTML+=P('light',st+app('9 points · x A, y B, σ C')+fbar('B3','2.24')+tabs('Home')+
+`<div class="tools"><div class="tool"><i>⇅</i>Sort</div><div class="tool"><i>⚲</i>Filter</div><div class="tool"><i>⤓</i>Fill</div><div class="tool"><i>%</i>Format</div><div class="tool"><i>⌕</i>Find</div><div class="tool"><i>▦</i>Stats</div></div>`+
+grid({h:560,cols:colsPhone,sel:[2,1],selRow:2,hiCol:1,frozen:true,rows:13})+
+`<div class="spill">Σ Sum <b>2.24</b> ▾</div><div class="efab">＋</div>`,
+`<b>1 · Home.</b> Lettered headers and numbered rows like Sheets, with each column's role (x, y, σ) and name under its letter. Tap a cell to select it: its row number and letter light up, the formula bar shows its address and contents, and the fill handle sits on its corner. Column A is frozen. The pill at the bottom sums the selection (tap for average, count, min, max).`);
+// 2 editing formula (dark)
+row.innerHTML+=P('dark',st+app('Typing a formula in E2')+fbar('E2','=AVERAGE(<span style="color:#7CACF8">B1:B9</span>)<span style="display:inline-block;width:2px;height:20px;background:var(--pri);vertical-align:-4px"></span>',true)+
+`<div class="chipsr"><span class="ch on">AVERAGE</span><span class="ch">AVERAGEA</span><span class="ch">AVERAGEIF</span><span class="ch">AVEDEV</span></div>`+
+grid({h:420,cols:[colsPhone[0],colsPhone[1],['E',null,'mean',110,r=>r==1?'':'',]],sel:[1,2],selRow:1,ref:[0,8,1],rows:9})+
+`<div class="kbd">${'QWERTYUIOP'.split('').map(k=>`<span>${k}</span>`).join('')}${'ASDFGHJKL'.split('').map(k=>`<span>${k}</span>`).join('')}<span>⌫</span>${['=','(',')',':','$',',','+','−','×','↵'].map(k=>`<span style="background:var(--sc)">${k}</span>`).join('')}</div>`,
+`<b>2 · Typing a formula (dark).</b> Typing happens in the formula bar, with room for long formulas, as in Excel. The range B1:B9 is outlined in the grid in the same blue as in the formula. Matching functions are chips under the bar, and the $ button anchors the last reference (F4). The keyboard has =, brackets, : and $ in a row of its own.`);
+// 3 format tab with column selected
+row.innerHTML+=P('light',st+app('Column B selected')+fbar('B','height h · 9 numbers')+tabs('Format')+
+`<div class="tools"><div class="tool wide"><span>Auto</span></div><div class="tool wide on"><span>0.00</span></div><div class="tool wide"><span>%</span></div><div class="tool wide"><span>1.2×10ⁿ</span></div><div class="tool wide"><span>1 000</span></div></div>
+<div class="tools"><div class="tool wide on" style="background:var(--tc);color:var(--ontc)"><i style="color:var(--ontc)">◐</i>Color scale</div><div class="tool wide"><i>.0←</i></div><div class="tool wide"><i>.00→</i></div><div class="tool wide"><i>⚲</i>Filter</div></div>`+
+grid({h:500,cols:colsPhone,selCol:1,scaleCol:1,rows:11})+
+`<div class="spill">Σ Sum <b>72.86</b> · Avg <b>8.1</b></div><div class="efab">＋</div>`,
+`<b>3 · Format.</b> Tap a column's letter to select the whole column. The Format tab sets its number format in one tap (Auto, 0.00, %, scientific, thousands), adds or removes decimals, and switches on the color scale. The pill shows the column's sum and average.`);
+// 4 column sheet
+row.innerHTML+=P('light',st+app('9 points')+fbar('B','height h')+tabs('Home')+grid({h:560,cols:colsPhone,selCol:1,rows:13})+
+`<div class="scrim"></div><div class="sheet"><div class="grab"></div><div style="display:flex;align-items:center;gap:10px"><span class="addr" style="background:var(--tc);color:var(--ontc)">B</span><div><div style="font:500 20px GSF">height h</div><div class="sub">9 numbers · mean 8.10 · 1.02 to 24.9</div></div></div>
+<div class="seg"><span>x</span><span class="on">y</span><span>σ<sub style="font-size:10px">x</sub></span><span>σ<sub style="font-size:10px">y</sub></span><span style="font:500 14px GSF">None</span></div>
+<div class="agrid"><div class="act"><i>⇅</i>Sort A→Z</div><div class="act"><i>⇵</i>Sort Z→A</div><div class="act"><i>⚲</i>Filter</div><div class="act"><i>▦</i>Statistics</div><div class="act"><i>%</i>Format</div><div class="act"><i>◐</i>Color scale</div><div class="act"><i>⤓</i>Fill series</div><div class="act"><i>ƒ</i>Fill formula</div><div class="act"><i>⧉</i>Duplicate</div><div class="act"><i>‹›</i>Move</div><div class="act"><i>⌫</i>Clear</div><div class="act d"><i>🗑</i>Delete</div></div></div>`,
+`<b>4 · A column's sheet.</b> Long-press (or tap again) a column's letter: a bottom sheet with its name, a summary, its role as an expressive segmented button (x, y, σx, σy, none), and every action as a tile, instead of a long menu.`);
+// tablet
+const colsTab=[['A','x','time t',120,r=>T[r]],['B','y','height h',140,r=>H[r].toFixed(2)],['C','sy','σ(h)',120,r=>S[r]],['D',null,'label',130,r=>L[r],1],['E',null,'log h',130,r=>Math.log10(H[r]).toFixed(3)+''],['F',null,'',120,r=>''],['G',null,'',90,r=>'']];
+const plot=(()=>{let p='';const w=300,h=170;const X=x=>16+x/5.5*(w-28),Y=y=>h-16-Math.log10(y)/Math.log10(80)*(h-30);p+=`<svg width="${w}" height="${h}"><line x1="16" y1="${h-16}" x2="${w-8}" y2="${h-16}" stroke="var(--out)"/><line x1="16" y1="8" x2="16" y2="${h-16}" stroke="var(--out)"/>`;let d='';for(let i=0;i<=55;i++){const x=i/10;d+=(i?'L':'M')+X(x)+' '+Y(Math.exp(0.79*x)*1.0)};p+=`<path d="${d}" fill="none" stroke="var(--pri)" stroke-width="2" stroke-dasharray="5 4"/>`;T.forEach((t,i)=>{const x=X(+t),y=Y(H[i]);p+=`<line x1="${x}" y1="${y-6}" x2="${x}" y2="${y+6}" stroke="var(--ter)"/><circle cx="${x}" cy="${y}" r="4" fill="var(--ter)"/>`});return p+`</svg>`})();
+document.getElementById('row2').innerHTML=P('light',st+`<div class="app" style="padding-left:12px"><span class="ib">✕</span><div style="padding-left:4px"><div class="ttl">Data table</div><div class="sub">12 points · x A, y B, σ(y) C · Formulas</div></div><div style="flex:1"></div><div class="tabs" style="width:420px;margin:0 16px 0 0">${['Home','Insert','Data','Format'].map(t=>`<span class="${t=='Home'?'on':''}">${t}</span>`).join('')}</div><span class="ib">↶</span><span class="ib" style="opacity:.4">↷</span><span class="ib">⌕</span><span class="ib">⋮</span><span class="done">✓ Done</span></div>
+<div class="rib">
+<div class="grp"><div class="gt"><div class="tool"><i>✂</i>Cut</div><div class="tool"><i>⧉</i>Copy</div><div class="tool"><i>📋</i>Paste</div></div><div class="gl">Clipboard</div></div>
+<div class="grp"><div class="gt"><div class="tool"><i>⇅</i>Sort</div><div class="tool on"><i>⚲</i>Filter</div><div class="tool"><i>⌕</i>Find</div></div><div class="gl">Sort &amp; filter</div></div>
+<div class="grp"><div class="gt"><div class="tool"><i>⤓</i>Fill</div><div class="tool"><i>⟋</i>Series</div><div class="tool"><i>ƒ</i>Formula</div></div><div class="gl">Fill</div></div>
+<div class="grp"><div class="gt"><div class="tool"><i>%</i>Number</div><div class="tool"><i>◐</i>Scale</div><div class="tool"><i>❄</i>Freeze</div></div><div class="gl">Format</div></div>
+<div class="grp"><div class="gt"><div class="tool"><i>≋</i>Dedupe</div><div class="tool"><i>⎵</i>Trim</div><div class="tool"><i>⤡</i>Transpose</div></div><div class="gl">Tidy</div></div></div>
+<div style="display:flex;gap:14px;padding:0 16px">
+<div style="flex:1;min-width:0">${fbar('B4:B7','3.30 … 11.2 · 4 cells').replace('margin:0 12px 8px','')}
+<div style="display:flex;gap:6px;margin:0 0 6px"><span class="ch on" style="background:var(--pc)">⚲ height h &gt; 2 ✕</span><span class="legend" style="align-self:center">10 of 12 rows shown · hidden rows are still plotted</span></div>
+<div style="border-radius:20px;overflow:hidden">${grid({h:520,cols:colsTab,rng:[3,6,1,1],sel:[3,1],selRow:3,hiCol:1,frozen:true,filt:1,rows:11})}</div></div>
+<div style="width:330px;display:flex;flex-direction:column;gap:10px">
+<div class="card"><div class="cardt">Points <span style="margin-left:auto;font:12px GSF">fit: <em style="font:italic 13px CMI">h</em> = <em style="font:italic 13px CMI">a</em>e<sup><em style="font:italic 10px CMI">bt</em></sup></span></div>${plot}</div>
+<div class="card"><div class="cardt"><span class="addr" style="height:26px;min-width:30px;background:var(--tc);color:var(--ontc)">B</span>height h</div>
+<div class="seg" style="margin:4px 0 10px"><span style="height:32px">x</span><span class="on" style="height:32px">y</span><span style="height:32px">σ<sub style="font-size:9px">x</sub></span><span style="height:32px">σ<sub style="font-size:9px">y</sub></span><span style="height:32px;font:500 12px GSF">None</span></div>
+<div class="kv"><span>Format</span><b style="font:500 13px GSF">0.00 · color scale</b></div><div class="kv"><span>Filter</span><b style="font:500 13px GSF">&gt; 2</b></div>
+<div class="kv"><span>Mean</span><b>8.10</b></div><div class="kv"><span>Median</span><b>5.01</b></div><div class="kv"><span>s</span><b>8.10</b></div></div></div></div>
+<div class="spill" style="left:24px;bottom:18px">Σ Sum <b>27.0</b> · Average <b>6.75</b> · Count <b>4</b> · Min <b>3.30</b> · Max <b>11.2</b></div><div class="efab" style="right:24px;bottom:18px">＋</div>`,
+`<b>5 · Tablet (landscape).</b> The tabs move into the top bar, above an Excel-style ribbon of labelled groups (Clipboard, Sort &amp; filter, Fill, Format, Tidy) in expressive rounded containers. The grid has room for more columns, with the formula bar and the filter chips above it. A side panel shows the points as they're plotted (with error bars and the fit) and the selected column's role, format, filter and statistics. The status pill shows every summary at once.`,'tablet');
+document.title='ready';
+</script></body></html>
