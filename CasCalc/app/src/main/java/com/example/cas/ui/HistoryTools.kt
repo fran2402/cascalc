@@ -85,7 +85,7 @@ fun HistoryToolbar(vm: CalculatorViewModel, modifier: Modifier = Modifier) {
                 Modifier.weight(1f).height(52.dp).clip(CircleShape).background(colors.surfaceContainerHigh).padding(start = 16.dp, end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Default.Search, contentDescription = null, tint = colors.onSurfaceVariant)
+                AppIcon(TableIcons.Search, contentDescription = null, tint = colors.onSurfaceVariant)
                 Spacer(Modifier.width(10.dp))
                 Box(Modifier.weight(1f)) {
                     if (vm.historyQuery.isEmpty()) Text(tr("Search calculations"), style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
@@ -302,7 +302,7 @@ fun HistoryBrowser(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, mod
     }
     if (items.isEmpty()) {
         Column(modifier.fillMaxWidth().padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(Icons.Default.Search, contentDescription = null, tint = colors.outline, modifier = Modifier.size(40.dp))
+            AppIcon(TableIcons.Search, contentDescription = null, tint = colors.outline, modifier = Modifier.size(40.dp))
             Text(if (vm.history.isEmpty()) "Your calculations will appear here" else "Nothing matches", style = MaterialTheme.typography.titleMedium, color = colors.onSurfaceVariant)
         }
         return

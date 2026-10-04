@@ -1572,7 +1572,7 @@ private fun areaOutline(vm: GraphViewModel, ar: AreaResult, v: com.example.cas.g
 @Composable
 private fun AreaCard(ar: AreaResult, onClose: () -> Unit, onUse: (Double) -> Unit) {
     val between = ar.g != null
-    val icon = if (ar.arc) Icons.Default.Straighten else if (between) TabIcons.AreaBetween else TabIcons.Area
+    val icon = if (ar.arc) TableIcons.Ruler else if (between) TabIcons.AreaBetween else TabIcons.Area
     val title = if (ar.arc) "Arc length" else if (between) "Area between the curves" else "Area under the curve"
     if (ar.signed.isNaN()) {
         ResultCard(icon, title, null, "—", note = if (ar.arc) "Couldn't measure the curve between these points" else "Couldn't integrate between these points", onClose = onClose)

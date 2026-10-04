@@ -228,7 +228,7 @@ private fun Body(solution: Steps.Solution?, ready: Boolean, state: StepsState, l
     when {
         !ready -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         solution == null -> Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(Icons.Default.Info, contentDescription = null, tint = colors.outline, modifier = Modifier.size(36.dp))
+            AppIcon(TableIcons.Info, contentDescription = null, tint = colors.outline, modifier = Modifier.size(36.dp))
             Spacer(Modifier.height(8.dp))
             Text(tr("No steps for this one yet"), style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
             Text(tr("Steps are in beta: calculus, algebra, complex numbers, matrices, differential equations, statistics and vector calculus for now."), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)

@@ -73,3 +73,19 @@ def key_icons():
 
 if __name__ == '__main__':
     t, k = table_icons(), key_icons(); print(len(t), len(k))
+
+def tab_icons():
+    """TabIcons and PlotIcons (ui/TabIcons.kt), whose definitions can span lines."""
+    src = open(UI + 'TabIcons.kt').read()
+    out = {}
+    for m in re.finditer(r'val (\w+): ImageVector by lazy \{\s*icon\("\w+",', src):
+        j = m.end(); depth = 1
+        while depth:
+            c = src[j]
+            if c == '(': depth += 1
+            elif c == ')': depth -= 1
+            elif c == '"': j = src.index('"', j + 1)
+            j += 1
+        b = ' '.join(src[m.end():j - 1].split())
+        out[m.group(1)] = _svg(_args(b, 'stroke'), _args(b, 'thin'), _args(b, 'fill'), _args(b, 'shade'), set(_args(b, 'accent')))
+    return out

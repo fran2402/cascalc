@@ -309,7 +309,7 @@ fun ColormapPickerDialog(
         OutlinedTextField(
             value = search, onValueChange = { search = it }, singleLine = true,
             placeholder = { Text(tr("Search by name")) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            leadingIcon = { AppIcon(TableIcons.Search, contentDescription = null) },
             modifier = Modifier.fillMaxWidth(),
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -1383,7 +1383,7 @@ private fun ParameterSlider(vm: GraphViewModel, name: String) {
         val playing = name in vm.playing
         IconButton(onClick = { vm.togglePlay(name) }, modifier = Modifier.size(40.dp)) {
             Icon(
-                if (playing) Icons.Default.Pause else Icons.Default.PlayArrow,
+                if (playing) TableIcons.Pause else TableIcons.Play,
                 contentDescription = if (playing) "Pause ${spokenName(name)}" else "Animate ${spokenName(name)}",
                 tint = if (playing) colors.primary else colors.onSurfaceVariant,
             )
@@ -1917,7 +1917,7 @@ private fun FolderRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
             Text("${vm.folderMembers(f).count { !it.isText }}", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
         }
         IconButton(onClick = { vm.toggleVisible(f) }) {
-            Icon(if (f.visible) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = if (f.visible) "Hide the folder's lines" else "Show the folder's lines", tint = colors.onSurfaceVariant)
+            Icon(if (f.visible) TableIcons.Visible else TableIcons.Hidden, contentDescription = if (f.visible) "Hide the folder's lines" else "Show the folder's lines", tint = colors.onSurfaceVariant)
         }
         IconButton(onClick = { vm.requestRemove(f) }) {
             Icon(Icons.Default.Close, contentDescription = tr("Delete folder"), tint = colors.onSurfaceVariant)
@@ -2618,8 +2618,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                 (if (bad > 0) " · $bad not number${if (bad == 1) "" else "s"}" else "")
                             Text(counts, style = MaterialTheme.typography.bodySmall, color = if (roleY == null || bad > 0) colors.error else colors.onSurfaceVariant, maxLines = 1)
                         }
-                        IconButton(onClick = { undo() }, enabled = undoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = tr("Undo")) }
-                        IconButton(onClick = { redo() }, enabled = redoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = tr("Redo")) }
+                        IconButton(onClick = { undo() }, enabled = undoStack.isNotEmpty()) { AppIcon(TableIcons.Undo, contentDescription = tr("Undo")) }
+                        IconButton(onClick = { redo() }, enabled = redoStack.isNotEmpty()) { AppIcon(TableIcons.Redo, contentDescription = tr("Redo")) }
                         // More: the table as CSV (shared or copied), and tidying up.
                         var more by remember { mutableStateOf(false) }
                         Box {
@@ -3488,7 +3488,7 @@ private fun ColumnCard(
                 if (letter != null) Text(letter, style = MaterialTheme.typography.titleSmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp))
                 Spacer(Modifier.weight(1f))
                 // A filter in use on this column.
-                if (filtered) Icon(Icons.Default.FilterList, contentDescription = tr("Filtered"), tint = colors.primary, modifier = Modifier.size(18.dp))
+                if (filtered) AppIcon(TableIcons.Filter, contentDescription = tr("Filtered"), tint = colors.primary, modifier = Modifier.size(18.dp))
                 Icon(Icons.Default.MoreVert, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp))
             }
             androidx.compose.foundation.text.BasicTextField(
@@ -3510,10 +3510,10 @@ private fun ColumnCard(
             }
             androidx.compose.material3.HorizontalDivider()
             DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Statistics, null) }, text = { Text(tr("Statistics")) }, onClick = { open = false; onStats() })
-            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.FilterList, null) }, text = { Text(tr(if (filtered) "Change the filter…" else "Filter…")) }, onClick = { open = false; onFilter() })
+            DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Filter, null) }, text = { Text(tr(if (filtered) "Change the filter…" else "Filter…")) }, onClick = { open = false; onFilter() })
             DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Percent, null) }, text = { Text(tr("Number format…")) }, onClick = { open = false; onFormat() })
             DropdownMenuItem(
-                leadingIcon = { Icon(Icons.Default.Palette, null) }, text = { Text(tr("Color scale")) },
+                leadingIcon = { AppIcon(TableIcons.Palette, null) }, text = { Text(tr("Color scale")) },
                 trailingIcon = if (format.colorScale) ({ Icon(Icons.Default.Check, contentDescription = tr("On")) }) else null,
                 onClick = { open = false; onColorScale(!format.colorScale) },
             )
@@ -4313,7 +4313,7 @@ private fun FilterBanner(shown: Int, total: Int, chips: List<Pair<String, Int>>,
     val colors = MaterialTheme.colorScheme
     Column(modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.secondaryContainer).padding(horizontal = 12.dp, vertical = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.FilterList, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(18.dp))
+            AppIcon(TableIcons.Filter, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(18.dp))
             Text(
                 "$shown of $total rows shown · hidden rows are still plotted",
                 style = MaterialTheme.typography.labelLarge, color = colors.onSecondaryContainer, modifier = Modifier.weight(1f).padding(start = 8.dp),

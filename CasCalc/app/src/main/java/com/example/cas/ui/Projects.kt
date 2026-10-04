@@ -165,7 +165,7 @@ private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwi
                             IconButton(onClick = { searching = false; query = "" }) { Icon(Icons.Default.Close, contentDescription = tr("Close the search"), tint = colors.onSurfaceVariant) }
                         } else {
                             Text(tr("Saved graphs"), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.weight(1f).padding(start = 4.dp))
-                            IconButton(onClick = { searching = true }) { Icon(Icons.Default.Search, contentDescription = tr("Search"), tint = colors.onSurfaceVariant) }
+                            IconButton(onClick = { searching = true }) { AppIcon(TableIcons.Search, contentDescription = tr("Search"), tint = colors.onSurfaceVariant) }
                             IconButton(onClick = importFile) { Icon(Icons.Default.FileOpen, contentDescription = tr("Import a graph file (.g2d, .g3d, .gcp)"), tint = colors.onSurfaceVariant) }
                         }
                         Box {
@@ -278,7 +278,7 @@ private fun EmptyProjects(searching: Boolean, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
     Column(modifier.padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)) {
         Box(Modifier.size(96.dp).clip(RoundedCornerShape(32.dp)).background(colors.secondaryContainer), contentAlignment = Alignment.Center) {
-            Icon(if (searching) Icons.Default.Search else TableIcons.FolderOpen, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(44.dp))
+            Icon(if (searching) TableIcons.Search else TableIcons.FolderOpen, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(44.dp))
         }
         Text(if (searching) "No saved graphs with that name" else "No saved graphs yet", style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
         if (!searching) Text(tr("Save a graph to keep its lines, colors and sliders, and open it again later."),

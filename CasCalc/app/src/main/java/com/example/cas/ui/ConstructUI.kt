@@ -120,7 +120,7 @@ internal fun ConstructButton(onClick: () -> Unit, modifier: Modifier) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Icon(PlotIcons.Geometry, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(20.dp))
+        AppIcon(PlotIcons.Geometry, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(20.dp))
         Text(tr("Construct"), color = colors.onSecondaryContainer, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp, fontWeight = FontWeight.Medium))
         BetaBadge("Alpha")
     }
@@ -155,7 +155,7 @@ internal fun ConstructStatus(vm: GraphViewModel, modifier: Modifier) {
                 Text(stepName, style = MaterialTheme.typography.labelMedium, color = colors.primary)
             }
             if (picks.isNotEmpty()) IconButton(onClick = { vm.undoPick() }) {
-                Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = tr("Take back the last pick"), tint = colors.onSurfaceVariant)
+                AppIcon(TableIcons.Undo, contentDescription = tr("Take back the last pick"), tint = colors.onSurfaceVariant)
             }
             if (tool.multi && picks.size >= tool.least) androidx.compose.material3.FilledTonalButton(onClick = { vm.finishMulti() }, contentPadding = PaddingValues(horizontal = 14.dp)) { Text(tr(if (tool == GeometryTool.Polygon) "Close" else "Finish")) }
             // The guide again, from its start.

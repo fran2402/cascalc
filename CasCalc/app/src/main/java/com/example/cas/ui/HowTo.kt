@@ -90,13 +90,13 @@ private fun docsIcon(key: String): ImageVector = when (key) {
     "special" -> Icons.Outlined.AutoAwesome
     "contour" -> Icons.Outlined.Loop
     "units" -> Icons.Outlined.Science
-    "history" -> Icons.Outlined.History
+    "history" -> TableIcons.History
     "graph2d", "fit" -> TableIcons.Mode2D
     "graph3d" -> TableIcons.Mode3D
     "table", "sheet" -> TableIcons.Table
     "converter" -> Icons.Outlined.SwapHoriz
     "files" -> TableIcons.FolderOpen
-    "keys" -> Icons.Outlined.Keyboard
+    "keys" -> TableIcons.Keyboard
     "geometry" -> PlotIcons.Geometry
     else -> Icons.Outlined.Description
 }
@@ -176,7 +176,7 @@ private fun DocsContents(onChapter: (Int) -> Unit, onSection: (Int, Int) -> Unit
         OutlinedTextField(
             value = query, onValueChange = { query = it }, singleLine = true,
             placeholder = { Text(tr("Search the documentation")) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            leadingIcon = { AppIcon(TableIcons.Search, contentDescription = null) },
             shape = RoundedCornerShape(28.dp),
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         )
@@ -233,7 +233,7 @@ private fun DocsNav(chapter: Int, onChapter: (Int) -> Unit, onSection: (Int, Int
         OutlinedTextField(
             value = query, onValueChange = { query = it }, singleLine = true,
             placeholder = { Text(tr("Search")) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            leadingIcon = { AppIcon(TableIcons.Search, contentDescription = null) },
             shape = RoundedCornerShape(28.dp),
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
         )
@@ -355,7 +355,7 @@ private fun DocsBlock(b: Docs.Block) {
         is Docs.Block.Note -> Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(if (b.warning) colors.errorContainer.copy(alpha = 0.6f) else colors.secondaryContainer.copy(alpha = 0.7f)).padding(14.dp),
         ) {
-            Icon(if (b.warning) Icons.Outlined.WarningAmber else Icons.Outlined.Lightbulb, contentDescription = if (b.warning) "Note" else "Tip", tint = if (b.warning) colors.onErrorContainer else colors.onSecondaryContainer, modifier = Modifier.size(20.dp))
+            Icon(if (b.warning) Icons.Outlined.WarningAmber else TableIcons.Tip, contentDescription = if (b.warning) "Note" else "Tip", tint = if (b.warning) colors.onErrorContainer else colors.onSecondaryContainer, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(12.dp))
             MathText(b.text, style = MaterialTheme.typography.bodyMedium, color = if (b.warning) colors.onErrorContainer else colors.onSecondaryContainer)
         }
@@ -454,7 +454,7 @@ fun FunctionReference(onPick: ((String) -> Unit)?) {
         OutlinedTextField(
             value = query, onValueChange = { query = it }, singleLine = true,
             placeholder = { Text(tr("Search, e.g. lookup, NORM, date")) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            leadingIcon = { AppIcon(TableIcons.Search, contentDescription = null) },
             shape = RoundedCornerShape(28.dp),
             modifier = Modifier.fillMaxWidth(),
         )

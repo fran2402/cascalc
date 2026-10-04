@@ -172,9 +172,9 @@ private fun iconFor(group: String): androidx.compose.ui.graphics.vector.ImageVec
     "Data" -> Icons.Outlined.Dataset
     "Numerical methods" -> Icons.Outlined.Functions
     "Graphics" -> TableIcons.Mode2D
-    "Inspiration" -> Icons.Outlined.Lightbulb
+    "Inspiration" -> TableIcons.Tip
     "Checked against" -> Icons.Outlined.FactCheck
-    else -> Icons.Outlined.Info
+    else -> TableIcons.Info
 }
 
 /** One credit: name, who made it, what it's used for, a line about it and its license. Tap to open its page. */

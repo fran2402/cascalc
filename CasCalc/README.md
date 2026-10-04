@@ -203,6 +203,18 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, roomier words, optical letters, more icons)
+- **Key icons:** the words (trigonometry, the matrix keys, ln, mod, n!, Ans, Re, Im, Res) are
+  built from one set of letters on a shared baseline and x-height. Round letters (s, o, e, a) dip
+  just past both so they look level: the s of Res and Ans no longer floats. There is more space
+  between letters, each word sits on a canvas sized to it, and Ans is one color.
+- **Two-tone tab and plot icons:** the keypad tabs, the coordinate toggles (Cartesian,
+  cylindrical, spherical, polar grid), the complex plot options (modulus bands, phase lines, the
+  Re/Im grid), the loop integral, geometry and the graph cards' tangent, normal, area and arc
+  length.
+- **More of the app's own icons:** search, history, undo, redo, show and hide, info, tips,
+  keyboard, colors, play, pause, replay and length. (Mockup: `preview-render/round51.png`.)
+
 ## Latest changes (4 October, icon pass: keys, trig, matrices, app icons)
 - **Key icons:**
   - Taylor is a power series (Σ xⁿ) and dsolve a clean y′ = f, both at the shared letter size.

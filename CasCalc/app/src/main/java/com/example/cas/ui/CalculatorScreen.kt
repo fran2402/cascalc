@@ -307,7 +307,7 @@ fun CalculatorLeadingAction(vm: CalculatorViewModel) {
     val colors = MaterialTheme.colorScheme
     IconButton(onClick = { vm.historyMode = !vm.historyMode }) {
         Icon(
-            Icons.Outlined.History,
+            TableIcons.History,
             contentDescription = if (vm.historyMode) "Back to keypad" else "Show history",
             tint = if (vm.historyMode) colors.primary else colors.onSurfaceVariant,
         )
@@ -420,7 +420,7 @@ private fun Display(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, mo
             if (vm.history.isEmpty() && vm.historyMode) {
                 item {
                     Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Outlined.History, contentDescription = null, tint = colors.outline, modifier = Modifier.size(40.dp))
+                        AppIcon(TableIcons.History, contentDescription = null, tint = colors.outline, modifier = Modifier.size(40.dp))
                         Spacer(Modifier.height(10.dp))
                         Text(tr("Your calculations will appear here"), color = colors.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
                         Text(tr("Tap a past question or answer to use it again, hold it to copy it, swipe it away to delete it"),
@@ -1213,7 +1213,7 @@ fun ShowKeypadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
         modifier = modifier.semantics { contentDescription = tr("Show the keyboard") },
         containerColor = MaterialTheme.colorScheme.secondaryContainer,
     ) {
-        Icon(Icons.Default.Keyboard, contentDescription = null)
+        AppIcon(TableIcons.Keyboard, contentDescription = null)
     }
 }
 
@@ -1231,7 +1231,7 @@ private fun LabelView(label: KeyLabel, fg: Color, fontSize: Float, iconSize: Dp)
             ),
         )
         is KeyLabel.Math -> FitInside { MathView(label.row, (fontSize * 0.9f).sp, fg, emptyAsDot = true, computerModern = label.latex) }
-        is KeyLabel.Icon -> Icon(iconFor(label.id), contentDescription = null, tint = fg, modifier = Modifier.size(iconSize))
+        is KeyLabel.Icon -> AppIcon(iconFor(label.id), contentDescription = null, tint = fg, modifier = Modifier.size(iconSize))
         is KeyLabel.Matrix -> MatrixLabel(label, fg)
         KeyLabel.BackspaceIcon -> Icon(Icons.AutoMirrored.Outlined.Backspace, contentDescription = null, tint = fg, modifier = Modifier.size(iconSize))
         KeyLabel.EnterIcon -> Icon(Icons.AutoMirrored.Filled.KeyboardReturn, contentDescription = null, tint = fg, modifier = Modifier.size(iconSize))
@@ -1256,7 +1256,7 @@ private fun iconFor(id: IconId): ImageVector = when (id) {
     IconId.Factor -> Icons.Default.CloseFullscreen
     IconId.Apart -> Icons.AutoMirrored.Filled.CallSplit
     IconId.Together -> Icons.Default.CallMerge
-    IconId.Answer -> Icons.Default.Replay
+    IconId.Answer -> TableIcons.Replay
     IconId.MoreConstants -> Icons.Default.MoreHoriz
     IconId.Triangle -> TabIcons.Triangle
 }
@@ -1353,7 +1353,7 @@ private fun ConstantsSheet(units: UnitSystem, onPick: (String) -> Unit, onDismis
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp).height(52.dp).clip(CircleShape).background(colors.surfaceContainerHighest).padding(horizontal = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Default.Search, contentDescription = null, tint = colors.onSurfaceVariant)
+            AppIcon(TableIcons.Search, contentDescription = null, tint = colors.onSurfaceVariant)
             Spacer(Modifier.width(12.dp))
             Box(Modifier.weight(1f)) {
                 if (query.isEmpty()) Text(tr("Search constants"), color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
@@ -1586,7 +1586,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsRadio(if (I18n.code == "en") "Language" else tr("Language") + " (Language)", listOf(tr("System")) + I18n.languages.map { it.name }, codes.indexOf(AppSettings.language).coerceAtLeast(0)) { AppSettings.changeLanguage(codes[it]) }
         },
     )) + listOf(
-        PageSection("Appearance", Icons.Outlined.Palette) {
+        PageSection("Appearance", TableIcons.Palette) {
             SettingsChoice("Theme", listOf("System", "Light", "Dark"), AppSettings.theme, AppSettings::changeTheme)
             val wallpaperColors = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
             if (wallpaperColors) {
@@ -1613,7 +1613,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 AppSettings.keyIcons, AppSettings::changeKeyIcons, badge = "Beta",
             )
         },
-        PageSection("History", Icons.Outlined.History) {
+        PageSection("History", TableIcons.History) {
             SettingsChoice("History keeps", listOf("50", "100", "500", "All"), when (AppSettings.historyLimit) { 50 -> 0; 100 -> 1; 500 -> 2; else -> 3 }) {
                 AppSettings.changeHistoryLimit(listOf(50, 100, 500, 0)[it])
             }
@@ -1689,7 +1689,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
         PageSection("Documentation", Icons.AutoMirrored.Outlined.HelpOutline) {
             SettingsLink("Documentation", "How everything works: ${Docs.chapters.size} chapters with ${Docs.allExamples.size} worked examples, every key, and the spreadsheet functions", "Open the documentation") { howTo = true }
         },
-        PageSection("About", Icons.Outlined.Info) {
+        PageSection("About", TableIcons.Info) {
             SettingsLink("Acknowledgements", "Fonts, libraries, data and methods, with links", "Open the acknowledgements") { onAcknowledgements() }
         },
     ))

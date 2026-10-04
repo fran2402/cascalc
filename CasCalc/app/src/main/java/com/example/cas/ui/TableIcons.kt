@@ -105,6 +105,48 @@ object TableIcons {
     /** A point on the complex plane, its angle marked: complex plotting. */
     val ModeComplex: ImageVector by lazy { tableIcon("ModeComplex", stroke = listOf("M4 20H21", "M4 20V3", "M4 20L15.5 8.5"), thin = listOf("M9.2 20A5.2 5.2 0 0 0 7.68 16.32"), fill = listOf(oval(15.5f, 8.5f, 2.1f, 2.1f)), accent = setOf("M4 20L15.5 8.5", oval(15.5f, 8.5f, 2.1f, 2.1f))) }
 
+    /** A magnifier, its handle tinted: search. */
+    val Search: ImageVector by lazy { tableIcon("Search", stroke = listOf(oval(10.5f, 10.5f, 6.5f, 6.5f), "M15.3 15.3l5.2 5.2"), accent = setOf("M15.3 15.3l5.2 5.2")) }
+
+    /** A clock turning back: history. */
+    val History: ImageVector by lazy { tableIcon("History", stroke = listOf("M4.5 12a7.5 7.5 0 1 0 2.2-5.3", "M3.8 4.3v3.6h3.6", "M12 8v4.4l3 2"), accent = setOf("M12 8v4.4l3 2")) }
+
+    /** An arrow turning back: undo. */
+    val Undo: ImageVector by lazy { tableIcon("Undo", stroke = listOf("M8.5 14L4 9.5L8.5 5", "M4 9.5h10a5.5 5.5 0 0 1 0 11h-3"), accent = setOf("M8.5 14L4 9.5L8.5 5")) }
+
+    /** An arrow turning forward: redo. */
+    val Redo: ImageVector by lazy { tableIcon("Redo", stroke = listOf("M15.5 14L20 9.5L15.5 5", "M20 9.5H10a5.5 5.5 0 0 0 0 11h3"), accent = setOf("M15.5 14L20 9.5L15.5 5")) }
+
+    /** An open eye: shown. */
+    val Visible: ImageVector by lazy { tableIcon("Visible", stroke = listOf("M2.5 12c2.5-4.5 6-7 9.5-7s7 2.5 9.5 7c-2.5 4.5-6 7-9.5 7s-7-2.5-9.5-7z", oval(12f, 12f, 3f, 3f)), accent = setOf(oval(12f, 12f, 3f, 3f))) }
+
+    /** An eye struck through: hidden. */
+    val Hidden: ImageVector by lazy { tableIcon("Hidden", stroke = listOf("M2.5 12c2.5-4.5 6-7 9.5-7s7 2.5 9.5 7c-2.5 4.5-6 7-9.5 7s-7-2.5-9.5-7z", "M4 4l16 16"), accent = setOf("M4 4l16 16")) }
+
+    /** An i in a circle: information. */
+    val Info: ImageVector by lazy { tableIcon("Info", stroke = listOf(oval(12f, 12f, 9f, 9f), "M12 11v6"), fill = listOf(oval(12f, 7.6f, 1.3f, 1.3f)), accent = setOf("M12 11v6", oval(12f, 7.6f, 1.3f, 1.3f))) }
+
+    /** A light bulb, glowing: a tip. */
+    val Tip: ImageVector by lazy { tableIcon("Tip", stroke = listOf("M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z", "M9.5 19.5h5", "M10.5 22h3"), shade = listOf("M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z"), accent = setOf("M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3z")) }
+
+    /** A keyboard, its space bar tinted. */
+    val Keyboard: ImageVector by lazy { tableIcon("Keyboard", stroke = listOf("M4 5.5h16a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 17V7A1.5 1.5 0 0 1 4 5.5z", "M8 15h8"), fill = listOf(oval(6.5f, 9f, 1f, 1f), oval(10f, 9f, 1f, 1f), oval(14f, 9f, 1f, 1f), oval(17.5f, 9f, 1f, 1f), oval(8.2f, 12f, 1f, 1f), oval(12f, 12f, 1f, 1f), oval(15.8f, 12f, 1f, 1f)), accent = setOf("M8 15h8")) }
+
+    /** A palette with its paints: colors. */
+    val Palette: ImageVector by lazy { tableIcon("Palette", stroke = listOf("M12 3a9 9 0 0 0 0 18c1.3 0 2-.8 2-1.8c0-1.4-1.3-1.8-1.3-3c0-1 .8-1.7 1.8-1.7H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"), fill = listOf(oval(7.5f, 11f, 1.5f, 1.5f), oval(9.8f, 7f, 1.5f, 1.5f), oval(14.5f, 7f, 1.5f, 1.5f)), accent = setOf(oval(7.5f, 11f, 1.5f, 1.5f), oval(9.8f, 7f, 1.5f, 1.5f), oval(14.5f, 7f, 1.5f, 1.5f))) }
+
+    /** A triangle pointing on: play. */
+    val Play: ImageVector by lazy { tableIcon("Play", stroke = listOf("M8 5v14l11-7z"), shade = listOf("M8 5v14l11-7z"), accent = setOf("M8 5v14l11-7z")) }
+
+    /** Two bars: pause. */
+    val Pause: ImageVector by lazy { tableIcon("Pause", stroke = listOf("M8.5 5v14", "M15.5 5v14"), accent = setOf("M8.5 5v14", "M15.5 5v14")) }
+
+    /** An arrow round a play triangle: play again. */
+    val Replay: ImageVector by lazy { tableIcon("Replay", stroke = listOf("M5 12a7 7 0 1 0 2-4.9", "M4.4 3.8v3.8h3.8", "M10.5 9v6l4.5-3z"), accent = setOf("M10.5 9v6l4.5-3z")) }
+
+    /** A ruler and its marks: a length. */
+    val Ruler: ImageVector by lazy { tableIcon("Ruler", stroke = listOf("M3 15.5L15.5 3l5.5 5.5L8.5 21z"), thin = listOf("M7 11.5l2 2", "M10 8.5l1.5 1.5", "M13 5.5l2 2"), accent = setOf("M7 11.5l2 2", "M10 8.5l1.5 1.5", "M13 5.5l2 2")) }
+
     /** A box with an arrow leaving it: share (the same drawing as [ShareTable]). */
     val Share: ImageVector get() = ShareTable
 

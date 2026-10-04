@@ -163,7 +163,7 @@ fun UnitConverterPage(onBack: () -> Unit, onUse: ((Double) -> Unit)? = null) {
                             state.fromQ?.let { Units.compatible(it.dims, Units.Bridges(c = useC, h = useH, hbar = useHbar, kB = useKB)) }.orEmpty()
                         }
                         ToCard(to, { to = it }, state, digits, compatible, onPick = { picking = Field.To }, onUse = onUse?.let { use -> { v: Double -> AppSettings.changeConverterState(value, from, to); use(v) } })
-                        state.bridge?.let { Notice(Icons.Outlined.Info, it.describe(), MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer) }
+                        state.bridge?.let { Notice(TableIcons.Info, it.describe(), MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer) }
                         state.error?.let { Notice(Icons.Outlined.ErrorOutline, it, MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer) }
                     }
                     val results: @Composable ColumnScope.() -> Unit = {
@@ -794,7 +794,7 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
             Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 12.dp).height(52.dp).clip(CircleShape).background(colors.surfaceContainerHighest).padding(horizontal = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(androidx.compose.material.icons.Icons.Default.Search, contentDescription = null, tint = colors.onSurfaceVariant)
+            AppIcon(TableIcons.Search, contentDescription = null, tint = colors.onSurfaceVariant)
             Spacer(Modifier.width(12.dp))
             Box(Modifier.weight(1f)) {
                 if (query.isEmpty()) Text(tr("Search units"), color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
