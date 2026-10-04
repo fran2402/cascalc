@@ -1,0 +1,127 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:NCMR;src:url(../app/src/main/res/font/ncm_roman.otf)}
+@font-face{font-family:NCMI;src:url(../app/src/main/res/font/ncm_latin_italic.otf)}
+@font-face{font-family:NCMM;src:url(../app/src/main/res/font/ncm_math.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px;width:1900px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1600px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px;line-height:1.4}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--lowest:#fff;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sec:#5E6045;--onsec:#fff;--sc:#E2E4C4;--onsc:#1B1D0A;--ter:#3C6A5A;--onter:#fff;--tc:#BEECDB;--ontc:#002019;--outv:#C8C7B5;--out:#77786A;--err:#BA1A1A;--ec:#FFDAD6;--onec:#410002}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--lowest:#0D0F08;--c:#1F2018;--ch:#292A22;--chh:#34352C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sec:#C6C8A9;--onsec:#2F321B;--sc:#45483A;--onsc:#E2E4C4;--ter:#A2D0BF;--onter:#05372B;--tc:#214E41;--ontc:#BEECDB;--outv:#47473B;--out:#919283;--err:#FFB4AB;--ec:#93000A;--onec:#FFDAD6}
+.phone{position:relative;width:412px;height:900px;border-radius:44px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+
+.phone .status{padding:0 44px !important}
+.tbar{display:flex;align-items:center;padding:4px 10px 4px 4px;gap:2px}
+.tbar .ib{width:36px;height:42px;font-size:19px;flex:none}
+.ttl{font:400 20px GSF;padding-left:2px;white-space:nowrap}
+.fchip{white-space:nowrap;font:500 12px GSF;background:var(--tc);color:var(--ontc);border-radius:12px;padding:3px 10px;margin-left:8px}
+.donebtn{height:44px;border-radius:16px;background:var(--pri);color:var(--onpri);display:flex;align-items:center;gap:6px;padding:0 14px 0 10px;font:600 15px GSF;margin-left:2px;white-space:nowrap;flex:none}
+.cards{display:flex;gap:10px;padding:8px 0 8px 52px}
+.cc{width:110px;border-radius:18px;padding:8px 4px 6px 8px;display:flex;flex-direction:column;gap:6px;flex:none}
+.cc .h{display:flex;align-items:center;gap:8px}
+.rb{height:28px;min-width:28px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font:italic 16px CMI;padding:0 6px}
+.cc .l{font:600 13px GSF;color:var(--onv)}.cc .dots{margin-left:auto;color:var(--onv);font:700 16px GSF;padding-right:4px}
+.cc .nm{font:13px GSF}
+.trow{display:flex;align-items:center;gap:10px;padding:3px 0}
+.rn{width:42px;flex:none;text-align:center;font:600 14px GSF;color:var(--onv)}
+.cell{width:110px;flex:none;height:42px;border-radius:10px;display:flex;align-items:center;padding:0 12px;font:17px CMR;position:relative}
+.cell small{position:absolute;right:6px;bottom:3px;font:italic 10px CMI;color:var(--ter)}
+.menu{position:absolute;background:var(--c);border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:6px 0;width:250px;z-index:5}
+.menu div{display:flex;align-items:center;gap:12px;padding:9px 16px;font:15px GSF}
+.menu div .mi{width:22px;text-align:center;color:var(--onv);font:17px GSF}
+.menu div.on{background:color-mix(in srgb,var(--pri) 10%,transparent)}
+.menu div.new:after{content:"new";margin-left:auto;font:600 10px GSF;color:var(--onpri);background:var(--pri);border-radius:8px;padding:2px 6px}
+.menu hr{border:none;border-top:1px solid var(--outv);margin:4px 0}
+.err{color:var(--err)}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.32);z-index:4}
+.dlg{position:absolute;left:28px;right:28px;background:var(--chh);border-radius:28px;padding:22px 22px 14px;z-index:6;box-shadow:0 12px 32px rgba(0,0,0,.3)}
+.dlg .ic{text-align:center;font:24px GSF;color:var(--sec)}.dlg h3{text-align:center;font:400 22px GSF;margin:10px 0 14px}
+.srow{display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-radius:10px}.srow span{color:var(--onv);font:15px GSF}.srow b{font:400 19px CMR}
+.srow.tap{background:color-mix(in srgb,var(--pri) 10%,transparent)}
+.dnote{font:12.5px GSF;color:var(--onv);margin-top:8px}
+.btns{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.btns span{font:500 14px GSF;color:var(--pri);padding:10px 12px}
+.field{border:1px solid var(--out);border-radius:6px;height:56px;padding:0 14px;display:flex;align-items:center;font:16px GSF;position:relative;margin-bottom:14px}
+.field label{position:absolute;top:-9px;left:10px;background:var(--chh);padding:0 4px;font:12px GSF;color:var(--onv)}
+.field.f{border:2px solid var(--pri)}.field.f label{color:var(--pri)}
+.fab2{position:absolute;right:24px;bottom:24px;width:56px;height:56px;border-radius:18px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;justify-content:center;font:26px GSF;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.toast{position:absolute;left:50%;transform:translateX(-50%);bottom:96px;background:#303030;color:#fff;border-radius:20px;padding:8px 16px;font:14px GSF;z-index:7}
+
+.bar{margin:4px 12px;border-radius:20px;padding:6px 6px 6px 12px}
+.of{border:1px solid var(--out);border-radius:6px;height:50px;padding:0 12px;display:flex;align-items:center;font:16px GSF;position:relative;flex:1}
+.of label{position:absolute;top:-9px;left:8px;background:var(--chh);padding:0 4px;font:12px GSF;color:var(--onv)}
+.of.f{border:2px solid var(--pri)}.of.f label{color:var(--pri)}
+.brow{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.bi{width:36px;height:36px;display:flex;align-items:center;justify-content:center;font:18px GSF;color:var(--onv);flex:none}
+.tb{font:500 14px GSF;color:var(--pri);padding:8px 8px;white-space:nowrap}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--out);border-radius:8px;padding:5px 10px;font:500 13px GSF;margin-right:6px}
+.chip.on{background:var(--sc);border-color:transparent}
+.cell.found{outline:2px solid var(--ter);background:color-mix(in srgb,var(--ter) 12%,var(--ch)) !important}
+.cell.cur{outline:3px solid var(--ter)}
+.cell.sel{outline:2px solid var(--pri)}
+.frozen{box-shadow:4px 0 6px -3px rgba(0,0,0,.25)}
+.hand{position:absolute;right:-5px;bottom:-5px;width:12px;height:12px;border-radius:6px;background:var(--pri);border:2px solid var(--bg)}
+.ghost{color:var(--onv);font-style:normal}
+.seg2{display:flex;border:1px solid var(--out);border-radius:20px;overflow:hidden;margin-bottom:12px}.seg2 span{flex:1;text-align:center;padding:9px 0;font:500 14px GSF;border-left:1px solid var(--out)}.seg2 span:first-child{border-left:none}.seg2 span.on{background:var(--sc)}
+.sl{height:16px;border-radius:8px;background:var(--sc);position:relative;margin:8px 0 14px}.sl b{position:absolute;left:0;top:0;bottom:0;border-radius:8px;background:var(--pri)}.sl i{position:absolute;top:-8px;width:4px;height:32px;border-radius:2px;background:var(--pri)}
+.sw{width:52px;height:32px;border-radius:16px;background:var(--pri);position:relative;flex:none}.sw:after{content:"";position:absolute;right:4px;top:4px;width:24px;height:24px;border-radius:12px;background:var(--onpri)}
+</style></head>
+<body style="width:2440px">
+<h2>Round 40: Spreadsheet tools in the data table</h2>
+<p class="note">The data table gains the everyday tools of Sheets and Excel: find and replace, filters by condition, a selected range with its sum, average and count, number formats (fixed decimals, percent, scientific, thousands grouped), a red–yellow–green color scale, a frozen first column, and tidying (duplicate rows, spaces, rows ↔ columns). The fill handle now counts on from text (Week 1 → Week 2, Jan → Feb). On phones the title is just "Data".</p>
+<div class="row" id="row"></div>
+<script>
+const roles={x:['var(--pri)','var(--onpri)'],y:['var(--ter)','var(--onter)']};
+const t=['0','0.5','1','1.5','2','2.5','3','3.5','4'];
+const h=[1.02,1.31,2.24,3.30,5.01,7.48,11.2,16.4,24.9];
+const wk=['Week 1','Week 2','Week 3','Week 4','Week 5','Week 6','Week 7','Week 8','Week 9'];
+function scale(v){const lo=1.02,hi=24.9,p=(v-lo)/(hi-lo);const L=(a,b,f)=>Math.round(a+(b-a)*f);let A,B,f;if(p<.5){A=[248,105,107];B=[255,235,132];f=p*2}else{A=[255,235,132];B=[99,190,123];f=(p-.5)*2}return `rgba(${L(A[0],B[0],f)},${L(A[1],B[1],f)},${L(A[2],B[2],f)},.55)`}
+function table(o={}){
+ const cols=[['x','A','time t'],['y','B','height h'],[null,'C','label']];
+ let s=`<div class="status"><span>12:30</span><span>▴ ▮</span></div><div class="tbar"><span class="ib">✕</span><span class="ttl">Data</span><span class="fchip">Formulas</span><span style="flex:1"></span><span class="ib">↶</span><span class="ib" style="opacity:.4">↷</span><span class="ib" style="${o.more?'background:var(--sc);border-radius:21px':''}">⋮</span><span class="donebtn">✓ Done</span></div>`;
+ s+=o.bar||`<div style="font:13px GSF;color:var(--onv);padding:2px 18px 6px">9 points · 3 columns</div>`;
+ s+=`<div style="background:var(--bg);border-radius:28px 28px 0 0;height:900px;position:relative;overflow:hidden">`;
+ s+=`<div class="cards">`+cols.map(([r,l,n],i)=>{const tt=r?`color-mix(in srgb, ${roles[r][0]} 16%, var(--low))`:'var(--c)';return `<div class="cc ${o.frozen&&i==0?'frozen':''}" style="background:${tt};${o.colMenu===i?'outline:2px solid var(--pri)':''}"><div class="h">${r?`<span class="rb" style="background:${roles[r][0]};color:${roles[r][1]}">${r}</span>`:'<span class="rb" style="background:var(--ch)">–</span>'}<span class="l">${l}</span>${o.filterCol===i?'<span style="color:var(--pri);margin-left:auto;font:15px GSF">⚲</span>':''}<span class="dots" ${o.filterCol===i?'style="margin-left:4px"':''}>⋮</span></div><div class="nm">${n}</div></div>`}).join('')+`</div>`;
+ const rows=o.rows||t.map((_,i)=>i);
+ rows.forEach(r=>{
+  s+=`<div class="trow"><div class="rn">${r+1}</div>`;
+  [t[r], h[r], wk[r]].forEach((v,c)=>{
+   let tint=c==0?'color-mix(in srgb, var(--pri) 9%, var(--low))':c==1?'color-mix(in srgb, var(--ter) 9%, var(--low))':'var(--ch)';
+   let txt=v;
+   if(c==1&&o.fmt) txt=Number(v).toFixed(2);
+   if(c==1&&o.scale) tint=`linear-gradient(${scale(h[r])},${scale(h[r])}),var(--ch)`;
+   let cls='cell';
+   if(o.find&&o.find(r,c)) cls+=' found';
+   if(o.cur&&o.cur[0]==r&&o.cur[1]==c) cls+=' cur';
+   if(o.sel&&r>=o.sel[0]&&r<=o.sel[1]&&c>=o.sel[2]&&c<=o.sel[3]) {cls+=' sel';tint=`linear-gradient(color-mix(in srgb,var(--pri) 18%,transparent),color-mix(in srgb,var(--pri) 18%,transparent)),${tint}`}
+   if(c==2&&o.fill&&r>=o.fill[0]&&r<=o.fill[1]){cls+=' sel'; if(r>o.fill[0]) txt=`<span class="ghost">${v}</span>`}
+   if(c==2&&o.fill&&r>o.fill[1]) txt='';
+   if(o.frozen&&c==0) cls+=' frozen';
+   s+=`<div class="${cls}" style="background:${tint}">${txt}${c==2&&o.fill&&r==o.fill[0]?'':''}${o.handle&&o.handle[0]==r&&o.handle[1]==c?'<span class="hand"></span>':''}</div>`});
+  s+=`</div>`});
+ s+=o.inner||'';
+ s+=`<div class="fab2">＋</div></div>`;
+ return s;
+}
+const P=(cls,inner,cap)=>`<div><div class="${cls}"><div class="phone">${inner}</div></div><div class="cap">${cap}</div></div>`;
+const row=document.getElementById('row');
+// 1 find & replace
+const findBar=`<div class="bar" style="background:var(--chh)"><div class="brow"><div class="of f"><label>Find</label>Week<span style="width:2px;height:20px;background:var(--pri);margin-left:2px"></span></div><span style="font:500 14px GSF;color:var(--onv);padding:0 4px">3/9</span><span class="bi">˄</span><span class="bi">˅</span><span class="bi">✕</span></div><div class="brow"><div class="of"><label>Replace with</label>Day</div><span class="tb">Replace</span><span class="tb">All</span></div><div><span class="chip">Match case</span><span class="chip on">✓ Whole cell</span></div></div>`;
+row.innerHTML+=P('light',table({bar:findBar.replace('✓ Whole cell','Whole cell').replace('chip on','chip'),find:(r,c)=>c==2,cur:[2,2]}),`<b>1 · Find and replace.</b> From the top ⋮. Every matching cell is outlined and the arrows step through them (3 of 9), scrolling each into view. Replace changes the current one, All changes them all in one undo step. Match case and Whole cell narrow it down.`);
+// 2 filter dialog
+row.innerHTML+=P('light',table({colMenu:1})+`<div class="scrim"></div><div class="dlg" style="top:230px"><h3 style="text-align:left;margin-top:0">Filter: height h</h3><div style="font:15px GSF;margin-bottom:12px">Show only the rows where this column…</div><div style="display:flex;flex-wrap:wrap;gap:6px 0;margin-bottom:14px">${['Is equal to',"Isn't equal to",'✓ Greater than','Less than','Text contains','Is empty',"Isn't empty"].map(x=>`<span class="chip ${x[0]=='✓'?'on':''}">${x}</span>`).join('')}</div><div class="field f"><label>Value</label>3</div><div class="btns"><span>Cancel</span><span>Apply</span></div></div>`,`<b>2 · A filter.</b> A column's ⋮ › Filter…: equal or not, greater or less than, contains some text, empty or not. Numbers compare as numbers; formulas by their values.`);
+// 3 filtered + color scale + format
+const banner=`<div class="bar" style="background:var(--sc);color:var(--onsc)"><div style="display:flex;align-items:center;gap:8px;font:500 13.5px GSF"><span>⚲</span><span style="flex:1">5 of 9 rows shown · hidden rows are still plotted</span><span class="tb">Clear filters</span></div><span class="chip on" style="background:var(--pc);margin-top:2px">height h &gt; 3 &nbsp;✕</span></div>`;
+row.innerHTML+=P('light',table({bar:banner,rows:[3,4,5,6,7,8],filterCol:1,scale:true,fmt:true}).replace('<div class="trow"><div class="rn">4</div>','<div class="trow"><div class="rn">4</div>')+'',`<b>3 · Filtered, formatted, color-scaled.</b> Only the rows with h &gt; 3 show, and the banner says so (tap the chip to change it, ✕ to drop it). Column B has 2 fixed decimals and a red–yellow–green color scale from its smallest to largest number. Only the look changes.`);
+// 4 range selection (dark)
+const selBar=`<div class="bar" style="background:var(--pc);color:var(--onpc);display:flex;align-items:center;gap:4px"><div style="flex:1;min-width:0"><div style="font:600 15px GSF">A3:B6</div><div style="font:12px GSF;white-space:nowrap;overflow:hidden;max-width:250px">Sum 23.55 · Average 2.944 · Count 8 · Min 1 · Max 7.48</div></div><span class="bi" style="color:var(--onpc)">⧉</span><span class="bi" style="color:var(--onpc)">⌫</span><span class="bi" style="color:var(--onpc)">✕</span></div>`;
+row.innerHTML+=P('dark',table({bar:selBar,sel:[2,5,0,1]}),`<b>4 · A range (dark).</b> Hold a cell, then tap another to stretch the range. The bar shows its address and its numbers summed up, like a spreadsheet's status bar. Copy puts it on the clipboard tab-separated (it pastes into Sheets or Excel); Clear empties it.`);
+// 5 column menu + smart fill + frozen
+row.innerHTML+=P('light',table({colMenu:1,fill:[0,4],handle:[4,2],frozen:true})+`<div class="menu" style="left:96px;top:600px;width:240px">
+<div><span class="mi">▦</span>Statistics</div><div class="new"><span class="mi">⚲</span>Filter…</div><div class="new"><span class="mi">%</span>Number format…</div><div class="new on"><span class="mi">◐</span>Color scale<span style="margin-left:8px">✓</span></div><div><span class="mi">≡</span>Sort smallest first</div><div><span class="mi">≡</span>Sort largest first</div><div><span class="mi">#</span>Fill with 1, 2, 3…</div><hr><div><span class="mi">⧉</span>Duplicate the column</div><div class="err"><span class="mi err">🗑</span>Remove the column</div></div>`,`<b>5 · The column's ⋮, smart fill.</b> New: Filter, Number format and Color scale. Behind it, the fill handle dragged down from "Week 1" counts on to Week 5, as Excel does (Jan → Feb and Monday → Tuesday too). Column A is frozen (top ⋮), so it stays put when the table scrolls sideways.`);
+document.title='ready';
+</script></body></html>
