@@ -2549,7 +2549,9 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     }
     androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false),
+        // Edge to edge, so the keyboard is made room for once (by imePadding below), not also by the
+        // dialog's window resizing, which left the formula bar floating far above the keyboard.
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = colors.surfaceContainerLow) {
             BoxWithConstraints(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
@@ -4892,7 +4894,7 @@ internal fun FormulaBar(
         modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(26.dp))
             .background(if (focused) colors.surface else colors.surfaceContainerHigh)
             .border(if (focused) 2.dp else 0.dp, if (focused) colors.primary else Color.Transparent, RoundedCornerShape(26.dp))
-            .padding(start = 7.dp, end = 6.dp),
+            .padding(start = 7.dp, end = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // The Name Box: the address; tap it to type one and jump there.
@@ -4957,8 +4959,9 @@ internal fun FormulaBar(
         }
         // 123 / abc: the number pad or the whole keyboard (letters, =, units).
         if (keyboardSwitch && focused && address != null) Box(
-            Modifier.height(36.dp).widthIn(min = 44.dp).clip(RoundedCornerShape(12.dp)).background(colors.surfaceContainerHighest)
-                .clickable(onClickLabel = tr(if (numberPad) "Show the whole keyboard" else "Show the number pad")) { refocus = true; numberPad = !numberPad }.padding(horizontal = 8.dp),
+            // A pill like the Name Box at the other end, kept in from the bar's rounded edge.
+            Modifier.padding(start = 4.dp, end = 6.dp).height(38.dp).widthIn(min = 56.dp).clip(RoundedCornerShape(19.dp)).background(colors.surfaceContainerHighest)
+                .clickable(onClickLabel = tr(if (numberPad) "Show the whole keyboard" else "Show the number pad")) { refocus = true; numberPad = !numberPad }.padding(horizontal = 10.dp),
             contentAlignment = Alignment.Center,
         ) { Text(if (numberPad) "abc" else "123", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant) }
         // The reference just typed, anchored the next way round ($A$1, A$1, $A1, A1).
