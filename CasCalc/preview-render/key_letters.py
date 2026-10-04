@@ -167,6 +167,7 @@ lines += [
  kt('imaginary part', 'Im', [('I', 'accent'), ('m', 'ink')]),
  kt('residue', 'Residue', [('R', 'accent'), ('es', 'ink')]),
  kt('matrix', 'Matrix', [('M', 'ink')]),
+ kt('inverse normal', 'InvNorm', [('Φ', 'ink'), ('⁻¹', 'accent')]),
  kt('inverse', 'Inverse', [('M', 'ink'), ('⁻¹', 'accent')]),
  kt('transpose', 'Transpose', [('M', 'ink'), ('ᵀ', 'accent')]),
  kt('conjugate transpose', 'Adjoint', [('M', 'ink'), ('ᴴ', 'accent')]),
@@ -211,6 +212,11 @@ def constant(pieces):
         for kind, ch in items:
             if kind == 'script':
                 sub, sup = ch; w = 0
+                if sup == '−1':
+                    st, fl = L['⁻¹'][1](x - GAP + 3.0)
+                    o['inkThin'] += st
+                    w = L['⁻¹'][0] - 4.0 + 3.0
+                    sup = ''
                 for txt, is_sub in ((sub, True), (sup, False)):
                     # A clear gap after the letter (its stroke reaches 1 past its outline), then the small letters spaced.
                     xx = x - GAP + 4.0
@@ -250,4 +256,21 @@ for m in _re.finditer(r'\n    \w+\("[^"]+", listOf\((.*?)\), "([^"]+)"', src):
     w = '' if W == 24 else f', width = {W}f'
     name = 'C' + _re.sub(r'[^A-Za-z0-9]', '', desc.title())[:28]
     lines.append(f'            "{desc}" to key("{name}"{w}, {", ".join(args)}),')
+
+def constants_list():
+    """Two constants (c, h) in the accent color, each with its name as a line beside it."""
+    o = {'accent': [], 'ink': [], 'inkThin': []}
+    for ch, y in (('c', 6.5), ('h', 17.5)):
+        k = k_of(ch); sc = 0.6
+        ps, _ = L[ch][1](0)
+        mid = 12 if ch == 'h' else 14.75
+        for d in ps:
+            pen = SVGPathPen(None, ntos=lambda v: ('%.2f' % v).rstrip('0').rstrip('.'))
+            parse_path(d, TransformPen(pen, (sc * k, 0, 0, sc, 2.2, y - sc * mid)))
+            o['accent'].append(pen.getCommands())
+        o['ink'].append(f"M11 {y - 1.6}h10")
+        o['inkThin'].append(f"M11 {y + 2.2}h6.5")
+    args = [f'{kk} = listOf({", ".join(chr(34) + p + chr(34) for p in v)})' for kk, v in o.items() if v]
+    return f'            "list of constants with names" to key("ConstantList", {", ".join(args)}),'
+lines.append(constants_list())
 print('\n'.join(lines))

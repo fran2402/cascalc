@@ -1217,7 +1217,7 @@ private fun iconFor(id: IconId): ImageVector = when (id) {
     IconId.Apart -> TableIcons.Split
     IconId.Together -> TableIcons.Merge
     IconId.Answer -> TableIcons.Replay
-    IconId.MoreConstants -> TableIcons.MoreHoriz
+    IconId.MoreConstants -> KeyIcons.forKey("list of constants with names") ?: TableIcons.MoreHoriz
     IconId.Triangle -> TabIcons.Triangle
 }
 

@@ -203,6 +203,13 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, constants list icon, consistent ⁻¹)
+
+- **List of constants** key redrawn: two tidy rows, an accent *c* and *ħ*-style *h*, each
+  followed by an ink line and a thinner line, like a small named list.
+- **Inverse normal** now draws Φ with the same shared ⁻¹ superscript used by the matrix
+  inverse and by constants such as α⁻¹ and G₀⁻¹.
+
 ## Latest changes (4 October, custom icons everywhere)
 - **Physical constants** get symbol icons like π and e: the symbol in the accent color, sub- and
   superscripts small in ink (c, h, ℏ, k_B, G, ε₀, μ₀, mₑ, N_A, R_∞, m_p/mₑ, sin²θ_W…), generated
