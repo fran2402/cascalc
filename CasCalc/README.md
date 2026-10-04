@@ -219,7 +219,7 @@ signed with a throwaway debug key, so they install alongside nothing from the Pl
     the average, count, smallest and largest). A tablet's side panel shows the selected
     column's role, format, filter and statistics.
   - **Counts in the title:** the points and columns count moves into a line under the title.
-  - **Icons:** 34 new icons for the tools, drawn to match the app's own (`ui/TableIcons.kt`).
+  - **Icons:** 32 new icons for the tools, drawn to match the app's own (`ui/TableIcons.kt`).
 
 ## Latest changes (4 October, spreadsheet tools, complex constructions)
 - **Data tables, more like a spreadsheet:**
