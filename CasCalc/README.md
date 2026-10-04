@@ -203,6 +203,21 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, point card, data tables)
+- **Point card:** its buttons (area, tangent, normal, arc length…) scroll sideways again.
+  A touch that starts on the card no longer pans the graph or closes the card, in 2D, 3D and
+  the complex plane. Tangent, normal and arc length have their own icons, drawn like the area
+  ones.
+- **Out of beta:** the unit converter and spreadsheet formulas in data tables.
+- **Data tables:**
+  - **Column statistics:** count, sum, mean, median, standard deviation, smallest, largest
+    and range; tap a value to copy it.
+  - **Sorting and filling:** sort largest first, and fill a column with a series of any start
+    and step.
+  - **Columns and rows:** duplicate or move a column, and duplicate a row.
+  - **Top ⋮ menu:** share or copy the table as CSV (formulas as their values), and remove
+    empty rows.
+
 ## Latest changes (4 October, editing fixes)
 - **Graph lines edit like the calculator:** the graph read a line by wrapping parts of it in a
   scratch row to copy them, and that took the parts out of the line being edited. After that,

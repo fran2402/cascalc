@@ -297,8 +297,9 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier, onUseValue: 
             .onSizeChanged { size = it }
             .pointerInput(Unit) {
                 // Drag to turn the surface, pinch to zoom.
-                detectTransformGestures { _, pan, zoom, _ ->
-                    vm.camera = vm.camera.rotateBy(-pan.x * 0.008, pan.y * 0.008).zoomBy(zoom.toDouble())
+                // (A touch that starts on the point card is the card's.)
+                detectAxisTransformGestures(skip = { OverlayTouch.owns(it) }) { _, pan, zoomX, zoomY ->
+                    vm.camera = vm.camera.rotateBy(-pan.x * 0.008, pan.y * 0.008).zoomBy(kotlin.math.sqrt(zoomX * zoomY))
                     picked = null
                 }
             }

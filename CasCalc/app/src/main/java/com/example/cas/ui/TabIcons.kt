@@ -40,6 +40,15 @@ object TabIcons {
     /** Two crossing curves with the region between them shaded: area between curves. */
     val AreaBetween: ImageVector by lazy { icon("AreaBetween", stroke = listOf("M3 18C8 18 10 6 21 5", "M3 8c6 0 9 11 18 12"), shade = listOf("M12 12.3C14.6 8.5 17 6.2 21 5v15c-4-.4-6.6-3.3-9-7.7z")) }
 
+    /** A curve with the straight line touching it at a point: the tangent there. */
+    val Tangent: ImageVector by lazy { icon("Tangent", stroke = listOf("M5 20.9L20 9.3"), thin = listOf("M3 19Q12 19 21 5"), fill = listOf("M10.2 15.5a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0-3.6 0z")) }
+
+    /** A curve with the line at right angles to it through a point: the normal there. */
+    val Normal: ImageVector by lazy { icon("Normal", stroke = listOf("M7.1 9.2L15.4 19.9"), thin = listOf("M3 19Q12 19 21 5", "M13.5 14.4L14.6 15.8L16 14.7"), fill = listOf("M10.2 15.5a1.8 1.8 0 1 0 3.6 0a1.8 1.8 0 1 0-3.6 0z")) }
+
+    /** A stretch of a curve picked out between two points: its arc length. */
+    val ArcLength: ImageVector by lazy { icon("ArcLength", stroke = listOf("M8.4 17.7Q12.9 15.6 17.4 10"), thin = listOf("M3 19Q12 19 21 5"), fill = listOf("M6.8 17.7a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0z", "M15.8 10a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0z")) }
+
     /** ∇, nabla: vector calculus. */
     val Nabla: ImageVector by lazy { icon("Nabla", stroke = listOf("M3.5 5h17L12 20.5z"), thin = listOf("M7.2 6.8l5.6 10.2")) }
 

@@ -521,14 +521,15 @@ object Docs {
                     table(
                         "Tap a cell" to "Type in it; Next moves down, adding a row at the end",
                         "＋ (bottom right)" to "A row, a column, or a table pasted from the clipboard",
-                        "Tap a row's number" to "Insert a row above or below, or remove it",
+                        "Tap a row's number" to "Insert a row above or below, duplicate it, or remove it",
                         "Drag a grip" to "Resize a column (between the cards) or a row (under its number)",
                         "Double-tap a grip" to "Back to the usual size",
-                        "A column's ⋮" to "Its role, sort by it, fill 1, 2, 3…, clear, remove",
+                        "A column's ⋮" to "Its role; statistics (count, sum, mean, median, standard deviation, smallest, largest); sort smallest or largest first; fill 1, 2, 3… or a series with any start and step; duplicate, move left or right, clear, remove",
+                        "⋮ at the top" to "Share or copy the table as CSV (formulas as their values), remove empty rows",
                     ),
                 ),
                 section(
-                    "Spreadsheet formulas (beta)",
+                    "Spreadsheet formulas",
                     para("With Spreadsheet formulas on (Settings › Calculator), columns are lettered A, B, C… and a cell starting with = is worked out, as in Excel: =B1*2, =SUM(A:A), =IF(A1>0, A1, 0)."),
                     para("Dragging the fill handle copies a formula and moves its references with it. A \\\$ fixes a part: \\\$A\\\$1 stays put, A\\\$1 keeps its row while the column changes, and \\\$A1 keeps its column while the row changes. While typing, the \\\$ button under the cell anchors the reference you just typed the next way round, as Excel's F4 does."),
                     bullets(
@@ -555,7 +556,7 @@ object Docs {
             ),
         ),
         Chapter(
-            "Unit converter", "converter", "Any units, however they're combined (beta).", part = APP, sections = listOf(
+            "Unit converter", "converter", "Any units, however they're combined.", part = APP, sections = listOf(
                 section(
                     "Converting",
                     para("Turn it on in Settings › Calculator, then open it from the ⋮ menu. Type a value and pick the From and To units: anything like km/s/Mpc, erg, N m² kg⁻², lea/Å. × 10ⁿ and ± beside the value help on keyboards without e or a minus."),

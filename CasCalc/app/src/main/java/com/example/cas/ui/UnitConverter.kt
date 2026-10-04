@@ -115,7 +115,7 @@ private val EXAMPLES = listOf(
 private enum class Field { From, To }
 
 /**
- * The unit converter (beta): a value and its unit, then the unit to convert to, with the
+ * The unit converter: a value and its unit, then the unit to convert to, with the
  * answer large in LaTeX. Units are typed as expressions (km/s/Mpc, kg m² s⁻², W/(m² sr Hz))
  * or picked from the catalog; "SI", "base" and "cgs" write the answer in that system. When
  * dimensions differ, c, h (or ħ) and k_B can bridge them, as in eV ↔ K or nm ↔ eV. On a
@@ -294,8 +294,6 @@ private fun Header(onBack: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.onSurface) }
         Text("Unit converter", style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.padding(start = 4.dp).semantics { heading() })
-        Spacer(Modifier.width(10.dp))
-        BetaBadge()
         Spacer(Modifier.weight(1f))
     }
 }

@@ -2,6 +2,11 @@ package com.example.cas.ui
 
 import com.example.cas.engine.Readout
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.foundation.layout.fillMaxHeight
 
@@ -2040,6 +2045,43 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     /** Rows by column [c]'s numbers, smallest first (text and empty cells last). */
     fun sortBy(c: Int) { val t = table(); reorder((0 until rows).sortedWith(compareBy(nullsLast()) { r: Int -> t.value(c, r) })) }
     fun removeEmptyRows() = reorder((0 until rows).filter { r -> cells.any { it.getOrElse(r) { "" }.isNotBlank() } })
+    /** Rows by column [c]'s numbers, largest first (text and empty cells still last). */
+    fun sortDown(c: Int) {
+        val t = table()
+        reorder((0 until rows).sortedWith { a, b ->
+            val va = t.value(c, a); val vb = t.value(c, b)
+            when { va == null && vb == null -> 0; va == null -> 1; vb == null -> -1; else -> vb.compareTo(va) }
+        })
+    }
+    /** A copy of column [c] just after it. */
+    fun duplicateColumn(c: Int) {
+        record(); editing = null
+        names.add(c + 1, names[c]); cells.add(c + 1, androidx.compose.runtime.mutableStateListOf(*cells[c].toTypedArray()))
+        shiftKeys(widths, c + 1, 1); widths[c]?.let { widths[c + 1] = it }
+        fun shift(k: Int?) = k?.let { if (it > c) it + 1 else it }
+        roleX = shift(roleX); roleY = shift(roleY); roleSx = shift(roleSx); roleSy = shift(roleSy)
+    }
+    /** Column [from] moved to [to]; its role and width go with it. */
+    fun moveColumn(from: Int, to: Int) {
+        if (to !in cells.indices || from == to) return
+        record(); editing = null
+        val order = com.example.cas.graph.DataTable.moved(cells.size, from, to)
+        val oldNames = names.toList(); val oldCells = cells.toList(); val oldWidths = widths.toMap()
+        names.clear(); names.addAll(order.map { oldNames[it] })
+        cells.clear(); cells.addAll(order.map { oldCells[it] })
+        widths.clear(); order.forEachIndexed { k, old -> oldWidths[old]?.let { widths[k] = it } }
+        fun place(k: Int?) = k?.let { order.indexOf(it) }
+        roleX = place(roleX); roleY = place(roleY); roleSx = place(roleSx); roleSy = place(roleSy)
+    }
+    /** A copy of row [r] just below it. */
+    fun duplicateRow(r: Int) {
+        record(); editing = null
+        cells.forEach { col -> col.add(r + 1, col.getOrElse(r) { "" }) }
+        shiftKeys(heights, r + 1, 1)
+    }
+    // A column's statistics, or its fill with a series, being shown.
+    var statsFor by remember(f) { mutableStateOf<Int?>(null) }
+    var seriesFor by remember(f) { mutableStateOf<Int?>(null) }
     /** The column's first formula copied down to the last row, its references moving with it. */
     fun fillFormulaDown(c: Int) {
         val col = cells[c]
@@ -2068,6 +2110,15 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     fun paste() {
         record(); quiet[0] = true
         try { pasteClipboard() } finally { quiet[0] = false }
+    }
+    statsFor?.takeIf { it in cells.indices }?.let { c ->
+        ColumnStatsDialog(names[c].ifBlank { "Column ${c + 1}" }, table().stats(c), onDismiss = { statsFor = null })
+    }
+    seriesFor?.takeIf { it in cells.indices }?.let { c ->
+        SeriesDialog(rows = maxOf(rows, 1), onDismiss = { seriesFor = null }) { start, step ->
+            record(); seriesFor = null
+            com.example.cas.graph.DataTable.series(start, step, cells[c].size).forEachIndexed { r, v -> cells[c][r] = v }
+        }
     }
     val list = androidx.compose.foundation.lazy.rememberLazyListState()
     val across = rememberScrollState()
@@ -2133,11 +2184,30 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                         Row(Modifier.weight(1f).padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text("Data table", style = MaterialTheme.typography.titleLarge)
                             if (formulas) Text(
-                                "Formulas · Beta", style = MaterialTheme.typography.labelMedium, color = colors.onTertiaryContainer,
+                                "Formulas", style = MaterialTheme.typography.labelMedium, color = colors.onTertiaryContainer,
                                 modifier = Modifier.padding(start = 10.dp).clip(CircleShape).background(colors.tertiaryContainer).padding(horizontal = 10.dp, vertical = 4.dp),
                             )
                         }
                         IconButton(onClick = { undo() }, enabled = undoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo") }
+                        // More: the table as CSV (shared or copied), and tidying up.
+                        var more by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(onClick = { more = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More") }
+                            DropdownMenu(expanded = more, onDismissRequest = { more = false }, shape = RoundedCornerShape(16.dp)) {
+                                DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Share, null) }, text = { Text("Share as CSV") }, onClick = {
+                                    more = false
+                                    val send = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/csv").putExtra(android.content.Intent.EXTRA_TEXT, table().csv())
+                                    context.startActivity(android.content.Intent.createChooser(send, "Share the table"))
+                                })
+                                DropdownMenuItem(leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, text = { Text("Copy as CSV") }, onClick = {
+                                    more = false
+                                    @Suppress("DEPRECATION")
+                                    (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("Table", table().csv()))
+                                    android.widget.Toast.makeText(context, "Table copied", android.widget.Toast.LENGTH_SHORT).show()
+                                })
+                                DropdownMenuItem(leadingIcon = { Icon(Icons.Default.CleaningServices, null) }, text = { Text("Remove empty rows") }, onClick = { more = false; removeEmptyRows() })
+                            }
+                        }
                         IconButton(onClick = { redo() }, enabled = redoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo") }
                         Spacer(Modifier.width(4.dp))
                         Button(
@@ -2163,7 +2233,13 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                                 letter = if (formulas) com.example.cas.graph.Sheet.columnName(c) else null,
                                                 onName = { if (typingRecorded != (-1 to c)) { record(); typingRecorded = -1 to c }; names[c] = it }, onRole = { assign(c, it) },
                                                 onSort = { sortBy(c) },
+                                                onSortDown = { sortDown(c) },
                                                 onFill = { record(); cells[c].indices.forEach { r -> cells[c][r] = (r + 1).toString() } },
+                                                onSeries = { seriesFor = c },
+                                                onStats = { statsFor = c },
+                                                onDuplicate = { duplicateColumn(c) },
+                                                onMoveLeft = if (c > 0) ({ moveColumn(c, c - 1) }) else null,
+                                                onMoveRight = if (c < cells.size - 1) ({ moveColumn(c, c + 1) }) else null,
                                                 onFillDown = if (formulas && cells[c].any { com.example.cas.graph.Sheet.isFormula(it) }) ({ fillFormulaDown(c) }) else null,
                                                 onClear = { record(); cells[c].indices.forEach { r -> cells[c][r] = "" } },
                                                 onRemove = if (cells.size > 1) ({ removeColumn(c) }) else null,
@@ -2187,7 +2263,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                             verticalAlignment = Alignment.CenterVertically,
                                         ) {
                                             Box(Modifier.width(52.dp).height(heightOf(r))) {
-                                                RowNumber(r, onInsertAbove = { insertRow(r) }, onInsertBelow = { insertRow(r + 1) }, onRemove = if (rows > 1) ({ removeRow(r) }) else null, modifier = Modifier.align(Alignment.Center))
+                                                RowNumber(r, onInsertAbove = { insertRow(r) }, onInsertBelow = { insertRow(r + 1) }, onDuplicate = { duplicateRow(r) }, onRemove = if (rows > 1) ({ removeRow(r) }) else null, modifier = Modifier.align(Alignment.Center))
                                                 // The grip under the number: drag to resize the row, double-tap for the usual height.
                                                 ResizeGrip(
                                                     vertical = false,
@@ -2285,6 +2361,65 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
             }
         }
     }
+}
+
+/** A column's numbers summed up: how many, total, mean, median, spread, smallest and largest. */
+@Composable
+private fun ColumnStatsDialog(name: String, stats: com.example.cas.graph.DataTable.Stats?, onDismiss: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.Calculate, contentDescription = null) },
+        title = { Text(name) },
+        text = {
+            if (stats == null) Text("No numbers in this column yet.", color = colors.onSurfaceVariant)
+            else Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                listOfNotNull(
+                    "Count" to stats.n.toString(), "Sum" to shortNumber(stats.sum), "Mean" to shortNumber(stats.mean), "Median" to shortNumber(stats.median),
+                    stats.sd?.let { "Standard deviation" to shortNumber(it) }, "Smallest" to shortNumber(stats.min), "Largest" to shortNumber(stats.max),
+                    "Range" to shortNumber(stats.max - stats.min),
+                ).forEach { (label, value) ->
+                    // Tap a value to copy it.
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable(onClickLabel = "Copy $label") { clipboard.setText(AnnotatedString(value.replace("−", "-"))) }.padding(horizontal = 4.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(label, modifier = Modifier.weight(1f), color = colors.onSurfaceVariant)
+                        Text(geometryValueText(value), style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 18.sp), color = colors.onSurface)
+                    }
+                }
+                Text("Text and empty cells are left out; the standard deviation is the sample's. Tap a value to copy it.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+    )
+}
+
+/** Fill a column with a series: a start and a step (0, 0.5, 1, 1.5…). */
+@Composable
+private fun SeriesDialog(rows: Int, onDismiss: () -> Unit, onFill: (Double, Double) -> Unit) {
+    var start by remember { mutableStateOf("1") }
+    var step by remember { mutableStateOf("1") }
+    val a = com.example.cas.graph.DataTable.number(start); val d = com.example.cas.graph.DataTable.number(step)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.Timeline, contentDescription = null) },
+        title = { Text("Fill with a series") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                val keys = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal)
+                OutlinedTextField(start, { start = it }, label = { Text("Start") }, singleLine = true, isError = a == null, keyboardOptions = keys, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(step, { step = it }, label = { Text("Step") }, singleLine = true, isError = d == null, keyboardOptions = keys, modifier = Modifier.fillMaxWidth())
+                if (a != null && d != null) Text(
+                    com.example.cas.graph.DataTable.series(a, d, minOf(rows, 4)).joinToString(", ") + if (rows > 4) ", … (${rows} rows)" else "",
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = { TextButton(enabled = a != null && d != null, onClick = { onFill(a!!, d!!) }) { Text("Fill") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 /** The fill handle: a small square at a cell's corner that drags over the cells to fill. */
@@ -2495,6 +2630,8 @@ private fun ColumnCard(
     role: String?, name: String, index: Int, width: androidx.compose.ui.unit.Dp,
     onName: (String) -> Unit, onRole: (String?) -> Unit, onSort: () -> Unit, onFill: () -> Unit, onClear: () -> Unit, onRemove: (() -> Unit)?,
     letter: String? = null, onFillDown: (() -> Unit)? = null,
+    onSortDown: () -> Unit = {}, onSeries: () -> Unit = {}, onStats: () -> Unit = {}, onDuplicate: () -> Unit = {},
+    onMoveLeft: (() -> Unit)? = null, onMoveRight: (() -> Unit)? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     var open by remember { mutableStateOf(false) }
@@ -2531,11 +2668,18 @@ private fun ColumnCard(
                 )
             }
             androidx.compose.material3.HorizontalDivider()
-            DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, null) }, text = { Text("Sort rows by this column") }, onClick = { open = false; onSort() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Calculate, null) }, text = { Text("Statistics") }, onClick = { open = false; onStats() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, null) }, text = { Text("Sort smallest first") }, onClick = { open = false; onSort() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, null, modifier = Modifier.graphicsLayer(scaleY = -1f)) }, text = { Text("Sort largest first") }, onClick = { open = false; onSortDown() })
             DropdownMenuItem(leadingIcon = { Icon(Icons.Default.FormatListNumbered, null) }, text = { Text("Fill with 1, 2, 3…") }, onClick = { open = false; onFill() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Timeline, null) }, text = { Text("Fill with a series…") }, onClick = { open = false; onSeries() })
             if (onFillDown != null) DropdownMenuItem(
                 leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) }, text = { Text("Fill the formula down") }, onClick = { open = false; onFillDown() },
             )
+            androidx.compose.material3.HorizontalDivider()
+            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, text = { Text("Duplicate the column") }, onClick = { open = false; onDuplicate() })
+            if (onMoveLeft != null) DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null) }, text = { Text("Move left") }, onClick = { open = false; onMoveLeft() })
+            if (onMoveRight != null) DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) }, text = { Text("Move right") }, onClick = { open = false; onMoveRight() })
             DropdownMenuItem(leadingIcon = { Icon(Icons.Default.CleaningServices, null) }, text = { Text("Clear the column") }, onClick = { open = false; onClear() })
             if (onRemove != null) DropdownMenuItem(
                 leadingIcon = { Icon(Icons.Default.Delete, null, tint = colors.error) },
@@ -2547,7 +2691,7 @@ private fun ColumnCard(
 
 /** A row's number as a pill; tap it to insert a row above or below, or remove this one. */
 @Composable
-private fun RowNumber(r: Int, onInsertAbove: () -> Unit, onInsertBelow: () -> Unit, onRemove: (() -> Unit)?, modifier: Modifier = Modifier) {
+private fun RowNumber(r: Int, onInsertAbove: () -> Unit, onInsertBelow: () -> Unit, onRemove: (() -> Unit)?, modifier: Modifier = Modifier, onDuplicate: () -> Unit = {}) {
     val colors = MaterialTheme.colorScheme
     var open by remember { mutableStateOf(false) }
     Box(modifier, contentAlignment = Alignment.Center) {
@@ -2558,6 +2702,7 @@ private fun RowNumber(r: Int, onInsertAbove: () -> Unit, onInsertBelow: () -> Un
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = RoundedCornerShape(16.dp)) {
             DropdownMenuItem(leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, null) }, text = { Text("Insert a row above") }, onClick = { open = false; onInsertAbove() })
             DropdownMenuItem(leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) }, text = { Text("Insert a row below") }, onClick = { open = false; onInsertBelow() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, text = { Text("Duplicate row ${r + 1}") }, onClick = { open = false; onDuplicate() })
             if (onRemove != null) DropdownMenuItem(
                 leadingIcon = { Icon(Icons.Default.Delete, null, tint = colors.error) },
                 text = { Text("Remove row ${r + 1}", color = colors.error) }, onClick = { open = false; onRemove() },
@@ -2781,6 +2926,7 @@ fun GraphScaffold(vm: GraphViewModel, outputLabel: String, modifier: Modifier = 
 fun Modifier.holdToTrace(key: Any?, onTrace: (Offset) -> Unit): Modifier = pointerInput(key) {
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
+        if (OverlayTouch.owns(down)) return@awaitEachGesture
         val held = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
         held.consume()
         onTrace(held.position)
@@ -2794,6 +2940,26 @@ fun Modifier.holdToTrace(key: Any?, onTrace: (Offset) -> Unit): Modifier = point
     }
 }
 
+
+/**
+ * Keeps touches on a card or rail floating over the graph from reaching the graph. Only the
+ * touch's first contact is marked (its id noted, the down consumed), after the card's own
+ * buttons and scrolling have seen it; the graph's gestures then leave that touch alone. Moves
+ * aren't consumed, so the rail's scrolling isn't cancelled by it.
+ */
+internal fun Modifier.blockGraphTouches(): Modifier = pointerInput(Unit) {
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        OverlayTouch.id = down.id
+        down.consume()
+    }
+}
+
+/** The touch that began on a card over the graph, if the latest one did. */
+internal object OverlayTouch {
+    @Volatile var id: androidx.compose.ui.input.pointer.PointerId? = null
+    fun owns(down: androidx.compose.ui.input.pointer.PointerInputChange) = down.id == id
+}
 
 /** A row of a point card: its letter (math), the value, a smaller line under it, and what Use does (none: no button). */
 class CardValue(val letter: String, val text: String, val detail: String? = null, val onUse: (() -> Unit)? = null)
@@ -2856,7 +3022,8 @@ private fun PointCard(color: Color?, kind: String?, name: String?, rows: List<Ca
         shape = RoundedCornerShape(24.dp),
         color = colors.surfaceContainerHigh,
         shadowElevation = 6.dp,
-        modifier = Modifier.widthIn(min = minOf(216.dp, cardMax), max = cardMax),
+        // Touches on the card (scrolling its buttons) stay off the graph under it.
+        modifier = Modifier.widthIn(min = minOf(216.dp, cardMax), max = cardMax).blockGraphTouches(),
     ) {
         Column(Modifier.width(androidx.compose.foundation.layout.IntrinsicSize.Max).padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 12.dp)) {
             // The line's color, the kind of point and its name, and × to close the card.

@@ -697,9 +697,9 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 // Area between the two curves that cross here.
                 if (areaFunction != null && otherFunction != null) CardAction(TabIcons.AreaBetween, "Between curves", "Area between the curves from here") { vm.clearArea(); vm.areaStart = Graph2DViewModel.AreaStart(areaFunction, otherFunction, tx); trace = null } else null,
                 // The tangent and normal here, added as lines; the arc's length to where you tap next.
-                areaFunction?.let { f -> CardAction(Icons.AutoMirrored.Filled.TrendingUp, "Tangent", "Add the tangent line here") { addTangent(vm, f, tx, normal = false); trace = null } },
-                areaFunction?.let { f -> CardAction(Icons.Default.North, "Normal", "Add the normal line here") { addTangent(vm, f, tx, normal = true); trace = null } },
-                areaFunction?.let { f -> CardAction(Icons.Default.Straighten, "Arc length", "Arc length from here") { vm.clearArea(); vm.areaStart = Graph2DViewModel.AreaStart(f, null, tx, arc = true); trace = null } },
+                areaFunction?.let { f -> CardAction(TabIcons.Tangent, "Tangent", "Add the tangent line here") { addTangent(vm, f, tx, normal = false); trace = null } },
+                areaFunction?.let { f -> CardAction(TabIcons.Normal, "Normal", "Add the normal line here") { addTangent(vm, f, tx, normal = true); trace = null } },
+                areaFunction?.let { f -> CardAction(TabIcons.ArcLength, "Arc length", "Arc length from here") { vm.clearArea(); vm.areaStart = Graph2DViewModel.AreaStart(f, null, tx, arc = true); trace = null } },
                 // On a slope field's solution: remove it, or all of them.
                 line?.takeIf { it.plot is Plot2DKind.SlopeField && it.seeds.isNotEmpty() }?.let { f -> CardAction(Icons.Default.Close, "Remove", "Remove this solution") { vm.removeSeedNear(f, tx, ty); trace = null } },
                 line?.takeIf { it.plot is Plot2DKind.SlopeField && it.seeds.size > 1 }?.let { f -> CardAction(Icons.Default.ClearAll, "Clear all", "Remove every solution") { vm.clearSeeds(f); trace = null } },
@@ -1605,26 +1605,6 @@ private fun polylineDistance(line: List<Offset>, p: Offset): Float {
     return best
 }
 
-
-/**
- * Keeps touches on a card or rail floating over the graph from reaching the graph. Only the
- * touch's first contact is marked (its id noted, the down consumed), after the card's own
- * buttons and scrolling have seen it; the graph's gestures then leave that touch alone. Moves
- * aren't consumed, so the rail's scrolling isn't cancelled by it.
- */
-private fun Modifier.blockGraphTouches(): Modifier = pointerInput(Unit) {
-    awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false)
-        OverlayTouch.id = down.id
-        down.consume()
-    }
-}
-
-/** The touch that began on a card over the graph, if the latest one did. */
-private object OverlayTouch {
-    @Volatile var id: androidx.compose.ui.input.pointer.PointerId? = null
-    fun owns(down: androidx.compose.ui.input.pointer.PointerInputChange) = down.id == id
-}
 
 /** Starts construct mode (geometry mode's tools). */
 @Composable

@@ -63,10 +63,10 @@ object AppSettings {
     /** Beta: worked steps for integrals, derivatives, limits, sums and ∮ loop integrals, from the history. */
     var showSteps by mutableStateOf(false)
         private set
-    /** Beta: the unit converter in the ⋮ menu. */
+    /** The unit converter in the ⋮ menu. */
     var unitConverter by mutableStateOf(false)
         private set
-    /** Beta: Excel-style formulas (=SUM(A:A), =B1*2…) in the data table. */
+    /** Excel-style formulas (=SUM(A:A), =B1*2…) in the data table. */
     var sheetFormulas by mutableStateOf(false)
         private set
     /** Alpha: geometry mode in the 2D graph (named points, Segment(A, B), Circle, Intersect…, and tools to build by tapping). */

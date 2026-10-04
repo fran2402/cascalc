@@ -142,7 +142,7 @@ private fun GraphMenuAction() {
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             if (AppSettings.unitConverter) DropdownMenuItem(
-                text = { androidx.compose.foundation.layout.Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) { Text("Unit converter"); androidx.compose.foundation.layout.Spacer(Modifier.width(8.dp)); BetaBadge() } },
+                text = { Text("Unit converter") },
                 onClick = { menu = false; converter = true },
             )
             DropdownMenuItem(text = { Text("Settings") }, onClick = { menu = false; settings = true })

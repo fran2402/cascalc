@@ -52,6 +52,27 @@ class DataTable(
 
     fun withRoles(x: Int?, y: Int?, sigmaX: Int?, sigmaY: Int?) = DataTable(names, columns, x, y, sigmaX, sigmaY)
 
+    /** A column's numbers (formulas worked out); text and empty cells left out. */
+    fun numbers(column: Int): List<Double> = (0 until rowCount).mapNotNull { value(column, it) }
+
+    /** A column's summary, or null with no numbers in it. */
+    fun stats(column: Int): Stats? = Companion.stats(numbers(column))
+
+    /**
+     * The table as CSV, a row of names first if any column has one; formulas give their value.
+     * Cells with a comma, quote or line break are quoted, as spreadsheets expect.
+     */
+    fun csv(): String = buildString {
+        fun quoted(t: String) = if (t.any { it == ',' || it == '"' || it == '\n' }) "\"" + t.replace("\"", "\"\"") + "\"" else t
+        if (names.any { it.isNotBlank() }) appendLine(columns.indices.joinToString(",") { quoted(names.getOrElse(it) { "" }) })
+        for (r in 0 until rowCount) {
+            appendLine(columns.indices.joinToString(",") { c ->
+                val t = cell(c, r)
+                quoted(if (Sheet.isFormula(t)) value(c, r)?.let { text(it) } ?: sheet.value(c, r).toString() else t)
+            })
+        }
+    }
+
     /** Saved as text: the roles, the names, then one line per column; cells split by tabs. */
     fun encode(): String = buildString {
         append(listOf(x, y, sigmaX, sigmaY).joinToString("\t") { (it ?: -1).toString() }).append('\n')
@@ -59,7 +80,26 @@ class DataTable(
         columns.forEach { c -> append('\n').append(c.joinToString("\t") { esc(it) }) }
     }
 
+    /** A column's count, total, mean, median, sample standard deviation, smallest and largest. */
+    class Stats(val n: Int, val sum: Double, val mean: Double, val median: Double, val sd: Double?, val min: Double, val max: Double)
+
     companion object {
+        fun stats(v: List<Double>): Stats? {
+            if (v.isEmpty()) return null
+            val sorted = v.sorted()
+            val mean = v.sum() / v.size
+            val median = if (v.size % 2 == 1) sorted[v.size / 2] else (sorted[v.size / 2 - 1] + sorted[v.size / 2]) / 2
+            val sd = if (v.size > 1) kotlin.math.sqrt(v.sumOf { (it - mean) * (it - mean) } / (v.size - 1)) else null
+            return Stats(v.size, v.sum(), mean, median, sd, sorted.first(), sorted.last())
+        }
+
+        /** [n] numbers from [start] going up by [step], as cells (5, 7.5, 10…). */
+        fun series(start: Double, step: Double, n: Int): List<String> =
+            List(n) { k -> text(java.math.BigDecimal(start + k * step).round(java.math.MathContext(12)).toDouble()) }
+
+        /** The column order after moving column [from] to [to] (every other column keeps its order). */
+        fun moved(count: Int, from: Int, to: Int): List<Int> = (0 until count).toMutableList().apply { add(to, removeAt(from)) }
+
         /** A cell as a number: a decimal point or comma, − or - for minus, spaces ignored. */
         fun number(s: String): Double? =
             s.trim().replace("−", "-").replace("\u00A0", "").replace(" ", "").replace(',', '.').toDoubleOrNull()?.takeIf { it.isFinite() }

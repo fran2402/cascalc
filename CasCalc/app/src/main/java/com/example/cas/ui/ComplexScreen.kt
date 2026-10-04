@@ -213,7 +213,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                         onDragEnd = { vm.finishContour() },
                     )
                 } else {
-                    detectAxisTransformGestures { centroid, pan, zoomX, zoomY ->
+                    detectAxisTransformGestures(skip = { OverlayTouch.owns(it) }) { centroid, pan, zoomX, zoomY ->
                         val v = vm.view ?: return@detectAxisTransformGestures
                         val w = size.width.toDouble(); val h = size.height.toDouble()
                         vm.view = v.panBy(pan.x / w, pan.y / h).zoomAxes(zoomX, zoomY, centroid.x / w, centroid.y / h)
