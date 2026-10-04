@@ -203,6 +203,28 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, many more ribbon commands)
+- **Home:**
+  - Clipboard: Paste formats, Paste transposed and Format Painter.
+  - A new Font group: Bold, Italic, Fill color ▾ and Change case ▾ (UPPERCASE, lowercase,
+    Proper Case).
+  - Number: Currency ▾ ($ € £ ¥).
+  - Editing: Find & Select ▾ (Find and replace, Go to…, select all, a column or a row).
+  - AutoSum ▾ also offers MEDIAN, PRODUCT and STDEV.
+- **Insert:** Random ▾ (whole 1–100, 0 to 1, normal), Series, 1, 2, 3…, Today, Now and =TODAY().
+- **Formulas:** the Distributions and Engineering categories, Fill formula down and Formulas to
+  values.
+- **Data:**
+  - Randomize and Reverse the rows.
+  - Fill blanks (each empty cell takes the one above).
+  - To numbers (1,234.5, 12%, $40 and (3) become numbers).
+  - Unique (each value once, in a new column).
+  - New column ▾: a running total, the difference from the row before, % of the total, rank,
+    z-score, or the numbers scaled 0 to 1.
+- **View:** Hide column and Unhide (hidden columns are still saved and plotted), Go to, Select all.
+- **Icons:** 19 more custom icons. (`graph/SheetTools.kt`, `SheetToolsTest`; mockup:
+  `preview-render/round45.png`.)
+
 ## Latest changes (4 October, the data table on a phone)
 - **No ribbon on a phone:** like Excel, Sheets and Numbers there, the commands sit in a bar
   along the bottom. Home ▾ picks the tab from a menu, its commands are a row of icons that scrolls

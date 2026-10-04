@@ -315,6 +315,10 @@ Apply
 More {0} options	
 Pick a tab	
 All commands	
+Go to	
+A cell or range, like B12 or A1:C5	
+That isn't a cell or range	
+Go	
 Go to a cell	
 Cancel the change	
 Enter	
@@ -639,9 +643,14 @@ Fill series
 Fill formula down	
 Clipboard	
 Cut	
+Format Painter	
+Font	
+Fill color	
+Change case	
 Alignment	
 Number	
 Format	
+Currency	
 Percent	
 Fewer	
 Styles	
@@ -650,6 +659,7 @@ Cells
 Editing	
 AutoSum	
 Sort & Filter	
+Find & Select	
 Rows	
 Row above	
 Row below	
@@ -657,30 +667,46 @@ Copy row
 Columns	
 Copy column	
 Paste table	
+Random	
+Series…	
+Date & time	
+Today	
+Now	
+=TODAY()	
 Function	
 Function Library	
 Math	
 Lookup	
 Logical	
 Text	
-Date & time	
 Financial	
+Distributions	
 Formula Auditing	
 Show formulas	
+Calculation	
+Formulas to values	
 Filter	
+Randomize	
+Reverse	
 Data Tools	
 Text to columns	
 Remove duplicates	
 Trim	
 Empty rows	
 Transpose	
+Fill blanks	
+To numbers	
+Unique	
 Analysis	
+New column	
 Share CSV	
 Copy CSV	
 Show	
 Formulas	
+Hide column	
 Window	
 Freeze first column	
+Select all	
 Edit	
 Cell to the left	
 Cell above	

@@ -2016,6 +2016,9 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     var zoom by remember(f) { mutableStateOf(1f) }
     class Clip(val c0: Int, val r0: Int, val rows: List<List<String>>, val from: com.example.cas.graph.DataTable)
     var clip by remember(f) { mutableStateOf<Clip?>(null) }
+    // Format Painter: the column whose format the next tapped column takes; Go To's dialog.
+    var painterFrom by remember(f) { mutableStateOf<Int?>(null) }
+    var goingTo by remember(f) { mutableStateOf(false) }
     var sorting by remember(f) { mutableStateOf(false) }
     var splitFor by remember(f) { mutableStateOf<Int?>(null) }
     var functionsOpen by remember(f) { mutableStateOf<String?>(null) }
@@ -2375,6 +2378,72 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         }
         return true
     }
+    /** The cells a command works on: the picked range or cell, else the whole selected column. */
+    fun targetCells(): List<Pair<Int, Int>> {
+        val t = target() ?: return (0 until rows).map { focusCol.coerceIn(0, maxOf(0, cells.size - 1)) to it }
+        return (t[0]..t[2]).flatMap { c -> (t[1]..t[3]).map { r -> c to r } }
+    }
+    /** Each target cell rewritten by [change], as one step to undo. */
+    fun mapCells(change: (Int, Int, String) -> String) {
+        record(); quiet[0] = true
+        try {
+            targetCells().forEach { (c, r) -> cells.getOrNull(c)?.let { col -> if (r < col.size) { val n = change(c, r, col[r]); if (n != col[r]) col[r] = n } } }
+        } finally { quiet[0] = false }
+    }
+    /** What a cell shows: a formula's value, else what's typed. */
+    fun shownText(c: Int, r: Int): String {
+        val t = cells.getOrNull(c)?.getOrNull(r) ?: return ""
+        return if (formulas && com.example.cas.graph.Sheet.isFormula(t)) current.sheet.value(c, r).toString() else t
+    }
+    /** A column's format changed, as one step to undo. */
+    fun setFormat(c: Int, n: com.example.cas.graph.ColumnFormat) { record(); while (fmts.size <= c) fmts.add(com.example.cas.graph.ColumnFormat()); fmts[c] = n }
+    /** Select all, a column or a row, as Ctrl+A and clicking a header. */
+    fun selectRange(c0: Int, r0: Int, c1: Int, r1: Int) { editing = null; selA = c0 to r0; selB = c1 to r1; focusCol = c0 }
+    /** Text put into the selected cell (today's date, the time). */
+    fun stamp(text: String) {
+        val (c, r) = editing ?: run { android.widget.Toast.makeText(context, "Select a cell first", android.widget.Toast.LENGTH_SHORT).show(); return }
+        record(); if (r < cells[c].size) cells[c][r] = text
+    }
+    /** A new column after the selected one, named [name], holding [values]. */
+    fun addColumnAfter(c: Int, name: String, values: List<String>, format: com.example.cas.graph.ColumnFormat? = null) {
+        record(); quiet[0] = true
+        try {
+            insertColumnsAfter(c, listOf(values)); names[c + 1] = name
+            if (format != null) { while (fmts.size <= c + 1) fmts.add(com.example.cas.graph.ColumnFormat()); fmts[c + 1] = format }
+            filters.clear(); focusCol = c + 1
+        } finally { quiet[0] = false }
+    }
+    /** Excel's "Show Values As" as a new column: running total, difference, % of total, rank, z-score, scaled. */
+    fun deriveColumn(c: Int, kind: com.example.cas.graph.SheetTools.Derived) {
+        val out = com.example.cas.graph.SheetTools.derived((0 until rows).map { current.value(c, it) }, kind)
+        if (out.all { it == null }) { android.widget.Toast.makeText(context, "This column has no numbers to work from", android.widget.Toast.LENGTH_SHORT).show(); return }
+        val base = names.getOrElse(c) { "" }.ifBlank { com.example.cas.graph.Sheet.columnName(c) }
+        addColumnAfter(c, "${kind.label}: $base", out.map { v -> v?.let { com.example.cas.graph.DataTable.text(it) } ?: "" },
+            if (kind == com.example.cas.graph.SheetTools.Derived.PercentOfTotal) com.example.cas.graph.ColumnFormat(percent = true, decimals = 1) else null)
+    }
+    /** Paste with the copied columns' formats only (Format Painter's paste), or transposed (rows as columns). */
+    fun pasteFormats() {
+        val k = clip ?: run { android.widget.Toast.makeText(context, "Copy some cells first", android.widget.Toast.LENGTH_SHORT).show(); return }
+        val at = target() ?: return
+        record()
+        (0 until (k.rows.firstOrNull()?.size ?: 1)).forEach { j ->
+            val c = at[0] + j
+            if (c < cells.size) { while (fmts.size <= c) fmts.add(com.example.cas.graph.ColumnFormat()); fmts[c] = k.from.format(k.c0 + j).copy(hidden = false) }
+        }
+    }
+    fun pasteTransposed() {
+        val k = clip ?: run { android.widget.Toast.makeText(context, "Copy some cells first", android.widget.Toast.LENGTH_SHORT).show(); return }
+        val at = target() ?: run { android.widget.Toast.makeText(context, "Select where to paste", android.widget.Toast.LENGTH_SHORT).show(); return }
+        record(); quiet[0] = true
+        try {
+            val c = at[0]; val r = at[1]
+            while (cells.size < c + k.rows.size) addColumn()
+            while ((cells.maxOfOrNull { it.size } ?: 0) < r + (k.rows.firstOrNull()?.size ?: 1)) addRow()
+            k.rows.forEachIndexed { i, rowCells -> rowCells.forEachIndexed { j, text ->
+                cells[c + i][r + j] = com.example.cas.graph.SheetTools.pasted(k.from, k.c0 + j, k.r0 + i, text, c + i, r + j, values = true)
+            } }
+        } finally { quiet[0] = false }
+    }
     // What the selected cell held when it was picked, for ✕ (cancel) in the formula bar.
     var editStart by remember(f) { mutableStateOf<String?>(null) }
     androidx.compose.runtime.LaunchedEffect(editing) { editStart = editing?.let { (c, r) -> cells.getOrNull(c)?.getOrNull(r) } }
@@ -2452,7 +2521,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
             onDismiss = { insightsFor = null },
         )
     }
-    // Excel's dialogs: Custom Sort, Text to Columns, Insert Function.
+    // Excel's dialogs: Go To, Custom Sort, Text to Columns, Insert Function.
+    if (goingTo) GoToDialog(onDismiss = { goingTo = false }) { address -> goTo(address).also { if (it) goingTo = false } }
     if (sorting) CustomSortDialog(
         columns = cells.indices.map { c -> com.example.cas.graph.Sheet.columnName(c) + names[c].let { if (it.isBlank()) "" else " · $it" } },
         start = focusCol.coerceIn(0, maxOf(0, cells.size - 1)),
@@ -2572,11 +2642,12 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                             }
                         }
                         val numberMenu = listOf(
-                            "General" to { setFmt(fmt.copy(decimals = null, percent = false, scientific = false, thousands = false)) },
+                            "General" to { setFmt(fmt.copy(decimals = null, percent = false, scientific = false, thousands = false, currency = null)) },
                             "Number (0.00)" to { setFmt(fmt.copy(decimals = fmt.decimals ?: 2, percent = false, scientific = false)) },
                             "Percent" to { setFmt(fmt.copy(percent = true, scientific = false)) },
                             "Scientific" to { setFmt(fmt.copy(scientific = true, percent = false, thousands = false)) },
                             "Thousands (1 000)" to { setFmt(fmt.copy(thousands = !fmt.thousands, scientific = false)) },
+                            "Currency ($)" to { setFmt(fmt.copy(currency = "$", percent = false, scientific = false)) },
                             "More number formats…" to { formatFor = c },
                         )
                         val conditional = listOf(
@@ -2592,12 +2663,41 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                             "Filter…" to { filterFor = c },
                             "Clear filters" to { filters.clear() },
                         )
+                        val caseMenu = com.example.cas.graph.SheetTools.Case.entries.map { k -> k.label to { mapCells { _, _, t -> com.example.cas.graph.SheetTools.changeCase(t, k) } } }
+                        val fillMenu = listOf("No fill" to { setFmt(fmt.copy(tint = null)) }) +
+                            com.example.cas.graph.HighlightRule.COLOR_NAMES.mapIndexed { k, n -> n to { setFmt(fmt.copy(tint = k)) } }
+                        val derivedMenu = com.example.cas.graph.SheetTools.Derived.entries.map { k -> k.label to { deriveColumn(c, k) } }
+                        val lastCell = intArrayOf(maxOf(0, cells.size - 1), maxOf(0, rows - 1))
+                        val selectMenu = listOf(
+                            "Select all" to { selectRange(0, 0, lastCell[0], lastCell[1]) },
+                            "Select column ${com.example.cas.graph.Sheet.columnName(c)}" to { selectRange(c, 0, c, lastCell[1]) },
+                            "Select row ${(selRow ?: 0) + 1}" to { selectRange(0, selRow ?: 0, lastCell[0], selRow ?: 0) },
+                        )
+                        val randomMenu = listOf(
+                            "Whole numbers 1 to 100" to { mapCells { _, _, _ -> (1..100).random().toString() } },
+                            "Between 0 and 1" to { mapCells { _, _, _ -> com.example.cas.graph.DataTable.text(Math.round(Math.random() * 1e6) / 1e6) } },
+                            "Normal (mean 0, sd 1)" to { val g = java.util.Random(); mapCells { _, _, _ -> com.example.cas.graph.DataTable.text(Math.round(g.nextGaussian() * 1e4) / 1e4) } },
+                        )
+                        val hiddenCount = fmts.count { it.hidden }
                         val groups = when (tab) {
                             TableTab.Home -> listOf(
                                 ToolGroup("Clipboard", listOf(
-                                    TableTool(TableIcons.PasteTable, "Paste", menu = listOf("Paste" to { pasteCells(false) }, "Paste values" to { pasteCells(true) }, "Paste a table from the clipboard" to { paste() })),
+                                    TableTool(TableIcons.PasteTable, "Paste", menu = listOf(
+                                        "Paste" to { pasteCells(false) }, "Paste values" to { pasteCells(true) }, "Paste formats" to { pasteFormats() },
+                                        "Paste transposed" to { pasteTransposed() }, "Paste a table from the clipboard" to { paste() },
+                                    )),
                                     TableTool(TableIcons.Cut, "Cut", large = false) { copyCells(true) },
                                     TableTool(TableIcons.CopyTable, "Copy", large = false) { copyCells(false) },
+                                    TableTool(TableIcons.FormatPainter, "Format Painter", on = painterFrom != null, large = false) {
+                                        if (painterFrom != null) painterFrom = null
+                                        else { painterFrom = c; android.widget.Toast.makeText(context, "Tap a cell in the column to give this format", android.widget.Toast.LENGTH_SHORT).show() }
+                                    },
+                                )),
+                                ToolGroup("Font", listOf(
+                                    TableTool(TableIcons.Bold, "Bold", on = fmt.bold, large = false) { setFmt(fmt.copy(bold = !fmt.bold)) },
+                                    TableTool(TableIcons.Italic, "Italic", on = fmt.italic, large = false) { setFmt(fmt.copy(italic = !fmt.italic)) },
+                                    TableTool(TableIcons.FillColor, "Fill color", on = fmt.tint != null, large = false, menu = fillMenu),
+                                    TableTool(TableIcons.ChangeCase, "Change case", large = false, menu = caseMenu),
                                 )),
                                 ToolGroup("Alignment", listOf(
                                     TableTool(TableIcons.AlignLeft, "Left", on = fmt.align == 1, large = false) { setFmt(fmt.copy(align = if (fmt.align == 1) 0 else 1)) },
@@ -2606,7 +2706,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                 )),
                                 ToolGroup("Number", listOf(
                                     TableTool(TableIcons.NumberFormat, "Format", menu = numberMenu),
-                                    TableTool(TableIcons.Percent, "Percent", on = fmt.percent, large = false) { setFmt(fmt.copy(percent = !fmt.percent, scientific = false)) },
+                                    TableTool(TableIcons.Currency, "Currency", on = fmt.currency != null, large = false, menu = listOf("$", "€", "£", "¥").map { sym -> "Currency ($sym)" to { setFmt(fmt.copy(currency = sym, percent = false, scientific = false)) } } + ("No currency" to { setFmt(fmt.copy(currency = null)) })),
+                                    TableTool(TableIcons.Percent, "Percent", on = fmt.percent, large = false) { setFmt(fmt.copy(percent = !fmt.percent, scientific = false, currency = null)) },
                                     TableTool(TableIcons.DecimalsLess, "Fewer", enabled = (fmt.decimals ?: 2) > 0, large = false) { setFmt(fmt.copy(decimals = ((fmt.decimals ?: 3) - 1).coerceAtLeast(0))) },
                                     TableTool(TableIcons.DecimalsMore, "More", large = false) { setFmt(fmt.copy(decimals = ((fmt.decimals ?: 1) + 1).coerceAtMost(8))) },
                                 ), launcher = { formatFor = c }),
@@ -2635,7 +2736,9 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                         "Clear all" to { clear(contents = true, formats = true) },
                                     )),
                                     TableTool(TableIcons.Filter, "Sort & Filter", on = filters.isNotEmpty(), menu = sortFilter),
-                                    TableTool(TableIcons.Find, "Find", on = finding) { finding = !finding },
+                                    TableTool(TableIcons.Find, "Find & Select", on = finding, menu = listOf(
+                                        "Find and replace" to { finding = true }, "Go to…" to { goingTo = true },
+                                    ) + selectMenu),
                                 )),
                             )
                             TableTab.Insert -> listOf(
@@ -2650,7 +2753,17 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     TableTool(TableIcons.MoveLeft, "Move left", enabled = c > 0, large = false) { moveColumn(c, c - 1); focusCol = c - 1 },
                                     TableTool(TableIcons.MoveRight, "Move right", enabled = c < cells.size - 1, large = false) { moveColumn(c, c + 1); focusCol = c + 1 },
                                 )),
-                                ToolGroup("Data", listOf(TableTool(TableIcons.PasteTable, "Paste table") { paste() })),
+                                ToolGroup("Data", listOf(
+                                    TableTool(TableIcons.PasteTable, "Paste table") { paste() },
+                                    TableTool(TableIcons.Random, "Random", menu = randomMenu),
+                                    TableTool(TableIcons.Series, "Series…", large = false) { seriesFor = c },
+                                    TableTool(TableIcons.Numbering, "1, 2, 3…", large = false) { record(); cells[c].indices.forEach { r -> cells[c][r] = (r + 1).toString() } },
+                                )),
+                                ToolGroup("Date & time", listOf(
+                                    TableTool(TableIcons.Today, "Today") { stamp(java.time.LocalDate.now().toString()) },
+                                    TableTool(TableIcons.DateFunctions, "Now", large = false) { stamp(java.time.LocalDateTime.now().withNano(0).toString().replace('T', ' ')) },
+                                    TableTool(TableIcons.DateFunctions, "=TODAY()", large = false) { stamp("=TODAY()") },
+                                )),
                                 ToolGroup("Function", listOf(TableTool(TableIcons.InsertFunction, "Insert function") { functionsOpen = "" })),
                             )
                             TableTab.Formulas -> listOf(
@@ -2664,8 +2777,18 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     TableTool(TableIcons.TextFunctions, "Text", large = false) { functionsOpen = "Text" },
                                     TableTool(TableIcons.DateFunctions, "Date & time", large = false) { functionsOpen = "Date & time" },
                                     TableTool(TableIcons.FinancialFunctions, "Financial", large = false) { functionsOpen = "Financial" },
+                                    TableTool(TableIcons.StatisticsFunctions, "Distributions", large = false) { functionsOpen = "Distributions" },
+                                    TableTool(TableIcons.MathFunctions, "Engineering", large = false) { functionsOpen = "Engineering" },
                                 ), launcher = { functionsOpen = "" }),
-                                ToolGroup("Formula Auditing", listOf(TableTool(TableIcons.ShowFormulas, "Show formulas", on = showFormulas) { showFormulas = !showFormulas })),
+                                ToolGroup("Formula Auditing", listOf(
+                                    TableTool(TableIcons.ShowFormulas, "Show formulas", on = showFormulas) { showFormulas = !showFormulas },
+                                    TableTool(TableIcons.FillFormula, "Fill formula down", enabled = formulas && cells.getOrNull(c)?.any { com.example.cas.graph.Sheet.isFormula(it) } == true, large = false) { fillFormulaDown(c) },
+                                )),
+                                ToolGroup("Calculation", listOf(
+                                    TableTool(TableIcons.ToValues, "Formulas to values", enabled = formulas) {
+                                        mapCells { cc, rr, t -> if (com.example.cas.graph.Sheet.isFormula(t)) shownText(cc, rr) else t }
+                                    },
+                                )),
                             )
                             TableTab.Data -> listOf(
                                 ToolGroup("Sort & Filter", listOf(
@@ -2674,6 +2797,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     TableTool(TableIcons.CustomSort, "Sort") { sorting = true },
                                     TableTool(TableIcons.Filter, "Filter", on = c in filters) { filterFor = c },
                                     TableTool(TableIcons.Eraser, "Clear", enabled = filters.isNotEmpty(), large = false) { filters.clear() },
+                                    TableTool(TableIcons.Shuffle, "Randomize", large = false) { reorder((0 until rows).shuffled()) },
+                                    TableTool(TableIcons.Reverse, "Reverse", large = false) { reorder((0 until rows).reversed().toList()) },
                                 )),
                                 ToolGroup("Data Tools", listOf(
                                     TableTool(TableIcons.TextToColumns, "Text to columns") { splitFor = c },
@@ -2681,10 +2806,20 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     TableTool(TableIcons.Trim, "Trim", large = false) { trimAll() },
                                     TableTool(TableIcons.RemoveEmpty, "Empty rows", large = false) { removeEmptyRows() },
                                     TableTool(TableIcons.Transpose, "Transpose", large = false) { transpose() },
+                                    TableTool(TableIcons.FillBlanks, "Fill blanks", large = false) {
+                                        record(); quiet[0] = true
+                                        try { val out = com.example.cas.graph.SheetTools.fillBlanks(cells[c].toList()); out.forEachIndexed { r, v -> if (cells[c][r] != v) cells[c][r] = v } } finally { quiet[0] = false }
+                                    },
+                                    TableTool(TableIcons.TextToNumber, "To numbers", large = false) { mapCells { _, _, t -> com.example.cas.graph.SheetTools.asNumber(t) ?: t } },
+                                    TableTool(TableIcons.Unique, "Unique", large = false) {
+                                        val base = names.getOrElse(c) { "" }.ifBlank { com.example.cas.graph.Sheet.columnName(c) }
+                                        addColumnAfter(c, "Unique: $base", com.example.cas.graph.SheetTools.unique((0 until rows).map { shownText(c, it) }))
+                                    },
                                 )),
                                 ToolGroup("Analysis", listOf(
                                     TableTool(TableIcons.Insights, "Insights") { insightsFor = c },
                                     TableTool(TableIcons.Statistics, "Statistics") { statsFor = c },
+                                    TableTool(TableIcons.NewColumn, "New column", menu = derivedMenu),
                                 )),
                                 ToolGroup("Share", listOf(
                                     TableTool(TableIcons.ShareTable, "Share CSV", large = false) {
@@ -2705,7 +2840,20 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     TableTool(TableIcons.Zoom100, "100%", on = kotlin.math.abs(zoom - 1f) < 0.01f) { zoom = 1f },
                                     TableTool(TableIcons.ZoomIn, "Zoom in", enabled = zoom < 1.6f) { zoom = (zoom + 0.1f).coerceAtMost(1.6f) },
                                 )),
-                                ToolGroup("Window", listOf(TableTool(TableIcons.Freeze, "Freeze first column", on = frozen) { record(); frozen = !frozen })),
+                                ToolGroup("Columns", listOf(
+                                    TableTool(TableIcons.HideColumn, "Hide column", enabled = cells.size - hiddenCount > 1) {
+                                        setFmt(fmt.copy(hidden = true))
+                                        focusCol = cells.indices.firstOrNull { fmts.getOrNull(it)?.hidden != true } ?: 0
+                                    },
+                                    TableTool(TableIcons.UnhideColumns, if (hiddenCount > 0) "Unhide ($hiddenCount)" else "Unhide", enabled = hiddenCount > 0) {
+                                        record(); fmts.indices.forEach { k -> if (fmts[k].hidden) fmts[k] = fmts[k].copy(hidden = false) }
+                                    },
+                                )),
+                                ToolGroup("Window", listOf(
+                                    TableTool(TableIcons.Freeze, "Freeze first column", on = frozen) { record(); frozen = !frozen },
+                                    TableTool(TableIcons.GoTo, "Go to", large = false) { goingTo = true },
+                                    TableTool(TableIcons.SelectAll, "Select all", large = false) { selectRange(0, 0, lastCell[0], lastCell[1]) },
+                                )),
                             )
                         }
                         // On a phone the commands go to the bar along the bottom instead, as in Excel and Sheets there.
@@ -2810,7 +2958,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                 }
                                 // With the first column frozen it stands outside the sideways scroll.
                                 val pinned = frozen && cells.size > 1
-                                val scrolled = if (pinned) 1 until cells.size else cells.indices
+                                val scrolled = (if (pinned) 1 until cells.size else cells.indices).filter { fmts.getOrNull(it)?.hidden != true }
                                 Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 6.dp), verticalAlignment = Alignment.Bottom) {
                                     Spacer(Modifier.width(52.dp))
                                     if (pinned) Row(Modifier.background(colors.surface)) { columnHeader(0) }
@@ -2844,11 +2992,14 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                             // Typed in the formula bar; the cell is outlined while it's the one selected.
                                             editing = false,
                                             highlight = if (inFill(c, r)) colors.primary else if (found) colors.tertiary else if ((c to r) in marked) colors.error else refColor(c, r),
-                                            display = if (showFormulas) null else display, fill = shade, selected = here || inSelection(c, r), bar = barLength,
-                                            align = fmt.align, textScale = zoom,
+                                            display = if (showFormulas) null else display, fill = shade ?: fmt.tint?.let { Color(com.example.cas.graph.HighlightRule.COLORS[it]) },
+                                            selected = here || inSelection(c, r), bar = barLength,
+                                            align = fmt.align, textScale = zoom, bold = fmt.bold, italic = fmt.italic,
                                             onTap = {
                                                 // With a range picked, a tap stretches it; otherwise it selects the cell to type in.
-                                                if (selA != null) selB = c to r
+                                                val painter = painterFrom
+                                                if (painter != null) { setFormat(c, fmts.getOrElse(painter) { com.example.cas.graph.ColumnFormat() }.copy(hidden = false)); painterFrom = null; focusCol = c }
+                                                else if (selA != null) selB = c to r
                                                 else if (here) scope.launch { runCatching { barFocus.requestFocus() } }
                                                 else { editing = c to r; focusCol = c }
                                             },
@@ -3379,6 +3530,8 @@ private fun TableCell(
     bar: Float? = null,
     /** Where the text sits (0 at the start, 1 left, 2 centered, 3 right) and the zoom's size for it. */
     align: Int = 0, textScale: Float = 1f,
+    /** Bold and italic, from the column's Font settings. */
+    bold: Boolean = false, italic: Boolean = false,
     onTap: () -> Unit = {}, onLongPress: (() -> Unit)? = null, onNext: () -> Unit = {}, onChange: (String) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -3414,7 +3567,10 @@ private fun TableCell(
         ) {
             Text(
                 shown ?: display ?: text, maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
-                style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp * textScale, color = if (formula && error) colors.error else ink),
+                style = TextStyle(
+                    fontFamily = if (italic) CasFonts.CmItalic else CasFonts.CmRoman, fontSize = 17.sp * textScale, color = if (formula && error) colors.error else ink,
+                    fontWeight = if (bold) androidx.compose.ui.text.font.FontWeight.Bold else null,
+                ),
                 textAlign = when (align) { 2 -> androidx.compose.ui.text.style.TextAlign.Center; 3 -> androidx.compose.ui.text.style.TextAlign.End; else -> androidx.compose.ui.text.style.TextAlign.Start },
                 modifier = Modifier.weight(1f),
             )
@@ -4542,6 +4698,30 @@ internal fun SelectionToolbar(
         Box(Modifier.padding(horizontal = 4.dp).width(1.dp).height(24.dp).background(colors.outlineVariant))
         CommandIcon(TableTool(Icons.Default.Close, "Stop selecting", action = onClose))
     }
+}
+
+/** Excel's Go To (F5): a cell (B12) or a range (A1:C5) to jump to; the field turns red if it isn't one. */
+@Composable
+private fun GoToDialog(onDismiss: () -> Unit, onGo: (String) -> Boolean) {
+    var text by remember { mutableStateOf("") }
+    var wrong by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(TableIcons.GoTo, contentDescription = null) },
+        title = { Text(tr("Go to")) },
+        text = {
+            OutlinedTextField(
+                text, { text = it.uppercase(); wrong = false }, singleLine = true, isError = wrong,
+                label = { Text(tr("A cell or range, like B12 or A1:C5")) },
+                supportingText = if (wrong) ({ Text(tr("That isn't a cell or range")) }) else null,
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Characters, imeAction = androidx.compose.ui.text.input.ImeAction.Go),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(onGo = { if (!onGo(text)) wrong = true }),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = { if (!onGo(text)) wrong = true }, enabled = text.isNotBlank()) { Text(tr("Go")) } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
+    )
 }
 
 /**

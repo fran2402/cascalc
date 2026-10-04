@@ -205,4 +205,61 @@ object TableIcons {
 
     /** "123" with a down arrow: the number format menu. */
     val NumberFormat: ImageVector by lazy { tableIcon("NumberFormat", stroke = listOf("M2.5 9l1.8-1.5V16", "M7.5 9.2c.3-1 1.1-1.6 2.1-1.6c1.1 0 1.9.8 1.9 1.8c0 2-4 3.2-4 6.6h4.2", "M14.5 8.2c.5-.4 1.1-.6 1.8-.6c1.2 0 2 .7 2 1.8s-.9 1.7-2 1.7c1.3 0 2.3.7 2.3 2c0 1.4-1.1 2.3-2.4 2.3c-.8 0-1.5-.3-2-.8")) }
+
+    /** A heavy B: bold. */
+    val Bold: ImageVector by lazy { tableIcon("Bold", stroke = listOf("M7 4.5h6a3.75 3.75 0 0 1 0 7.5H7z", "M7 12h7a4 4 0 0 1 0 8H7z")) }
+
+    /** A slanted I: italic. */
+    val Italic: ImageVector by lazy { tableIcon("Italic", stroke = listOf("M10.5 4.5h7", "M6.5 19.5h7", "M14 4.5l-4 15")) }
+
+    /** A tipped paint bucket and a drop: fill color. */
+    val FillColor: ImageVector by lazy { tableIcon("FillColor", stroke = listOf("M11 3.5l7.5 7.5l-6.5 6.5a1.5 1.5 0 0 1-2.1 0l-5.4-5.4a1.5 1.5 0 0 1 0-2.1z", "M19.5 15.5c0 0-1.5 2-1.5 3a1.5 1.5 0 0 0 3 0c0-1-1.5-3-1.5-3z"), thin = listOf("M4.5 11.5h13.5"), shade = listOf("M4.5 11.5h13.5l-5.9 5.9a1.5 1.5 0 0 1-2.1 0z")) }
+
+    /** Big A and small a: change case. */
+    val ChangeCase: ImageVector by lazy { tableIcon("ChangeCase", stroke = listOf("M2.5 19L7.5 5l5 14", "M4.4 14h6.2", "M21.5 19v-6a2.8 2.8 0 0 0-5.2-1.4", "M21.5 15.4c-3.2-.5-6 0-6 1.9a1.9 1.9 0 0 0 3.5 1")) }
+
+    /** A banknote: currency. */
+    val Currency: ImageVector by lazy { tableIcon("Currency", stroke = listOf("M2.5 6.5h19v11h-19z", "M12 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5"), thin = listOf("M5.5 9.5v5", "M18.5 9.5v5")) }
+
+    /** A paint brush: copy a column's format to another. */
+    val FormatPainter: ImageVector by lazy { tableIcon("FormatPainter", stroke = listOf("M4.5 3.5h12v5h-12z", "M16.5 6h3v5h-8v3", "M10 14h3v6.5h-3z"), shade = listOf("M4.5 3.5h12v5h-12z")) }
+
+    /** A dashed box round a grid: select all. */
+    val SelectAll: ImageVector by lazy { tableIcon("SelectAll", stroke = listOf("M3.5 7V3.5H7", "M17 3.5h3.5V7", "M20.5 17v3.5H17", "M7 20.5H3.5V17"), thin = listOf("M7.5 7.5h9v9h-9z", "M7.5 12h9", "M12 7.5v9")) }
+
+    /** An arrow into a cell: go to. */
+    val GoTo: ImageVector by lazy { tableIcon("GoTo", stroke = listOf("M3 12h10", "M9.5 8.5L13 12l-3.5 3.5"), thin = listOf("M14.5 4.5h6v15h-6z"), shade = listOf("M14.5 9.5h6v5h-6z")) }
+
+    /** A die: random numbers. */
+    val Random: ImageVector by lazy { tableIcon("Random", stroke = listOf("M4.5 4.5h15v15h-15z"), fill = listOf("M7 8.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0z", "M10.5 12a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0z", "M14 15.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0z")) }
+
+    /** Crossing arrows: randomize the rows. */
+    val Shuffle: ImageVector by lazy { tableIcon("Shuffle", stroke = listOf("M3 7h3.5c4.5 0 6.5 10 11 10H21", "M3 17h3.5c1.8 0 3.1-1.6 4.2-3.5", "M13.3 10.5c1.1-1.9 2.4-3.5 4.2-3.5H21", "M18.5 4.5L21 7l-2.5 2.5", "M18.5 14.5L21 17l-2.5 2.5")) }
+
+    /** Arrows up and down: reverse the rows. */
+    val Reverse: ImageVector by lazy { tableIcon("Reverse", stroke = listOf("M7.5 20V4", "M4.5 7l3-3l3 3", "M16.5 4v16", "M13.5 17l3 3l3-3")) }
+
+    /** A cell copied into the gap below it: fill blanks. */
+    val FillBlanks: ImageVector by lazy { tableIcon("FillBlanks", stroke = listOf("M5 3.5h9v5H5z", "M18.5 6v10", "M16 13.5l2.5 2.5l2.5-2.5"), thin = listOf("M5 15.5h9v5H5z"), shade = listOf("M5 15.5h9v5H5z")) }
+
+    /** Quoted text becoming a number: convert to numbers. */
+    val TextToNumber: ImageVector by lazy { tableIcon("TextToNumber", stroke = listOf("M3.5 6.5v3", "M6.5 6.5v3", "M13 12h4", "M15.5 10l2 2l-2 2"), thin = listOf("M2.5 15.5h8v5h-8z"), fill = listOf("M19 6a1 1 0 1 0 2 0a1 1 0 1 0-2 0z")) }
+
+    /** One of each: unique values. */
+    val Unique: ImageVector by lazy { tableIcon("Unique", stroke = listOf("M4 5h4", "M4 10h4", "M4 15h4", "M4 20h4", "M12 12h3", "M13.5 10.5L15 12l-1.5 1.5"), thin = listOf("M17 5h4v14h-4z")) }
+
+    /** A column worked out from another: a new column from its numbers. */
+    val NewColumn: ImageVector by lazy { tableIcon("NewColumn", stroke = listOf("M14.5 3.5h6v17h-6z", "M8.5 12h4", "M11 9.5l2 2.5l-2 2.5"), thin = listOf("M3.5 3.5h4v17h-4z", "M14.5 9h6", "M14.5 14.5h6")) }
+
+    /** ƒ turning into a number: formulas to values. */
+    val ToValues: ImageVector by lazy { tableIcon("ToValues", stroke = listOf("M8.5 4c-2-.5-3.2.5-3.2 2.6V16", "M3 9h5", "M12 12h4", "M14.5 10l2 2l-2 2"), shade = listOf("M18 8.5h3.5v7H18z")) }
+
+    /** A column with a slash: hide it. */
+    val HideColumn: ImageVector by lazy { tableIcon("HideColumn", stroke = listOf("M3.5 3.5l17 17"), thin = listOf("M8 3.5h8v17H8z")) }
+
+    /** Columns spreading apart: show hidden columns. */
+    val UnhideColumns: ImageVector by lazy { tableIcon("UnhideColumns", stroke = listOf("M12 4v16", "M3.5 12h5", "M6 9.5L3.5 12L6 14.5", "M20.5 12h-5", "M18 9.5l2.5 2.5l-2.5 2.5")) }
+
+    /** A calendar with today marked. */
+    val Today: ImageVector by lazy { tableIcon("Today", stroke = listOf("M4.5 6h15v14.5h-15z", "M8 3.5v4", "M16 3.5v4"), thin = listOf("M4.5 10.5h15"), fill = listOf("M13.5 14h3v3h-3z")) }
 }

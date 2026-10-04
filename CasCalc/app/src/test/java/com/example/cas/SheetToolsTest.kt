@@ -163,4 +163,52 @@ class SheetToolsTest {
         assertEquals("hi", SheetTools.pasted(t, 0, 0, "hi", 3, 3))
         assertEquals(ColumnFormat(align = 2), ColumnFormat.decode(ColumnFormat(align = 2).encode()))
     }
+
+    @Test fun fontFillCurrencyAndHiddenFormats() {
+        val f = ColumnFormat(bold = true, italic = true, tint = 3, hidden = true, currency = "€", decimals = 1)
+        assertEquals(f, ColumnFormat.decode(f.encode()))
+        assertEquals("$" + ColumnFormat(thousands = true, decimals = 2).show(1234567.5), ColumnFormat(currency = "$", thousands = true).show(1234567.5))
+        assertEquals("$4.50", ColumnFormat(currency = "$").show(4.5))
+        assertEquals("−£3.00", ColumnFormat(currency = "£").show(-3.0))
+        assertTrue(ColumnFormat(currency = "$").changesNumbers)
+    }
+
+    @Test fun changeCase() {
+        assertEquals("HELLO WORLD", SheetTools.changeCase("hello World", SheetTools.Case.Upper))
+        assertEquals("hello world", SheetTools.changeCase("Hello WORLD", SheetTools.Case.Lower))
+        assertEquals("O'Neil Jean-Luc", SheetTools.changeCase("o'NEIL jean-luc", SheetTools.Case.Proper))
+        assertEquals("=sum(A1:A2)", SheetTools.changeCase("=sum(A1:A2)", SheetTools.Case.Upper))
+    }
+
+    @Test fun textToNumbers() {
+        assertEquals("1234.5", SheetTools.asNumber("1,234.50"))
+        assertEquals("0.125", SheetTools.asNumber("12.5%"))
+        assertEquals("40", SheetTools.asNumber("$40"))
+        assertEquals("-3", SheetTools.asNumber("(3)"))
+        assertEquals("-2", SheetTools.asNumber("−2"))
+        assertEquals("1234", SheetTools.asNumber("1 234"))
+        assertEquals("2.5", SheetTools.asNumber("2,5"))
+        assertEquals("-5", SheetTools.asNumber("-$5"))
+        assertEquals(null, SheetTools.asNumber("abc"))
+        assertEquals(null, SheetTools.asNumber("=A1"))
+        assertEquals(null, SheetTools.asNumber(""))
+    }
+
+    @Test fun fillBlanksAndUnique() {
+        assertEquals(listOf("", "a", "a", "b", "b"), SheetTools.fillBlanks(listOf("", "a", "", "b", " ")))
+        assertEquals(listOf("=A1", "=A2"), SheetTools.fillBlanks(listOf("=A1", "")))
+        assertEquals(listOf("Red", "blue"), SheetTools.unique(listOf("Red", "", "blue", "red ", "Blue")))
+    }
+
+    @Test fun derivedColumns() {
+        val v = listOf(2.0, null, 4.0, 4.0, 10.0)
+        assertEquals(listOf(2.0, null, 6.0, 10.0, 20.0), SheetTools.derived(v, SheetTools.Derived.RunningTotal))
+        assertEquals(listOf(null, null, 2.0, 0.0, 6.0), SheetTools.derived(v, SheetTools.Derived.Difference))
+        assertEquals(listOf(0.1, null, 0.2, 0.2, 0.5), SheetTools.derived(v, SheetTools.Derived.PercentOfTotal))
+        assertEquals(listOf(4.0, null, 2.0, 2.0, 1.0), SheetTools.derived(v, SheetTools.Derived.Rank))
+        assertEquals(listOf(0.0, null, 0.25, 0.25, 1.0), SheetTools.derived(v, SheetTools.Derived.Normalize))
+        val z = SheetTools.derived(listOf(1.0, 2.0, 3.0), SheetTools.Derived.ZScore)
+        assertEquals(-1.0, z[0]!!, 1e-12); assertEquals(0.0, z[1]!!, 1e-12); assertEquals(1.0, z[2]!!, 1e-12)
+        assertEquals(listOf<Double?>(null, null), SheetTools.derived(listOf(5.0, 5.0), SheetTools.Derived.Normalize))
+    }
 }

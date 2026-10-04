@@ -19,14 +19,27 @@ data class ColumnFormat(
     val highlight: HighlightRule? = null,
     /** Where the cells' text sits: 0 as usual (at the start), 1 left, 2 centered, 3 right. */
     val align: Int = 0,
+    /** Bold and italic text, as Excel's Font group. */
+    val bold: Boolean = false,
+    val italic: Boolean = false,
+    /** A fill color for the column's cells, one of [HighlightRule.COLORS]. */
+    val tint: Int? = null,
+    /** Hidden from view (View › Hide column); still saved and plotted. */
+    val hidden: Boolean = false,
+    /** A currency symbol in front of the numbers ($, €, £, ¥), two decimals unless set. */
+    val currency: String? = null,
 ) {
     val isDefault get() = this == ColumnFormat()
     /** Whether numbers are shown differently from how they're typed. */
-    val changesNumbers get() = decimals != null || percent || scientific || thousands
+    val changesNumbers get() = decimals != null || percent || scientific || thousands || currency != null
 
     /** [value] as this format shows it: 1 234.50, 12.5%, 1.23 × 10⁴. */
     fun show(value: Double): String {
         if (!value.isFinite()) return value.toString()
+        if (currency != null) {
+            val body = copy(currency = null, decimals = decimals ?: 2).show(value)
+            return if (body.startsWith("−")) "−" + currency + body.drop(1) else currency + body
+        }
         if (scientific) {
             if (value == 0.0) return fixed(0.0, decimals ?: 2)
             val e = kotlin.math.floor(kotlin.math.log10(kotlin.math.abs(value))).toInt()
@@ -48,6 +61,8 @@ data class ColumnFormat(
         if (percent) add("p"); if (scientific) add("s"); if (thousands) add("t"); if (colorScale) add("c"); if (dataBars) add("b")
         highlight?.let { add("h" + it.encode()) }
         if (align != 0) add("a$align")
+        if (bold) add("w"); if (italic) add("i"); tint?.let { add("f$it") }; if (hidden) add("x")
+        currency?.let { add("u$it") }
     }.joinToString(".")
 
     companion object {
@@ -58,6 +73,9 @@ data class ColumnFormat(
                 t == "t" -> f.copy(thousands = true); t == "c" -> f.copy(colorScale = true); t == "b" -> f.copy(dataBars = true)
                 t.startsWith("h") -> f.copy(highlight = HighlightRule.decode(t.drop(1)))
                 t.startsWith("a") -> f.copy(align = t.drop(1).toIntOrNull()?.coerceIn(0, 3) ?: 0)
+                t == "w" -> f.copy(bold = true); t == "i" -> f.copy(italic = true); t == "x" -> f.copy(hidden = true)
+                t.startsWith("f") -> f.copy(tint = t.drop(1).toIntOrNull()?.coerceIn(0, HighlightRule.COLORS.size - 1))
+                t.startsWith("u") && t.length > 1 -> f.copy(currency = t.drop(1))
                 else -> f
             }
         }
@@ -335,7 +353,82 @@ object SheetTools {
     // ---- AutoSum ---------------------------------------------------------------------------
 
     /** The functions AutoSum offers, as Excel's Σ button does. */
-    val AUTO_FUNCTIONS = listOf("SUM", "AVERAGE", "COUNT", "MIN", "MAX")
+    val AUTO_FUNCTIONS = listOf("SUM", "AVERAGE", "COUNT", "MIN", "MAX", "MEDIAN", "PRODUCT", "STDEV")
+
+    /** Change case, as Sheets' Format › Text › case and Excel's UPPER, LOWER and PROPER; formulas are left alone. */
+    enum class Case(val label: String) { Upper("UPPERCASE"), Lower("lowercase"), Proper("Proper Case") }
+
+    fun changeCase(t: String, case: Case): String = if (Sheet.isFormula(t)) t else when (case) {
+        Case.Upper -> t.uppercase()
+        Case.Lower -> t.lowercase()
+        // As PROPER: a capital after anything that isn't a letter (O'Neil, Jean-Luc).
+        Case.Proper -> t.lowercase().replace(Regex("(^|[^\\p{L}])(\\p{L})")) { it.groupValues[1] + it.groupValues[2].uppercase() }
+    }
+
+    /**
+     * Excel's Convert to Number: text that reads as a number (1,234.5, 12%, $40, (3) for −3,
+     * 1 234, −2, or 2,5 with a decimal comma) as a plain number; null if it isn't one.
+     */
+    fun asNumber(t: String): String? {
+        if (Sheet.isFormula(t)) return null
+        var s = t.trim().replace('−', '-').replace("\u2009", "").replace("\u00A0", "").replace(" ", "")
+        if (s.isEmpty()) return null
+        var negative = false
+        if (s.startsWith("(") && s.endsWith(")")) { negative = true; s = s.substring(1, s.length - 1) }
+        s = s.removePrefix("+")
+        if (s.startsWith("-")) { negative = !negative; s = s.drop(1) }
+        s = s.trimStart('$', '€', '£', '¥')
+        if (s.startsWith("-")) { negative = !negative; s = s.drop(1) }
+        var percent = false
+        if (s.endsWith("%")) { percent = true; s = s.dropLast(1) }
+        s = s.trimEnd('$', '€', '£', '¥')
+        // One comma, no point, and not three digits after it: a decimal comma (2,5); else thousands.
+        s = if (s.count { it == ',' } == 1 && '.' !in s && s.substringAfter(',').length != 3) s.replace(',', '.') else s.replace(",", "")
+        val v = s.toBigDecimalOrNull() ?: return null
+        var r = if (percent) v.movePointLeft(2) else v
+        if (negative) r = r.negate()
+        return r.stripTrailingZeros().toPlainString().let { if (it == "-0" || r.signum() == 0) "0" else it }
+    }
+
+    /** Fill blanks: each empty cell takes the one above it (a formula moved down with it), as Excel's Go To Special › Blanks trick. */
+    fun fillBlanks(column: List<String>): List<String> {
+        var from = -1
+        return column.mapIndexed { r, t ->
+            if (t.isNotBlank()) { from = r; t }
+            else if (from < 0) t
+            else column[from].let { src -> if (Sheet.isFormula(src)) Sheet.shift(src, r - from) else src }
+        }
+    }
+
+    /** Sheets' UNIQUE: each different value once, in the order first seen (case ignored, blanks left out). */
+    fun unique(column: List<String>): List<String> = column.filter { it.isNotBlank() }.distinctBy { it.trim().lowercase() }
+
+    /** A new column worked out from a column's numbers, as Excel's "Show Values As". */
+    enum class Derived(val label: String) {
+        RunningTotal("Running total"), Difference("Difference from previous"), PercentOfTotal("% of total"),
+        Rank("Rank (largest first)"), ZScore("z-score"), Normalize("Scaled 0 to 1"),
+    }
+
+    fun derived(values: List<Double?>, kind: Derived): List<Double?> {
+        val nums = values.filterNotNull()
+        if (nums.isEmpty()) return values.map { null }
+        return when (kind) {
+            Derived.RunningTotal -> { var sum = 0.0; values.map { v -> v?.let { sum += it; sum } } }
+            Derived.Difference -> { var last: Double? = null; values.map { v -> if (v == null) null else { val d = last?.let { v - it }; last = v; d } } }
+            Derived.PercentOfTotal -> { val total = nums.sum(); values.map { v -> if (v == null || total == 0.0) null else v / total } }
+            // As RANK.EQ: ties share the best rank.
+            Derived.Rank -> values.map { v -> v?.let { x -> 1.0 + nums.count { it > x } } }
+            Derived.ZScore -> {
+                val mean = nums.average()
+                val sd = if (nums.size > 1) kotlin.math.sqrt(nums.sumOf { (it - mean) * (it - mean) } / (nums.size - 1)) else 0.0
+                values.map { v -> if (v == null || sd == 0.0) null else (v - mean) / sd }
+            }
+            Derived.Normalize -> {
+                val lo = nums.min(); val hi = nums.max()
+                values.map { v -> if (v == null || hi == lo) null else (v - lo) / (hi - lo) }
+            }
+        }
+    }
 
     /**
      * Excel's AutoSum for cell ([c], [r]): [fn] of the run of numbers directly above it (or, if

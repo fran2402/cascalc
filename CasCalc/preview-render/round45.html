@@ -1,0 +1,268 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:NCMR;src:url(../app/src/main/res/font/ncm_roman.otf)}
+@font-face{font-family:NCMI;src:url(../app/src/main/res/font/ncm_latin_italic.otf)}
+@font-face{font-family:NCMM;src:url(../app/src/main/res/font/ncm_math.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px;width:1900px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1600px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px;line-height:1.4}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--lowest:#fff;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sec:#5E6045;--onsec:#fff;--sc:#E2E4C4;--onsc:#1B1D0A;--ter:#3C6A5A;--onter:#fff;--tc:#BEECDB;--ontc:#002019;--outv:#C8C7B5;--out:#77786A;--err:#BA1A1A;--ec:#FFDAD6;--onec:#410002}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--lowest:#0D0F08;--c:#1F2018;--ch:#292A22;--chh:#34352C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sec:#C6C8A9;--onsec:#2F321B;--sc:#45483A;--onsc:#E2E4C4;--ter:#A2D0BF;--onter:#05372B;--tc:#214E41;--ontc:#BEECDB;--outv:#47473B;--out:#919283;--err:#FFB4AB;--ec:#93000A;--onec:#FFDAD6}
+.phone{position:relative;width:412px;height:900px;border-radius:44px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+
+.phone .status{padding:0 44px !important}
+.tbar{display:flex;align-items:center;padding:4px 10px 4px 4px;gap:2px}
+.tbar .ib{width:36px;height:42px;font-size:19px;flex:none}
+.ttl{font:400 20px GSF;padding-left:2px;white-space:nowrap}
+.fchip{white-space:nowrap;font:500 12px GSF;background:var(--tc);color:var(--ontc);border-radius:12px;padding:3px 10px;margin-left:8px}
+.donebtn{height:44px;border-radius:16px;background:var(--pri);color:var(--onpri);display:flex;align-items:center;gap:6px;padding:0 14px 0 10px;font:600 15px GSF;margin-left:2px;white-space:nowrap;flex:none}
+.cards{display:flex;gap:10px;padding:8px 0 8px 52px}
+.cc{width:110px;border-radius:18px;padding:8px 4px 6px 8px;display:flex;flex-direction:column;gap:6px;flex:none}
+.cc .h{display:flex;align-items:center;gap:8px}
+.rb{height:28px;min-width:28px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font:italic 16px CMI;padding:0 6px}
+.cc .l{font:600 13px GSF;color:var(--onv)}.cc .dots{margin-left:auto;color:var(--onv);font:700 16px GSF;padding-right:4px}
+.cc .nm{font:13px GSF}
+.trow{display:flex;align-items:center;gap:10px;padding:3px 0}
+.rn{width:42px;flex:none;text-align:center;font:600 14px GSF;color:var(--onv)}
+.cell{width:110px;flex:none;height:42px;border-radius:10px;display:flex;align-items:center;padding:0 12px;font:17px CMR;position:relative}
+.cell small{position:absolute;right:6px;bottom:3px;font:italic 10px CMI;color:var(--ter)}
+.menu{position:absolute;background:var(--c);border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:6px 0;width:250px;z-index:5}
+.menu div{display:flex;align-items:center;gap:12px;padding:9px 16px;font:15px GSF}
+.menu div .mi{width:22px;text-align:center;color:var(--onv);font:17px GSF}
+.menu div.on{background:color-mix(in srgb,var(--pri) 10%,transparent)}
+.menu div.new:after{content:"new";margin-left:auto;font:600 10px GSF;color:var(--onpri);background:var(--pri);border-radius:8px;padding:2px 6px}
+.menu hr{border:none;border-top:1px solid var(--outv);margin:4px 0}
+.err{color:var(--err)}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.32);z-index:4}
+.dlg{position:absolute;left:28px;right:28px;background:var(--chh);border-radius:28px;padding:22px 22px 14px;z-index:6;box-shadow:0 12px 32px rgba(0,0,0,.3)}
+.dlg .ic{text-align:center;font:24px GSF;color:var(--sec)}.dlg h3{text-align:center;font:400 22px GSF;margin:10px 0 14px}
+.srow{display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-radius:10px}.srow span{color:var(--onv);font:15px GSF}.srow b{font:400 19px CMR}
+.srow.tap{background:color-mix(in srgb,var(--pri) 10%,transparent)}
+.dnote{font:12.5px GSF;color:var(--onv);margin-top:8px}
+.btns{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.btns span{font:500 14px GSF;color:var(--pri);padding:10px 12px}
+.field{border:1px solid var(--out);border-radius:6px;height:56px;padding:0 14px;display:flex;align-items:center;font:16px GSF;position:relative;margin-bottom:14px}
+.field label{position:absolute;top:-9px;left:10px;background:var(--chh);padding:0 4px;font:12px GSF;color:var(--onv)}
+.field.f{border:2px solid var(--pri)}.field.f label{color:var(--pri)}
+.fab2{position:absolute;right:24px;bottom:24px;width:56px;height:56px;border-radius:18px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;justify-content:center;font:26px GSF;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.toast{position:absolute;left:50%;transform:translateX(-50%);bottom:96px;background:#303030;color:#fff;border-radius:20px;padding:8px 16px;font:14px GSF;z-index:7}
+
+.bar{margin:4px 12px;border-radius:20px;padding:6px 6px 6px 12px}
+.of{border:1px solid var(--out);border-radius:6px;height:50px;padding:0 12px;display:flex;align-items:center;font:16px GSF;position:relative;flex:1}
+.of label{position:absolute;top:-9px;left:8px;background:var(--chh);padding:0 4px;font:12px GSF;color:var(--onv)}
+.of.f{border:2px solid var(--pri)}.of.f label{color:var(--pri)}
+.brow{display:flex;align-items:center;gap:6px;margin-bottom:8px}
+.bi{width:36px;height:36px;display:flex;align-items:center;justify-content:center;font:18px GSF;color:var(--onv);flex:none}
+.tb{font:500 14px GSF;color:var(--pri);padding:8px 8px;white-space:nowrap}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--out);border-radius:8px;padding:5px 10px;font:500 13px GSF;margin-right:6px}
+.chip.on{background:var(--sc);border-color:transparent}
+.cell.found{outline:2px solid var(--ter);background:color-mix(in srgb,var(--ter) 12%,var(--ch)) !important}
+.cell.cur{outline:3px solid var(--ter)}
+.cell.sel{outline:2px solid var(--pri)}
+.frozen{box-shadow:4px 0 6px -3px rgba(0,0,0,.25)}
+.hand{position:absolute;right:-5px;bottom:-5px;width:12px;height:12px;border-radius:6px;background:var(--pri);border:2px solid var(--bg)}
+.ghost{color:var(--onv);font-style:normal}
+.seg2{display:flex;border:1px solid var(--out);border-radius:20px;overflow:hidden;margin-bottom:12px}.seg2 span{flex:1;text-align:center;padding:9px 0;font:500 14px GSF;border-left:1px solid var(--out)}.seg2 span:first-child{border-left:none}.seg2 span.on{background:var(--sc)}
+.sl{height:16px;border-radius:8px;background:var(--sc);position:relative;margin:8px 0 14px}.sl b{position:absolute;left:0;top:0;bottom:0;border-radius:8px;background:var(--pri)}.sl i{position:absolute;top:-8px;width:4px;height:32px;border-radius:2px;background:var(--pri)}
+.sw{width:52px;height:32px;border-radius:16px;background:var(--pri);position:relative;flex:none}.sw:after{content:"";position:absolute;right:4px;top:4px;width:24px;height:24px;border-radius:12px;background:var(--onpri)}
+
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 44px;font:500 14px GSF}
+.tabs2{display:flex;gap:2px;margin:2px 12px 6px;background:var(--c);border-radius:24px;padding:4px}
+.tabs2 span{flex:1;height:40px;border-radius:20px;display:flex;align-items:center;justify-content:center;font:500 14px GSF;color:var(--onv)}
+.tabs2 span.on{background:var(--sc);color:var(--onsc);border-radius:12px}
+.tools2{display:flex;gap:6px;margin:0 12px 6px;align-items:center;overflow:hidden}
+.tl{flex:none;min-width:60px;height:60px;border-radius:18px;background:var(--c);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font:11px GSF;padding:0 8px}
+.tl svg{width:22px;height:22px}
+.tl.on{background:var(--pri);color:var(--onpri);border-radius:14px}.tl.open{background:var(--sc);border-radius:14px}
+.vsep{width:1px;height:36px;background:var(--outv);flex:none}
+.sub2{font:12.5px GSF;color:var(--onv)}
+.fb{display:flex;align-items:center;gap:8px;height:52px;border-radius:26px;background:var(--bg);outline:2px solid var(--pri);padding:0 6px 0 7px;margin:0 10px 8px}
+.ad{height:38px;min-width:52px;border-radius:19px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;justify-content:center;font:600 14px GSF;padding:0 10px}
+.arr{display:flex;justify-content:flex-end;gap:6px;margin:0 10px 6px}.arr span{width:52px;height:36px;border-radius:18px;background:var(--sc);color:var(--onsc);display:flex;align-items:center;justify-content:center;font:16px GSF}
+.pill{position:absolute;left:20px;height:48px;border-radius:24px;background:var(--chh);box-shadow:0 3px 10px rgba(0,0,0,.2);display:flex;align-items:center;gap:8px;padding:0 16px;font:500 14px GSF;z-index:3}
+.pill b{font:400 17px CMR}
+.kb{height:200px;background:var(--c);border-top:1px solid var(--outv);display:grid;grid-template-columns:repeat(10,1fr);gap:6px;padding:10px 6px}.kb span{height:40px;border-radius:9px;background:var(--chh);display:flex;align-items:center;justify-content:center;font:16px GSF}
+.bar{position:absolute;left:4px;top:4px;bottom:4px;border-radius:6px;background:color-mix(in srgb,var(--pri) 28%,transparent)}
+.cell{overflow:hidden}.cell span.v{position:relative}
+.sheet2{position:absolute;left:0;right:0;bottom:0;background:var(--low);border-radius:28px 28px 0 0;box-shadow:0 -6px 20px rgba(0,0,0,.25);z-index:8;padding:8px 20px 22px}
+.grab{width:36px;height:4px;border-radius:2px;background:var(--onv);opacity:.4;margin:4px auto 12px}
+.card2{background:var(--c);border-radius:24px;padding:14px 16px;margin-bottom:12px}
+.ct{font:600 14px GSF;color:var(--pri);margin-bottom:6px}
+.tiles3{display:flex;gap:8px;margin-bottom:12px}.tiles3 div{flex:1;background:var(--chh);border-radius:20px;padding:10px 12px}.tiles3 small{display:block;font:500 12px GSF;color:var(--onv)}.tiles3 b{font:400 19px CMR}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.32);z-index:7}
+.menu2{position:absolute;background:var(--c);border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:6px 0;width:170px;z-index:9}.menu2 div{padding:11px 18px;font:15px GSF}
+.tablet{position:relative;width:1280px;height:800px;border-radius:36px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 12px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.tablet .status{padding:0 30px}
+.grp2{background:var(--c);border-radius:22px;padding:4px 6px;display:flex;flex-direction:column;align-items:center}
+.grp2 .row2{display:flex;gap:2px}.grp2 .tl{background:transparent}.grp2 .tl.on{background:var(--pri)}
+.grp2 small{font:500 11px GSF;color:var(--onv)}
+.sw{width:40px;height:40px;border-radius:20px;display:inline-flex;align-items:center;justify-content:center;margin-right:10px}
+
+.rtabs{display:flex;align-items:flex-end;border-bottom:1px solid var(--outv);margin:0 8px;position:relative}
+.rtabs span{padding:12px 16px 12px;font:500 14px GSF;color:var(--onv);position:relative;white-space:nowrap}
+.rtabs span.on{color:var(--pri)}
+.rtabs span.on:after{content:"";position:absolute;left:12px;right:12px;bottom:0;height:3px;border-radius:3px 3px 0 0;background:var(--pri)}
+.rtabs .fold{margin-left:auto;padding:10px 12px;color:var(--onv);font:16px GSF}
+.ribbon{display:flex;align-items:flex-start;padding:6px 8px 2px;margin:0 8px;overflow:hidden}
+.grp3{display:flex;flex-direction:column;align-items:center}
+.gbody{display:flex;gap:2px;align-items:flex-start}
+.glabel{height:18px;display:flex;align-items:center;gap:4px;font:500 11px GSF;color:var(--onv);white-space:nowrap}
+.gsep{width:1px;background:var(--outv);margin:0 6px;align-self:stretch}
+.lg{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:56px;padding:0 6px;border-radius:14px;font:11px/13px GSF;text-align:center;color:var(--on)}
+.lg svg{width:26px;height:26px;margin-bottom:3px}
+.lg .dd{font-size:9px;color:var(--onv);margin-top:1px}
+.lg.on,.sm.on{background:var(--sc);border-radius:10px}
+.lg.open,.sm.open{background:var(--chh);border-radius:10px}
+.smcol{display:flex;flex-direction:column}
+.sm{display:flex;align-items:center;gap:6px;padding:0 8px 0 6px;border-radius:12px;font:12px GSF;white-space:nowrap;color:var(--on)}
+.sm svg{width:18px;height:18px}
+.sm .dd{font-size:9px;color:var(--onv)}
+.fb2{display:flex;align-items:center;gap:6px;height:52px;border-radius:26px;background:var(--bg);outline:2px solid var(--pri);padding:0 6px 0 7px}
+.nb{height:38px;min-width:56px;border-radius:19px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;justify-content:center;font:600 14px GSF;padding:0 10px}
+.nb.ed{background:var(--bg);outline:2px solid var(--pri);color:var(--on);justify-content:flex-start}
+.fxb{font:italic 17px CMI;color:var(--ter);padding:0 8px}
+.xb{width:34px;height:34px;display:flex;align-items:center;justify-content:center;font:17px GSF}
+.sbar{position:absolute;left:0;right:0;bottom:0;height:44px;background:var(--c);display:flex;align-items:center;gap:14px;padding:0 12px 0 16px;font:500 13px GSF;color:var(--onv)}
+.sbar b{font:400 15px CMR;color:var(--on)}
+.zs{width:140px;height:16px;border-radius:8px;background:var(--sc);position:relative}.zs i{position:absolute;left:40%;top:-8px;width:4px;height:32px;border-radius:2px;background:var(--pri)}.zs b{position:absolute;left:0;top:0;bottom:0;width:40%;border-radius:8px;background:var(--pri)}
+.fncard{background:var(--c);border-radius:20px;padding:12px;margin-bottom:8px}
+.fncard .nm2{display:inline-block;border:1px solid var(--outv);border-radius:8px;padding:5px 10px;font:500 13px GSF;margin:0 6px 6px 0}
+.fncard .ex{font:15px CMR;color:var(--ter)}.fncard .wh{font:12.5px GSF;color:var(--onv);margin-top:4px}
+.lvl{display:flex;align-items:center;gap:8px;margin-bottom:10px}.lvl small{width:56px;font:12px GSF;color:var(--onv)}.lvl .sel2{flex:1;height:40px;border-radius:12px;background:var(--chh);display:flex;align-items:center;padding:0 10px;font:14px GSF;justify-content:space-between}
+
+.strip{width:1460px;background:var(--low);border-radius:28px;padding:6px 14px 4px;margin:0 0 18px;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+.strip.dark{background:#1c1c18}
+.tintD .trow .cell:nth-child(5){background:color-mix(in srgb,#8AB4F8 45%,var(--low)) !important}
+</style></head>
+<body style="width:1500px">
+<h2>Round 45: Many more Excel and Sheets commands in the ribbon (as built)</h2>
+<p class="note">Every tab grew. <b>Home</b>: Paste formats and Paste transposed, Format Painter, a new Font group (Bold, Italic, Fill color ▾, Change case ▾), Currency ▾ ($ € £ ¥), Find &amp; Select ▾ (Find and replace, Go to…, Select all / column / row), and AutoSum ▾ now also has MEDIAN, PRODUCT and STDEV. <b>Insert</b>: Random ▾ (whole, 0 to 1, normal), Series, 1, 2, 3…, Today, Now and =TODAY(). <b>Formulas</b>: Distributions and Engineering categories, Fill formula down, Formulas to values. <b>Data</b>: Randomize and Reverse rows, Fill blanks, To numbers, Unique, and New column ▾ (running total, difference, % of total, rank, z-score, scaled 0 to 1). <b>View</b>: Hide column and Unhide, Go to, Select all. 19 new custom icons. On a phone all of these appear in the bottom bar and the ⌃ list.</p>
+<div class="row" id="row"></div><div class="row" id="row2"></div>
+<script>
+const I={
+ sum:'<path d="M13.5 4H4.5l4.5 6l-4.5 6h9" stroke-width="2"/><path d="M17 4h4.5v4h-4.5zM17 10h4.5v4h-4.5z" stroke-width="1.6"/><path d="M17 16h4.5v4h-4.5z" fill="currentColor" stroke="none"/>',
+ sortup:'<path d="M3.5 6h5M3.5 12h8M3.5 18h11M19 19V5M16 8l3-3l3 3" stroke-width="2"/>',
+ sortdn:'<path d="M3.5 6h11M3.5 12h8M3.5 18h5M19 5v14M16 16l3 3l3-3" stroke-width="2"/>',
+ filter:'<path d="M3.5 5h17l-6.5 8v5.5l-4 2.5v-8z" stroke-width="2"/>',
+ find:'<circle cx="10.5" cy="10.5" r="6" stroke-width="2"/><path d="M15 15l5.5 5.5" stroke-width="2"/><path d="M8 10.5h5" stroke-width="1.6"/>',
+ num:'<path d="M4 6.5l2-1.5v5M4 13.5c0-1 .8-1.6 1.8-1.6s1.7.7 1.7 1.5c0 1.6-3.5 2.5-3.5 4.6h3.6M11 7h9M11 12h9M11 17h9" stroke-width="2"/>',
+ series:'<path d="M3 20L21 4" stroke-width="1.6"/><circle cx="5" cy="18.2" r="2" fill="currentColor"/><circle cx="10" cy="13.8" r="2" fill="currentColor"/><circle cx="15" cy="9.4" r="2" fill="currentColor"/><circle cx="20" cy="5" r="2" fill="currentColor"/>',
+ stats:'<path d="M17.5 5H6.5l6 7l-6 7h11" stroke-width="2"/>',
+ auto:'<path d="M3.5 19.5L8.5 5l5 14.5M5.4 14h6.2M18.5 3.5v5M16 6h5" stroke-width="2"/>',
+ fixed:'<ellipse cx="5.5" cy="12" rx="2.5" ry="5" stroke-width="2"/><circle cx="9.7" cy="16.4" r="1.3" fill="currentColor"/><ellipse cx="14.2" cy="12" rx="2.2" ry="4.5" stroke-width="2"/><ellipse cx="20.2" cy="12" rx="2.2" ry="4.5" stroke-width="2"/>',
+ pct:'<path d="M19 5L5 19" stroke-width="2"/><circle cx="7" cy="7" r="2.6" stroke-width="1.6"/><circle cx="17" cy="17" r="2.6" stroke-width="1.6"/>',
+ scale:'<rect x="3.5" y="3.5" width="17" height="17" rx="1.5" stroke-width="2"/><path d="M3.5 9.2h17M3.5 14.8h17" stroke-width="1.6"/><path d="M3.5 9.2h17v5.6h-17z" fill="currentColor" opacity=".35" stroke="none"/><path d="M3.5 14.8h17v4.2a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5z" fill="currentColor" stroke="none"/>',
+ bars:'<rect x="3.5" y="3.5" width="17" height="17" stroke-width="2"/><path d="M3.5 9.2h17M3.5 14.8h17" stroke-width="1.6"/><path d="M5 5h6v2.7H5zM5 10.7h12.5v2.7H5zM5 16.3h9v2.7H5z" fill="currentColor" stroke="none"/>',
+ hl:'<path d="M14.5 3.5l6 6l-8 8h-6v-6zM3 21h18" stroke-width="2"/><path d="M11 7l6 6" stroke-width="1.6"/><path d="M6.5 11.5l6 6h-6z" fill="currentColor" opacity=".35" stroke="none"/>',
+ ins:'<path d="M12 3a6 6 0 0 0-3.5 10.9V16h7v-2.1A6 6 0 0 0 12 3zM9.5 19.5h5M10.5 22h3" stroke-width="2"/><path d="M9.5 10.5l1.5-1.5l1.5 1.5l2-2.5" stroke-width="1.6"/>',
+ less:'<circle cx="4" cy="18.6" r="1.4" fill="currentColor"/><ellipse cx="9" cy="15" rx="2.3" ry="4.5" stroke-width="2"/><path d="M21 6h-7M16.5 3.5L14 6l2.5 2.5" stroke-width="2"/>',
+ more:'<circle cx="3.6" cy="18.6" r="1.4" fill="currentColor"/><ellipse cx="8.5" cy="15" rx="2.1" ry="4.3" stroke-width="2"/><ellipse cx="14.5" cy="15" rx="2.1" ry="4.3" stroke-width="2"/><path d="M14 6h7M18.5 3.5L21 6l-2.5 2.5" stroke-width="2"/>',
+ dedupe:'<path d="M3.5 5h17M3.5 10h17M15 15.5l5 5M20 15.5l-5 5" stroke-width="2"/><path d="M3.5 18h8" stroke-width="1.6"/>',
+ trim:'<path d="M2.5 12h4M4.5 9.5L7 12l-2.5 2.5M21.5 12h-4M19.5 9.5L17 12l2.5 2.5" stroke-width="2"/><path d="M10 8v8M14 8v8" stroke-width="1.6"/>',
+ trans:'<path d="M4 4h6v6H4zM13 7h4a3 3 0 0 1 3 3v6M17.5 13.5L20 16l2.5-2.5" stroke-width="2"/><path d="M4 14h6v6H4zM14 14h6v6h-6z" stroke-width="1.6"/>',
+ freeze:'<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9" stroke-width="2"/>',
+};
+let ic=(k,c='currentColor')=>`<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-linecap="round" stroke-linejoin="round">${I[k]}</svg>`;
+
+const II=Object.assign(I,{
+ paste:'<path d="M8 4.5H6a1.5 1.5 0 0 0-1.5 1.5v13.5A1.5 1.5 0 0 0 6 21h12a1.5 1.5 0 0 0 1.5-1.5V6A1.5 1.5 0 0 0 18 4.5h-2M9 3h6v3H9z" stroke-width="2"/><path d="M8 10.5h8v7H8zM8 14h8M12 10.5v7" stroke-width="1.6"/>',
+ cut:'<circle cx="6.5" cy="17.5" r="3" stroke-width="2"/><circle cx="17.5" cy="17.5" r="3" stroke-width="2"/><path d="M8.6 15.4L18.5 3.5M15.4 15.4L5.5 3.5" stroke-width="2"/>',
+ copy:'<path d="M8.5 8.5h11v12h-11z" stroke-width="2"/><path d="M5.5 15.5h-1v-12h11v1M8.5 12.5h11M14 8.5v12" stroke-width="1.6"/>',
+ al:'<path d="M4 5h16M4 10h10M4 15h16M4 20h10" stroke-width="2"/>', ac:'<path d="M4 5h16M7 10h10M4 15h16M7 20h10" stroke-width="2"/>', ar:'<path d="M4 5h16M10 10h10M4 15h16M10 20h10" stroke-width="2"/>',
+ n123:'<path d="M2.5 9l1.8-1.5V16M7.5 9.2c.3-1 1.1-1.6 2.1-1.6c1.1 0 1.9.8 1.9 1.8c0 2-4 3.2-4 6.6h4.2M14.5 8.2c.5-.4 1.1-.6 1.8-.6c1.2 0 2 .7 2 1.8s-.9 1.7-2 1.7c1.3 0 2.3.7 2.3 2c0 1.4-1.1 2.3-2.4 2.3c-.8 0-1.5-.3-2-.8" stroke-width="2"/>',
+ cf:'<path d="M3.5 3.5h17v17h-17z" stroke-width="2"/><path d="M3.5 9.2h17M3.5 14.8h17M12 3.5v17" stroke-width="1.6"/><path d="M12 3.5h8.5v5.7H12z" fill="currentColor" opacity=".35" stroke="none"/><path d="M3.5 14.8H12v5.7H3.5zM13.5 10.7h4.5v2.6h-4.5z" fill="currentColor" stroke="none"/>',
+ ins:'<path d="M17.5 14v7M14 17.5h7" stroke-width="2"/><path d="M3.5 3.5h13v10h-13zM3.5 8.5h13M10 3.5v10" stroke-width="1.6"/>',
+ del:'<path d="M14.5 15l6 6M20.5 15l-6 6" stroke-width="2"/><path d="M3.5 3.5h13v10h-13zM3.5 8.5h13M10 3.5v10" stroke-width="1.6"/>',
+ eraser:'<path d="M8 20.5h12.5M3.8 14.7l9.9-9.9a1.5 1.5 0 0 1 2.1 0l4.4 4.4a1.5 1.5 0 0 1 0 2.1L12 19.5H8.5z" stroke-width="2"/><path d="M8.3 10.2l6.5 6.5" stroke-width="1.6"/>',
+ fx:'<path d="M11.5 4c-2.4-.6-3.8.6-3.8 3V20M4.5 10h6.5M13.5 10l6 8M19.5 10l-6 8" stroke-width="2"/>',
+ csort:'<path d="M3.5 5h9M6.5 10.5h9M9.5 16h9M19 3.5v6M17 7.5l2 2l2-2" stroke-width="2"/><path d="M3.5 5v11h6" stroke-width="1.6"/>',
+ t2c:'<path d="M2.5 9.5h6v5h-6zM11 12h3M12.5 10.5L14 12l-1.5 1.5" stroke-width="2"/><path d="M16 5h5.5v14H16zM16 9.5h5.5M16 14.5h5.5" stroke-width="1.6"/>',
+ showf:'<path d="M10 3.5c-2-.5-3.2.5-3.2 2.6V14M4.5 8.5h5M12.5 8l4 5M16.5 8l-4 5" stroke-width="2"/><path d="M3.5 17.5h17v3.5h-17z" stroke-width="1.6"/>',
+ zin:'<circle cx="10.5" cy="10.5" r="6.5" stroke-width="2"/><path d="M15.3 15.3l5.2 5.2M7.5 10.5h6M10.5 7.5v6" stroke-width="2"/>',
+ zout:'<circle cx="10.5" cy="10.5" r="6.5" stroke-width="2"/><path d="M15.3 15.3l5.2 5.2M7.5 10.5h6" stroke-width="2"/>',
+ math:'<path d="M4 7.5h16M8.5 7.5c0 5-1 9.5-3 12M15 7.5v9.5c0 1.5.8 2.5 2.2 2.5c.9 0 1.6-.3 2.3-.9" stroke-width="2"/>',
+ stat2:'<path d="M2.5 19.5h19M3 18.5c3.5 0 5-12 9-12s5.5 12 9 12" stroke-width="2"/><path d="M12 6.5v13" stroke-width="1.6"/>',
+ look:'<circle cx="15.5" cy="15.5" r="3.5" stroke-width="2"/><path d="M18 18l3 3" stroke-width="2"/><path d="M3.5 3.5h15v6M3.5 3.5v15h7M3.5 8.5h15M10 3.5v15" stroke-width="1.6"/>',
+ logic:'<path d="M12 21v-8M12 13L6 6M12 13l6-7M3.5 7.5L6 6l1 2.8M20.5 7.5L18 6l-1 2.8" stroke-width="2"/>',
+ text:'<path d="M2.5 19L7 5l4.5 14M4.2 14h5.6M21.5 19v-6.5a3 3 0 0 0-5.5-1.6M21.5 15.5c-3.5-.6-6.5 0-6.5 2a2 2 0 0 0 3.7 1" stroke-width="2"/>',
+ date:'<path d="M4.5 6h15v14.5h-15zM8 3.5v4M16 3.5v4" stroke-width="2"/><path d="M4.5 10.5h15" stroke-width="1.6"/><path d="M8 13h3v3H8z" fill="currentColor" stroke="none"/>',
+ money:'<circle cx="12" cy="12" r="8.5" stroke-width="2"/><path d="M14.5 9c-.5-.9-1.5-1.4-2.5-1.4c-1.5 0-2.6.9-2.6 2.1c0 2.8 5.4 1.6 5.4 4.5c0 1.2-1.2 2.2-2.8 2.2c-1.1 0-2.1-.5-2.6-1.4M12 6v1.6M12 16.4V18" stroke-width="1.6"/>',
+ launch:'<path d="M9 15l8-8M11.5 7H17v5.5" stroke-width="2"/><path d="M5 9V19h10" stroke-width="1.6"/>',
+});
+ic=(k,c='var(--pri)')=>`<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-linecap="round" stroke-linejoin="round">${II[k]}</svg>`;
+const L=(k,l,o={})=>`<div class="lg ${o.cls||''}" style="height:${o.h||78}px">${ic(k, o.cls=='on'?'var(--onsc)':'var(--pri)')}<span>${l}</span>${o.dd?'<span class="dd">▾</span>':''}</div>`;
+const Sm=(k,l,o={})=>`<div class="sm ${o.cls||''}" style="height:${o.h||26}px">${ic(k)}<span>${l}</span>${o.dd?'<span class="dd">▾</span>':''}</div>`;
+const G=(label,body,launch)=>`<div class="grp3"><div class="gbody">${body}</div><div class="glabel">${label}${launch?`<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--onv)" stroke-linecap="round" stroke-linejoin="round">${II.launch}</svg>`:''}</div></div>`;
+const SEP='<div class="gsep"></div>';
+const tabs=(on)=>`<div class="rtabs">${['Home','Insert','Formulas','Data','View'].map(t=>`<span class="${t==on?'on':''}">${t}</span>`).join('')}<span class="fold">⌃</span></div>`;
+const roles={x:['var(--pri)','var(--onpri)'],y:['var(--ter)','var(--onter)'],s:['var(--sec)','var(--onsec)'],n:['var(--ch)','var(--onv)']};
+const T=['0','0.5','1','1.5','2','2.5','3','3.5','4','4.5','5'];const H=[1.02,1.31,2.24,3.30,5.01,7.48,11.2,16.4,24.9,36.1,52.6];const S=['0.05','0.05','0.08','0.10','0.12','0.20','0.30','0.40','0.60','0.80','1.1'];
+const D=['Mon 3, 7','Tue 4, 8','Wed 5, 9','Thu 6, 1','Fri 7, 2','Sat 8, 3','Sun 9, 4','Mon 1, 5','Tue 2, 6','Wed 3, 7','Thu 4, 8'];
+function grid(o){
+ const cols=o.cols||[['x','A','time t'],['y','B','height h'],['s','C','σ(h)']];
+ let h=`<div style="background:var(--bg);border-radius:28px;margin:${o.m??'0 8px'};height:${o.h}px;position:relative;overflow:hidden">`;
+ h+=`<div class="cards" style="padding-left:52px">`+cols.map(([r,l,n],i)=>`<div class="cc" style="${o.w?`width:${o.w}px;`:''}background:color-mix(in srgb, ${roles[r][0]} 16%, var(--low));${o.chosen===i?'outline:2px solid var(--pri)':''}"><div class="h"><span class="rb" style="background:${roles[r][0]};color:${roles[r][1]}">${r=='s'?'σ':r=='n'?'–':r}</span><span class="l">${l}</span><span class="dots">⋮</span></div><div class="nm">${n}</div></div>`).join('')+`</div>`;
+ for(let r=0;r<(o.rows||9);r++){
+  h+=`<div class="trow"><div class="rn">${r+1}</div>`;
+  cols.forEach((c,ci)=>{const v=c[3]?c[3](r):[T,H.map(x=>x.toFixed(2)),S][ci][r];
+   let tint=`color-mix(in srgb, ${roles[c[0]][0]} 9%, var(--low))`;let ex='';
+   if(o.sel&&o.sel[0]==r&&o.sel[1]==ci) ex+='outline:2px solid var(--pri);';
+   if(o.rng&&r>=o.rng[0]&&r<=o.rng[1]&&ci>=o.rng[2]&&ci<=o.rng[3]) {ex+='outline:2px solid var(--pri);';tint=`linear-gradient(color-mix(in srgb,var(--pri) 18%,transparent),color-mix(in srgb,var(--pri) 18%,transparent)),${tint}`}
+   const al=o.align&&ci==1?'justify-content:flex-end;':'';
+   h+=`<div class="cell" style="${o.w?`width:${o.w}px;`:''}background:${tint};${al}${ex}">${o.showf&&ci==2?`<span style="font:15px CMR">=B${r+1}*0.05</span>`:v}</div>`});
+  h+=`</div>`}
+ return h+(o.extra||'')+`</div>`;
+}
+const st=`<div class="status"><span>12:30</span><span>▴ ▮</span></div>`;
+const topBar=(sub)=>`<div class="tbar"><span class="ib">✕</span><div style="flex:1;padding-left:2px"><div class="ttl" style="font:400 21px GSF">Data</div><div class="sub2">${sub||'11 points · 3 columns'}</div></div><span class="ib">↶</span><span class="ib" style="opacity:.4">↷</span><span class="ib">⋮</span><span class="donebtn">✓ Done</span></div>`;
+const P=(cls,inner,cap,w)=>`<div><div class="${cls}"><div class="${w||'phone'}">${inner}</div></div><div class="cap" style="${w?'width:1280px':''}">${cap}</div></div>`;
+
+Object.assign(II,{
+ Bold:'<path d="M7 4.5h6a3.75 3.75 0 0 1 0 7.5H7z" stroke-width="2"/><path d="M7 12h7a4 4 0 0 1 0 8H7z" stroke-width="2"/>',
+ Italic:'<path d="M10.5 4.5h7" stroke-width="2"/><path d="M6.5 19.5h7" stroke-width="2"/><path d="M14 4.5l-4 15" stroke-width="2"/>',
+ FillColor:'<path d="M4.5 11.5h13.5l-5.9 5.9a1.5 1.5 0 0 1-2.1 0z" fill="currentColor" opacity=".35" stroke="none"/><path d="M11 3.5l7.5 7.5l-6.5 6.5a1.5 1.5 0 0 1-2.1 0l-5.4-5.4a1.5 1.5 0 0 1 0-2.1z" stroke-width="2"/><path d="M19.5 15.5c0 0-1.5 2-1.5 3a1.5 1.5 0 0 0 3 0c0-1-1.5-3-1.5-3z" stroke-width="2"/><path d="M4.5 11.5h13.5" stroke-width="1.6"/>',
+ ChangeCase:'<path d="M2.5 19L7.5 5l5 14" stroke-width="2"/><path d="M4.4 14h6.2" stroke-width="2"/><path d="M21.5 19v-6a2.8 2.8 0 0 0-5.2-1.4" stroke-width="2"/><path d="M21.5 15.4c-3.2-.5-6 0-6 1.9a1.9 1.9 0 0 0 3.5 1" stroke-width="2"/>',
+ Currency:'<path d="M2.5 6.5h19v11h-19z" stroke-width="2"/><path d="M12 9.5a2.5 2.5 0 1 0 0 5a2.5 2.5 0 1 0 0-5" stroke-width="2"/><path d="M5.5 9.5v5" stroke-width="1.6"/><path d="M18.5 9.5v5" stroke-width="1.6"/>',
+ FormatPainter:'<path d="M4.5 3.5h12v5h-12z" fill="currentColor" opacity=".35" stroke="none"/><path d="M4.5 3.5h12v5h-12z" stroke-width="2"/><path d="M16.5 6h3v5h-8v3" stroke-width="2"/><path d="M10 14h3v6.5h-3z" stroke-width="2"/>',
+ SelectAll:'<path d="M3.5 7V3.5H7" stroke-width="2"/><path d="M17 3.5h3.5V7" stroke-width="2"/><path d="M20.5 17v3.5H17" stroke-width="2"/><path d="M7 20.5H3.5V17" stroke-width="2"/><path d="M7.5 7.5h9v9h-9z" stroke-width="1.6"/><path d="M7.5 12h9" stroke-width="1.6"/><path d="M12 7.5v9" stroke-width="1.6"/>',
+ GoTo:'<path d="M14.5 9.5h6v5h-6z" fill="currentColor" opacity=".35" stroke="none"/><path d="M3 12h10" stroke-width="2"/><path d="M9.5 8.5L13 12l-3.5 3.5" stroke-width="2"/><path d="M14.5 4.5h6v15h-6z" stroke-width="1.6"/>',
+ Random:'<path d="M4.5 4.5h15v15h-15z" stroke-width="2"/><path d="M7 8.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0z" fill="currentColor" stroke="none"/><path d="M10.5 12a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0z" fill="currentColor" stroke="none"/><path d="M14 15.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0z" fill="currentColor" stroke="none"/>',
+ Shuffle:'<path d="M3 7h3.5c4.5 0 6.5 10 11 10H21" stroke-width="2"/><path d="M3 17h3.5c1.8 0 3.1-1.6 4.2-3.5" stroke-width="2"/><path d="M13.3 10.5c1.1-1.9 2.4-3.5 4.2-3.5H21" stroke-width="2"/><path d="M18.5 4.5L21 7l-2.5 2.5" stroke-width="2"/><path d="M18.5 14.5L21 17l-2.5 2.5" stroke-width="2"/>',
+ Reverse:'<path d="M7.5 20V4" stroke-width="2"/><path d="M4.5 7l3-3l3 3" stroke-width="2"/><path d="M16.5 4v16" stroke-width="2"/><path d="M13.5 17l3 3l3-3" stroke-width="2"/>',
+ FillBlanks:'<path d="M5 15.5h9v5H5z" fill="currentColor" opacity=".35" stroke="none"/><path d="M5 3.5h9v5H5z" stroke-width="2"/><path d="M18.5 6v10" stroke-width="2"/><path d="M16 13.5l2.5 2.5l2.5-2.5" stroke-width="2"/><path d="M5 15.5h9v5H5z" stroke-width="1.6"/>',
+ TextToNumber:'<path d="M3.5 6.5v3" stroke-width="2"/><path d="M6.5 6.5v3" stroke-width="2"/><path d="M13 12h4" stroke-width="2"/><path d="M15.5 10l2 2l-2 2" stroke-width="2"/><path d="M2.5 15.5h8v5h-8z" stroke-width="1.6"/><path d="M19 6a1 1 0 1 0 2 0a1 1 0 1 0-2 0z" fill="currentColor" stroke="none"/>',
+ Unique:'<path d="M4 5h4" stroke-width="2"/><path d="M4 10h4" stroke-width="2"/><path d="M4 15h4" stroke-width="2"/><path d="M4 20h4" stroke-width="2"/><path d="M12 12h3" stroke-width="2"/><path d="M13.5 10.5L15 12l-1.5 1.5" stroke-width="2"/><path d="M17 5h4v14h-4z" stroke-width="1.6"/>',
+ NewColumn:'<path d="M14.5 3.5h6v17h-6z" stroke-width="2"/><path d="M8.5 12h4" stroke-width="2"/><path d="M11 9.5l2 2.5l-2 2.5" stroke-width="2"/><path d="M3.5 3.5h4v17h-4z" stroke-width="1.6"/><path d="M14.5 9h6" stroke-width="1.6"/><path d="M14.5 14.5h6" stroke-width="1.6"/>',
+ ToValues:'<path d="M18 8.5h3.5v7H18z" fill="currentColor" opacity=".35" stroke="none"/><path d="M8.5 4c-2-.5-3.2.5-3.2 2.6V16" stroke-width="2"/><path d="M3 9h5" stroke-width="2"/><path d="M12 12h4" stroke-width="2"/><path d="M14.5 10l2 2l-2 2" stroke-width="2"/>',
+ HideColumn:'<path d="M3.5 3.5l17 17" stroke-width="2"/><path d="M8 3.5h8v17H8z" stroke-width="1.6"/>',
+ UnhideColumns:'<path d="M12 4v16" stroke-width="2"/><path d="M3.5 12h5" stroke-width="2"/><path d="M6 9.5L3.5 12L6 14.5" stroke-width="2"/><path d="M20.5 12h-5" stroke-width="2"/><path d="M18 9.5l2.5 2.5l-2.5 2.5" stroke-width="2"/>',
+ Today:'<path d="M4.5 6h15v14.5h-15z" stroke-width="2"/><path d="M8 3.5v4" stroke-width="2"/><path d="M16 3.5v4" stroke-width="2"/><path d="M4.5 10.5h15" stroke-width="1.6"/><path d="M13.5 14h3v3h-3z" fill="currentColor" stroke="none"/>'
+});
+const strip=(tab,body,dark)=>`<div class="${dark?'dark':'light'}" style="background:none;padding:0"><div class="strip">${tabs(tab)}<div class="ribbon" style="padding-top:8px">${body}</div></div></div>`;
+const S2=(...x)=>`<div class="smcol">${x.join('')}</div>`;
+const home=G('Clipboard',L('paste','Paste',{dd:1})+S2(Sm('cut','Cut'),Sm('copy','Copy'),Sm('FormatPainter','Format Painter',{cls:'on'})))+SEP+
+ G('Font',S2(Sm('Bold','Bold',{cls:'on'}),Sm('Italic','Italic'))+S2(Sm('FillColor','Fill color',{dd:1}),Sm('ChangeCase','Change case',{dd:1})))+SEP+
+ G('Alignment',S2(Sm('al','Left'),Sm('ac','Center'),Sm('ar','Right',{cls:'on'})))+SEP+
+ G('Number',L('n123','Format',{dd:1})+S2(Sm('Currency','Currency',{dd:1,cls:'on'}),Sm('pct','Percent'),Sm('less','Fewer'))+S2(Sm('more','More')),1)+SEP+
+ G('Styles',L('cf','Conditional',{dd:1}))+SEP+G('Cells',L('ins','Insert',{dd:1})+L('del','Delete',{dd:1}))+SEP+
+ G('Editing',L('sum','AutoSum',{dd:1})+S2(Sm('series','Fill',{dd:1}),Sm('eraser','Clear',{dd:1}))+L('filter','Sort &amp; Filter',{dd:1})+L('find','Find &amp; Select',{dd:1}));
+const insert=G('Rows',L('ins','Row above')+L('ins','Row below')+S2(Sm('copy','Copy row')))+SEP+G('Columns',L('ins','Column')+S2(Sm('copy','Copy column'),Sm('less','Move left'),Sm('more','Move right')))+SEP+
+ G('Data',L('paste','Paste table')+L('Random','Random',{dd:1,cls:'open'})+S2(Sm('series','Series…'),Sm('num','1, 2, 3…')))+SEP+
+ G('Date &amp; time',L('Today','Today')+S2(Sm('date','Now'),Sm('date','=TODAY()')))+SEP+G('Function',L('fx','Insert function'));
+const formulas=G('Function Library',L('fx','Insert function')+L('sum','AutoSum',{dd:1})+S2(Sm('math','Math'),Sm('stat2','Statistics'),Sm('look','Lookup'))+S2(Sm('logic','Logical'),Sm('text','Text'),Sm('date','Date &amp; time'))+S2(Sm('money','Financial'),Sm('stat2','Distributions'),Sm('math','Engineering')),1)+SEP+
+ G('Formula Auditing',L('showf','Show formulas')+S2(Sm('fx','Fill formula down')))+SEP+G('Calculation',L('ToValues','Formulas to values'));
+const data=G('Sort &amp; Filter',S2(Sm('sortup','A → Z'),Sm('sortdn','Z → A'))+L('csort','Sort')+L('filter','Filter')+S2(Sm('eraser','Clear'),Sm('Shuffle','Randomize'),Sm('Reverse','Reverse')))+SEP+
+ G('Data Tools',L('t2c','Text to columns')+L('dedupe','Remove duplicates')+S2(Sm('trim','Trim'),Sm('trans','Empty rows'),Sm('trans','Transpose'))+S2(Sm('FillBlanks','Fill blanks'),Sm('TextToNumber','To numbers'),Sm('Unique','Unique')))+SEP+
+ G('Analysis',L('stat2','Insights')+L('stats','Statistics')+L('NewColumn','New column',{dd:1,cls:'open'}))+SEP+G('Share',S2(Sm('copy','Share CSV'),Sm('copy','Copy CSV')));
+const view=G('Show',L('showf','Formulas'))+SEP+G('Zoom',L('zout','Zoom out')+L('n123','100%',{cls:'on'})+L('zin','Zoom in'))+SEP+
+ G('Columns',L('HideColumn','Hide column')+L('UnhideColumns','Unhide (1)'))+SEP+G('Window',L('freeze','Freeze first column')+S2(Sm('GoTo','Go to'),Sm('SelectAll','Select all')));
+const row=document.getElementById('row');
+row.style.display='block';
+row.innerHTML=strip('Home',home)+strip('Insert',insert+`<div class="menu2" style="position:relative;display:none"></div>`)+strip('Formulas',formulas)+strip('Data',data)+strip('View',view);
+document.getElementById('row2').innerHTML='';
+document.title='ready';
+</script></body></html>
