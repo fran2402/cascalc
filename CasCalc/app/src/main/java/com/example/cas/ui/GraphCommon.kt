@@ -27,6 +27,8 @@ import androidx.compose.material.icons.automirrored.filled.FormatIndentIncrease
 import androidx.compose.material.icons.filled.MoreVert
 
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
 
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 
@@ -2006,6 +2008,10 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     // Excel's window: the ribbon folded away, formulas shown instead of values, the zoom, cells
     // copied or cut, and the dialogs for a custom sort, text to columns and inserting a function.
     var ribbonFolded by remember(f) { mutableStateOf(false) }
+    // On a phone: whether the formula bar has the keyboard, and the sheet with every command open.
+    var barFocused by remember(f) { mutableStateOf(false) }
+    var commandsOpen by remember(f) { mutableStateOf(false) }
+    val wideScreen = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 840
     var showFormulas by remember(f) { mutableStateOf(false) }
     var zoom by remember(f) { mutableStateOf(1f) }
     class Clip(val c0: Int, val r0: Int, val rows: List<List<String>>, val from: com.example.cas.graph.DataTable)
@@ -2376,7 +2382,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     val formulaBar: @Composable (Modifier) -> Unit = { m -> Column(m) {
         val sel = editing?.takeIf { (c, r) -> c in cells.indices && r < cells[c].size }
         // Arrow keys: move the selected cell without leaving the keyboard (down adds a row at the end).
-        if (sel != null) CellArrows(
+        if (sel != null && (wideScreen || barFocused)) CellArrows(
             onMove = { dc, dr ->
                 val (c, r) = sel
                 val nc = (c + dc).coerceIn(0, cells.size - 1)
@@ -2418,10 +2424,14 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                 editStart?.let { old -> if (r < cells[c].size && cells[c][r] != old) cells[c][r] = old }
             },
             onFunctions = { functionsOpen = "" },
+            onFocus = { barFocused = it },
+            keyboardSwitch = !wideScreen,
         )
     } }
-    // A cell picked: straight to typing in it, as tapping a cell did before.
-    androidx.compose.runtime.LaunchedEffect(editing) { if (editing != null) runCatching { barFocus.requestFocus() } }
+    // A cell picked: on a tablet straight to typing in it. On a phone, as in Excel and Sheets there,
+    // a tap only selects it (its toolbar shows) and a second tap types in it; moving on while
+    // typing (Next, the arrows) keeps the keyboard.
+    androidx.compose.runtime.LaunchedEffect(editing) { if (editing != null && (wideScreen || barFocused)) runCatching { barFocus.requestFocus() } }
     highlightFor?.takeIf { it in cells.indices }?.let { c ->
         val fmt = fmts.getOrElse(c) { com.example.cas.graph.ColumnFormat() }
         HighlightDialog(names[c].ifBlank { "Column ${c + 1}" }, fmt.highlight, onDismiss = { highlightFor = null }, onRemove = {
@@ -2547,6 +2557,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                     }
                     // The ribbon, as Excel's (on a phone, put away while the keyboard is up).
                     val keyboardUp = androidx.compose.foundation.layout.WindowInsets.ime.getBottom(density) > 0
+                    var phoneGroups: List<ToolGroup> = emptyList()
                     if (wide || !keyboardUp) {
                         val c = focusCol.coerceIn(0, maxOf(0, cells.size - 1))
                         val fmt = fmts.getOrElse(c) { com.example.cas.graph.ColumnFormat() }
@@ -2697,7 +2708,9 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                 ToolGroup("Window", listOf(TableTool(TableIcons.Freeze, "Freeze first column", on = frozen) { record(); frozen = !frozen })),
                             )
                         }
-                        TableRibbon(tab, { tab = it }, groups, wide, ribbonFolded, { ribbonFolded = it }, Modifier.padding(horizontal = 8.dp))
+                        // On a phone the commands go to the bar along the bottom instead, as in Excel and Sheets there.
+                        if (wide) TableRibbon(tab, { tab = it }, groups, wide, ribbonFolded, { ribbonFolded = it }, Modifier.padding(horizontal = 8.dp))
+                        else phoneGroups = groups
                     }
                     if (finding) FindBar(
                         query = query, onQuery = { query = it; matchAt = 0 }, replacement = replacement, onReplacement = { replacement = it },
@@ -2721,7 +2734,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
                     )
                     val sa = selA
-                    if (sa != null) {
+                    // (On a phone the floating selection toolbar does this, over the sheet.)
+                    if (sa != null && wide) {
                         // A picked range: its address and its numbers summed up, as a spreadsheet's status bar.
                         val sb = selB ?: sa
                         val sum = com.example.cas.graph.SheetTools.summary(current, sa.first, sa.second, sb.first, sb.second)
@@ -2834,7 +2848,9 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                             align = fmt.align, textScale = zoom,
                                             onTap = {
                                                 // With a range picked, a tap stretches it; otherwise it selects the cell to type in.
-                                                if (selA != null) selB = c to r else { editing = c to r; focusCol = c }
+                                                if (selA != null) selB = c to r
+                                                else if (here) scope.launch { runCatching { barFocus.requestFocus() } }
+                                                else { editing = c to r; focusCol = c }
                                             },
                                             onLongPress = { editing = null; selA = c to r; selB = c to r; focusCol = c },
                                         ) {}
@@ -2904,20 +2920,54 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     cells[c][r] = now.dropLast(typing!!.length) + name + "("
                                 }
                             }
-                            // The summary pill, bottom left: the picked range's numbers, else the selected column's.
+                            // On a phone, with cells selected and no keyboard: the floating toolbar for them, as Excel's and Sheets' menu over a selection.
+                            val picked = if (!wide && !keyboardUp) target() else null
+                            if (picked != null) {
+                                val single = picked[0] == picked[2] && picked[1] == picked[3]
+                                val address = com.example.cas.graph.Sheet.columnName(picked[0]) + (picked[1] + 1) +
+                                    if (single) "" else ":" + com.example.cas.graph.Sheet.columnName(picked[2]) + (picked[3] + 1)
+                                val rowsPicked = picked[3] - picked[1] + 1
+                                val colsPicked = picked[2] - picked[0] + 1
+                                SelectionToolbar(
+                                    address = address,
+                                    onEdit = if (single) ({ scope.launch { runCatching { barFocus.requestFocus() } } }) else null,
+                                    onCut = { copyCells(cut = true) }, onCopy = { copyCells(cut = false) }, onPaste = { pasteCells(values = false) },
+                                    onClear = { clear(contents = true, formats = false) },
+                                    insert = listOf(
+                                        "Row above" to { insertRow(picked[1]) },
+                                        "Row below" to { insertRow(picked[3] + 1) },
+                                        "Column" to { addColumn(); scope.launch { across.animateScrollTo(across.maxValue + 10_000) } },
+                                    ),
+                                    delete = listOfNotNull(
+                                        if (rows > rowsPicked) (if (rowsPicked == 1) "Row ${picked[1] + 1}" else "Rows ${picked[1] + 1} to ${picked[3] + 1}") to {
+                                            selA = null; selB = null; editing = null
+                                            for (r in picked[3] downTo picked[1]) removeRow(r)
+                                        } else null,
+                                        if (cells.size > colsPicked) (if (colsPicked == 1) "Column ${com.example.cas.graph.Sheet.columnName(picked[0])}" else "Columns ${com.example.cas.graph.Sheet.columnName(picked[0])} to ${com.example.cas.graph.Sheet.columnName(picked[2])}") to {
+                                            selA = null; selB = null; editing = null
+                                            for (c in picked[2] downTo picked[0]) removeColumn(c)
+                                            focusCol = focusCol.coerceAtMost(cells.size - 1)
+                                        } else null,
+                                    ).ifEmpty { listOf("Nothing to delete" to {}) },
+                                    onClose = { selA = null; selB = null; editing = null },
+                                    modifier = Modifier.align(Alignment.BottomCenter).padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                                )
+                            }
+                            // The summary pill, bottom left (over the toolbar when it shows): the picked range's numbers, else the selected column's.
                             val pa = selA
+                            val pillBottom = if (picked != null) 88.dp else 24.dp
                             if (wide) Unit
                             else if (pa != null) {
                                 val pb = selB ?: pa
                                 StatusPill("", com.example.cas.graph.SheetTools.summary(current, pa.first, pa.second, pb.first, pb.second), all = wide,
-                                    Modifier.align(Alignment.BottomStart).padding(start = if (wide) 32.dp else 20.dp, bottom = 24.dp))
+                                    Modifier.align(Alignment.BottomStart).padding(start = 20.dp, bottom = pillBottom))
                             } else if (cells.isNotEmpty() && rows > 0) {
                                 val c = focusCol.coerceIn(0, cells.size - 1)
                                 StatusPill(com.example.cas.graph.Sheet.columnName(c), com.example.cas.graph.SheetTools.summary(current, c, 0, c, rows - 1), all = wide,
-                                    Modifier.align(Alignment.BottomStart).padding(start = if (wide) 32.dp else 20.dp, bottom = 24.dp))
+                                    Modifier.align(Alignment.BottomStart).padding(start = 20.dp, bottom = pillBottom))
                             }
-                            // One button, bottom right: + opens to add a row or a column, or paste.
-                            Box(Modifier.align(Alignment.BottomEnd).padding(end = if (wide) 32.dp else 24.dp, bottom = 20.dp)) {
+                            // One button, bottom right: + opens to add a row or a column, or paste (on a phone the selection's toolbar takes its place).
+                            if (picked == null) Box(Modifier.align(Alignment.BottomEnd).padding(end = if (wide) 32.dp else 24.dp, bottom = 20.dp)) {
                                 FabMenu(
                                     listOf(
                                         FabItem("Row", Icons.Default.TableRows, "Add a row") {
@@ -2935,8 +2985,11 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                             }
                         }
                     }
-                    // On a phone the formula bar is at the bottom, in reach of a thumb and just over the keyboard.
-                    if (!wide) formulaBar(Modifier.padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = 8.dp))
+                    // On a phone the formula bar is at the bottom, in reach of a thumb and just over the keyboard,
+                    // and under it (with the keyboard down) the commands, as Excel's bar there.
+                    if (!wide) formulaBar(Modifier.padding(start = 10.dp, end = 10.dp, top = 6.dp, bottom = if (keyboardUp) 8.dp else 4.dp))
+                    if (!wide && !keyboardUp) PhoneCommandBar(tab, { tab = it }, phoneGroups, onExpand = { commandsOpen = true }, Modifier.padding(start = 10.dp, end = 10.dp, bottom = 8.dp))
+                    if (!wide && commandsOpen) TableCommandSheet(tab, { tab = it }, phoneGroups, onDismiss = { commandsOpen = false })
                 }
             }
         }
@@ -4311,6 +4364,187 @@ private fun RibbonButton(t: TableTool, large: Boolean, height: androidx.compose.
 }
 
 /**
+ * The data table's commands on a phone, as Excel and Sheets put them there: no ribbon, but a bar
+ * along the bottom in reach of a thumb, with the tab picked from a menu (Home ▾) and that tab's
+ * commands as a row of icons that scrolls sideways; ⌃ opens them all as a list ([TableCommandSheet]).
+ */
+@Composable
+internal fun PhoneCommandBar(tab: TableTab, onTab: (TableTab) -> Unit, groups: List<ToolGroup>, onExpand: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    val tap = rememberKeyTap()
+    Row(
+        modifier.fillMaxWidth().height(60.dp).clip(RoundedCornerShape(30.dp)).background(colors.surfaceContainerHigh).padding(horizontal = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // The tab, as Excel's "Home ▾": a menu of the others.
+        var tabs by remember { mutableStateOf(false) }
+        Box {
+            Row(
+                Modifier.height(44.dp).clip(RoundedCornerShape(22.dp)).background(colors.secondaryContainer)
+                    .clickable(onClickLabel = tr("Pick a tab")) { tap(); tabs = true }.padding(start = 14.dp, end = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(tr(tab.label), style = MaterialTheme.typography.labelLarge, color = colors.onSecondaryContainer, maxLines = 1)
+                Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.onSecondaryContainer)
+            }
+            DropdownMenu(expanded = tabs, onDismissRequest = { tabs = false }, shape = RoundedCornerShape(16.dp)) {
+                TableTab.entries.forEach { t ->
+                    DropdownMenuItem(
+                        text = { Text(tr(t.label), color = if (t == tab) colors.primary else colors.onSurface) },
+                        trailingIcon = if (t == tab) ({ Icon(Icons.Default.Check, contentDescription = null, tint = colors.primary) }) else null,
+                        onClick = { tabs = false; onTab(t) },
+                    )
+                }
+            }
+        }
+        // The tab's commands as icons, a thin line between groups.
+        Row(Modifier.weight(1f).padding(horizontal = 4.dp).horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+            groups.forEachIndexed { k, g ->
+                if (k > 0) Box(Modifier.padding(horizontal = 4.dp).width(1.dp).height(24.dp).background(colors.outlineVariant))
+                g.tools.forEach { t -> CommandIcon(t) }
+            }
+        }
+        // ⌃: every command of the tab, with names, in a sheet.
+        Box(
+            Modifier.size(44.dp).clip(CircleShape).background(colors.primary).clickable(onClickLabel = tr("All commands")) { tap(); onExpand() },
+            contentAlignment = Alignment.Center,
+        ) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = tr("All commands"), tint = colors.onPrimary) }
+    }
+}
+
+/** One command on the phone's bar: just its icon (its name for TalkBack), a menu under it if it has one. */
+@Composable
+private fun CommandIcon(t: TableTool) {
+    val colors = MaterialTheme.colorScheme
+    val tap = rememberKeyTap()
+    var menuOpen by remember { mutableStateOf(false) }
+    val corner by androidx.compose.animation.core.animateDpAsState(if (t.on || menuOpen) 12.dp else 22.dp, label = "command corner")
+    Box {
+        Box(
+            Modifier.size(44.dp).clip(RoundedCornerShape(corner))
+                .background(if (t.on) colors.secondaryContainer else if (menuOpen) colors.surfaceContainerHighest else Color.Transparent)
+                .clickable(enabled = t.enabled, onClickLabel = tr(t.label)) { tap(); if (t.menu != null) menuOpen = true else t.action() }
+                .semantics { contentDescription = tr(t.label); if (t.on) stateDescription = "on" },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(t.icon, contentDescription = null, modifier = Modifier.size(22.dp),
+                tint = if (!t.enabled) colors.onSurface.copy(alpha = 0.38f) else if (t.on) colors.onSecondaryContainer else colors.onSurfaceVariant)
+            if (t.menu != null) Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.outline,
+                modifier = Modifier.align(Alignment.BottomEnd).size(14.dp))
+        }
+        t.menu?.let { items ->
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, shape = RoundedCornerShape(16.dp)) {
+                Text(tr(t.label), style = MaterialTheme.typography.labelMedium, color = colors.primary, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+                items.forEach { (label, act) -> DropdownMenuItem(text = { Text(tr(label)) }, onClick = { menuOpen = false; act() }) }
+            }
+        }
+    }
+}
+
+/**
+ * Every command of a tab as a list, as Excel's ribbon opens on a phone: the tabs as chips at the
+ * top, then each group under its name, a row per command (its icon, name, ✓ if it's on, › if it
+ * opens a menu); a menu opens in place, with ← back.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+internal fun TableCommandSheet(tab: TableTab, onTab: (TableTab) -> Unit, groups: List<ToolGroup>, onDismiss: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val tap = rememberKeyTap()
+    var menu by remember { mutableStateOf<TableTool?>(null) }
+    // Rebuilt with the table, so the open menu is looked up by its name each time.
+    val open = menu?.let { m -> groups.flatMap { it.tools }.firstOrNull { it.label == m.label && it.menu != null } }
+    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerLow) {
+        Column(Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+            if (open == null) {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    TableTab.entries.forEach { t -> FilterChip(selected = t == tab, onClick = { tap(); onTab(t) }, label = { Text(tr(t.label)) }) }
+                }
+                androidx.compose.foundation.lazy.LazyColumn(Modifier.fillMaxWidth().heightIn(max = 520.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+                    groups.forEach { g ->
+                        item(key = "label " + g.label) {
+                            Text(tr(g.label), style = MaterialTheme.typography.labelLarge, color = colors.primary, modifier = Modifier.padding(start = 12.dp, top = 12.dp, bottom = 4.dp))
+                        }
+                        item(key = "group " + g.label) {
+                            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainer)) {
+                                g.tools.forEach { t ->
+                                    CommandRow(t.icon, t.label, on = t.on, enabled = t.enabled, opens = t.menu != null) {
+                                        if (t.menu != null) menu = t else { onDismiss(); t.action() }
+                                    }
+                                }
+                                g.launcher?.let { more -> CommandRow(TableIcons.Launcher, tr("More {0} options", tr(g.label)), opens = true) { onDismiss(); more() } }
+                            }
+                        }
+                    }
+                }
+            } else {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { menu = null }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Back")) }
+                    Icon(open.icon, contentDescription = null, tint = colors.primary, modifier = Modifier.size(22.dp))
+                    Text(tr(open.label), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 10.dp))
+                }
+                Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp).clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainer)) {
+                    open.menu!!.forEach { (label, act) -> CommandRow(null, label) { onDismiss(); act() } }
+                }
+            }
+        }
+    }
+}
+
+/** A row in [TableCommandSheet]: icon, name, and ✓ or ›. */
+@Composable
+private fun CommandRow(icon: androidx.compose.ui.graphics.vector.ImageVector?, label: String, on: Boolean = false, enabled: Boolean = true, opens: Boolean = false, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val tap = rememberKeyTap()
+    val ink = if (enabled) colors.onSurface else colors.onSurface.copy(alpha = 0.38f)
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 52.dp).clickable(enabled = enabled) { tap(); onClick() }.padding(horizontal = 12.dp)
+            .semantics { if (on) stateDescription = "on" },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (icon != null) Box(
+            Modifier.size(36.dp).clip(RoundedCornerShape(if (on) 10.dp else 18.dp)).background(if (on) colors.secondaryContainer else colors.surfaceContainerHighest),
+            contentAlignment = Alignment.Center,
+        ) { Icon(icon, contentDescription = null, tint = if (!enabled) ink else if (on) colors.onSecondaryContainer else colors.primary, modifier = Modifier.size(20.dp)) }
+        Text(tr(label), style = MaterialTheme.typography.bodyLarge, color = ink, modifier = Modifier.weight(1f).padding(start = if (icon != null) 14.dp else 4.dp))
+        if (on) Icon(Icons.Default.Check, contentDescription = null, tint = colors.primary)
+        else if (opens) Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.onSurfaceVariant)
+    }
+}
+
+/**
+ * What to do with the selected cells, as the floating menu Excel and Sheets show over a selection
+ * on a phone, in Material 3 Expressive's floating toolbar: the address, Edit (one cell), Cut, Copy,
+ * Paste, Clear, Insert ▾ and Delete ▾, and ✕ to let go.
+ */
+@Composable
+internal fun SelectionToolbar(
+    address: String, onEdit: (() -> Unit)?, onCut: () -> Unit, onCopy: () -> Unit, onPaste: () -> Unit, onClear: () -> Unit,
+    insert: List<Pair<String, () -> Unit>>, delete: List<Pair<String, () -> Unit>>, onClose: () -> Unit, modifier: Modifier = Modifier,
+) {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        modifier.height(60.dp).shadow(8.dp, RoundedCornerShape(30.dp)).clip(RoundedCornerShape(30.dp)).background(colors.surfaceContainerHighest)
+            .horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.height(40.dp).clip(RoundedCornerShape(20.dp)).background(colors.primaryContainer).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
+            Text(address, style = MaterialTheme.typography.labelLarge, color = colors.onPrimaryContainer, maxLines = 1)
+        }
+        Spacer(Modifier.width(4.dp))
+        onEdit?.let { CommandIcon(TableTool(Icons.Default.Edit, "Edit", action = it)) }
+        CommandIcon(TableTool(TableIcons.Cut, "Cut", action = onCut))
+        CommandIcon(TableTool(Icons.Default.ContentCopy, "Copy", action = onCopy))
+        CommandIcon(TableTool(Icons.Default.ContentPaste, "Paste", action = onPaste))
+        CommandIcon(TableTool(TableIcons.Eraser, "Clear", action = onClear))
+        CommandIcon(TableTool(TableIcons.InsertCells, "Insert", menu = insert))
+        CommandIcon(TableTool(TableIcons.DeleteCells, "Delete", menu = delete))
+        Box(Modifier.padding(horizontal = 4.dp).width(1.dp).height(24.dp).background(colors.outlineVariant))
+        CommandIcon(TableTool(Icons.Default.Close, "Stop selecting", action = onClose))
+    }
+}
+
+/**
  * The formula bar, as in Sheets and Excel: the selected cell's address in a pill, ƒx, and its
  * contents, typed in here (references in the colors their cells are outlined in). Next moves
  * down a row; $ anchors the reference just typed (F4). With no cell selected it says so.
@@ -4324,9 +4558,15 @@ internal fun FormulaBar(
     onGoTo: (String) -> Boolean = { false },
     /** ✕ puts the cell back as it was; ✓ finishes typing; ƒx opens Insert Function. */
     onCancel: () -> Unit = {}, onCommit: () -> Unit = {}, onFunctions: () -> Unit = {},
+    /** Whether the contents field has the keyboard, for the table to know it's being typed in. */
+    onFocus: (Boolean) -> Unit = {},
+    /** A switch between the number pad and the whole keyboard while typing, as Numbers has on a phone. */
+    keyboardSwitch: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
     var focused by remember { mutableStateOf(false) }
+    var numberPad by remember { mutableStateOf(false) }
+    var refocus by remember { mutableStateOf(false) }
     // The Name Box being typed in (Excel's Go To), and whether the last address was wrong.
     var naming by remember { mutableStateOf(false) }
     var nameText by remember { mutableStateOf("") }
@@ -4374,7 +4614,10 @@ internal fun FormulaBar(
             modifier = Modifier.clip(CircleShape).clickable(onClickLabel = tr("Insert a function")) { onFunctions() }.padding(horizontal = 10.dp, vertical = 6.dp))
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
             if (address == null) Text(tr("Tap a cell to type in it"), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
-            else androidx.compose.foundation.text.BasicTextField(
+            // A new field for each keyboard, so the switch takes at once; it keeps the keyboard.
+            else androidx.compose.runtime.key(numberPad) {
+            androidx.compose.runtime.LaunchedEffect(Unit) { if (refocus) { refocus = false; runCatching { focus.requestFocus() } } }
+            androidx.compose.foundation.text.BasicTextField(
                 value = value,
                 onValueChange = { value = it; if (it.text != text) onChange(it.text) },
                 singleLine = true,
@@ -4382,8 +4625,8 @@ internal fun FormulaBar(
                 cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.primary),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                     // The whole keyboard (letters too: words, units, a formula's =), not just a number pad.
-                    keyboardType = if (formulas) androidx.compose.ui.text.input.KeyboardType.Ascii else androidx.compose.ui.text.input.KeyboardType.Text,
-                    capitalization = if (formulas) androidx.compose.ui.text.input.KeyboardCapitalization.Characters else androidx.compose.ui.text.input.KeyboardCapitalization.None,
+                    keyboardType = if (numberPad) androidx.compose.ui.text.input.KeyboardType.Decimal else if (formulas) androidx.compose.ui.text.input.KeyboardType.Ascii else androidx.compose.ui.text.input.KeyboardType.Text,
+                    capitalization = if (formulas && !numberPad) androidx.compose.ui.text.input.KeyboardCapitalization.Characters else androidx.compose.ui.text.input.KeyboardCapitalization.None,
                     imeAction = androidx.compose.ui.text.input.ImeAction.Next,
                 ),
                 keyboardActions = androidx.compose.foundation.text.KeyboardActions(onNext = { onNext() }),
@@ -4396,9 +4639,16 @@ internal fun FormulaBar(
                     }
                     androidx.compose.ui.text.input.TransformedText(styled, androidx.compose.ui.text.input.OffsetMapping.Identity)
                 },
-                modifier = Modifier.fillMaxWidth().focusRequester(focus).onFocusChanged { focused = it.isFocused }.semantics { contentDescription = "Contents of $address" },
+                modifier = Modifier.fillMaxWidth().focusRequester(focus).onFocusChanged { focused = it.isFocused; onFocus(it.isFocused) }.semantics { contentDescription = "Contents of $address" },
             )
+            }
         }
+        // 123 / abc: the number pad or the whole keyboard (letters, =, units).
+        if (keyboardSwitch && focused && address != null) Box(
+            Modifier.height(36.dp).widthIn(min = 44.dp).clip(RoundedCornerShape(12.dp)).background(colors.surfaceContainerHighest)
+                .clickable(onClickLabel = tr(if (numberPad) "Show the whole keyboard" else "Show the number pad")) { refocus = true; numberPad = !numberPad }.padding(horizontal = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) { Text(if (numberPad) "abc" else "123", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant) }
         // The reference just typed, anchored the next way round ($A$1, A$1, $A1, A1).
         if (anchored != null) Box(
             Modifier.size(38.dp).clip(CircleShape).background(colors.secondaryContainer).clickable(onClickLabel = tr("Anchor the reference with \$")) { onAnchor() },

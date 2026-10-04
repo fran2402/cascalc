@@ -313,6 +313,8 @@ Show only the rows where this column…
 Value	
 Apply	
 More {0} options	
+Pick a tab	
+All commands	
 Go to a cell	
 Cancel the change	
 Enter	
@@ -602,6 +604,8 @@ Change the filter…
 Filter…	
 Show the ribbon	
 Fold the ribbon away	
+Show the whole keyboard	
+Show the number pad	
 Sort by	
 Then by	
 Largest first	
@@ -677,6 +681,7 @@ Show
 Formulas	
 Window	
 Freeze first column	
+Edit	
 Cell to the left	
 Cell above	
 Cell below	

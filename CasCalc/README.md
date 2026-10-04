@@ -203,6 +203,18 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, the data table on a phone)
+- **No ribbon on a phone:** like Excel, Sheets and Numbers there, the commands sit in a bar
+  along the bottom. Home ▾ picks the tab from a menu, its commands are a row of icons that scrolls
+  sideways, and ⌃ opens them all as a list by group, where a menu opens in place with ← back.
+  The tablet keeps the full ribbon.
+- **Floating toolbar over a selection:** one tap selects a cell without the keyboard (a second tap,
+  the formula bar or Edit types in it), and a Material 3 Expressive floating toolbar offers Edit,
+  Cut, Copy, Paste, Clear, Insert ▾ (row above or below, column) and Delete ▾ (the selection's rows
+  or columns).
+- **123 / abc:** while typing on a phone, switch between the number pad and the whole keyboard.
+  (Mockup: `preview-render/round44.png`.)
+
 ## Latest changes (4 October, Excel-style ribbon)
 - **The ribbon, as in Excel:** text tabs (Home, Insert, Formulas, Data, View) with a sliding
   underline; groups of large buttons with small ones stacked beside them, ▾ split buttons,
