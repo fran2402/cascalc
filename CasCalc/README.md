@@ -203,6 +203,16 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October)
+- **Phones:** the keyboard button also hides the graph. While the graph is hidden, every line
+  shows in a scrolling list, not just the one being edited.
+- **Cursor:** the arrow keys stop at a line's start and end, and keep the cursor in view there.
+  They pass over empty sub- and superscripts, which aren't drawn.
+- **Backspace:** between an empty ( ) or [ ], both brackets go at once.
+- **Data tables:** a $ button under a formula ending in a reference cycles it through A1, $A$1,
+  A$1 and $A1, as Excel's F4 does. Filling keeps the $-fixed row or column. The docs explain
+  mixed references.
+
 ## Latest changes (3 October, fixes)
 - **Dragging points works again:** free points, points on paths, slider points and an area's
   edges can be dragged again (a check meant for the construct rail had stopped every drag).

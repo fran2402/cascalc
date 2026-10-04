@@ -867,12 +867,13 @@ fun FunctionList(vm: GraphViewModel, outputLabel: String, modifier: Modifier = M
     // While a line is being edited only that line shows, unless the keypad is hidden: then the
     // whole list is back, as it is after Enter. On a tablet the whole list always shows, in a
     // column of its own beside the keyboard.
-    val editingNow = editing?.takeIf { !vm.keypadHidden && !tablet }
+    // While typing with the graph away (a phone), every line shows, in a list that scrolls.
+    val editingNow = editing?.takeIf { !vm.keypadHidden && !tablet && !vm.typingFocus }
     val shown = if (editingNow != null) listOf(editingNow) else vm.functions.toList()
     Column(
         modifier
             .fillMaxWidth()
-            .then(if (tablet) Modifier.fillMaxHeight() else Modifier.heightIn(max = if (editingNow != null) 200.dp else 280.dp))
+            .then(if (tablet || vm.typingFocus) Modifier.fillMaxHeight() else Modifier.heightIn(max = if (editingNow != null) 200.dp else 280.dp))
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -1785,7 +1786,8 @@ fun GraphBottomBar(
         // After + and the file button; tablets always show the keyboard, so never there.
         if (vm.active != null && vm.keypadHidden && !isTabletLayout()) {
             Spacer(Modifier.width(8.dp))
-            ShowKeypadButton(onClick = { vm.keypadHidden = false })
+            // The keyboard back, and (on a phone) the graph steps aside for typing.
+            ShowKeypadButton(onClick = { vm.keypadHidden = false; vm.typingFocus = true })
         }
         Spacer(Modifier.weight(1f))
         if (tools != null) ExpressiveToolbar(content = tools)
@@ -2244,6 +2246,13 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                 // While a function's name is typed in a formula: matching functions, one tap to use.
                                 val typing = editText?.let { com.example.cas.graph.Sheet.typingName(it) }
                                 val matches = remember(typing) { typing?.let { com.example.cas.graph.Sheet.suggestions(it) }.orEmpty() }
+                                // A formula ending in a reference: one button anchors it with $ (A1, $A$1, A$1, $A1), as F4 does in Excel.
+                                val anchored = if (formulas && editText != null && matches.isEmpty()) com.example.cas.graph.Sheet.cycleAnchor(editText) else null
+                                if (anchored != null) AnchorBar(anchored) {
+                                    val (c, r) = editing ?: return@AnchorBar
+                                    if (typingRecorded != (c to r)) { record(); typingRecorded = c to r }
+                                    if (r < cells[c].size) cells[c][r] = anchored
+                                }
                                 if (formulas && matches.isNotEmpty()) FormulaSuggestions(matches) { name ->
                                     val (c, r) = editing ?: return@FormulaSuggestions
                                     val now = cells.getOrNull(c)?.getOrNull(r) ?: return@FormulaSuggestions
@@ -2322,6 +2331,26 @@ private fun FormulaSuggestions(names: List<String>, onPick: (String) -> Unit) {
                 )
             }
         }
+    }
+}
+
+/**
+ * Under a formula that ends in a reference: a button that anchors it with $ the next way
+ * round (shown as what it will become), so a fill keeps that row or column fixed.
+ */
+@Composable
+private fun AnchorBar(next: String, onAnchor: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val ref = Regex("""\$?[A-Za-z]{1,3}\$?\d+$""").find(next)?.value ?: return
+    Row(
+        Modifier.fillMaxWidth().background(colors.surfaceContainerHigh).padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            "$ → $ref", style = TextStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 14.sp, color = colors.onSecondaryContainer),
+            modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(colors.secondaryContainer).clickable(onClickLabel = "Anchor the reference as $ref", onClick = onAnchor).padding(horizontal = 12.dp, vertical = 8.dp),
+        )
+        Text("\$ keeps a column or row fixed when filling", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
     }
 }
 

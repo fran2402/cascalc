@@ -303,17 +303,23 @@ class Editor(initial: MathRow = MathRow()) {
 
     // ---- Cursor movement --------------------------------------------------
 
+    /** Slots the cursor can stop in: an empty sub- or superscript isn't drawn, so it's passed over. */
+    private fun stops(n: Node): List<MathRow> = if (n is Scripted) n.slots.filter { it === n.base || !it.isEmpty || it === row } else n.slots
+
     fun moveRight() {
         if (index < row.items.size) {
             val next = row.items[index]
-            if (next.slots.isNotEmpty()) { row = next.slots.first(); index = 0 } else index++
+            val slots = stops(next)
+            if (slots.isNotEmpty()) { row = slots.first(); index = 0 } else index++
         } else {
-            val parent = row.parent ?: return
-            val slotIndex = parent.slots.indexOf(row)
-            if (slotIndex < parent.slots.lastIndex) {
-                row = parent.slots[slotIndex + 1]; index = 0
+            // At the very end it stays there (the line is still told, so it scrolls the cursor into view).
+            val parent = row.parent ?: return changed()
+            val slots = stops(parent)
+            val slotIndex = slots.indexOf(row)
+            if (slotIndex in 0 until slots.lastIndex) {
+                row = slots[slotIndex + 1]; index = 0
             } else {
-                val outer = parent.parent!!
+                val outer = parent.parent ?: return changed()
                 row = outer; index = outer.items.indexOf(parent) + 1
             }
         }
@@ -323,14 +329,17 @@ class Editor(initial: MathRow = MathRow()) {
     fun moveLeft() {
         if (index > 0) {
             val prev = row.items[index - 1]
-            if (prev.slots.isNotEmpty()) { row = prev.slots.last(); index = row.items.size } else index--
+            val slots = stops(prev)
+            if (slots.isNotEmpty()) { row = slots.last(); index = row.items.size } else index--
         } else {
-            val parent = row.parent ?: return
-            val slotIndex = parent.slots.indexOf(row)
+            // At the very start it stays there.
+            val parent = row.parent ?: return changed()
+            val slots = stops(parent)
+            val slotIndex = slots.indexOf(row)
             if (slotIndex > 0) {
-                row = parent.slots[slotIndex - 1]; index = row.items.size
+                row = slots[slotIndex - 1]; index = row.items.size
             } else {
-                val outer = parent.parent!!
+                val outer = parent.parent ?: return changed()
                 row = outer; index = outer.items.indexOf(parent)
             }
         }
@@ -394,6 +403,14 @@ class Editor(initial: MathRow = MathRow()) {
             // Step back past it instead: the template needs it.
             val prev = row.items[index - 1]
             if (prev is Func && prev.slots.isNotEmpty()) { row = prev.slots.last(); index = row.items.size } else index--
+            changed()
+            return
+        }
+        // Between an empty pair of brackets, ( ) or [ ]: both go, as the whole (empty) element.
+        val before = (row.items.getOrNull(index - 1) as? Sym)?.text
+        val after = (row.items.getOrNull(index) as? Sym)?.text
+        if ((before == "(" && after == ")") || (before == "[" && after == "]")) {
+            row.removeAt(index); row.removeAt(index - 1); index--
             changed()
             return
         }

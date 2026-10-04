@@ -1592,6 +1592,24 @@ object Sheet {
             "$colFixed$c$rowFixed$r"
         }
 
+    /**
+     * The reference at the end of [formula] anchored one step further, as Excel's F4 does:
+     * A1 → $A$1 (both fixed) → A$1 (row fixed) → $A1 (column fixed) → A1. Null when the
+     * formula doesn't end in a cell reference.
+     */
+    fun cycleAnchor(formula: String): String? {
+        val m = Regex("""(?<![A-Za-z0-9.$])(\$?)([A-Za-z]{1,3})(\$?)(\d+)$""").find(formula) ?: return null
+        if (formula.substring(0, m.range.first).count { it == '"' } % 2 == 1) return null
+        val (colFixed, col, rowFixed, row) = m.destructured
+        val next = when {
+            colFixed.isEmpty() && rowFixed.isEmpty() -> "$" + col + "$" + row
+            colFixed.isNotEmpty() && rowFixed.isNotEmpty() -> col + "$" + row
+            rowFixed.isNotEmpty() -> "$" + col + row
+            else -> col + row
+        }
+        return formula.substring(0, m.range.first) + next
+    }
+
     /** Every function's name, for suggestions while typing a formula. */
     val NAMES: List<String> = listOf(
         "ABS", "ACOS", "ACOSH", "ACOT", "ACOTH", "ADDRESS", "AGGREGATE", "AND", "ARABIC", "ASIN", "ASINH", "ATAN", "ATAN2", "ATANH", "AVEDEV",

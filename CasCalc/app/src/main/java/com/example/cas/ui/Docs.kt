@@ -530,6 +530,7 @@ object Docs {
                 section(
                     "Spreadsheet formulas (beta)",
                     para("With Spreadsheet formulas on (Settings › Calculator), columns are lettered A, B, C… and a cell starting with = is worked out, as in Excel: =B1*2, =SUM(A:A), =IF(A1>0, A1, 0)."),
+                    para("Dragging the fill handle copies a formula and moves its references with it. A \\\$ fixes a part: \\\$A\\\$1 stays put, A\\\$1 keeps its row while the column changes, and \\\$A1 keeps its column while the row changes. While typing, the \\\$ button under the cell anchors the reference you just typed the next way round, as Excel's F4 does."),
                     bullets(
                         "References: A1 a cell, A1:B10 a range, A:A a whole column; \$A\$1 stays put when copied.",
                         "While typing a formula, the cells it uses are outlined in color, and matching functions are suggested above the keyboard.",

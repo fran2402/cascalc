@@ -377,7 +377,8 @@ private fun Cursor(modifier: Modifier) {
     // Scrolls a long line (in the calculator or a graph's list) so the cursor stays in sight,
     // with a little room either side, whenever it moves or the line changes.
     val bring = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }
-    val room = with(LocalDensity.current) { 24.dp.toPx() }
+    // (Inside the margins lines keep either side, so the request never reaches past the line.)
+    val room = with(LocalDensity.current) { 12.dp.toPx() }
     var height by remember { androidx.compose.runtime.mutableIntStateOf(1) }
     androidx.compose.runtime.LaunchedEffect(env.cursorRow, env.cursorIndex, env.version) {
         // After the layout that moved it.
