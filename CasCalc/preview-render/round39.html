@@ -1,0 +1,184 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:NCMR;src:url(../app/src/main/res/font/ncm_roman.otf)}
+@font-face{font-family:NCMI;src:url(../app/src/main/res/font/ncm_latin_italic.otf)}
+@font-face{font-family:NCMM;src:url(../app/src/main/res/font/ncm_math.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px;width:1900px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1600px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px;line-height:1.4}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--lowest:#fff;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sec:#5E6045;--onsec:#fff;--sc:#E2E4C4;--onsc:#1B1D0A;--ter:#3C6A5A;--onter:#fff;--tc:#BEECDB;--ontc:#002019;--outv:#C8C7B5;--out:#77786A;--err:#BA1A1A;--ec:#FFDAD6;--onec:#410002}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--lowest:#0D0F08;--c:#1F2018;--ch:#292A22;--chh:#34352C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sec:#C6C8A9;--onsec:#2F321B;--sc:#45483A;--onsc:#E2E4C4;--ter:#A2D0BF;--onter:#05372B;--tc:#214E41;--ontc:#BEECDB;--outv:#47473B;--out:#919283;--err:#FFB4AB;--ec:#93000A;--onec:#FFDAD6}
+.phone{position:relative;width:412px;height:900px;border-radius:44px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+
+.tsw{display:flex;gap:4px;background:var(--lowest);border-radius:26px;padding:5px;box-shadow:0 3px 10px rgba(0,0,0,.18)}
+.tsw span{width:40px;height:38px;border-radius:19px;display:flex;align-items:center;justify-content:center;color:var(--onv);font:18px GSF}
+.tsw span.on{width:auto;padding:0 14px;background:var(--pri);color:var(--onpri);font:500 14px GSF}
+.ttop{height:56px;display:flex;align-items:center;justify-content:center;position:relative}
+.tdots{position:absolute;right:18px;font:700 22px GSF;color:var(--onv)}
+.graph{position:relative;overflow:hidden;background:var(--bg)}
+.gtb{position:absolute;right:12px;bottom:12px;display:flex;background:var(--chh);border-radius:26px;padding:4px 6px;box-shadow:0 3px 10px rgba(0,0,0,.2)}.gtb span{width:38px;height:42px;display:flex;align-items:center;justify-content:center;color:var(--onv);font-size:18px}
+.gfab{position:absolute;left:12px;bottom:12px;width:50px;height:50px;border-radius:16px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;justify-content:center;font:26px GSF;box-shadow:0 3px 10px rgba(0,0,0,.25)}
+.gimp{position:absolute;left:70px;bottom:13px;width:48px;height:48px;border-radius:24px;background:var(--sc);color:var(--onsc);display:flex;align-items:center;justify-content:center;font:18px GSF}
+.cons{position:absolute;right:10px;top:10px;background:var(--sc);color:var(--onsc);border-radius:20px;padding:8px 14px;font:500 13px GSF}
+.list{background:var(--low);padding:6px 12px;display:flex;flex-direction:column;gap:6px;overflow:hidden}
+.ln{display:flex;align-items:center;background:var(--bg);border-radius:20px;min-height:56px;padding:4px 4px 4px 8px;gap:6px}
+.ln.act{outline:2px solid var(--pri)}
+.ldot{width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex:none}.ldot i{width:18px;height:18px;border-radius:9px;display:block}
+.lm{flex:1;font:22px CMR;white-space:nowrap;overflow:hidden;padding-left:6px}.lm em{font:22px CMI}.lm sup{font:15px CMR}
+.lval{font:15px CMR;color:var(--onv);margin:-2px 0 2px 56px}
+.lx{width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--onv);font:18px GSF;flex:none}
+.cur{display:inline-block;width:2px;height:26px;background:var(--pri);vertical-align:-5px;margin:0 1px}
+.slider{background:var(--bg);border-radius:20px;padding:10px 16px;display:flex;align-items:center;gap:12px;font:20px CMI}
+.track{flex:1;height:16px;border-radius:8px;background:var(--sc);position:relative}.track b{position:absolute;left:0;top:0;bottom:0;width:62%;border-radius:8px;background:var(--pri)}.track i{position:absolute;left:61%;top:-8px;width:4px;height:32px;border-radius:2px;background:var(--pri)}
+.kpd{background:var(--low);padding:0 10px 10px}
+.handle{height:24px;display:flex;align-items:center;justify-content:center}.handle i{width:36px;height:4px;border-radius:2px;background:var(--onv);opacity:.4}
+.kbar{display:flex;align-items:center;gap:6px;height:46px}
+.seg{display:flex;border:1px solid var(--out);border-radius:20px;overflow:hidden}.seg span{padding:7px 14px;font:14px GSF}.seg span.on{background:var(--sc)}
+.arrow{width:40px;height:40px;border-radius:14px;background:var(--chh);display:flex;align-items:center;justify-content:center;font:18px GSF;margin-left:6px}
+.qv{display:flex;gap:6px;margin:4px 0 6px}.qv span{flex:1;height:34px;border-radius:12px;background:var(--ch);display:flex;align-items:center;justify-content:center;font:19px CMI}
+.ftab{display:flex;gap:4px;margin-bottom:6px}.ftab span{flex:1;height:34px;border-radius:17px;display:flex;align-items:center;justify-content:center;font:14px GSF;color:var(--onv)}.ftab span.on{background:var(--sc);color:var(--onsc)}
+.fk{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;background:var(--c);border-radius:22px;padding:8px;margin-bottom:8px}.fk span{height:38px;border-radius:19px;background:var(--chh);display:flex;align-items:center;justify-content:center;font:18px CMR}
+.nk{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.nk span{height:48px;border-radius:24px;background:var(--chh);display:flex;align-items:center;justify-content:center;font:22px GSF}.nk span.op{background:var(--sc)}.nk span.ent{background:#ffdcbd;color:#2c1600}
+.kbfab{position:absolute;right:16px;bottom:16px;width:48px;height:48px;border-radius:14px;background:var(--sc);color:var(--onsc);display:flex;align-items:center;justify-content:center;font:20px GSF;box-shadow:0 3px 10px rgba(0,0,0,.25)}
+.callout{position:absolute;background:#1f1f1a;color:#fff;font:500 13px/1.35 GSF;padding:8px 12px;border-radius:12px;max-width:220px;z-index:9;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.callout:after{content:"";position:absolute;width:10px;height:10px;background:#1f1f1a;transform:rotate(45deg)}
+.callout.down:after{bottom:-5px;left:24px}.callout.up:after{top:-5px;left:24px}.callout.upr:after{top:-5px;right:24px}
+.phone .status{padding:0 44px !important}.scard{position:absolute;top:10px;left:140px;right:140px;max-width:460px;margin:0 auto;background:var(--chh);border-radius:24px;padding:10px 8px 10px 14px;box-shadow:0 6px 18px rgba(0,0,0,.22);z-index:5}
+.srow{display:flex;align-items:center;gap:10px}
+.sic{width:36px;height:36px;border-radius:12px;background:var(--pc);display:flex;align-items:center;justify-content:center;flex:none}
+.status{height:32px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font:500 14px GSF}
+.step{display:flex;gap:14px}
+.st{flex:1;display:flex;flex-direction:column}
+.tonal{background:var(--sc);color:var(--onsc);border-radius:20px;padding:9px 14px;font:500 14px GSF}
+.dots{display:flex;gap:6px;margin:6px 0 0 46px}
+.instr{font:12.5px GSF;color:var(--onv);margin:4px 0 0 46px}
+.chips{display:flex;gap:6px;margin:8px 0 0 46px}
+.pal{position:absolute;left:10px;right:10px;bottom:76px;max-width:520px;margin:0 auto;background:var(--c);border-radius:28px;padding:10px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.tabs{display:flex;gap:6px;white-space:nowrap;overflow:hidden}
+.tablet{position:relative;width:1280px;height:800px;border-radius:36px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 12px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+.tile{background:var(--low);border-radius:18px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:4px;font:11.5px/1.15 GSF;text-align:center}
+.pal{position:static;margin:0;box-shadow:0 4px 12px rgba(0,0,0,.18)}
+.tile{height:70px;box-sizing:border-box;justify-content:flex-start}
+.tile svg{width:28px;height:28px}
+.tile.on{background:var(--pri);color:var(--onpri)}
+.scard{left:12px;right:12px;max-width:none}
+.lval2{font:15px CMR;color:var(--onv);margin:-4px 0 2px 56px}
+.badge3{position:absolute;right:10px;top:10px;background:var(--sc);color:var(--onsc);border-radius:20px;padding:8px 14px;font:500 13px GSF;display:flex;gap:6px;align-items:center}
+</style></head>
+<body style="width:2060px">
+<h2>Round 39: Geometry in space and on the complex plane</h2>
+<p class="note">Geometry mode now builds in the 3D graph and on the complex plane too. In space, points have three coordinates and there are planes, spheres and solids: planes are cut to the box and drawn see-through with spheres and solids, sorted by depth with the surfaces. On the complex plane, points are numbers (A = 1 + 2i), drawn over the colouring with a dark outline; products, roots of unity and the image of a shape under f(z) are commands and tools. Construct works the same way in all three graphs, offering the tools that fit each one.</p>
+<div class="row" id="row"></div>
+<script>
+const hdr=(mode)=>`<div class="status"><span>12:30</span><span>▴ ▮</span></div><div class="ttop"><div class="tsw"><span>▦</span>${mode=='3d'?'<span>⟋</span><span class="on">⬡ 3D graphing</span><span>◐</span>':'<span>⟋</span><span>⬡</span><span class="on">◐ Complex plane</span>'}</div><span class="tdots">⋮</span></div>`;
+const line=(dot,math,val,act)=>`<div class="ln${act?' act':''}"><div class="ldot"><i style="background:${dot}"></i></div><div class="lm">${math}</div><div class="lx">✕</div></div>${val?`<div class="lval2">${val}</div>`:''}`;
+const E=s=>'<em>'+s+'</em>';
+// ---------- 3D projection ----------
+function proj3(yaw,pitch,scale,cx,cy){return (x,y,z)=>{const X=x*Math.cos(yaw)-y*Math.sin(yaw);const Y=x*Math.sin(yaw)+y*Math.cos(yaw);const sx=cx+X*scale;const sy=cy-(z*Math.cos(pitch)-Y*Math.sin(pitch))*scale;const depth=Y*Math.cos(pitch)+z*Math.sin(pitch);return [sx,sy,depth]}}
+function scene3D(w,h,picks){
+ const P=proj3(0.7,0.45,w/9,w/2,h/2+12);
+ let s=`<svg width="${w}" height="${h}" style="display:block">`;
+ const pts=(arr)=>arr.map(p=>P(...p).slice(0,2).join(',')).join(' ');
+ // box
+ const b=3;const C=[];for(let k=0;k<8;k++)C.push([k&1?b:-b,k&2?b:-b,k&4?b:-b]);
+ [[0,1],[2,3],[4,5],[6,7],[0,2],[1,3],[4,6],[5,7],[0,4],[1,5],[2,6],[3,7]].forEach(([i,j])=>{const a=P(...C[i]),c=P(...C[j]);s+=`<line x1="${a[0]}" y1="${a[1]}" x2="${c[0]}" y2="${c[1]}" stroke="var(--outv)" stroke-width="1"/>`});
+ // faces collection
+ const faces=[];
+ // plane x+y+z=2 cut to box: compute hexagon roughly via edges
+ const plane=[];const E2=[[0,1],[2,3],[4,5],[6,7],[0,2],[1,3],[4,6],[5,7],[0,4],[1,5],[2,6],[3,7]];
+ E2.forEach(([i,j])=>{const a=C[i],c=C[j];const fa=a[0]+a[1]+a[2]-2,fc=c[0]+c[1]+c[2]-2;if(fa*fc<0){const t=fa/(fa-fc);plane.push([a[0]+(c[0]-a[0])*t,a[1]+(c[1]-a[1])*t,a[2]+(c[2]-a[2])*t])}});
+ const pc=plane.reduce((m,p)=>[m[0]+p[0]/plane.length,m[1]+p[1]/plane.length,m[2]+p[2]/plane.length],[0,0,0]);
+ const e1=[1/Math.SQRT2,-1/Math.SQRT2,0],e2=[1/Math.sqrt(6),1/Math.sqrt(6),-2/Math.sqrt(6)];
+ plane.sort((p,q)=>Math.atan2((p[0]-pc[0])*e2[0]+(p[1]-pc[1])*e2[1]+(p[2]-pc[2])*e2[2],(p[0]-pc[0])*e1[0]+(p[1]-pc[1])*e1[1])-Math.atan2((q[0]-pc[0])*e2[0]+(q[1]-pc[1])*e2[1]+(q[2]-pc[2])*e2[2],(q[0]-pc[0])*e1[0]+(q[1]-pc[1])*e1[1]));
+ faces.push({p:plane,c:'var(--ter)',a:.28});
+ // cube from A(-2,-2,-2) edge 1.6
+ const A=[-2.6,-2.6,-2.6],sz=1.8;const cube=[];for(let k=0;k<8;k++)cube.push([A[0]+(k&1?sz:0),A[1]+(k&2?sz:0),A[2]+(k&4?sz:0)]);
+ [[0,1,3,2],[4,5,7,6],[0,1,5,4],[2,3,7,6],[0,2,6,4],[1,3,7,5]].forEach(f=>faces.push({p:f.map(i=>cube[i]),c:'var(--pri)',a:.35,edge:true}));
+ // sphere at (1.2,1.2,0.6) r 1.1 as rings
+ const S=[1.3,1.0,0.9],R=1.1;
+ for(let i=0;i<10;i++)for(let j=0;j<16;j++){const q=(ii,jj)=>{const th=Math.PI*ii/10,ph=2*Math.PI*jj/16;return [S[0]+R*Math.sin(th)*Math.cos(ph),S[1]+R*Math.sin(th)*Math.sin(ph),S[2]+R*Math.cos(th)]};faces.push({p:[q(i,j),q(i+1,j),q(i+1,j+1),q(i,j+1)],c:'#c2410c',a:.22})}
+ faces.forEach(f=>f.d=f.p.reduce((m,p)=>m+P(...p)[2],0)/f.p.length);
+ faces.sort((a,b)=>b.d-a.d);
+ faces.forEach(f=>{s+=`<polygon points="${pts(f.p)}" fill="${f.c}" fill-opacity="${f.a}" stroke="${f.edge?f.c:'none'}" stroke-width="1.6"/>`});
+ // plane outline
+ s+=`<polygon points="${pts(plane)}" fill="none" stroke="var(--ter)" stroke-width="2"/>`;
+ // line through origin along (1,1,1) clipped
+ const l1=P(-3,-3,-3),l2=P(3,3,3);s+=`<line x1="${l1[0]}" y1="${l1[1]}" x2="${l2[0]}" y2="${l2[1]}" stroke="var(--sec)" stroke-width="2.5"/>`;
+ // points
+ const pt=(x,y,z,n,c)=>{const q=P(x,y,z);s+=`<circle cx="${q[0]}" cy="${q[1]}" r="5.5" fill="${c}"/><circle cx="${q[0]}" cy="${q[1]}" r="2" fill="var(--bg)"/>`+(n?`<text x="${q[0]+8}" y="${q[1]-7}" font-family="CMI" font-size="16" fill="var(--on)">${n}</text>`:'')};
+ pt(2,0,0,'B','var(--pri)');pt(0,2,0,'C','var(--pri)');pt(0,0,2,'D','var(--pri)');const t=2/3;pt(t,t,t,'P','var(--sec)');pt(...A,'A','var(--pri)');
+ (picks||[]).forEach(([x,y,z])=>{const q=P(x,y,z);s+=`<circle cx="${q[0]}" cy="${q[1]}" r="11" fill="none" stroke="var(--pri)" stroke-width="2.5"/>`});
+ // axis labels
+ [[3.4,0,0,'x'],[0,3.4,0,'y'],[0,0,3.4,'z']].forEach(([x,y,z,n])=>{const q=P(x,y,z);s+=`<text x="${q[0]}" y="${q[1]}" font-family="CMI" font-size="18" fill="var(--onv)">${n}</text>`});
+ return s+'</svg>';
+}
+// ---------- complex plane ----------
+function complexBg(w,h){const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');const im=g.createImageData(w,h);
+ for(let py=0;py<h;py++)for(let px=0;px<w;px++){const x=(px-w/2)/(w/6.5),y=-(py-h/2)/(w/6.5);const re=x*x-y*y-1,ii=2*x*y;const arg=Math.atan2(ii,re);const mod=Math.hypot(re,ii);const H=(arg/(2*Math.PI)+1)%1;const L=0.32+0.18*((Math.log2(mod+1e-9)%1+1)%1);
+  const hsl=(h,s,l)=>{const a=s*Math.min(l,1-l);const f=n=>{const k=(n+h*12)%12;return l-a*Math.max(-1,Math.min(k-3,9-k,1))};return [f(0),f(8),f(4)]};const [r,gg,b]=hsl(H,.55,L);const k=(py*w+px)*4;im.data[k]=r*255;im.data[k+1]=gg*255;im.data[k+2]=b*255;im.data[k+3]=255}
+ g.putImageData(im,0,0);return c.toDataURL()}
+function sceneC(w,h,picks){const sc=w/6.5,cx=w/2,cy=h/2;const X=x=>cx+x*sc,Y=y=>cy-y*sc;
+ let s=`<div style="position:relative;width:${w}px;height:${h}px;background:url(${complexBg(w,h)})"><svg width="${w}" height="${h}" style="position:absolute;inset:0">`;
+ for(let k=-3;k<=3;k++){s+=`<line x1="${X(k)}" y1="0" x2="${X(k)}" y2="${h}" stroke="#fff" stroke-opacity=".18"/><line x1="0" y1="${Y(k)}" x2="${w}" y2="${Y(k)}" stroke="#fff" stroke-opacity=".18"/>`}
+ s+=`<line x1="0" y1="${cy}" x2="${w}" y2="${cy}" stroke="#fff" stroke-opacity=".7"/><line x1="${cx}" y1="0" x2="${cx}" y2="${h}" stroke="#fff" stroke-opacity=".7"/>`;
+ const halo=(d,c,wd)=>`<path d="${d}" fill="none" stroke="#000" stroke-opacity=".55" stroke-width="${wd+2.5}"/><path d="${d}" fill="none" stroke="${c}" stroke-width="${wd}"/>`;
+ // unit circle and its image under f(z)=z^2+0.5i shifted
+ let d='';for(let k=0;k<=120;k++){const t=2*Math.PI*k/120;d+=(k?'L':'M')+X(Math.cos(t))+' '+Y(Math.sin(t))}s+=halo(d,'#bde4ff',2.5);
+ // segment and its image under f(z)=z^2: segment from 0.6-0.8i to 1.4+0.9i
+ const a=[0.5,-0.9],b=[1.3,0.8];s+=halo(`M${X(a[0])} ${Y(a[1])}L${X(b[0])} ${Y(b[1])}`,'#ffd8a8',2.5);
+ let d2='';for(let k=0;k<=80;k++){const t=k/80;const x=a[0]+(b[0]-a[0])*t,y=a[1]+(b[1]-a[1])*t;d2+=(k?'L':'M')+X(x*x-y*y)+' '+Y(2*x*y)}s+=halo(d2,'#ffb37a',3);
+ // roots of unity 5
+ const pt=(x,y,n,c)=>{s+=`<circle cx="${X(x)}" cy="${Y(y)}" r="7.5" fill="#000" fill-opacity=".55"/><circle cx="${X(x)}" cy="${Y(y)}" r="6" fill="${c}"/><circle cx="${X(x)}" cy="${Y(y)}" r="2" fill="var(--bg)"/>`+(n?`<text x="${X(x)+9}" y="${Y(y)-8}" font-family="CMI" font-size="16" fill="#fff" style="paint-order:stroke;stroke:#000;stroke-width:3px">${n}</text>`:'')};
+ for(let k=0;k<5;k++){const t=2*Math.PI*k/5;pt(Math.cos(t),Math.sin(t),'', '#bde4ff')}
+ pt(1,1.5,'A','#e9f5a0');pt(-1.2,0.6,'B','#e9f5a0');pt(1*-1.2-1.5*0.6,1*0.6+1.5*-1.2,'P','#ffd8a8');
+ // angle arc for argument of A
+ (picks||[]).forEach(([x,y])=>{s+=`<circle cx="${X(x)}" cy="${Y(y)}" r="11" fill="none" stroke="#fff" stroke-width="2.5"/>`});
+ return s+'</svg></div>';
+}
+const tileIcon={
+ 'Plane through 3':'<svg viewBox="0 0 24 24"><polygon points="2,16 12,21 22,8 12,3" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="1.6"/><circle cx="8" cy="14" r="1.8" fill="currentColor"/><circle cx="15" cy="16" r="1.8" fill="currentColor"/><circle cx="13.5" cy="8" r="1.8" fill="currentColor"/></svg>',
+ 'Parallel plane':'<svg viewBox="0 0 24 24"><polygon points="2,19 11,23 22,15 13,11" fill="none" stroke="currentColor" stroke-width="1.3"/><polygon points="2,10 11,14 22,6 13,2" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="1.6"/></svg>',
+ 'Perp. plane':'<svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23" stroke="currentColor" stroke-width="1.3"/><polygon points="2,13 11,18 22,11 13,6" fill="currentColor" fill-opacity=".3" stroke="currentColor" stroke-width="1.6"/></svg>',
+ 'Sphere':'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><ellipse cx="12" cy="12" rx="9" ry="2.2" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/></svg>',
+ 'Sphere, radius':'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><line x1="12" y1="12" x2="21" y2="12" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/></svg>',
+ 'Cube':'<svg viewBox="0 0 24 24"><rect x="3" y="9" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="3,9 9,3 21,3 15,9" fill="none" stroke="currentColor" stroke-width="1.4"/><polyline points="21,3 21,15 15,21" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
+ 'Tetrahedron':'<svg viewBox="0 0 24 24"><polygon points="2,19 14,22 22,15" fill="none" stroke="currentColor" stroke-width="2"/><path d="M2 19L12 2M14 22L12 2M22 15L12 2" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="2.6" r="1.8" fill="currentColor"/></svg>',
+ 'Pyramid':'<svg viewBox="0 0 24 24"><polygon points="2,18 10,22 22,18 14,15" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="1.3"/><path d="M2 18L12 2M10 22L12 2M22 18L12 2M14 15L12 2" stroke="currentColor" stroke-width="1.4"/></svg>',
+ 'Prism':'<svg viewBox="0 0 24 24"><polygon points="2,20 12,23 19,19" fill="none" stroke="currentColor" stroke-width="1.3"/><polygon points="5,7 15,10 22,6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M2 20L5 7M12 23L15 10M19 19L22 6" stroke="currentColor" stroke-width="1.4"/></svg>',
+ 'Multiply':'<svg viewBox="0 0 24 24"><path d="M1 20H23M3 23V1" stroke="currentColor" stroke-width="1"/><circle cx="10" cy="16" r="1.8" fill="currentColor"/><circle cx="15" cy="12" r="1.8" fill="currentColor"/><path d="M3 20L11 4" stroke="currentColor" stroke-width="1.6"/><circle cx="11" cy="4" r="2" fill="currentColor"/></svg>',
+ 'Divide':'<svg viewBox="0 0 24 24"><path d="M1 20H23M3 23V1" stroke="currentColor" stroke-width="1"/><circle cx="9" cy="7" r="1.8" fill="currentColor"/><circle cx="17" cy="12" r="1.8" fill="currentColor"/><path d="M3 20L21 17" stroke="currentColor" stroke-width="1.6"/><circle cx="21" cy="17" r="2" fill="currentColor"/></svg>',
+ 'Conjugate':'<svg viewBox="0 0 24 24"><path d="M1 12H23" stroke="currentColor" stroke-width="1.1"/><circle cx="15" cy="5" r="2" fill="currentColor"/><circle cx="15" cy="19" r="2" fill="currentColor"/><path d="M15 7V17" stroke="currentColor" stroke-dasharray="1.5 1.5"/></svg>',
+ 'nth roots':'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.2"/>'+[0,1,2,3,4].map(k=>{const t=(k*72-90)*Math.PI/180;return `<circle cx="${12+8*Math.cos(t)}" cy="${12+8*Math.sin(t)}" r="2" fill="currentColor"/>`}).join('')+'</svg>',
+ 'Modulus':'<svg viewBox="0 0 24 24"><path d="M1 20H23M3 23V1" stroke="currentColor" stroke-width="1"/><path d="M3 20L18 6" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="6" r="2" fill="currentColor"/></svg>',
+ 'Argument':'<svg viewBox="0 0 24 24"><path d="M2 20H23M2 20L18 5" stroke="currentColor" stroke-width="1.4"/><circle cx="18" cy="5" r="2" fill="currentColor"/><path d="M11 20A9 9 0 0 0 8.6 14" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+ 'Image under f':'<svg viewBox="0 0 24 24"><path d="M1 17Q5 5 9 15" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10 12H14" stroke="currentColor" stroke-width="1.3"/><polygon points="15,12 13,10 13,14" fill="currentColor"/><path d="M16 7C24 5 15 22 23 19" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+};
+const tiles=(names,on)=>`<div class="tiles">${names.map(n=>`<div class="tile${n==on?' on':''}">${tileIcon[n]||''}<span>${n}</span></div>`).join('')}</div>`;
+const pal=(tabs,on,names,onTile)=>`<div style="padding:6px 10px;background:var(--low)"><div class="pal"><div class="tabs">${tabs.map(t=>`<span class="tab${t==on?' on':''}">${t}</span>`).join('')}</div><div style="height:186px;overflow:hidden">${tiles(names,onTile)}</div></div></div>`;
+const status=(title,step,instr,chips,tool)=>`<div class="scard" style="position:absolute;top:10px"><div class="srow"><div class="sic" style="color:var(--onpc)">${tileIcon[tool]||''}</div><div class="st"><b>${title}</b><small>${step}</small></div><span class="tonal">↶ Undo</span><span class="txt">Done</span></div><div class="instr">${instr}</div>${chips?`<div class="chips">${chips}</div>`:''}</div>`;
+const P=(cls,inner,cap)=>`<div><div class="${cls}"><div class="phone">${inner}</div></div><div class="cap">${cap}</div></div>`;
+const row=document.getElementById('row');
+// 1: 3D graph with constructions
+row.innerHTML+=P('light',hdr('3d')+`<div class="graph" style="height:470px;position:relative">${scene3D(412,470)}<div class="badge3">⎊ Construct</div></div><div class="list" style="height:342px">
+${line('var(--pri)','<em>A</em> = (−2.6, −2.6, −2.6)')}
+${line('var(--ter)','<em>p</em> = Plane(<em>B</em>, <em>C</em>, <em>D</em>)')}
+${line('var(--pri)','<em>c</em> = Cube(<em>A</em>, <em>E</em>)','Cube · volume 5.832')}
+${line('var(--sec)','<em>P</em> = Intersect(<em>l</em>, <em>p</em>)','= (0.6667, 0.6667, 0.6667)')}</div>`,`<b>1 · Geometry in space.</b> Points with three coordinates, a plane through B, C and D cut to the box, a cube and a sphere drawn see-through and sorted by depth with any surfaces. A line meets the plane at P. Values show under each line.`);
+// 2: 3D construct
+row.innerHTML+=P('light',hdr('3d')+`<div class="graph" style="height:520px;position:relative">${scene3D(412,520,[[2,0,0],[0,2,0]])}${status('Plane through 3','Step 3 of 3 · Point','Tap a point, or an empty spot to put one on the floor','<span class="chip"><em style="font:15px CMI">B</em></span><span class="chip"><em style="font:15px CMI">C</em></span>','Plane through 3')}</div>`+pal(['Points','Lines','Circles & shapes','Planes & solids','Measure','Transform'],'Planes & solids',['Plane through 3','Parallel plane','Perp. plane','Sphere','Sphere, radius','Cube','Tetrahedron','Pyramid','Prism'],'Plane through 3'),`<b>2 · Construct in 3D.</b> The same palette as the 2D graph, with a Planes &amp; solids group. Points tapped so far are ringed. Tapping empty space puts a point on the floor (z = 0), at a tidy value. Drag still turns the box.`);
+// 3: complex plane geometry
+row.innerHTML+=P('dark',hdr('c')+`<div class="graph" style="height:470px">${sceneC(412,470)}</div><div class="list" style="height:342px">
+${line('#e9f5a0','<em>A</em> = 1 + 1.5<em>i</em>','= 1 + 1.5i')}
+${line('#ffd8a8','<em>P</em> = <em>A</em>·<em>B</em>','= −2.1 − 1.2i')}
+${line('#bde4ff','<em>r</em> = RootsOfUnity(5)')}
+${line('#ffb37a','<em>g</em> = Image(<em>f</em>, <em>s</em>)')}</div>`,`<b>3 · On the complex plane.</b> Points are numbers: A·B multiplies them, and values read as a + bi. The fifth roots of unity sit on the unit circle. Image(f, s) draws where f(z) = z² takes the segment s. Everything is outlined in black so it shows over the colouring.`);
+// 4: complex construct
+row.innerHTML+=P('dark',hdr('c')+`<div class="graph" style="height:520px;position:relative">${sceneC(412,520,[[1,1.5]])}${status('Multiply','Step 2 of 2 · Second number','Tap a point, or an empty spot to make one','<span class="chip"><em style="font:15px CMI">A</em></span>','Multiply')}</div>`+pal(['Points','Lines','Circles & shapes','Conics','Complex','Measure'],'Complex',['Multiply','Divide','Conjugate','nth roots','Modulus','Argument','Image under f'],'Multiply'),`<b>4 · Construct on the complex plane.</b> All the 2D tools, plus a Complex group with its own icons: Multiply, Divide, Conjugate, nth roots (asks for n), Modulus, Argument and Image under f (asks which function).`);
+document.title='ready';
+</script></body></html>
