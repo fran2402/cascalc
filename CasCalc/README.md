@@ -209,7 +209,9 @@ signed with a throwaway debug key, so they install alongside nothing from the Pl
   - Matrices are full size everywhere, including in the products (two full matrices around ·,
     ×, ∘ and ⊗): 20% wider, with their entries spread out.
   - Nothing is scaled down to fit: every key icon is drawn at full height, the widest (rref)
-    about 55 dp. (Mockup: `preview-render/round52.png`.)
+    about 55 dp.
+  - The Kronecker product's ⊗ is bigger, so its × stands clear inside the circle, and the
+    eigenvectors' arrow is centred over its x. (Mockup: `preview-render/round52.png`.)
 
 ## Latest changes (4 October, roomier words, optical letters, more icons)
 - **Key icons:** the words (trigonometry, the matrix keys, ln, mod, n!, Ans, Re, Im, Res) are

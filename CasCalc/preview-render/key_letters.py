@@ -46,9 +46,10 @@ L = {
  '·': (3, lambda x: ([], [ring(x+1.5, 12, 1.5)])),
  '×': (4, lambda x: ([f"M{f(x)} 10l4 4", f"M{f(x+4)} 10l-4 4"], [])),
  '∘': (4, lambda x: ([ring(x+2, 12, 1.9)], [])),
- '⊗': (5.6, lambda x: ([ring(x+2.8, 12, 2.8), f"M{f(x+.8)} 10l4 4", f"M{f(x+4.8)} 10l-4 4"], [])),
+ '⊗': (9, lambda x: ([ring(x+4.5, 12, 4.5), f"M{f(x+2.6)} 10.1l3.8 3.8", f"M{f(x+6.4)} 10.1l-3.8 3.8"], [])),
  # A vector arrow over the letter before it.
- '→': (0, lambda x: ([f"M{f(x-5.5)} 6.2h6", f"M{f(x-1.6)} 4.2l2.1 2l-2.1 2"], [])),
+ # (drawn centred over the letter before it; see word())
+ '→': (0, lambda c: ([f"M{f(c-3.2)} 6.2h6.4", f"M{f(c+1.1)} 4.1l2.1 2.1l-2.1 2.1"], [])),
 }
 GAP = 3.0
 # Letters drawn wider than their outlines above (strokes stay 2), so the words read as text, not condensed.
@@ -71,10 +72,16 @@ def word(parts, W):
     x = (W - total) / 2
     out = {'ink': [], 'accent': [], 'inkFill': [], 'accentFill': []}
     for ch, role in seq:
-        s, fl = L[ch][1](x)
         k = k_of(ch)
-        # The vector arrow belongs to the letter before it: stretch it about that letter.
-        x0 = x - (L['x'][0] * STRETCH + GAP) if ch == '→' else x
+        x0 = x
+        if ch == '→':
+            # The vector arrow sits centred over the (already widened) letter before it, unstretched.
+            prev = seq[seq.index((ch, role)) - 1][0]
+            w = L[prev][0] * k_of(prev)
+            s, fl = L[ch][1](x - GAP - w / 2)
+            out[role] += s
+            continue
+        s, fl = L[ch][1](x)
         out[role] += [stretch(p, x0, k) for p in s]
         # Dots (an i's, a matrix's entries) widen in place without turning into ellipses.
         out[role + 'Fill'] += [stretch(p, x0, 1) if ch != 'M' else p for p in fl] if k == 1 else [shift_dot(p, x0, k) for p in fl]
