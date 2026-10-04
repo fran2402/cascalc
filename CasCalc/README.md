@@ -203,6 +203,13 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, symbolic calculator icons)
+- **New calculator icons (beta) are now the keys' own symbols**, drawn with the app's round strokes
+  as |x|, √ and Π were. Examples: π, e, n!, ln, log, ∂, ∫, lim, Σ, y′, ∇, ∇·, ∇×, x̄, x̃, σ, s²,
+  (n k), ₙPₖ, φ, Φ, λ, Re, Im, z*, ∠z, e^{iθ}, Γ, ζ, W, J, Y, ∮ and Res. The operator or constant
+  is in the accent color; the boxes and letters it works on are in ink.
+  (`ui/KeyIcons.kt`; mockup: `preview-render/round49.png`.)
+
 ## Latest changes (4 October, new calculator icons, two-tone edit/copy/paste/share)
 - **New calculator icons (beta, Settings › Calculator):** the function keys on the Basic,
   Calculus, Statistics and Complex pages show a two-tone picture of what they do instead of their

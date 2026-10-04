@@ -480,7 +480,7 @@ object Docs {
                 ),
                 section(
                     "Worked steps",
-                    para("With New calculator icons on (Settings › Calculator, beta), the function keys show pictures instead of labels: π as a circle and its diameter, e as its growing curve, ∫ as the area under a curve, Σ as terms adding up, the statistics keys as the distributions they work with, and the complex keys on the complex plane. Trigonometry, matrices, letters and constants keep their labels. Holding a key still explains it."),
+                    para("With New calculator icons on (Settings › Calculator, beta), the function keys show their own math symbols, drawn with the app's round strokes: π, e, ln, ∫, Σ, lim, ∇, x̄, σ, Φ, ℜ, Γ and so on, the operator or constant in the accent color and the boxes and letters it works on in ink. Trigonometry, matrices, letters and constants keep their labels. Holding a key still explains it."),
                     para("With Show steps on (Settings › Calculator, beta), cards for integrals, derivatives, limits, sums, series, algebra, complex numbers, matrices, differential equations, statistics and vector calculus get Steps: every step at once, with nested operations worked from the inside out."),
                 ),
             ),

@@ -1607,7 +1607,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 AppSettings.showSteps, AppSettings::changeShowSteps, badge = "Beta",
             )
             SettingsToggle(
-                "New calculator icons", "Pictures instead of labels on the function keys: π, e, powers and logs, calculus, statistics and complex numbers (trigonometry and matrices keep theirs). Hold a key for what it does",
+                "New calculator icons", "The function keys drawn as their math symbols, two-tone: π, e, powers and logs, calculus, statistics and complex numbers (trigonometry and matrices keep theirs). Hold a key for what it does",
                 AppSettings.keyIcons, AppSettings::changeKeyIcons, badge = "Beta",
             )
         },

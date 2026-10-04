@@ -9,6 +9,9 @@ def ring(x, y, r, ry=None):
 
 def oval(x, y, rx, ry): return f"M{x-rx} {y}a{rx} {ry} 0 1 0 {2*rx} 0a{rx} {ry} 0 1 0 {-2*rx} 0z"
 
+def box(x, y, w): return f"M{x} {y}h{w}v{w}h-{w}z"
+FUNCS = {'oval': oval, 'ring': ring, 'box': box}
+
 def _args(body, key, consts={}):
     m = re.search(r'\b' + key + r' = ', body)
     if not m: return []
@@ -24,12 +27,12 @@ def _args(body, key, consts={}):
         j += 1
     expr = body[i:j]
     out = []
-    for name in re.findall(r'\b(axes)\b', expr): out += consts.get(name, [])
-    for mm in re.finditer(r'"([^"]*)"|(?:oval|ring)\(([^)]*)\)', expr):
+    for mm in re.finditer(r'"([^"]*)"|\b(oval|ring|box)\(([^)]*)\)|\b([a-z]\w*)\b', expr):
         if mm.group(1) is not None: out.append(mm.group(1))
-        else:
-            nums = [float(v.strip().rstrip('f')) for v in mm.group(2).split(',')]
-            out.append((oval if mm.group(0).startswith('oval') else ring)(*nums))
+        elif mm.group(2):
+            nums = [float(v.strip().rstrip('f')) for v in mm.group(3).split(',')]
+            out.append(FUNCS[mm.group(2)](*nums))
+        elif mm.group(4) in consts: out += consts[mm.group(4)]
     return out
 
 def _svg(stroke, thin, fill, shade, accent):
@@ -50,8 +53,10 @@ def table_icons():
     return out
 
 def key_icons():
-    src = open(UI + 'KeyIcons.kt').read()
-    consts = {'axes': ["M3 20.5h18", "M3.5 3v18"]}
+    src = re.sub(r',\n\s+(?=(ink|accent|inkThin|accentThin|inkFill|accentFill|accentShade) = )', ', ', open(UI + 'KeyIcons.kt').read())
+    consts = {}
+    for m in re.finditer(r'private val (\w+) = (listOf\(.*?\)|"[^"]*")\n', src):
+        consts[m.group(1)] = re.findall(r'"([^"]*)"', m.group(2))
     defs = {}
     for m in re.finditer(r'private val (\w+) = key\("\w+", (.*?)\)\n', src, re.S):
         defs[m.group(1)] = m.group(2)
