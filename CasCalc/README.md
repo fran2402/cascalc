@@ -206,10 +206,10 @@ signed with a throwaway debug key, so they install alongside nothing from the Pl
 ## Latest changes (4 October, wider trig and matrix icons)
 - **Trig and matrix key icons widened:**
   - The letters are drawn 30% wider (strokes unchanged), with more space between them.
-  - Single matrices are 20% wider, with their entries spread out.
-  - The products no longer squeeze two full matrices: · and × show a row vector and a column
-    vector, as their labels did, and ∘ and ⊗ show two smaller square matrices.
-  - A key icon is at most 58 dp wide. (Mockup: `preview-render/round52.png`.)
+  - Matrices are full size everywhere, including in the products (two full matrices around ·,
+    ×, ∘ and ⊗): 20% wider, with their entries spread out.
+  - Nothing is scaled down to fit: every key icon is drawn at full height, the widest (rref)
+    about 55 dp. (Mockup: `preview-render/round52.png`.)
 
 ## Latest changes (4 October, roomier words, optical letters, more icons)
 - **Key icons:** the words (trigonometry, the matrix keys, ln, mod, n!, Ans, Re, Im, Res) are

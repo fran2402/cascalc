@@ -1021,8 +1021,8 @@ private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, 
         val picture = if (AppSettings.keyIcons && (spec.role == KeyRole.Function || spec.spoken == "previous answer")) KeyIcons.forKey(spec.spoken) else null
         if (picture != null) DuoIcon(picture, fg, if (spec.role == KeyRole.Equals) colors.inversePrimary else if (defined) colors.tertiary else colors.primary,
             // Words like asinh and rref are drawn wider than they're tall.
-            // (at most 58 dp wide, smaller if a word would reach the key's edges).
-            Modifier.width(minOf(26f * picture.viewportWidth / picture.viewportHeight, 58f).dp).aspectRatio(picture.viewportWidth / picture.viewportHeight))
+            // Always at full height: nothing (a matrix least of all) is shrunk to fit.
+            Modifier.width((26f * picture.viewportWidth / picture.viewportHeight).dp).aspectRatio(picture.viewportWidth / picture.viewportHeight))
         else LabelView(spec.label, fg, fontSize, iconSize = if (spec.label == KeyLabel.BackspaceIcon || spec.label == KeyLabel.EnterIcon) 28.dp else 24.dp)
         if (pinned) {
             Icon(
