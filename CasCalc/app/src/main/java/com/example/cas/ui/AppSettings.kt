@@ -16,9 +16,6 @@ object AppSettings {
     /** The app's language code (en, fy, sh); empty follows the system (see [I18n]). */
     var language by mutableStateOf("")
         private set
-    /** Serbo-Croatian in ekavian spelling (vreme, mesto) rather than ijekavian (vrijeme, mjesto). */
-    var ekavian by mutableStateOf(false)
-        private set
     /** The graphs whose geometry guide has been seen: p the 2D graph, c the complex plane, s the 3D graph. */
     private var guidesSeen by mutableStateOf("")
     fun geometryGuideSeen(space: Char) = space in guidesSeen
@@ -129,8 +126,6 @@ object AppSettings {
         I18n.load(context)
         language = p.getString("language", "") ?: ""
         guidesSeen = p.getString("geometryGuides", "") ?: ""
-        // Until chosen: ekavian where the system is set to Serbian, ijekavian elsewhere.
-        ekavian = p.getBoolean("ekavian", java.util.Locale.getDefault().language == "sr")
         SavedSymbols.init(context)
         PinnedKeys.init(context)
         FavoriteColormaps.init(context)
@@ -186,7 +181,6 @@ object AppSettings {
     }
 
     fun changeLanguage(v: String) { language = v; save("language", v) }
-    fun changeEkavian(v: Boolean) { ekavian = v; save("ekavian", v) }
     fun changeTheme(v: Int) { theme = v; save("theme", v) }
     fun changeDynamicColor(v: Boolean) { dynamicColor = v; save("dynamicColor", v) }
     fun changeThemeColor(v: Int) { themeColor = v; save("themeColor", v) }

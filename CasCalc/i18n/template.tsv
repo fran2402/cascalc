@@ -1,0 +1,608 @@
+#name	Your language (its name in itself, shown in Settings)
+# Copy this file to app/src/main/assets/i18n/<code>.tsv (fy, sr, de…, the language code Android uses),
+# write each translation after the tab, and the app offers it in Settings › Language.
+# Lines left empty stay English. {0}, {1}… are filled in by the app; keep them. \n is a new line.
+More options	
+Unit converter	
+Settings	
+Acknowledgements	
+Clear the history?	
+Clear	
+Cancel	
+Copy last answer	
+Clear variables (	
+Clear history	
+Delete this calculation?	
+It will be removed from the history. This can't be undone.	
+Delete	
+Your calculations will appear here	
+Tap a past question or answer to use it again, hold it to copy it, swipe it away to delete it	
+Expression	
+Show actions	
+Pinned	
+Use this expression	
+Use this answer	
+More: folder, share, delete	
+Use the answer	
+Share as image	
+Share as LaTeX	
+Copy LaTeX	
+Choose the coordinate letters	
+Undefine	
+Remove symbol	
+How to use	
+Open the NIST page	
+NIST CODATA value and uncertainty	
+Dismiss	
+Hide the keyboard	
+Show the keyboard	
+Matrix size	
+Insert	
+Physical constants	
+Search constants	
+Clear the search	
+exact	
+App color	
+Language	
+System	
+Put a shortcut on your home screen that opens straight to one of these. Holding the app's icon shows them too.	
+Done	
+Appearance	
+Theme	
+Light	
+Dark	
+Colors from your wallpaper	
+Material You dynamic color	
+Math size	
+Small	
+Medium	
+Large	
+Keypad size	
+Compact	
+Tall	
+Keyboard side	
+Left	
+Right	
+Expressive motion	
+Springy animations; off for calmer ones	
+Calculator	
+Live answer	
+The result under what you're typing	
+Continue from the answer	
+An operator after = starts with Ans	
+Explanations on long-press	
+Formula, theory and how to use each key	
+Show steps	
+Worked steps for calculus (integrals, derivatives, limits, sums, series, $\\oint$), algebra and complex numbers, matrices (determinants, inverses, eigenvalues, rref), differential equations, statistics and vector calculus: Steps on a history card. Still in beta, so steps may skip some algebra	
+Beta	
+History	
+History keeps	
+All	
+Ask before clearing history	
+Ask before deleting	
+A calculation, or a line in a graph	
+Numbers	
+Show answers as	
+Exact	
+Decimal	
+Number format	
+Auto	
+Scientific	
+Engineering	
+ else 	
+decimal	
+decimals	
+Group digits	
+1 000 000 rather than 1000000	
+Complex decimals	
+a + bi	
+Polar	
+Graphs	
+Grid lines	
+The axes always show	
+Legend	
+Each line's name in the corner, and in exports. Hold a line to rename it	
+Mark points on curves	
+Zeros, extrema and crossings of the tapped curve	
+Geometry mode	
+Constructions in the 2D graph: name points (A = (1, 2)) and build with Segment, Circle, Intersect, Midpoint, Angle, Area and more, or tap with the Construct tools. Drag free points and everything built on them follows. In the 3D graph, geometry in space (planes, spheres, solids); on the complex plane, points as numbers. Early alpha: it will change a lot	
+Alpha	
+Starting view	
+$\\pm 5$	
+$\\pm 10$	
+$\\pm 20$	
+2D field quality	
+Low	
+High	
+3D surface detail	
+Complex plot quality	
+Touch and screen	
+Haptic feedback	
+A tap on each key and button	
+Key sounds	
+A click on each key (uses the system's touch sounds)	
+Keep the screen on	
+While the app is open	
+Home screen	
+Add to the home screen	
+Feedback	
+Report a bug	
+An email to the developer with the app's log attached	
+Request a feature	
+An email to the developer with your idea	
+Documentation	
+About	
+Fonts, libraries, data and methods, with links	
+Open the acknowledgements	
+Complex plane. Color shows the argument of f(z), brightness its size. Drag to move, pinch to zoom, tap to read a value. f can use r and θ for |z| and arg z.	
+Tap where the area should end	
+Graph settings	
+Plot quality	
+Area inside	
+Area inside this curve	
+To the axis	
+Area to the real axis from here	
+Between	
+Area between the curves from here	
+Start constructing	
+Construct	
+1 corner	
+{0} corners	
+1 point	
+{0} points	
+Step {0} of {1}	
+Take back the last pick	
+Show the geometry guide	
+Show {0}	
+, in use	
+Use {0}	
+Make	
+Close the guide	
+Skip the guide	
+Back	
+Show me	
+The app closed unexpectedly	
+This is what went wrong. Report it (an email with it attached) to help fix it.	
+Report	
+Copy	
+Close	
+Graph. Drag to move, pinch to zoom, tap a curve to read a point, double-tap to reset.	
+Import points from a CSV, Excel or Google Sheets file	
+Import data	
+Square zoom: equal scales	
+Import sheets	
+Each sheet becomes its own line.	
+Numbers on the axes	
+Degrees	
+Field quality	
+Area	
+Area from here	
+Between curves	
+Tangent	
+Add the tangent line here	
+Normal	
+Add the normal line here	
+Arc length	
+Arc length from here	
+Remove	
+Remove this solution	
+Clear all	
+Remove every solution	
+Zoom in	
+Set the limits	
+Zoom out	
+Fit z to the surfaces	
+Each lower limit must be below its upper limit.	
+Coordinates	
+Surface detail	
+from	
+to	
+3D graph. Drag to rotate, pinch to zoom, tap the surface to read a point, double-tap to reset.	
+Reversed	
+Run the colors the other way round	
+Drag ⠿ to reorder · swipe a map away to remove it	
+Search by name	
+No colormap by that name	
+Colormap	
+Drag to reorder	
+Saturation and brightness	
+Line thickness	
+Default	
+Edit as a table	
+Name in the legend	
+Name	
+Math between $ signs, in LaTeX: $\\sin x$	
+(no name: left out of the legend)	
+Save	
+Point	
+Point size	
+Show coordinates	
+Join the points	
+Closed shape (polygon)	
+Fill opacity	
+Filled	
+Show name	
+Move along its path	
+Round once in 10 s, or back and forth	
+Color, line style and thickness are above.	
+Arrows	
+Color	
+Change the colormap	
+Length	
+Arrow scale	
+Arrowhead	
+Arrowhead size	
+Number of arrows across	
+Arrow thickness	
+From	
+To	
+Fit to the list	
+Couldn't fit this to the points	
+Export the graph	
+Export	
+Note	
+Delete folder	
+Into folder above	
+Out of folder	
+Close without saving	
+Formulas	
+Undo	
+Redo	
+More	
+Share as CSV	
+Copy as CSV	
+Find and replace	
+Freeze the first column	
+On	
+Remove empty rows	
+Remove duplicate rows	
+Trim spaces	
+Swap rows and columns	
+No numbers in this column yet.	
+Text and empty cells are left out; the standard deviation is the sample's. Tap a value to copy it.	
+Fill with a series	
+Start	
+Step	
+Fill	
+Fill handle: drag to copy this cell, double-tap to fill to the end of the data	
+$ keeps a column or row fixed when filling	
+Roles	
+Columns without a role are kept but not plotted. ＋ › Paste copies a table from a spreadsheet. Drag the grips to resize rows and columns.	
+No points yet	
+Filtered	
+Chosen	
+Statistics	
+Number format…	
+Color scale	
+Sort smallest first	
+Sort largest first	
+Fill with 1, 2, 3…	
+Fill with a series…	
+Fill the formula down	
+Duplicate the column	
+Move left	
+Move right	
+Clear the column	
+Remove the column	
+Insert a row above	
+Insert a row below	
+Edit this cell	
+Select cells from here	
+Resize the list of lines: drag sideways, double-tap to reset	
+Use	
+Use the value in the calculator	
+Copy the value	
+Each “from” must be a number below its “to”	
+Axis scale	
+Fit statistics	
+This line can't be fitted to the points (too few points, or values it can't take).	
+No σ(y) on the points, so χ²/ν counts each as σ = 1: it's the residuals' mean square. Give the data a σ(y) column for a true reduced χ².	
+Apply the fit	
+Residuals	
+Find	
+None	
+Previous match	
+Next match	
+Close find and replace	
+Replace with	
+Replace	
+Match case	
+Whole cell	
+Clear filters	
+Remove the filter	
+Copy the cells	
+Clear the cells	
+Stop selecting	
+Decimals	
+Group thousands (1 234 567)	
+Only the look changes: formulas, fits and the graph use the full numbers.	
+Show only the rows where this column…	
+Value	
+Apply	
+This color	
+By length	
+Arrow color	
+Arrow length	
+Line	
+Add a line	
+Add a note	
+Folder	
+Add a folder	
+Table	
+Add a table	
+Row	
+Add a row	
+Column	
+Add a column	
+Paste	
+Paste a table from the clipboard	
+Preview of the export	
+Limits	
+Each limit needs a number, and “from” must be less than “to”.	
+The graph itself, with its lines, colors and sliders, to open again in CAS Scientific Calculator (Saved graphs › Import).	
+Share file	
+Save file	
+Share	
+Export graph	
+Open and replace	
+Search calculations	
+Export these calculations	
+Empty the folder (calculations stay)	
+Rename	
+Move to folder	
+New folder	
+e.g. Homework 3	
+Create and move	
+Title	
+Search the documentation	
+Nothing matches	
+Search	
+On this page	
+You type	
+Answer	
+Start a cell with =. Cells are A1, B2…; ranges A1:A10 or whole columns A:A; $A$1 stays put when filled down. Operators + − * / ^ % & and comparisons = <> < > <= >=. Text goes in "quotes".	
+Search, e.g. lookup, NORM, date	
+No functions match	
+Guide	
+Show the guide to {0}	
+Try	
+Open {0}	
+Guide to {0}	
+Saved graphs	
+Close the search	
+Import a graph file (.g2d, .g3d, .gcp)	
+Nothing to save	
+The saved graph will be removed. The graph on screen isn't affected.	
+Save a graph to keep its lines, colors and sliders, and open it again later.	
+Duplicate	
+No lines	
+Outline	
+Steps	
+Copy the steps	
+No steps for this one yet	
+Steps are in beta: calculus, algebra, complex numbers, matrices, differential equations, statistics and vector calculus for now.	
+Steps are in beta and may skip some algebra.	
+LaTeX	
+Bold	
+For vectors and matrices, as \\boldsymbol	
+Tap a box, then type into it from the pad. Scripts can go on the right of the letter, or on its left (as in ¹⁴₆C).	
+Double-tap a box to type into it with your keyboard (as upright text).	
+Italic	
+Save and insert	
+Remove this symbol	
+empty	
+Written upright, as text (eff, max, ext…)	
+Change the unit	
+Swap the units	
+Swap	
+Significant figures	
+Physical equivalences	
+When the dimensions differ, these constants may connect them: mass and energy, energy and frequency or wavelength, energy and temperature.	
+Use this unit	
+Tap units below	
+or type one, like km/s/Mpc	
+Type a unit	
+Clear the unit	
+Delete the last unit	
+Prefix	
+Search units	
+prefixes	
+Points	
+Lines	
+Circles & shapes	
+Planes & solids	
+Conics	
+Complex	
+Measure	
+Transform	
+Move	
+Place it	
+Point on object	
+The object	
+Intersect	
+First object	
+Second object	
+Midpoint	
+First point	
+Second point	
+Roots	
+Root	
+The function	
+Extrema	
+Extremum	
+Inflection points	
+Inflection	
+Closest point	
+Near	
+Segment	
+End	
+Segment of length	
+Ray	
+Through	
+Vector	
+Polyline	
+Best fit line	
+Perpendicular	
+The line	
+Parallel	
+Perpendicular bisector	
+Angle bisector	
+Corner	
+Circle or conic	
+Polar line	
+Common tangents	
+First circle	
+Second circle	
+Polygon	
+Corners	
+Regular polygon	
+First corner	
+Second corner	
+Number of sides	
+Circle	
+Center	
+On the circle	
+Circle with radius	
+Radius	
+Compass	
+Radius from	
+Radius to	
+Circle through 3	
+Incircle	
+Semicircle	
+Arc	
+Sector	
+Sector through 3	
+Ellipse	
+Focus	
+On it	
+Hyperbola	
+Parabola	
+Directrix	
+Conic through 5	
+Conic	
+Angle	
+Angle of size	
+Rotate	
+Angle (degrees)	
+Distance	
+The shape	
+Slope	
+Relation	
+First	
+Second	
+Locus	
+Tracing point	
+Moving point	
+Reflect in line	
+Reflect	
+What to reflect	
+Mirror line	
+Reflect in point	
+Reflect in circle	
+The point	
+The circle	
+What to turn	
+Translate	
+What to move	
+The vector	
+Dilate	
+What to scale	
+Factor	
+Plane through 3	
+Plane	
+Parallel plane	
+The plane	
+Perpendicular plane	
+Perpendicular to plane	
+Sphere	
+On the sphere	
+Sphere with radius	
+Cube	
+Edge start	
+Edge end	
+Tetrahedron	
+Pyramid	
+Apex	
+Base polygon	
+Prism	
+Top of the first edge	
+Volume	
+The solid	
+Reflect in plane	
+Mirror plane	
+Rotate about line	
+Axis	
+Multiply	
+First number	
+Second number	
+Divide	
+Top	
+Bottom	
+Conjugate	
+Point or shape	
+nth roots	
+The number	
+n (how many roots)	
+Modulus	
+Argument	
+Image under f	
+Image	
+Function (its name, like f)	
+Perp. bisector	
+Perp. line	
+Inflections	
+Circle, radius	
+Segment, length	
+Angle, size	
+Perp. plane	
+Perp. to plane	
+Sphere, radius	
+Tap the corners, then the first again to close	
+Tap the points, then Finish	
+Tap a point, or an empty spot to make one	
+Tap a line, circle, polygon or curve	
+Tap a line, segment or ray	
+Tap a circle or conic	
+Tap a function's graph	
+Tap a vector	
+Tap a plane	
+Tap a point or an object	
+Drag points to move them	
+2D graphing	
+3D graphing	
+Complex plotting	
+Maximum	
+Minimum	
+Zero	
+Finish	
+Next	
+Data table	
+Data	
+Change the filter…	
+Filter…	
+Pick a tool	
+The tools stand in groups beside the graph. Tap Segment to try one, or let the guide pick it.	
+The tools are under the graph, in groups. Tap Segment to try one, or let the guide pick it.	
+Tap to build	
+Tap two points, or empty spots to put new ones on the floor. The card at the top says what each tap is for.	
+Tap two points, or empty spots to make new ones. The card at the top says what each tap is for.	
+Drag a point	
+Drag a point you made: everything built on it follows. A point on a line or circle slides along it.	
+Drag a point you made: it moves level, keeping its height, and everything built on it follows. Edit its line to change its height.	
+Drag a point you made: everything built on it follows. Here points are numbers, so its line reads A = 1 + 2i.	
+More to build	
+Measure gives lengths, areas and angles; Transform reflects, rotates and dilates. Tools on curves (roots, extrema, tangents) work on your functions too.	
+Planes and solids	
+Build planes through points, spheres, cubes, pyramids and prisms. Planes are cut to the box and drawn see-through, so what's behind still shows.	
+Complex tools	
+Multiply and divide points as numbers, take nth roots, or draw where a function f(z) from your list takes a point or a shape.	
+Options and names	
+Tap a line's color dot for its size, name and fill. Every construction is a line of text too: edit A = (1, 2), or type Circle(A, 3).	
+Is equal to	
+Isn't equal to	
+Greater than	
+Less than	
+Text contains	
+Is empty	
+Isn't empty	

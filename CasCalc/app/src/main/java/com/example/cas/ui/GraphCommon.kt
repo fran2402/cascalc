@@ -2,6 +2,10 @@ package com.example.cas.ui
 
 import com.example.cas.engine.Readout
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.FormatClear
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Percent
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Timeline
 import androidx.compose.material.icons.filled.Share
@@ -102,6 +106,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.FilterChip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.CornerRadius
@@ -196,8 +201,11 @@ import kotlin.math.roundToInt
 @Composable
 fun functionColor(f: PlotFunction): Color = f.customColor?.let { Color(it) } ?: plotColor(f.colorIndex)
 
-/** On the complex plane, ∮ loops and curves are lines in a plain color (white unless picked); the rest are colored by a colormap. */
-fun isComplexLine(f: PlotFunction) = f.contour != null || f.complexCurve != null || f.complexPoints != null || f.complexPath != null
+/**
+ * On the complex plane, ∮ loops, curves, points and constructions (points, lines, circles) are
+ * drawn in a plain color, as on the 2D graph; the rest are functions, colored by a colormap.
+ */
+fun isComplexLine(f: PlotFunction) = f.contour != null || f.complexCurve != null || f.complexPoints != null || f.complexPath != null || f.geometry != null
 
 /** The color of a point, curve or ∮ loop on the complex plane: its own, or the 2D graph's color for its slot. */
 fun complexLineColor(f: PlotFunction): Color = f.customColor?.let { Color(it) }
@@ -831,10 +839,11 @@ fun geometryValueText(text: String): androidx.compose.ui.text.AnnotatedString = 
     var k = 0
     fun plain(t: String) {
         // Single letters on their own (r = 2) are quantities, so italic; words (length) stay upright.
+        // The italic is Computer Modern's own italic face, not the upright one slanted.
         var j = 0
         Regex("""(?<![\p{L}])\p{L}(?![\p{L}(])""").findAll(t).forEach { m ->
             append(t.substring(j, m.range.first))
-            withStyle(androidx.compose.ui.text.SpanStyle(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)) { append(m.value) }
+            withStyle(androidx.compose.ui.text.SpanStyle(fontFamily = CasFonts.CmItalic, fontStyle = androidx.compose.ui.text.font.FontStyle.Normal)) { append(m.value) }
             j = m.range.last + 1
         }
         append(t.substring(j))
@@ -940,7 +949,7 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             onPick = { vm.setColor(f, it?.toArgb()); picking = false },
             onDismiss = { picking = false },
             // 2D lines also get style and thickness (points and lists of points don't).
-            lineStyle = if (vm.plotVars == listOf("x") && f.plot !is Plot2DKind.Point && f.plot !is Plot2DKind.PointList && f.plot !is Plot2DKind.VectorField && !isGeometryPoint(vm, f)) f.lineStyle else null,
+            lineStyle = if ((vm.plotVars == listOf("x") || vm.isComplex && f.geometry != null) && f.plot !is Plot2DKind.Point && f.plot !is Plot2DKind.PointList && f.plot !is Plot2DKind.VectorField && !isGeometryPoint(vm, f)) f.lineStyle else null,
             thickness = f.thickness,
             onStyle = { st, w -> vm.setStyle(f, st, w) },
             extra = lineOptions(vm, f),
@@ -1956,6 +1965,28 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
             androidx.compose.runtime.mutableStateListOf(*List(maxOf(start.rowCount, 1)) { r -> c.getOrElse(r) { "" } }.toTypedArray())
         }.toTypedArray())
     }
+    // Each column's number format and color scale, kept beside the columns; the first column frozen in view.
+    val fmts = remember(f) { androidx.compose.runtime.mutableStateListOf(*List(start.columns.size) { start.format(it) }.toTypedArray()) }
+    var frozen by remember(f) { mutableStateOf(start.frozen) }
+    // Filters (one per column, all must hold): rows they hide stay in the table and are plotted.
+    val filters = remember(f) { androidx.compose.runtime.mutableStateMapOf<Int, com.example.cas.graph.SheetTools.Filter>() }
+    // A range picked by holding a cell (then tapping another to stretch it), as (column, row) corners.
+    var selA by remember(f) { mutableStateOf<Pair<Int, Int>?>(null) }
+    var selB by remember(f) { mutableStateOf<Pair<Int, Int>?>(null) }
+    fun inSelection(c: Int, r: Int): Boolean {
+        val a = selA ?: return false; val b = selB ?: a
+        return c in minOf(a.first, b.first)..maxOf(a.first, b.first) && r in minOf(a.second, b.second)..maxOf(a.second, b.second)
+    }
+    // Find and replace: the bar's fields, and which match is current.
+    var finding by remember(f) { mutableStateOf(false) }
+    var query by remember(f) { mutableStateOf("") }
+    var replacement by remember(f) { mutableStateOf("") }
+    var matchCase by remember(f) { mutableStateOf(false) }
+    var wholeCell by remember(f) { mutableStateOf(false) }
+    var matchAt by remember(f) { mutableStateOf(0) }
+    // A column's number format, or its filter, being set.
+    var formatFor by remember(f) { mutableStateOf<Int?>(null) }
+    var filterFor by remember(f) { mutableStateOf<Int?>(null) }
     var roleX by remember(f) { mutableStateOf(start.x) }
     var roleY by remember(f) { mutableStateOf(start.y) }
     var roleSx by remember(f) { mutableStateOf(start.sigmaX) }
@@ -1964,7 +1995,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     var editing by remember(f) { mutableStateOf<Pair<Int, Int>?>(null) }
     var fillTo by remember(f) { mutableStateOf<Pair<Int, Int>?>(null) }
     // Undo and redo: whole-table snapshots, one per change (typing in a cell counts once per cell).
-    class Snapshot(val names: List<String>, val cells: List<List<String>>, val roles: List<Int?>)
+    class Snapshot(val names: List<String>, val cells: List<List<String>>, val roles: List<Int?>, val formats: List<com.example.cas.graph.ColumnFormat>, val frozen: Boolean)
     val undoStack = remember(f) { androidx.compose.runtime.mutableStateListOf<Snapshot>() }
     val redoStack = remember(f) { androidx.compose.runtime.mutableStateListOf<Snapshot>() }
     var typingRecorded by remember(f) { mutableStateOf<Pair<Int, Int>?>(null) }
@@ -1975,13 +2006,13 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     val heights = remember(f) { androidx.compose.runtime.mutableStateMapOf<Int, androidx.compose.ui.unit.Dp>() }
     val formulas = AppSettings.sheetFormulas
     val rows = cells.maxOfOrNull { it.size } ?: 0
-    fun table() = com.example.cas.graph.DataTable(names.toList(), cells.map { it.toList() }, roleX, roleY, roleSx, roleSy)
+    fun table() = com.example.cas.graph.DataTable(names.toList(), cells.map { it.toList() }, roleX, roleY, roleSx, roleSy, fmts.toList(), frozen)
     // Worked out again only when a cell, name or role changes, not on every redraw.
     val current by remember(f) { androidx.compose.runtime.derivedStateOf { table() } }
     val points by remember(f) { androidx.compose.runtime.derivedStateOf { current.points().size } }
     val bad by remember(f) { androidx.compose.runtime.derivedStateOf { current.badCells() } }
     fun roleOf(c: Int) = when (c) { roleX -> "x"; roleY -> "y"; roleSx -> "σx"; roleSy -> "σy"; else -> null }
-    fun snapshot() = Snapshot(names.toList(), cells.map { it.toList() }, listOf(roleX, roleY, roleSx, roleSy))
+    fun snapshot() = Snapshot(names.toList(), cells.map { it.toList() }, listOf(roleX, roleY, roleSx, roleSy), fmts.toList(), frozen)
     /** Keeps the table as it is now, before a change, for undo. */
     val quiet = remember(f) { booleanArrayOf(false) }
     fun record() {
@@ -1996,6 +2027,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         names.clear(); names.addAll(s.names)
         cells.clear(); s.cells.forEach { col -> cells.add(androidx.compose.runtime.mutableStateListOf(*col.toTypedArray())) }
         roleX = s.roles[0]; roleY = s.roles[1]; roleSx = s.roles[2]; roleSy = s.roles[3]
+        fmts.clear(); fmts.addAll(s.formats); frozen = s.frozen
+        filters.clear(); selA = null; selB = null
     }
     fun undo() { undoStack.removeLastOrNull()?.let { redoStack.add(snapshot()); restore(it) } }
     fun redo() { redoStack.removeLastOrNull()?.let { undoStack.add(snapshot()); restore(it) } }
@@ -2013,7 +2046,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     }
     fun addRow() { record(); cells.forEach { it.add("") } }
     fun insertRow(at: Int) { record(); cells.forEach { it.add(at.coerceIn(0, it.size), "") }; shiftKeys(heights, at, 1) }
-    fun addColumn() { record(); names.add(""); cells.add(androidx.compose.runtime.mutableStateListOf(*Array(maxOf(rows, 1)) { "" })) }
+    fun addColumn() { record(); names.add(""); fmts.add(com.example.cas.graph.ColumnFormat()); cells.add(androidx.compose.runtime.mutableStateListOf(*Array(maxOf(rows, 1)) { "" })) }
     fun removeRow(r: Int) {
         if (rows <= 1) return
         record()
@@ -2026,7 +2059,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         record()
         editing = null
         assign(c, null)
-        names.removeAt(c); cells.removeAt(c)
+        names.removeAt(c); cells.removeAt(c); if (c < fmts.size) fmts.removeAt(c)
+        filters.clear(); selA = null; selB = null
         widths.remove(c); shiftKeys(widths, c + 1, -1)
         fun shift(k: Int?) = k?.let { if (it > c) it - 1 else it }
         roleX = shift(roleX); roleY = shift(roleY); roleSx = shift(roleSx); roleSy = shift(roleSy)
@@ -2055,6 +2089,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     fun duplicateColumn(c: Int) {
         record(); editing = null
         names.add(c + 1, names[c]); cells.add(c + 1, androidx.compose.runtime.mutableStateListOf(*cells[c].toTypedArray()))
+        fmts.add((c + 1).coerceAtMost(fmts.size), fmts.getOrElse(c) { com.example.cas.graph.ColumnFormat() }); filters.clear()
         shiftKeys(widths, c + 1, 1); widths[c]?.let { widths[c + 1] = it }
         fun shift(k: Int?) = k?.let { if (it > c) it + 1 else it }
         roleX = shift(roleX); roleY = shift(roleY); roleSx = shift(roleSx); roleSy = shift(roleSy)
@@ -2064,7 +2099,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         if (to !in cells.indices || from == to) return
         record(); editing = null
         val order = com.example.cas.graph.DataTable.moved(cells.size, from, to)
-        val oldNames = names.toList(); val oldCells = cells.toList(); val oldWidths = widths.toMap()
+        val oldNames = names.toList(); val oldCells = cells.toList(); val oldWidths = widths.toMap(); val oldFmts = fmts.toList()
+        fmts.clear(); fmts.addAll(order.map { oldFmts.getOrElse(it) { com.example.cas.graph.ColumnFormat() } }); filters.clear()
         names.clear(); names.addAll(order.map { oldNames[it] })
         cells.clear(); cells.addAll(order.map { oldCells[it] })
         widths.clear(); order.forEachIndexed { k, old -> oldWidths[old]?.let { widths[k] = it } }
@@ -2076,6 +2112,30 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         record(); editing = null
         cells.forEach { col -> col.add(r + 1, col.getOrElse(r) { "" }) }
         shiftKeys(heights, r + 1, 1)
+    }
+    /** Every row kept, in the order given, after the rows not kept (a tidy-up). */
+    fun keepRows(keep: List<Int>) = reorder(keep.ifEmpty { listOf(0) })
+    /** Rows that repeat an earlier row exactly are removed (the first stays), as Sheets' Remove duplicates. */
+    fun removeDuplicates() {
+        val keep = com.example.cas.graph.SheetTools.withoutDuplicates(cells.map { it.toList() })
+        val gone = rows - keep.size
+        if (gone > 0) keepRows(keep)
+        android.widget.Toast.makeText(context, if (gone == 0) "No duplicate rows" else "$gone duplicate row${if (gone == 1) "" else "s"} removed", android.widget.Toast.LENGTH_SHORT).show()
+    }
+    /** Spaces trimmed from every cell's ends, and runs inside made one. */
+    fun trimAll() {
+        record(); editing = null
+        cells.forEach { col -> col.indices.forEach { r -> val t = com.example.cas.graph.SheetTools.trimmed(col[r]); if (t != col[r]) col[r] = t } }
+    }
+    /** Rows become columns and columns rows (names and the first column swap places). */
+    fun transpose() {
+        record(); editing = null; filters.clear(); selA = null; selB = null
+        val (n, c) = com.example.cas.graph.SheetTools.transpose(names.toList(), cells.map { it.toList() })
+        names.clear(); names.addAll(n)
+        cells.clear(); c.forEach { col -> cells.add(androidx.compose.runtime.mutableStateListOf(*col.toTypedArray())) }
+        fmts.clear(); fmts.addAll(List(n.size) { com.example.cas.graph.ColumnFormat() })
+        widths.clear(); heights.clear()
+        roleX = null; roleY = if (cells.size >= 2) { roleX = 0; 1 } else 0; roleSx = null; roleSy = null
     }
     // A column's statistics, or its fill with a series, being shown.
     var statsFor by remember(f) { mutableStateOf<Int?>(null) }
@@ -2112,22 +2172,57 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     statsFor?.takeIf { it in cells.indices }?.let { c ->
         ColumnStatsDialog(names[c].ifBlank { "Column ${c + 1}" }, table().stats(c), onDismiss = { statsFor = null })
     }
+    formatFor?.takeIf { it in cells.indices }?.let { c ->
+        NumberFormatDialog(names[c].ifBlank { "Column ${c + 1}" }, fmts.getOrElse(c) { com.example.cas.graph.ColumnFormat() }, sample = current.numbers(c).firstOrNull() ?: 1234.5678, onDismiss = { formatFor = null }) { chosen ->
+            record(); formatFor = null
+            while (fmts.size <= c) fmts.add(com.example.cas.graph.ColumnFormat())
+            fmts[c] = chosen
+        }
+    }
+    filterFor?.takeIf { it in cells.indices }?.let { c ->
+        FilterDialog(names[c].ifBlank { "Column ${c + 1}" }, filters[c], onDismiss = { filterFor = null }, onRemove = { filters.remove(c); filterFor = null }) { flt ->
+            filters[c] = com.example.cas.graph.SheetTools.Filter(c, flt.op, flt.value); filterFor = null
+        }
+    }
     seriesFor?.takeIf { it in cells.indices }?.let { c ->
         SeriesDialog(rows = maxOf(rows, 1), onDismiss = { seriesFor = null }) { start, step ->
             record(); seriesFor = null
             com.example.cas.graph.DataTable.series(start, step, cells[c].size).forEachIndexed { r, v -> cells[c][r] = v }
         }
     }
-    val list = androidx.compose.foundation.lazy.rememberLazyListState()
-    val across = rememberScrollState()
-    val scope = rememberCoroutineScope()
-    fun widthOf(c: Int) = widths[c] ?: defaultWidth
-    fun heightOf(r: Int) = heights[r] ?: defaultHeight
     // While a formula is typed, the cells it uses are outlined, each reference in its own color, as Excel does.
     val editText = editing?.let { (c, r) -> cells.getOrNull(c)?.getOrNull(r) }
     val refs = if (formulas && editText != null && editText.trimStart().startsWith("=")) com.example.cas.graph.Sheet.references(editText) else emptyList()
     val refColors = listOf(Color(0xFF1A73E8), Color(0xFFD93025), Color(0xFF9334E6), Color(0xFF188038), Color(0xFFE37400), Color(0xFF12A4B8))
     fun refColor(c: Int, r: Int): Color? = refs.indexOfFirst { c in it.c0..it.c1 && r >= it.r0 && r <= it.r1 }.takeIf { it >= 0 }?.let { refColors[it % refColors.size] }
+    val list = androidx.compose.foundation.lazy.rememberLazyListState()
+    val across = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    fun widthOf(c: Int) = widths[c] ?: defaultWidth
+    fun heightOf(r: Int) = heights[r] ?: defaultHeight
+    // The rows the filters keep; each color-scaled column's smallest and largest number; the cells find matches.
+    val visible by remember(f) { androidx.compose.runtime.derivedStateOf { if (filters.isEmpty()) (0 until current.rowCount).toList() else com.example.cas.graph.SheetTools.visibleRows(current, filters.values) } }
+    val scales by remember(f) { androidx.compose.runtime.derivedStateOf { fmts.indices.filter { fmts[it].colorScale }.associateWith { c -> current.numbers(c).let { v -> if (v.isEmpty()) 0.0 to 0.0 else v.min() to v.max() } } } }
+    val found by remember(f) { androidx.compose.runtime.derivedStateOf { if (!finding || query.isEmpty()) emptyList() else com.example.cas.graph.SheetTools.find(cells.map { it.toList() }, query, matchCase, wholeCell) } }
+    /** The next (or previous) match: shown, scrolled to and opened, with its filters cleared if they hide it. */
+    fun goToMatch(step: Int) {
+        if (found.isEmpty()) return
+        matchAt = Math.floorMod(matchAt + step, found.size)
+        val (c, r) = found[matchAt]
+        if (r !in visible) filters.clear()
+        scope.launch {
+            list.animateScrollToItem(maxOf(0, visible.indexOf(r) - 2).coerceAtLeast(0))
+            across.animateScrollTo(with(density) { (0 until c).sumOf { (widthOf(it) + 10.dp).toPx().toInt() } })
+        }
+    }
+    /** Every match replaced, one step to undo. */
+    fun replaceAll() {
+        val n = found.size
+        if (n == 0) return
+        record(); editing = null
+        cells.forEach { col -> col.indices.forEach { r -> col[r] = com.example.cas.graph.SheetTools.replace(col[r], query, replacement, matchCase, wholeCell) } }
+        android.widget.Toast.makeText(context, "$n cell${if (n == 1) "" else "s"} replaced", android.widget.Toast.LENGTH_SHORT).show()
+    }
     /** Whether a cell is in the range the fill handle is being dragged over. */
     fun inFill(c: Int, r: Int): Boolean {
         val (sc, sr) = editing ?: return false
@@ -2145,7 +2240,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
             if (c == sc && r == sr) continue
             val col = cells.getOrNull(c) ?: continue
             if (r >= col.size) continue
-            col[r] = if (com.example.cas.graph.Sheet.isFormula(t)) com.example.cas.graph.Sheet.shift(t, r - sr, c - sc) else t
+            // Formulas move their references; text counts on (Week 1, Week 2; Jan, Feb), as Excel fills.
+            col[r] = if (com.example.cas.graph.Sheet.isFormula(t)) com.example.cas.graph.Sheet.shift(t, r - sr, c - sc) else com.example.cas.graph.SheetTools.fillValue(t, (r - sr) + (c - sc))
         }
     }
     /**
@@ -2180,7 +2276,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                     Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 6.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = tr("Close without saving")) }
                         Row(Modifier.weight(1f).padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(tr("Data table"), style = MaterialTheme.typography.titleLarge)
+                            // Short on a phone, where the top bar is crowded.
+                            Text(tr(if (wide) "Data table" else "Data"), style = MaterialTheme.typography.titleLarge, maxLines = 1)
                             if (formulas) Text(tr("Formulas"), style = MaterialTheme.typography.labelMedium, color = colors.onTertiaryContainer,
                                 modifier = Modifier.padding(start = 10.dp).clip(CircleShape).background(colors.tertiaryContainer).padding(horizontal = 10.dp, vertical = 4.dp),
                             )
@@ -2203,7 +2300,17 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("Table", table().csv()))
                                     android.widget.Toast.makeText(context, "Table copied", android.widget.Toast.LENGTH_SHORT).show()
                                 })
+                                DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Search, null) }, text = { Text(tr("Find and replace")) }, onClick = { more = false; finding = true })
+                                DropdownMenuItem(
+                                    leadingIcon = { Icon(Icons.Default.ViewColumn, null) }, text = { Text(tr("Freeze the first column")) },
+                                    trailingIcon = if (frozen) ({ Icon(Icons.Default.Check, contentDescription = tr("On")) }) else null,
+                                    onClick = { more = false; record(); frozen = !frozen },
+                                )
+                                androidx.compose.material3.HorizontalDivider()
                                 DropdownMenuItem(leadingIcon = { Icon(Icons.Default.CleaningServices, null) }, text = { Text(tr("Remove empty rows")) }, onClick = { more = false; removeEmptyRows() })
+                                DropdownMenuItem(leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, text = { Text(tr("Remove duplicate rows")) }, onClick = { more = false; removeDuplicates() })
+                                DropdownMenuItem(leadingIcon = { Icon(Icons.Default.FormatClear, null) }, text = { Text(tr("Trim spaces")) }, onClick = { more = false; trimAll() })
+                                DropdownMenuItem(leadingIcon = { Icon(Icons.Default.SwapHoriz, null) }, text = { Text(tr("Swap rows and columns")) }, onClick = { more = false; transpose() })
                             }
                         }
                         Spacer(Modifier.width(4.dp))
@@ -2215,48 +2322,157 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                             modifier = Modifier.height(48.dp),
                         ) { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text(tr("Done")) }
                     }
-                    if (!wide) TableCounts(points, cells.size, bad, roleY == null, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                    if (finding) FindBar(
+                        query = query, onQuery = { query = it; matchAt = 0 }, replacement = replacement, onReplacement = { replacement = it },
+                        matchCase = matchCase, onMatchCase = { matchCase = it }, wholeCell = wholeCell, onWholeCell = { wholeCell = it },
+                        count = found.size, at = matchAt, onNext = { goToMatch(1) }, onPrevious = { goToMatch(-1) },
+                        onReplace = {
+                            // The current match replaced, then on to the next.
+                            found.getOrNull(matchAt)?.let { (c, r) ->
+                                record(); cells[c][r] = com.example.cas.graph.SheetTools.replace(cells[c][r], query, replacement, matchCase, wholeCell)
+                            }
+                        },
+                        onReplaceAll = { replaceAll() },
+                        onClose = { finding = false },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    )
+                    // Filters in use: how many rows show, a chip for each (tap × to drop it).
+                    if (filters.isNotEmpty()) FilterBanner(
+                        shown = visible.size, total = rows,
+                        chips = filters.toSortedMap().map { (c, flt) -> (names.getOrElse(c) { "" }.ifBlank { com.example.cas.graph.Sheet.columnName(c) } + " " + flt.summary) to c },
+                        onEdit = { filterFor = it }, onRemove = { filters.remove(it) }, onClear = { filters.clear() },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
+                    )
+                    val sa = selA
+                    if (sa != null) {
+                        // A picked range: its address and its numbers summed up, as a spreadsheet's status bar.
+                        val sb = selB ?: sa
+                        val sum = com.example.cas.graph.SheetTools.summary(current, sa.first, sa.second, sb.first, sb.second)
+                        val address = com.example.cas.graph.Sheet.columnName(minOf(sa.first, sb.first)) + (minOf(sa.second, sb.second) + 1) +
+                            if (sa == sb) "" else ":" + com.example.cas.graph.Sheet.columnName(maxOf(sa.first, sb.first)) + (maxOf(sa.second, sb.second) + 1)
+                        SelectionBar(
+                            address, sum,
+                            onCopy = {
+                                @Suppress("DEPRECATION")
+                                (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("Cells", com.example.cas.graph.SheetTools.rangeText(current, sa.first, sa.second, sb.first, sb.second)))
+                                android.widget.Toast.makeText(context, "Copied", android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            onClear = {
+                                record()
+                                for (c in minOf(sa.first, sb.first)..maxOf(sa.first, sb.first)) for (r in minOf(sa.second, sb.second)..maxOf(sa.second, sb.second)) cells.getOrNull(c)?.let { col -> if (r < col.size) col[r] = "" }
+                            },
+                            onClose = { selA = null; selB = null },
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        )
+                    } else if (!wide) TableCounts(points, cells.size, bad, roleY == null, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
                     Row(Modifier.weight(1f).fillMaxWidth()) {
                         if (wide) TableSidePane(current, points, cells.size, bad, roleY == null, Modifier.width(320.dp).fillMaxHeight().padding(start = 16.dp, bottom = 16.dp))
                         Box(Modifier.weight(1f).fillMaxHeight()) {
                             // The sheet: column cards on top, then the rows; both scroll sideways together.
                             Column(Modifier.fillMaxSize().padding(horizontal = if (wide) 16.dp else 8.dp).clip(RoundedCornerShape(28.dp)).background(colors.surface)) {
+                                // A column's card and the grip after it (drag to resize, double-tap for the usual width).
+                                val columnHeader: @Composable (Int) -> Unit = { c ->
+                                    ColumnCard(
+                                        role = roleOf(c), name = names[c], index = c, width = widthOf(c),
+                                        letter = if (formulas) com.example.cas.graph.Sheet.columnName(c) else null,
+                                        onName = { if (typingRecorded != (-1 to c)) { record(); typingRecorded = -1 to c }; names[c] = it }, onRole = { assign(c, it) },
+                                        onSort = { sortBy(c) },
+                                        onSortDown = { sortDown(c) },
+                                        onFill = { record(); cells[c].indices.forEach { r -> cells[c][r] = (r + 1).toString() } },
+                                        onSeries = { seriesFor = c },
+                                        onStats = { statsFor = c },
+                                        onDuplicate = { duplicateColumn(c) },
+                                        onMoveLeft = if (c > 0) ({ moveColumn(c, c - 1) }) else null,
+                                        onMoveRight = if (c < cells.size - 1) ({ moveColumn(c, c + 1) }) else null,
+                                        onFillDown = if (formulas && cells[c].any { com.example.cas.graph.Sheet.isFormula(it) }) ({ fillFormulaDown(c) }) else null,
+                                        onClear = { record(); cells[c].indices.forEach { r -> cells[c][r] = "" } },
+                                        onRemove = if (cells.size > 1) ({ removeColumn(c) }) else null,
+                                        format = fmts.getOrElse(c) { com.example.cas.graph.ColumnFormat() },
+                                        onFormat = { formatFor = c },
+                                        onColorScale = { on -> record(); while (fmts.size <= c) fmts.add(com.example.cas.graph.ColumnFormat()); fmts[c] = fmts[c].copy(colorScale = on) },
+                                        filtered = c in filters,
+                                        onFilter = { filterFor = c },
+                                    )
+                                    ResizeGrip(
+                                        vertical = true,
+                                        description = "Resize column ${c + 1}",
+                                        onDrag = { px -> widths[c] = (widthOf(c) + with(density) { px.toDp() }).coerceIn(56.dp, 480.dp) },
+                                        onReset = { widths.remove(c) },
+                                        modifier = Modifier.width(10.dp).height(64.dp),
+                                    )
+                                }
+                                // With the first column frozen it stands outside the sideways scroll.
+                                val pinned = frozen && cells.size > 1
+                                val scrolled = if (pinned) 1 until cells.size else cells.indices
                                 Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 6.dp), verticalAlignment = Alignment.Bottom) {
                                     Spacer(Modifier.width(52.dp))
+                                    if (pinned) Row(Modifier.background(colors.surface)) { columnHeader(0) }
                                     Row(Modifier.weight(1f).horizontalScroll(across)) {
-                                        cells.indices.forEach { c ->
-                                            ColumnCard(
-                                                role = roleOf(c), name = names[c], index = c, width = widthOf(c),
-                                                letter = if (formulas) com.example.cas.graph.Sheet.columnName(c) else null,
-                                                onName = { if (typingRecorded != (-1 to c)) { record(); typingRecorded = -1 to c }; names[c] = it }, onRole = { assign(c, it) },
-                                                onSort = { sortBy(c) },
-                                                onSortDown = { sortDown(c) },
-                                                onFill = { record(); cells[c].indices.forEach { r -> cells[c][r] = (r + 1).toString() } },
-                                                onSeries = { seriesFor = c },
-                                                onStats = { statsFor = c },
-                                                onDuplicate = { duplicateColumn(c) },
-                                                onMoveLeft = if (c > 0) ({ moveColumn(c, c - 1) }) else null,
-                                                onMoveRight = if (c < cells.size - 1) ({ moveColumn(c, c + 1) }) else null,
-                                                onFillDown = if (formulas && cells[c].any { com.example.cas.graph.Sheet.isFormula(it) }) ({ fillFormulaDown(c) }) else null,
-                                                onClear = { record(); cells[c].indices.forEach { r -> cells[c][r] = "" } },
-                                                onRemove = if (cells.size > 1) ({ removeColumn(c) }) else null,
-                                            )
-                                            // The grip between columns: drag to resize, double-tap for the usual width.
-                                            ResizeGrip(
-                                                vertical = true,
-                                                description = "Resize column ${c + 1}",
-                                                onDrag = { px -> widths[c] = (widthOf(c) + with(density) { px.toDp() }).coerceIn(56.dp, 480.dp) },
-                                                onReset = { widths.remove(c) },
-                                                modifier = Modifier.width(10.dp).height(64.dp),
-                                            )
-                                        }
+                                        scrolled.forEach { c -> columnHeader(c) }
                                         Spacer(Modifier.width(12.dp))
                                     }
                                 }
+                                // A cell: its text, or its formula's value, as its column's format shows numbers;
+                                // shaded by the column's color scale; lit when selected or found.
+                                val cellView: @Composable (Int, Int) -> Unit = { c, r ->
+                                    val col = cells[c]
+                                    val t = col.getOrElse(r) { "" }
+                                    val role = roleOf(c)
+                                    val fmt = fmts.getOrElse(c) { com.example.cas.graph.ColumnFormat() }
+                                    // A formula shows what it works out to until it's tapped.
+                                    val worked = if (formulas && com.example.cas.graph.Sheet.isFormula(t)) current.sheet.value(c, r) else null
+                                    val error = worked?.error != null || (role != null && t.isNotBlank() && worked == null && com.example.cas.graph.DataTable.number(t) == null) || (role != null && worked != null && worked.number == null)
+                                    val here = editing == (c to r)
+                                    val number = if (fmt.changesNumbers || fmt.colorScale) current.value(c, r) else null
+                                    val display = if (fmt.changesNumbers) number?.let { fmt.show(it) } else null
+                                    val shade = if (fmt.colorScale && number != null) scales[c]?.let { (lo, hi) -> Color(com.example.cas.graph.SheetTools.scaleColor(com.example.cas.graph.SheetTools.scalePosition(number, lo, hi))) } else null
+                                    val found = finding && com.example.cas.graph.SheetTools.matches(t, query, matchCase, wholeCell)
+                                    Box(Modifier.width(widthOf(c)).height(heightOf(r))) {
+                                        TableCell(
+                                            t, error, Modifier.fillMaxSize(), role = role, shown = if (worked != null) (if (display != null && worked.number != null) display else worked.toString()) else null, formulas = formulas,
+                                            editing = here,
+                                            highlight = if (inFill(c, r)) colors.primary else if (found) colors.tertiary else refColor(c, r),
+                                            referenceColors = if (here) refs.mapIndexed { k, ref -> ref.at to refColors[k % refColors.size] } else emptyList(),
+                                            display = display, fill = shade, selected = inSelection(c, r),
+                                            onTap = {
+                                                // With a range picked, a tap stretches it; otherwise it edits the cell.
+                                                if (selA != null) selB = c to r else editing = c to r
+                                            },
+                                            onLongPress = { editing = null; selA = c to r; selB = c to r },
+                                            onNext = {
+                                                // Down the column, adding a row at the end.
+                                                if (r + 1 >= rows) addRow()
+                                                editing = c to r + 1
+                                                scope.launch { list.animateScrollToItem(maxOf(0, visible.indexOf(r) - 2)) }
+                                            },
+                                        ) {
+                                            // Typing in a cell is one step to undo, however many characters.
+                                            if (typingRecorded != (c to r)) { record(); typingRecorded = c to r }
+                                            if (r < col.size) col[r] = it
+                                        }
+                                        // The fill handle: drag it down or across to copy the cell, as in Excel.
+                                        if (here && t.isNotBlank()) FillHandle(
+                                            onStart = { fillTo = c to r },
+                                            onDrag = { dx, dy ->
+                                                val gap = with(density) { 6.dp.toPx() }
+                                                fillTo = if (kotlin.math.abs(dy) >= kotlin.math.abs(dx))
+                                                    c to stepsAlong(r, dy, rows) { k -> with(density) { heightOf(k).toPx() } + gap }
+                                                else stepsAlong(c, dx, cells.size) { k -> with(density) { (widthOf(k) + 10.dp).toPx() } } to r
+                                            },
+                                            onEnd = { fill() },
+                                            onDoubleTap = { fillToEnd() },
+                                            onCancel = { fillTo = null },
+                                            modifier = Modifier.align(Alignment.BottomEnd),
+                                        )
+                                    }
+                                    Spacer(Modifier.width(10.dp))
+                                }
                                 androidx.compose.foundation.lazy.LazyColumn(state = list, modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(bottom = 96.dp)) {
-                                    items(rows, key = { it }) { r ->
+                                    // Only the rows the filters keep (all of them without filters).
+                                    items(visible.size, key = { visible[it] }) { k ->
+                                        val r = visible[k]
                                         Row(
-                                            Modifier.fillMaxWidth().background(if (r % 2 == 0) Color.Transparent else colors.surfaceContainerLowest.copy(alpha = 0.6f)).padding(vertical = 3.dp),
+                                            Modifier.fillMaxWidth().background(if (k % 2 == 0) Color.Transparent else colors.surfaceContainerLowest.copy(alpha = 0.6f)).padding(vertical = 3.dp),
                                             verticalAlignment = Alignment.CenterVertically,
                                         ) {
                                             Box(Modifier.width(52.dp).height(heightOf(r))) {
@@ -2270,49 +2486,9 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                                     modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(12.dp),
                                                 )
                                             }
+                                            if (pinned) Row(Modifier.background(colors.surface)) { cellView(0, r) }
                                             Row(Modifier.weight(1f).horizontalScroll(across)) {
-                                                cells.forEachIndexed { c, col ->
-                                                    val t = col.getOrElse(r) { "" }
-                                                    val role = roleOf(c)
-                                                    // A formula shows what it works out to until it's tapped.
-                                                    val worked = if (formulas && com.example.cas.graph.Sheet.isFormula(t)) current.sheet.value(c, r) else null
-                                                    val error = worked?.error != null || (role != null && t.isNotBlank() && worked == null && com.example.cas.graph.DataTable.number(t) == null) || (role != null && worked != null && worked.number == null)
-                                                    val here = editing == (c to r)
-                                                    Box(Modifier.width(widthOf(c)).height(heightOf(r))) {
-                                                        TableCell(
-                                                            t, error, Modifier.fillMaxSize(), role = role, shown = worked?.toString(), formulas = formulas,
-                                                            editing = here,
-                                                            highlight = if (inFill(c, r)) colors.primary else refColor(c, r),
-                                                            referenceColors = if (here) refs.mapIndexed { k, ref -> ref.at to refColors[k % refColors.size] } else emptyList(),
-                                                            onTap = { editing = c to r },
-                                                            onNext = {
-                                                                // Down the column, adding a row at the end.
-                                                                if (r + 1 >= rows) addRow()
-                                                                editing = c to r + 1
-                                                                scope.launch { list.animateScrollToItem(maxOf(0, r - 2)) }
-                                                            },
-                                                        ) {
-                                                            // Typing in a cell is one step to undo, however many characters.
-                                                            if (typingRecorded != (c to r)) { record(); typingRecorded = c to r }
-                                                            if (r < col.size) col[r] = it
-                                                        }
-                                                        // The fill handle: drag it down or across to copy the cell, as in Excel.
-                                                        if (here && t.isNotBlank()) FillHandle(
-                                                            onStart = { fillTo = c to r },
-                                                            onDrag = { dx, dy ->
-                                                                val gap = with(density) { 6.dp.toPx() }
-                                                                fillTo = if (kotlin.math.abs(dy) >= kotlin.math.abs(dx))
-                                                                    c to stepsAlong(r, dy, rows) { k -> with(density) { heightOf(k).toPx() } + gap }
-                                                                else stepsAlong(c, dx, cells.size) { k -> with(density) { (widthOf(k) + 10.dp).toPx() } } to r
-                                                            },
-                                                            onEnd = { fill() },
-                                                            onDoubleTap = { fillToEnd() },
-                                                            onCancel = { fillTo = null },
-                                                            modifier = Modifier.align(Alignment.BottomEnd),
-                                                        )
-                                                    }
-                                                    Spacer(Modifier.width(10.dp))
-                                                }
+                                                scrolled.forEach { c -> cellView(c, r) }
                                                 Spacer(Modifier.width(12.dp))
                                             }
                                         }
@@ -2629,6 +2805,8 @@ private fun ColumnCard(
     letter: String? = null, onFillDown: (() -> Unit)? = null,
     onSortDown: () -> Unit = {}, onSeries: () -> Unit = {}, onStats: () -> Unit = {}, onDuplicate: () -> Unit = {},
     onMoveLeft: (() -> Unit)? = null, onMoveRight: (() -> Unit)? = null,
+    format: com.example.cas.graph.ColumnFormat = com.example.cas.graph.ColumnFormat(), onFormat: () -> Unit = {}, onColorScale: (Boolean) -> Unit = {},
+    filtered: Boolean = false, onFilter: () -> Unit = {},
 ) {
     val colors = MaterialTheme.colorScheme
     var open by remember { mutableStateOf(false) }
@@ -2645,6 +2823,8 @@ private fun ColumnCard(
                 // The column's letter, for formulas.
                 if (letter != null) Text(letter, style = MaterialTheme.typography.titleSmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp))
                 Spacer(Modifier.weight(1f))
+                // A filter in use on this column.
+                if (filtered) Icon(Icons.Default.FilterList, contentDescription = tr("Filtered"), tint = colors.primary, modifier = Modifier.size(18.dp))
                 Icon(Icons.Default.MoreVert, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp))
             }
             androidx.compose.foundation.text.BasicTextField(
@@ -2666,6 +2846,13 @@ private fun ColumnCard(
             }
             androidx.compose.material3.HorizontalDivider()
             DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Calculate, null) }, text = { Text(tr("Statistics")) }, onClick = { open = false; onStats() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.FilterList, null) }, text = { Text(tr(if (filtered) "Change the filter…" else "Filter…")) }, onClick = { open = false; onFilter() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Percent, null) }, text = { Text(tr("Number format…")) }, onClick = { open = false; onFormat() })
+            DropdownMenuItem(
+                leadingIcon = { Icon(Icons.Default.Palette, null) }, text = { Text(tr("Color scale")) },
+                trailingIcon = if (format.colorScale) ({ Icon(Icons.Default.Check, contentDescription = tr("On")) }) else null,
+                onClick = { open = false; onColorScale(!format.colorScale) },
+            )
             DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, null) }, text = { Text(tr("Sort smallest first")) }, onClick = { open = false; onSort() })
             DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, null, modifier = Modifier.graphicsLayer(scaleY = -1f)) }, text = { Text(tr("Sort largest first")) }, onClick = { open = false; onSortDown() })
             DropdownMenuItem(leadingIcon = { Icon(Icons.Default.FormatListNumbered, null) }, text = { Text(tr("Fill with 1, 2, 3…")) }, onClick = { open = false; onFill() })
@@ -2714,12 +2901,15 @@ private fun RowNumber(r: Int, onInsertAbove: () -> Unit, onInsertBelow: () -> Un
  * Cells that aren't numbers get a red edge; a formula shows its value with a small ƒx until
  * it's tapped. Next on the keyboard moves down to the next row.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TableCell(
     text: String, error: Boolean, modifier: Modifier, role: String? = null,
     shown: String? = null, formulas: Boolean = false, editing: Boolean = false,
     highlight: Color? = null, referenceColors: List<Pair<IntRange, Color>> = emptyList(),
-    onTap: () -> Unit = {}, onNext: () -> Unit = {}, onChange: (String) -> Unit,
+    /** A number as its column's format shows it; a color scale's shade; part of a picked range. */
+    display: String? = null, fill: Color? = null, selected: Boolean = false,
+    onTap: () -> Unit = {}, onLongPress: (() -> Unit)? = null, onNext: () -> Unit = {}, onChange: (String) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     val tint = roleColors(role).first
@@ -2732,19 +2922,21 @@ private fun TableCell(
             if (formula && !editing) colors.tertiaryContainer.copy(alpha = 0.35f).compositeOver(colors.surfaceContainerHigh)
             else if (role == null) colors.surfaceContainerHigh else tint.copy(alpha = 0.08f).compositeOver(colors.surfaceContainerHighest),
         )
+        .then(if (fill != null && !editing) Modifier.background(fill.copy(alpha = 0.55f)) else Modifier)
         .then(if (highlight != null && !editing) Modifier.background(highlight.copy(alpha = 0.10f)) else Modifier)
+        .then(if (selected && !editing) Modifier.background(colors.primary.copy(alpha = 0.18f)) else Modifier)
         .border(
-            if (editing || error || highlight != null) 2.dp else 0.dp,
-            when { editing -> colors.primary; highlight != null -> highlight; error -> colors.error; else -> Color.Transparent },
+            if (editing || error || highlight != null || selected) 2.dp else 0.dp,
+            when { editing || selected -> colors.primary; highlight != null -> highlight; error -> colors.error; else -> Color.Transparent },
             shape,
         )
     if (!editing) {
         Row(
-            base.clickable(onClickLabel = tr("Edit this cell")) { onTap() }.padding(horizontal = 12.dp),
+            base.combinedClickable(onClickLabel = tr("Edit this cell"), onLongClickLabel = tr("Select cells from here"), onLongClick = onLongPress) { onTap() }.padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                shown ?: text, maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
+                shown ?: display ?: text, maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
                 style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = if (formula && error) colors.error else ink),
                 modifier = Modifier.weight(1f),
             )
@@ -3393,4 +3585,167 @@ private fun FitPlot(xs: DoubleArray, ys: DoubleArray, sig: DoubleArray?, f: (Dou
             }
         }
     }
+}
+
+
+/**
+ * Find and replace over the table: what to find (matching cells outlined, the count, and
+ * arrows to step through them), and what to put instead, for the current match or all of them.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FindBar(
+    query: String, onQuery: (String) -> Unit, replacement: String, onReplacement: (String) -> Unit,
+    matchCase: Boolean, onMatchCase: (Boolean) -> Unit, wholeCell: Boolean, onWholeCell: (Boolean) -> Unit,
+    count: Int, at: Int, onNext: () -> Unit, onPrevious: () -> Unit, onReplace: () -> Unit, onReplaceAll: () -> Unit, onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MaterialTheme.colorScheme
+    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.surfaceContainerHigh).padding(start = 12.dp, end = 4.dp, top = 6.dp, bottom = 6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(query, onQuery, singleLine = true, label = { Text(tr("Find")) }, modifier = Modifier.weight(1f))
+            Text(
+                if (query.isEmpty()) "" else if (count == 0) tr("None") else "${at + 1}/$count",
+                style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, modifier = Modifier.padding(horizontal = 8.dp),
+            )
+            IconButton(onClick = onPrevious, enabled = count > 0) { Icon(Icons.Default.KeyboardArrowUp, contentDescription = tr("Previous match")) }
+            IconButton(onClick = onNext, enabled = count > 0) { Icon(Icons.Default.KeyboardArrowDown, contentDescription = tr("Next match")) }
+            IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = tr("Close find and replace")) }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(replacement, onReplacement, singleLine = true, label = { Text(tr("Replace with")) }, modifier = Modifier.weight(1f))
+            androidx.compose.material3.TextButton(onClick = onReplace, enabled = count > 0) { Text(tr("Replace")) }
+            androidx.compose.material3.TextButton(onClick = onReplaceAll, enabled = count > 0) { Text(tr("All")) }
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = matchCase, onClick = { onMatchCase(!matchCase) }, label = { Text(tr("Match case")) })
+            FilterChip(selected = wholeCell, onClick = { onWholeCell(!wholeCell) }, label = { Text(tr("Whole cell")) })
+        }
+    }
+}
+
+/** Filters in use: how many rows show, and a chip per filter (tap to change it, × to drop it). */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FilterBanner(shown: Int, total: Int, chips: List<Pair<String, Int>>, onEdit: (Int) -> Unit, onRemove: (Int) -> Unit, onClear: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.secondaryContainer).padding(horizontal = 12.dp, vertical = 6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.FilterList, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(18.dp))
+            Text(
+                "$shown of $total rows shown · hidden rows are still plotted",
+                style = MaterialTheme.typography.labelLarge, color = colors.onSecondaryContainer, modifier = Modifier.weight(1f).padding(start = 8.dp),
+            )
+            androidx.compose.material3.TextButton(onClick = onClear) { Text(tr("Clear filters")) }
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            chips.forEach { (label, c) ->
+                androidx.compose.material3.InputChip(
+                    selected = true, onClick = { onEdit(c) }, label = { Text(label, maxLines = 1) },
+                    trailingIcon = { Icon(Icons.Default.Close, contentDescription = tr("Remove the filter"), modifier = Modifier.size(16.dp).clickable { onRemove(c) }) },
+                )
+            }
+        }
+    }
+}
+
+/** A picked range: its address, its numbers summed up (sum, average, count, smallest, largest), and Copy, Clear and close. */
+@Composable
+private fun SelectionBar(address: String, s: com.example.cas.graph.SheetTools.Summary, onCopy: () -> Unit, onClear: () -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Row(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.primaryContainer).padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(address, style = MaterialTheme.typography.titleSmall, color = colors.onPrimaryContainer)
+            val parts = buildList {
+                if (s.numbers > 0) { add("Sum " + shortNumber(s.sum)); s.average?.let { add("Average " + shortNumber(it)) } }
+                add("Count " + s.filled)
+                if (s.numbers > 1) { add("Min " + shortNumber(s.min!!)); add("Max " + shortNumber(s.max!!)) }
+            }
+            Text(
+                parts.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = colors.onPrimaryContainer,
+                modifier = Modifier.horizontalScroll(rememberScrollState()), maxLines = 1,
+            )
+        }
+        IconButton(onClick = onCopy) { Icon(Icons.Default.ContentCopy, contentDescription = tr("Copy the cells"), tint = colors.onPrimaryContainer) }
+        IconButton(onClick = onClear) { Icon(Icons.Default.CleaningServices, contentDescription = tr("Clear the cells"), tint = colors.onPrimaryContainer) }
+        IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = tr("Stop selecting"), tint = colors.onPrimaryContainer) }
+    }
+}
+
+/**
+ * A column's number format, as a spreadsheet's: automatic, a fixed number of decimals, a
+ * percentage or scientific notation, with thousands grouped or not; a sample shows the result.
+ */
+@Composable
+private fun NumberFormatDialog(name: String, current: com.example.cas.graph.ColumnFormat, sample: Double, onDismiss: () -> Unit, onDone: (com.example.cas.graph.ColumnFormat) -> Unit) {
+    // 0 automatic, 1 fixed decimals, 2 percent, 3 scientific.
+    var kind by remember { mutableStateOf(when { current.scientific -> 3; current.percent -> 2; current.decimals != null -> 1; else -> 0 }) }
+    var decimals by remember { mutableStateOf(current.decimals ?: 2) }
+    var thousands by remember { mutableStateOf(current.thousands) }
+    fun chosen() = com.example.cas.graph.ColumnFormat(
+        decimals = if (kind == 0 || (kind == 2 && decimals < 0)) null else decimals,
+        percent = kind == 2, scientific = kind == 3, thousands = thousands && kind != 3, colorScale = current.colorScale,
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Number format: $name") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                androidx.compose.material3.SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    listOf("Auto", "Fixed", "%", "Sci").forEachIndexed { k, label ->
+                        SegmentedButton(selected = kind == k, onClick = { kind = k }, shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(k, 4), icon = {}, label = { Text(tr(label), maxLines = 1) })
+                    }
+                }
+                if (kind != 0) {
+                    Text("$decimals decimal${if (decimals == 1) "" else "s"}", style = MaterialTheme.typography.labelLarge)
+                    ExpressiveSlider(value = decimals.toFloat(), onValueChange = { decimals = it.roundToInt() }, valueRange = 0f..8f, steps = 7, modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Decimals") })
+                }
+                if (kind != 3) Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(tr("Group thousands (1 234 567)"), modifier = Modifier.weight(1f))
+                    androidx.compose.material3.Switch(checked = thousands, onCheckedChange = { thousands = it })
+                }
+                // What the column's first number looks like.
+                Text(chosen().let { if (it.changesNumbers) it.show(sample) else com.example.cas.graph.DataTable.text(sample) },
+                    style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 22.sp), color = MaterialTheme.colorScheme.primary)
+                Text(tr("Only the look changes: formulas, fits and the graph use the full numbers."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = { onDone(chosen()) }) { Text(tr("Done")) } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
+    )
+}
+
+/** A filter by condition on one column: the test, and the value it's against (not for empty or not empty). */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FilterDialog(name: String, current: com.example.cas.graph.SheetTools.Filter?, onDismiss: () -> Unit, onRemove: () -> Unit, onApply: (com.example.cas.graph.SheetTools.Filter) -> Unit) {
+    var op by remember { mutableStateOf(current?.op ?: com.example.cas.graph.SheetTools.FilterOp.Greater) }
+    var value by remember { mutableStateOf(current?.value ?: "") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Filter: $name") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(tr("Show only the rows where this column…"), style = MaterialTheme.typography.bodyMedium)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    com.example.cas.graph.SheetTools.FilterOp.entries.forEach { o ->
+                        FilterChip(selected = op == o, onClick = { op = o }, label = { Text(tr(o.label)) })
+                    }
+                }
+                if (op.needsValue) OutlinedTextField(value, { value = it }, singleLine = true, label = { Text(tr("Value")) }, modifier = Modifier.fillMaxWidth())
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = { onApply(com.example.cas.graph.SheetTools.Filter(0, op, value)) }, enabled = !op.needsValue || value.isNotBlank()) { Text(tr("Apply")) }
+        },
+        dismissButton = {
+            Row {
+                if (current != null) androidx.compose.material3.TextButton(onClick = onRemove) { Text(tr("Remove")) }
+                androidx.compose.material3.TextButton(onClick = onDismiss) { Text(tr("Cancel")) }
+            }
+        },
+    )
 }

@@ -1,5 +1,6 @@
 package com.example.cas.ui
 
+import androidx.compose.ui.zIndex
 import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -570,11 +571,11 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 if (isTabletLayout()) {
                     val byList = if (AppSettings.keypadSide == 0) Alignment.TopStart else Alignment.TopEnd
                     ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 140.dp, end = 140.dp))
-                    GeometryGuide(vm, Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp, start = 140.dp, end = 140.dp))
+                    GeometryGuide(vm, Modifier.zIndex(10f).align(Alignment.BottomCenter).padding(bottom = 76.dp, start = 140.dp, end = 140.dp))
                     ConstructRail(vm, Modifier.align(byList).padding(top = 10.dp, bottom = 84.dp, start = 10.dp, end = 10.dp))
                 } else {
                     ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 12.dp, end = 12.dp))
-                    GeometryGuide(vm, Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp, start = 12.dp, end = 12.dp))
+                    GeometryGuide(vm, Modifier.zIndex(10f).align(Alignment.BottomCenter).padding(bottom = 76.dp, start = 12.dp, end = 12.dp))
                 }
             }
         }

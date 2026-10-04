@@ -14,7 +14,13 @@ class DataTable(
     val y: Int?,
     val sigmaX: Int? = null,
     val sigmaY: Int? = null,
+    /** Each column's number format and color scale (missing ones are the default). */
+    val formats: List<ColumnFormat> = emptyList(),
+    /** The first column stays in view while the table scrolls sideways. */
+    val frozen: Boolean = false,
 ) {
+    fun format(column: Int): ColumnFormat = formats.getOrElse(column) { ColumnFormat() }
+
     val rowCount get() = columns.maxOfOrNull { it.size } ?: 0
 
     fun cell(column: Int?, row: Int): String = column?.let { columns.getOrNull(it)?.getOrNull(row) } ?: ""
@@ -50,7 +56,7 @@ class DataTable(
         columns.getOrNull(c)?.indices?.count { r -> cell(c, r).isNotBlank() && value(c, r) == null } ?: 0
     }
 
-    fun withRoles(x: Int?, y: Int?, sigmaX: Int?, sigmaY: Int?) = DataTable(names, columns, x, y, sigmaX, sigmaY)
+    fun withRoles(x: Int?, y: Int?, sigmaX: Int?, sigmaY: Int?) = DataTable(names, columns, x, y, sigmaX, sigmaY, formats, frozen)
 
     /** A column's numbers (formulas worked out); text and empty cells left out. */
     fun numbers(column: Int): List<Double> = (0 until rowCount).mapNotNull { value(column, it) }
@@ -73,9 +79,15 @@ class DataTable(
         }
     }
 
-    /** Saved as text: the roles, the names, then one line per column; cells split by tabs. */
+    /**
+     * Saved as text: the roles (then F: the columns' formats and Z for a frozen first column,
+     * when there are any), the names, then one line per column; cells split by tabs.
+     */
     fun encode(): String = buildString {
-        append(listOf(x, y, sigmaX, sigmaY).joinToString("\t") { (it ?: -1).toString() }).append('\n')
+        append(listOf(x, y, sigmaX, sigmaY).joinToString("\t") { (it ?: -1).toString() })
+        if (formats.any { !it.isDefault }) append("\tF:").append(formats.joinToString(",") { it.encode() })
+        if (frozen) append("\tZ")
+        append('\n')
         append(names.joinToString("\t") { esc(it) })
         columns.forEach { c -> append('\n').append(c.joinToString("\t") { esc(it) }) }
     }
@@ -122,11 +134,14 @@ class DataTable(
 
         fun decode(s: String): DataTable? = runCatching {
             val lines = s.split('\n')
-            val roles = lines[0].split('\t').map { it.toInt() }
+            val head = lines[0].split('\t')
+            val roles = head.mapNotNull { it.toIntOrNull() }
+            val formats = head.firstOrNull { it.startsWith("F:") }?.removePrefix("F:")?.split(',')?.map { ColumnFormat.decode(it) }.orEmpty()
+            val frozen = "Z" in head
             val names = lines.getOrElse(1) { "" }.split('\t').map { unesc(it) }
             val columns = lines.drop(2).map { l -> l.split('\t').map { unesc(it) } }
             fun role(k: Int) = roles.getOrNull(k)?.takeIf { it in columns.indices }
-            DataTable(names, columns, role(0), role(1), role(2), role(3))
+            DataTable(names, columns, role(0), role(1), role(2), role(3), formats, frozen)
         }.getOrNull()
 
         private fun esc(t: String) = t.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")

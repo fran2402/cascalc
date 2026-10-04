@@ -1,5 +1,6 @@
 package com.example.cas.ui
 
+import androidx.compose.ui.zIndex
 import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -136,6 +137,9 @@ fun ComplexScreen(vm: ComplexViewModel, onUseValue: (CD) -> Unit = {}, modifier:
                         when {
                             fn === vm.plotted -> ScreenLegendEntry(legendSource(fn), Color.White, line = false, strip = colormapStops(fn.colormap, 7, fn.colormapReversed))
                             fn.complexPoints != null -> ScreenLegendEntry(legendSource(fn), complexLineColor(fn), line = fn.connectPoints || fn.closedShape, marker = com.example.cas.graph.Marker.of(fn.pointShape))
+                            // Constructions as on the 2D graph: a point's mark, a line's style.
+                            fn.geometry != null && vm.constructionKind(fn) == 'P' -> ScreenLegendEntry(legendSource(fn), complexLineColor(fn), line = false, marker = com.example.cas.graph.Marker.of(fn.pointShape))
+                            fn.geometry != null -> ScreenLegendEntry(legendSource(fn), complexLineColor(fn), style = fn.lineStyle)
                             else -> ScreenLegendEntry(legendSource(fn), complexLineColor(fn))
                         }
                     }
@@ -149,11 +153,11 @@ fun ComplexScreen(vm: ComplexViewModel, onUseValue: (CD) -> Unit = {}, modifier:
                 else if (isTabletLayout()) {
                     val byList = if (AppSettings.keypadSide == 0) Alignment.TopStart else Alignment.TopEnd
                     ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 140.dp, end = 140.dp))
-                    GeometryGuide(vm, Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp, start = 140.dp, end = 140.dp))
+                    GeometryGuide(vm, Modifier.zIndex(10f).align(Alignment.BottomCenter).padding(bottom = 76.dp, start = 140.dp, end = 140.dp))
                     ConstructRail(vm, Modifier.align(byList).padding(top = 10.dp, bottom = 84.dp, start = 10.dp, end = 10.dp))
                 } else {
                     ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 12.dp, end = 12.dp))
-                    GeometryGuide(vm, Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp, start = 12.dp, end = 12.dp))
+                    GeometryGuide(vm, Modifier.zIndex(10f).align(Alignment.BottomCenter).padding(bottom = 76.dp, start = 12.dp, end = 12.dp))
                 }
             }
         }
@@ -688,6 +692,35 @@ internal fun complexScene(vm: ComplexViewModel, view: Viewport, size: Double, da
             }
         }
     }
+    // Constructions, as on screen: fills, lines in their style (vectors with an arrowhead), points
+    // with their marks, and names in math italic.
+    if (AppSettings.geometry) vm.functions.filter { it.visible && it.geometry != null }.asReversed().forEach { fn ->
+        val o = vm.geometryOf(fn) ?: return@forEach
+        val d = runCatching { com.example.cas.graph.Geometry.draw(o, sc.realView(v)) { vm.angleText(it) } }.getOrNull() ?: return@forEach
+        val color = complexLineColor(fn).toArgb()
+        d.fill?.takeIf { it.size > 2 }?.let { fill ->
+            scene.add(Scene.Fill(listOf(fill.flatMap { (x, y) -> listOf(sx(x), sy(y)) }.toDoubleArray()), ((255 * fn.fillOpacity.coerceIn(0.05f, 1f)).toInt() shl 24) or (color and 0xFFFFFF)))
+        }
+        val width = fn.thickness * 0.65
+        val dash = com.example.cas.graph.LineStyle.of(fn.lineStyle).pattern(width)
+        if (d.lines.isNotEmpty()) scene.add(Scene.Stroke(d.lines.map { line -> line.flatMap { (x, y) -> listOf(sx(x), sy(y)) }.toDoubleArray() }, color, width, dash))
+        if (d.arrow) d.lines.forEach { line ->
+            if (line.size < 2) return@forEach
+            val (x0, y0) = line[line.size - 2]; val (x1, y1) = line.last()
+            val ax = sx(x1); val ay = sy(y1); val dx = ax - sx(x0); val dy = ay - sy(y0); val len = kotlin.math.hypot(dx, dy)
+            if (len > 0) {
+                val ux = dx / len; val uy = dy / len; val h = 6.0
+                scene.add(Scene.Fill(listOf(doubleArrayOf(ax, ay, ax - ux * h - uy * h * 0.45, ay - uy * h + ux * h * 0.45, ax - ux * h + uy * h * 0.45, ay - uy * h - ux * h * 0.45)), color))
+            }
+        }
+        val marker = com.example.cas.graph.Marker.of(fn.pointShape)
+        d.points.forEach { p -> marker.addTo(scene, sx(p.x), sy(p.y), fn.pointSize * 0.43, color) }
+        val name = fn.geometry?.name
+        if (name != null && !fn.hideName && o is com.example.cas.graph.Geometry.Point) {
+            scene.add(Scene.Label(sx(o.x) + 4, sy(o.y) - 6, name, Pgf.TICK_SIZE, white, Scene.Anchor.Start, Scene.Font.Italic))
+        }
+        d.labels.forEach { (p, text) -> scene.add(Scene.Label(sx(p.x), sy(p.y), text, Pgf.TICK_SIZE * 0.9, white, Scene.Anchor.Middle, Scene.Font.Roman)) }
+    }
     if (vm.contour.size > 1) {
         val pts = DoubleArray(vm.contour.size * 2 + if (vm.contourResult != null) 2 else 0)
         vm.contour.forEachIndexed { k, z -> pts[2 * k] = sx(z.re); pts[2 * k + 1] = sy(z.im) }
@@ -706,6 +739,8 @@ internal fun complexScene(vm: ComplexViewModel, view: Viewport, size: Double, da
                 // Points: their mark (on a line when they're joined).
                 fn.complexPoints != null -> Pgf.LegendEntry(math = name, spans = spans, color = complexLineColor(fn).toArgb(), line = fn.connectPoints || fn.closedShape, width = 1.3,
                     marker = com.example.cas.graph.Marker.of(fn.pointShape), markerSize = fn.pointSize * 0.43)
+                fn.geometry != null && vm.constructionKind(fn) == 'P' -> Pgf.LegendEntry(math = name, spans = spans, color = complexLineColor(fn).toArgb(), line = false,
+                    marker = com.example.cas.graph.Marker.of(fn.pointShape), markerSize = fn.pointSize * 0.43)
                 else -> Pgf.LegendEntry(math = name, spans = spans, color = complexLineColor(fn).toArgb(), width = 1.3)
             }
         }
@@ -718,7 +753,7 @@ internal fun complexScene(vm: ComplexViewModel, view: Viewport, size: Double, da
 internal fun complexLegendLines(vm: ComplexViewModel): List<PlotFunction> =
     vm.functions.filter { fn ->
         fn.visible && !fn.isText && legendSource(fn).isNotBlank() &&
-            (fn === vm.plotted || fn.complexCurve != null || fn.contour != null || fn.complexPoints != null || fn.complexPath != null)
+            (fn === vm.plotted || fn.complexCurve != null || fn.contour != null || fn.complexPoints != null || fn.complexPath != null || fn.geometry != null)
     }
 
 @Composable

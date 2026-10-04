@@ -1573,15 +1573,14 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
     var howTo by remember { mutableStateOf(false) }
     if (howTo) DocsPage(onBack = { howTo = false })
     // One scrolling page on a phone; on a tablet, the sections down the left and one at a time on the right.
-    SectionedPage("Settings", onBack = onBack, sections = listOf(
+    SectionedPage("Settings", onBack = onBack, sections = (if (I18n.languages.size < 2) emptyList<PageSection>() else listOf(
+        // Only once a translation has been added (assets/i18n): the system's language, or one picked here.
         PageSection("Language", Icons.Outlined.Language) {
-            // The system's language, or one picked here; each written in itself.
             val codes = listOf("") + I18n.languages.map { it.code }
             // Its title says "Language" in English too, so it can be found from any language.
             SettingsRadio(if (I18n.code == "en") "Language" else tr("Language") + " (Language)", listOf(tr("System")) + I18n.languages.map { it.name }, codes.indexOf(AppSettings.language).coerceAtLeast(0)) { AppSettings.changeLanguage(codes[it]) }
-            if (I18n.code == "sh") SettingsChoice("Spelling", listOf("Ijekavian", "Ekavian"), if (AppSettings.ekavian) 1 else 0) { AppSettings.changeEkavian(it == 1) }
-            if (I18n.code != "en") Text(tr("Translations are new and may be incomplete: anything not translated yet shows in English. The documentation and key explanations are in English."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
         },
+    )) + listOf(
         PageSection("Appearance", Icons.Outlined.Palette) {
             SettingsChoice("Theme", listOf("System", "Light", "Dark"), AppSettings.theme, AppSettings::changeTheme)
             val wallpaperColors = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S

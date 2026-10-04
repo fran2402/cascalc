@@ -524,9 +524,16 @@ object Docs {
                         "Tap a row's number" to "Insert a row above or below, duplicate it, or remove it",
                         "Drag a grip" to "Resize a column (between the cards) or a row (under its number)",
                         "Double-tap a grip" to "Back to the usual size",
-                        "A column's ⋮" to "Its role; statistics (count, sum, mean, median, standard deviation, smallest, largest); sort smallest or largest first; fill 1, 2, 3… or a series with any start and step; duplicate, move left or right, clear, remove",
-                        "⋮ at the top" to "Share or copy the table as CSV (formulas as their values), remove empty rows",
+                        "A column's ⋮" to "Its role; statistics (count, sum, mean, median, standard deviation, smallest, largest); a filter; a number format; a color scale; sort smallest or largest first; fill 1, 2, 3… or a series with any start and step; duplicate, move left or right, clear, remove",
+                        "⋮ at the top" to "Find and replace; freeze the first column; share or copy the table as CSV (formulas as their values); remove empty or duplicate rows; trim spaces; swap rows and columns",
+                        "Hold a cell" to "Select from it; tap another cell to stretch the range. The bar shows its sum, average, count, smallest and largest, with Copy (to paste into a spreadsheet) and Clear",
                     ),
+                ),
+                section(
+                    "Spreadsheet tools",
+                    para("Find and replace outlines every matching cell, steps through them with the arrows, and replaces one or all, matching case or whole cells if asked. A filter (a column's ⋮ › Filter…) shows only the rows where that column is equal to, greater or less than a value, contains some text, or is empty or not; filters on several columns all apply, and the rows they hide are still plotted."),
+                    para("A number format shows a column's numbers with fixed decimals, as percentages or in scientific notation (1.23 × 10⁴), with thousands grouped if you like; only the look changes, so formulas, fits and the graph use the full numbers. A color scale shades each number from the column's smallest (red) through yellow to its largest (green). Both are kept with the table, and so is a frozen first column, which stays in view as the table scrolls sideways."),
+                    para("Dragging the fill handle from text counts on, as Excel does: Week 1, Week 2…; Q09, Q10…; Jan, Feb…; Monday, Tuesday… Plain numbers are copied; Fill with a series counts in any step."),
                 ),
                 section(
                     "Spreadsheet formulas",
@@ -607,19 +614,6 @@ object Docs {
                 section(
                     "Export",
                     para("PNG, SVG or PDF, in the style of pgfplots with LaTeX fonts and a legend; 3D surfaces also as STL for printing."),
-                ),
-            ),
-        ),
-        Chapter(
-            "Languages", "language", "English, Frisian and Serbo-Croatian.", part = APP, sections = listOf(
-                section(
-                    "Choosing one",
-                    para("Settings › Language picks English, Frysk (West Frisian) or srpskohrvatski (Serbo-Croatian), or follows the phone's language. Serbo-Croatian is written in the Latin alphabet, in ijekavian (vrijeme, mjesto) or ekavian (vreme, mesto) spelling, chosen under Spelling; it starts as ekavian on a phone set to Serbian. The setting's title also says Language in English, so it's easy to find again."),
-                    para("The translations are new: the menus, settings, graphs, data tables and geometry tools are translated, and anything not yet translated (this documentation and the key explanations among them) stays in English. Math looks the same in every language."),
-                ),
-                section(
-                    "Adding or fixing translations",
-                    para("Each language is a plain text file in the app, assets/i18n: one line per string, the English, a tab, then the translation. Serbo-Croatian writes both spellings as {ijekavian|ekavian} where they differ. A missing line simply shows the English, and a test checks every line matches a string the app shows."),
                 ),
             ),
         ),

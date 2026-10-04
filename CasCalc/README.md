@@ -203,6 +203,32 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, spreadsheet tools, complex constructions)
+- **Data tables, more like a spreadsheet:**
+  - Find and replace (matching cells outlined, step through them, replace one or all, match
+    case or whole cells).
+  - Filters by condition on any column (equal, greater, less, contains, empty, not empty),
+    with a banner showing how many rows are shown; hidden rows are still plotted.
+  - Hold a cell to select a range, then tap to stretch it. A bar shows its sum, average,
+    count, smallest and largest, with Copy (tab-separated, pastes into Sheets or Excel) and
+    Clear.
+  - Number formats per column (fixed decimals, percent, scientific 1.23 × 10⁴, thousands
+    grouped) and a red–yellow–green color scale. Only the look changes; both are saved with
+    the table.
+  - Freeze the first column. Remove duplicate rows, trim spaces, swap rows and columns.
+  - The fill handle counts on from text, as Excel does: Week 1 → Week 2, Q09 → Q10,
+    Jan → Feb, Monday → Tuesday.
+  - The title is just "Data" on phones. (`graph/SheetTools.kt`, `SheetToolsTest`.)
+- **Complex plane:** constructions are lines and points, not functions: their dot opens
+  color, line style and options instead of a colormap. They show in the legend and are
+  drawn in exports.
+- **Geometry italics:** letters in construction values use Computer Modern's italic face,
+  not the upright one slanted.
+- **Geometry guide:** sits above the graph's buttons in all three graphs.
+- **Languages removed** for now (they were a test). `tr()` stays, and `i18n/template.tsv`
+  lists every string for translating; see `i18n/README.md`. Settings › Language appears once
+  a translation is added.
+
 ## Latest changes (4 October, languages, speed, geometry guide)
 - **Languages (test):** Settings › Language picks English, Frysk (West Frisian) or
   srpskohrvatski (Serbo-Croatian), or follows the phone. Serbo-Croatian has a Spelling choice,

@@ -13,7 +13,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.ChangeHistory
 import androidx.compose.material.icons.outlined.Description
@@ -97,7 +96,6 @@ private fun docsIcon(key: String): ImageVector = when (key) {
     "table", "sheet" -> Icons.Outlined.TableChart
     "converter" -> Icons.Outlined.SwapHoriz
     "files" -> Icons.Outlined.FolderOpen
-    "language" -> Icons.Outlined.Language
     "keys" -> Icons.Outlined.Keyboard
     "geometry" -> PlotIcons.Geometry
     else -> Icons.Outlined.Description

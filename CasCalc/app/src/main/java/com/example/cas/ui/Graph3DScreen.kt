@@ -1,5 +1,6 @@
 package com.example.cas.ui
 
+import androidx.compose.ui.zIndex
 import com.example.cas.engine.Readout
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -142,11 +143,11 @@ fun Graph3DScreen(vm: Graph3DViewModel, onUseValue: (Double) -> Unit = {}, modif
                 else if (isTabletLayout()) {
                     val byList = if (AppSettings.keypadSide == 0) Alignment.TopStart else Alignment.TopEnd
                     ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 140.dp, end = 140.dp))
-                    GeometryGuide(vm, Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp, start = 140.dp, end = 140.dp))
+                    GeometryGuide(vm, Modifier.zIndex(10f).align(Alignment.BottomCenter).padding(bottom = 76.dp, start = 140.dp, end = 140.dp))
                     ConstructRail(vm, Modifier.align(byList).padding(top = 10.dp, bottom = 84.dp, start = 10.dp, end = 10.dp))
                 } else {
                     ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 12.dp, end = 12.dp))
-                    GeometryGuide(vm, Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp, start = 12.dp, end = 12.dp))
+                    GeometryGuide(vm, Modifier.zIndex(10f).align(Alignment.BottomCenter).padding(bottom = 76.dp, start = 12.dp, end = 12.dp))
                 }
             }
         }
