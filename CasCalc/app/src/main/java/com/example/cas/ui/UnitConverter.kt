@@ -377,7 +377,7 @@ private fun ToCard(unit: String, onUnit: (String) -> Unit, state: ConverterState
         }
         AnimatedVisibility(r != null, enter = fadeIn() + expandVertically(), exit = fadeOut() + shrinkVertically()) {
             if (r != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionPill(Icons.Default.ContentCopy, "Copy") {
+                ActionPill(TableIcons.Copy, "Copy") {
                     clipboard.setText(androidx.compose.ui.text.AnnotatedString(Units.plain(r.value, digits) + " " + plainUnit(r.to)))
                     android.widget.Toast.makeText(context, "Copied", android.widget.Toast.LENGTH_SHORT).show()
                 }
@@ -507,7 +507,7 @@ private fun Notice(icon: ImageVector, text: String, container: Color, content: C
         Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(container).padding(horizontal = 18.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, tint = content)
+        AppIcon(icon, contentDescription = null, tint = content)
         Spacer(Modifier.width(12.dp))
         MathText(text, style = MaterialTheme.typography.bodyMedium, color = content)
     }
@@ -633,7 +633,7 @@ private fun ActionPill(icon: ImageVector, label: String, onClick: () -> Unit) {
         Modifier.height(40.dp).clip(CircleShape).background(colors.surfaceContainerLowest.copy(alpha = 0.7f)).clickable(onClickLabel = label) { tap(); onClick() }.padding(start = 14.dp, end = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(18.dp))
+        AppIcon(icon, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Text(tr(label), style = MaterialTheme.typography.labelLarge, color = colors.onPrimaryContainer)
     }
@@ -740,7 +740,7 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
                 Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainerLowest.copy(alpha = 0.75f)).padding(start = 14.dp, end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Default.Edit, contentDescription = null, tint = colors.onPrimaryContainer.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
+                AppIcon(TableIcons.Edit, contentDescription = null, tint = colors.onPrimaryContainer.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(10.dp))
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                     if (expr.isEmpty()) Text(tr("or type one, like km/s/Mpc"), style = MaterialTheme.typography.bodyLarge, color = colors.onPrimaryContainer.copy(alpha = 0.6f))

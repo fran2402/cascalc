@@ -104,7 +104,7 @@ fun HistoryToolbar(vm: CalculatorViewModel, modifier: Modifier = Modifier) {
                 Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(colors.secondaryContainer)
                     .combinedClickable(onClickLabel = tr("Export these calculations"), enabled = visible.isNotEmpty()) { exporting = true },
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Default.IosShare, contentDescription = tr("Export"), tint = colors.onSecondaryContainer) }
+            ) { AppIcon(TableIcons.Share, contentDescription = tr("Export"), tint = colors.onSecondaryContainer) }
         }
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             @Composable
@@ -116,7 +116,7 @@ fun HistoryToolbar(vm: CalculatorViewModel, modifier: Modifier = Modifier) {
                         .padding(horizontal = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (icon != null) { Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant); Spacer(Modifier.width(6.dp)) }
+                    if (icon != null) { AppIcon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant); Spacer(Modifier.width(6.dp)) }
                     Text(tr(label), style = MaterialTheme.typography.labelLarge, color = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant)
                 }
             }
@@ -207,7 +207,7 @@ private fun ExportHistoryDialog(items: List<HistoryItem>, onDismiss: () -> Unit)
     val saveTex = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/x-tex")) { uri -> uri?.let { u -> scope.launch { runCatching { val b = withContext(Dispatchers.Default) { bytes() }; withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(u)?.use { it.write(b) } } }.onSuccess { Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show(); onDismiss() }.onFailure(::failed) } } }
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(Icons.Default.IosShare, contentDescription = null) },
+        icon = { AppIcon(TableIcons.Share, contentDescription = null) },
         title = { Text("Export ${items.size} calculation${if (items.size == 1) "" else "s"}") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

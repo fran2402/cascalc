@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
  * accent color (see [DuoIcon]).
  */
 
-private fun tableIcon(name: String, stroke: List<String>, thin: List<String> = emptyList(), fill: List<String> = emptyList(), shade: List<String> = emptyList(), accent: Set<String> = emptySet()): ImageVector {
+internal fun tableIcon(name: String, stroke: List<String>, thin: List<String> = emptyList(), fill: List<String> = emptyList(), shade: List<String> = emptyList(), accent: Set<String> = emptySet()): ImageVector {
     fun layer(layerName: String, keep: (String) -> Boolean) = ImageVector.Builder(layerName, 24.dp, 24.dp, 24f, 24f).apply {
         val black = SolidColor(Color.Black)
         shade.filter(keep).forEach { addPath(PathParser().parsePathString(it).toNodes(), fill = black, fillAlpha = 0.35f) }
@@ -23,9 +23,12 @@ private fun tableIcon(name: String, stroke: List<String>, thin: List<String> = e
         thin.filter(keep).forEach { addPath(PathParser().parsePathString(it).toNodes(), stroke = black, strokeLineWidth = 1.6f, strokeLineCap = StrokeCap.Round, strokeLineJoin = StrokeJoin.Round) }
         fill.filter(keep).forEach { addPath(PathParser().parsePathString(it).toNodes(), fill = black) }
     }.build()
-    val base = layer(name) { it !in accent }
-    if (accent.isNotEmpty()) TableIcons.accents[name] = layer("$name accent") { it in accent }
-    return base
+    // The whole icon (for a plain one-color Icon), and its ink and accent layers for [AppIcon].
+    if (accent.isNotEmpty()) {
+        TableIcons.inks[name] = layer("$name ink") { it !in accent }
+        TableIcons.accents[name] = layer("$name accent") { it in accent }
+    }
+    return layer(name) { true }
 }
 
 /** An ellipse as a path (a digit 0, a dot), centered at ([x], [y]). */
@@ -34,9 +37,25 @@ private fun oval(x: Float, y: Float, rx: Float, ry: Float) = "M${x - rx} ${y}a$r
 object TableIcons {
     /** Each icon's second layer: the part drawn in the accent color (what the command makes or does), as the geometry tools' icons. */
     internal val accents = HashMap<String, ImageVector>()
+    internal val inks = HashMap<String, ImageVector>()
 
     /** The accent layer of [icon], if it has one. */
     fun accentOf(icon: ImageVector): ImageVector? = accents[icon.name]
+
+    /** [icon] without its accent layer (the icon itself if it has none). */
+    fun inkOf(icon: ImageVector): ImageVector = inks[icon.name] ?: icon
+
+    /** A pen writing a line: edit. */
+    val Edit: ImageVector by lazy { tableIcon("Edit", stroke = listOf("M4.5 19.5l.8-4L15.6 5.2a2.1 2.1 0 0 1 3 3L8.3 18.5z", "M13.4 7.4l3 3", "M12.5 20.5h8"), shade = listOf("M4.5 19.5l.8-4l3 3z"), accent = setOf("M13.4 7.4l3 3", "M12.5 20.5h8", "M4.5 19.5l.8-4l3 3z")) }
+
+    /** Two sheets, the copy in front: copy. */
+    val Copy: ImageVector by lazy { tableIcon("Copy", stroke = listOf("M10 8.5h8.5a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H10A1.5 1.5 0 0 1 8.5 19v-9A1.5 1.5 0 0 1 10 8.5z", "M15.5 5V4.5A1.5 1.5 0 0 0 14 3H5.5A1.5 1.5 0 0 0 4 4.5V14a1.5 1.5 0 0 0 1.5 1.5H6"), shade = listOf("M10 8.5h8.5a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H10A1.5 1.5 0 0 1 8.5 19v-9A1.5 1.5 0 0 1 10 8.5z"), accent = setOf("M10 8.5h8.5a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H10A1.5 1.5 0 0 1 8.5 19v-9A1.5 1.5 0 0 1 10 8.5z")) }
+
+    /** A clipboard with the lines being pasted onto it: paste. */
+    val Paste: ImageVector by lazy { tableIcon("Paste", stroke = listOf("M8 4.5H6a1.5 1.5 0 0 0-1.5 1.5v13.5A1.5 1.5 0 0 0 6 21h12a1.5 1.5 0 0 0 1.5-1.5V6A1.5 1.5 0 0 0 18 4.5h-2", "M9 3h6v3H9z", "M8.5 11h7", "M8.5 14.5h7", "M8.5 18h4"), accent = setOf("M8.5 11h7", "M8.5 14.5h7", "M8.5 18h4")) }
+
+    /** A box with an arrow leaving it: share (the same drawing as [ShareTable]). */
+    val Share: ImageVector get() = ShareTable
 
     /** Bars growing downwards and an arrow up: smallest first. */
     val SortUp: ImageVector by lazy { tableIcon("SortUp", stroke = listOf("M3.5 6h5", "M3.5 12h8", "M3.5 18h11", "M19 19V5", "M16 8l3-3l3 3"), accent = setOf("M19 19V5", "M16 8l3-3l3 3")) }

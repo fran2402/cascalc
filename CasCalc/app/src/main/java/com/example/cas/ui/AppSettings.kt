@@ -70,6 +70,9 @@ object AppSettings {
     /** Beta: worked steps for integrals, derivatives, limits, sums and ∮ loop integrals, from the history. */
     var showSteps by mutableStateOf(false)
         private set
+    /** Beta: pictures instead of labels on the function keys (π, e, ∫, Σ, the statistics and complex keys). */
+    var keyIcons by mutableStateOf(false)
+        private set
     /** The unit converter in the ⋮ menu. */
     val unitConverter get() = true
     /** Excel-style formulas (=SUM(A:A), =B1*2…) in the data table. */
@@ -149,6 +152,7 @@ object AppSettings {
         polarComplex = p.getBoolean("polarComplex", false)
         livePreview = p.getBoolean("livePreview", true)
         showSteps = p.getBoolean("showSteps", false)
+        keyIcons = p.getBoolean("keyIcons", false)
         geometry = p.getBoolean("geometry", false)
         converterState = p.getString("converterState", null) ?: converterState
         historyLimit = p.getInt("historyLimit", 100)
@@ -198,6 +202,7 @@ object AppSettings {
     fun changePolarComplex(v: Boolean) { polarComplex = v; com.example.cas.engine.Formatter.polarComplex = v; save("polarComplex", v) }
     fun changeLivePreview(v: Boolean) { livePreview = v; save("livePreview", v) }
     fun changeShowSteps(v: Boolean) { showSteps = v; save("showSteps", v) }
+    fun changeKeyIcons(v: Boolean) { keyIcons = v; save("keyIcons", v) }
     fun changeGeometry(v: Boolean) { geometry = v; save("geometry", v) }
     fun changeConverterState(value: String, from: String, to: String) { converterState = "$value\n$from\n$to"; save("converterState", converterState) }
     fun changeHistoryLimit(v: Int) { historyLimit = v; save("historyLimit", v) }

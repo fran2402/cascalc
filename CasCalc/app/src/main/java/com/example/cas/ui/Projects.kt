@@ -327,10 +327,10 @@ private fun ProjectCard(s: Saved, current: Boolean, onOpen: () -> Unit, onRename
             Box {
                 IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Options for ${p.name}", tint = colors.onSurfaceVariant) }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(text = { Text(tr("Rename")) }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { menu = false; onRename() })
-                    DropdownMenuItem(text = { Text(tr("Duplicate")) }, leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, onClick = { menu = false; onDuplicate() })
+                    DropdownMenuItem(text = { Text(tr("Rename")) }, leadingIcon = { AppIcon(TableIcons.Edit, null) }, onClick = { menu = false; onRename() })
+                    DropdownMenuItem(text = { Text(tr("Duplicate")) }, leadingIcon = { AppIcon(TableIcons.Copy, null) }, onClick = { menu = false; onDuplicate() })
                     val ext = s.mode.graphFileKind?.extension.orEmpty()
-                    DropdownMenuItem(text = { Text("Share as .$ext file") }, leadingIcon = { Icon(Icons.Default.Share, null) }, onClick = { menu = false; onExportFile(true) })
+                    DropdownMenuItem(text = { Text("Share as .$ext file") }, leadingIcon = { AppIcon(TableIcons.Share, null) }, onClick = { menu = false; onExportFile(true) })
                     DropdownMenuItem(text = { Text("Save as .$ext file") }, leadingIcon = { Icon(Icons.Default.SaveAlt, null) }, onClick = { menu = false; onExportFile(false) })
                     DropdownMenuItem(text = { Text(tr("Delete"), color = colors.error) }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = colors.error) }, onClick = { menu = false; onDelete() })
                 }

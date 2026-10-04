@@ -604,7 +604,7 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         val fg = if (tonal) colors.onSecondaryContainer else colors.onSurfaceVariant
-                        Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(18.dp))
+                        AppIcon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(tr(label), color = fg, style = MaterialTheme.typography.labelLarge, maxLines = 1)
                     }
@@ -625,9 +625,9 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                 fun small(icon: androidx.compose.ui.graphics.vector.ImageVector, spoken: String, tint: Color, onClick: () -> Unit) = Box(
                     Modifier.size(34.dp).clip(CircleShape).clickable(onClickLabel = spoken) { tap(); onClick() }.semantics { contentDescription = spoken },
                     contentAlignment = Alignment.Center,
-                ) { Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp)) }
+                ) { AppIcon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(18.dp)) }
                 Row(horizontalArrangement = Arrangement.spacedBy(0.dp), verticalAlignment = Alignment.CenterVertically) {
-                    small(Icons.Default.ContentCopy, "Copy the answer", colors.onSurfaceVariant) { copy(Formatter.plain(shown), "Answer") }
+                    small(TableIcons.Copy, "Copy the answer", colors.onSurfaceVariant) { copy(Formatter.plain(shown), "Answer") }
                     small(
                         if (item.pinned) Icons.Default.PushPin else Icons.Outlined.PushPin,
                         if (item.pinned) "Unpin" else "Pin: keep it whatever the history limit",
@@ -649,12 +649,12 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                             onClick = { shareMenu = false; movingToFolder = true },
                         )
                         HorizontalDivider()
-                        DropdownMenuItem(text = { Text(tr("Share as image")) }, leadingIcon = { Icon(Icons.Default.Share, null) }, onClick = {
+                        DropdownMenuItem(text = { Text(tr("Share as image")) }, leadingIcon = { AppIcon(TableIcons.Share, null) }, onClick = {
                             shareMenu = false
                             scope.launch { shareImage(context, layer.toImageBitmap().asAndroidBitmap()) }
                         })
-                        DropdownMenuItem(text = { Text(tr("Share as LaTeX")) }, leadingIcon = { Icon(Icons.Default.Share, null) }, onClick = { shareMenu = false; shareText(context, latex()) })
-                        DropdownMenuItem(text = { Text(tr("Copy LaTeX")) }, leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, onClick = { shareMenu = false; copy(latex(), "LaTeX") })
+                        DropdownMenuItem(text = { Text(tr("Share as LaTeX")) }, leadingIcon = { AppIcon(TableIcons.Share, null) }, onClick = { shareMenu = false; shareText(context, latex()) })
+                        DropdownMenuItem(text = { Text(tr("Copy LaTeX")) }, leadingIcon = { AppIcon(TableIcons.Copy, null) }, onClick = { shareMenu = false; copy(latex(), "LaTeX") })
                         HorizontalDivider()
                         // Delete, as swiping does (asking first when that's on).
                         DropdownMenuItem(
@@ -737,7 +737,7 @@ private fun ControlRow(vm: KeypadHost) {
                 }
             }
             IconButton(onClick = { editing = true }) {
-                Icon(Icons.Default.Edit, contentDescription = tr("Choose the coordinate letters"), tint = colors.onSurfaceVariant)
+                AppIcon(TableIcons.Edit, contentDescription = tr("Choose the coordinate letters"), tint = colors.onSurfaceVariant)
             }
             if (editing) CoordinatesDialog(vm.coordinates, onDone = { vm.selectCoordinates(it); editing = false }, onDismiss = { editing = false })
         } else if (onConstants) {
@@ -782,7 +782,7 @@ private fun ControlRow(vm: KeypadHost) {
                     .clickable(onClickLabel = label) { act() },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(icon, contentDescription = label, tint = colors.onSurface)
+                AppIcon(icon, contentDescription = label, tint = colors.onSurface)
             }
         }
     }
@@ -1016,7 +1016,10 @@ private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, 
             .semantics { contentDescription = spec.spoken },
         contentAlignment = Alignment.Center,
     ) {
-        LabelView(spec.label, fg, fontSize, iconSize = if (spec.label == KeyLabel.BackspaceIcon || spec.label == KeyLabel.EnterIcon) 28.dp else 24.dp)
+        // Beta: a function key's picture instead of its label (Settings › Calculator).
+        val picture = if (AppSettings.keyIcons && (spec.role == KeyRole.Function || spec.spoken == "previous answer")) KeyIcons.forKey(spec.spoken) else null
+        if (picture != null) DuoIcon(picture, fg, if (spec.role == KeyRole.Equals) colors.inversePrimary else if (defined) colors.tertiary else colors.primary, Modifier.size(26.dp))
+        else LabelView(spec.label, fg, fontSize, iconSize = if (spec.label == KeyLabel.BackspaceIcon || spec.label == KeyLabel.EnterIcon) 28.dp else 24.dp)
         if (pinned) {
             Icon(
                 Icons.Default.PushPin, contentDescription = tr("Pinned"), tint = fg.copy(alpha = 0.7f),
@@ -1426,7 +1429,7 @@ private fun ConstantsSheet(units: UnitSystem, onPick: (String) -> Unit, onDismis
                             val text = if (units == UnitSystem.SI) k.decimal else com.example.cas.cas.Numeric.real(value).toString()
                             clipboard.setText(AnnotatedString(text))
                         }) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy the value of ${k.description}", tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                            AppIcon(TableIcons.Copy, contentDescription = "Copy the value of ${k.description}", tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp))
                         }
                     }
                 }
@@ -1519,7 +1522,7 @@ private fun ThemeColorChoice() {
                 Swatch(Color(if (seed == 0) 0xFF5B6133.toInt() else seed), current == seed, name, onClick = { AppSettings.changeThemeColor(seed) })
             }
             Swatch(if (custom) Color(current) else colors.surfaceContainerHighest, custom, "Your own color", onClick = { picker = true }) {
-                Icon(Icons.Default.Edit, contentDescription = null, tint = if (custom) Color.White else colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                AppIcon(TableIcons.Edit, contentDescription = null, tint = if (custom) Color.White else colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -1602,6 +1605,10 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsToggle(
                 "Show steps", "Worked steps for calculus (integrals, derivatives, limits, sums, series, \$\\oint\$), algebra and complex numbers, matrices (determinants, inverses, eigenvalues, rref), differential equations, statistics and vector calculus: Steps on a history card. Still in beta, so steps may skip some algebra",
                 AppSettings.showSteps, AppSettings::changeShowSteps, badge = "Beta",
+            )
+            SettingsToggle(
+                "New calculator icons", "Pictures instead of labels on the function keys: π, e, powers and logs, calculus, statistics and complex numbers (trigonometry and matrices keep theirs). Hold a key for what it does",
+                AppSettings.keyIcons, AppSettings::changeKeyIcons, badge = "Beta",
             )
         },
         PageSection("History", Icons.Outlined.History) {

@@ -75,6 +75,8 @@ Formula, theory and how to use each key
 Show steps	
 Worked steps for calculus (integrals, derivatives, limits, sums, series, $\\oint$), algebra and complex numbers, matrices (determinants, inverses, eigenvalues, rref), differential equations, statistics and vector calculus: Steps on a history card. Still in beta, so steps may skip some algebra	
 Beta	
+New calculator icons	
+Pictures instead of labels on the function keys: π, e, powers and logs, calculus, statistics and complex numbers (trigonometry and matrices keep theirs). Hold a key for what it does	
 History	
 History keeps	
 All	
@@ -708,10 +710,6 @@ Window
 Freeze first column	
 Select all	
 Edit	
-Cell to the left	
-Cell above	
-Cell below	
-Cell to the right	
 Home	
 Sum	
 Average	

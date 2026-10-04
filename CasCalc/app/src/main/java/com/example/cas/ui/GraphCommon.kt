@@ -1776,7 +1776,7 @@ internal fun FabMenu(items: List<FabItem>, size: androidx.compose.ui.unit.Dp, de
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                Icon(item.icon, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(24.dp))
+                                AppIcon(item.icon, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(24.dp))
                                 Text(tr(item.label), style = MaterialTheme.typography.titleMedium, color = colors.onPrimaryContainer)
                             }
                         }
@@ -1827,7 +1827,7 @@ fun GraphBottomBar(
                     .clickable(onClickLabel = tr("Export the graph")) { tap(); onExport() },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Default.IosShare, contentDescription = tr("Export"), tint = colors.onSurface)
+                AppIcon(TableIcons.Share, contentDescription = tr("Export"), tint = colors.onSurface)
             }
         }
     }
@@ -2484,18 +2484,6 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     // The formula bar: the selected cell's address and contents, typed in here.
     val formulaBar: @Composable (Modifier) -> Unit = { m -> Column(m) {
         val sel = editing?.takeIf { (c, r) -> c in cells.indices && r < cells[c].size }
-        // Arrow keys: move the selected cell without leaving the keyboard (down adds a row at the end).
-        if (sel != null && (wideScreen || barFocused)) CellArrows(
-            onMove = { dc, dr ->
-                val (c, r) = sel
-                val nc = (c + dc).coerceIn(0, cells.size - 1)
-                if (r + dr >= rows) addRow()
-                val nr = (r + dr).coerceAtLeast(0)
-                editing = nc to nr; focusCol = nc
-                scope.launch { list.animateScrollToItem(maxOf(0, visible.indexOf(nr) - 2)) }
-            },
-            modifier = Modifier.padding(bottom = 6.dp),
-        )
         val anchoredNow = if (formulas && editText != null) com.example.cas.graph.Sheet.cycleAnchor(editText) else null
         FormulaBar(
             address = sel?.let { (c, r) -> com.example.cas.graph.Sheet.columnName(c) + (r + 1) },
@@ -2637,12 +2625,12 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                         Box {
                             IconButton(onClick = { more = true }) { Icon(Icons.Default.MoreVert, contentDescription = tr("More")) }
                             DropdownMenu(expanded = more, onDismissRequest = { more = false }, shape = RoundedCornerShape(16.dp)) {
-                                DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Share, null) }, text = { Text(tr("Share as CSV")) }, onClick = {
+                                DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Share, null) }, text = { Text(tr("Share as CSV")) }, onClick = {
                                     more = false
                                     val send = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/csv").putExtra(android.content.Intent.EXTRA_TEXT, table().csv())
                                     context.startActivity(android.content.Intent.createChooser(send, "Share the table"))
                                 })
-                                DropdownMenuItem(leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, text = { Text(tr("Copy as CSV")) }, onClick = {
+                                DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Copy, null) }, text = { Text(tr("Copy as CSV")) }, onClick = {
                                     more = false
                                     @Suppress("DEPRECATION")
                                     (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("Table", table().csv()))
@@ -2784,7 +2772,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                 ToolGroup("Rows", listOf(
                                     TableTool(TableIcons.RowAbove, "Row above") { insertRow(selRow ?: 0) },
                                     TableTool(TableIcons.RowBelow, "Row below") { if (selRow != null) insertRow(selRow + 1) else addRow() },
-                                    TableTool(Icons.Default.ContentCopy, "Copy row", enabled = selRow != null, large = false) { selRow?.let { duplicateRow(it) } },
+                                    TableTool(TableIcons.Copy, "Copy row", enabled = selRow != null, large = false) { selRow?.let { duplicateRow(it) } },
                                 )),
                                 ToolGroup("Columns", listOf(
                                     TableTool(TableIcons.ColumnAdd, "Column") { addColumn(); scope.launch { across.animateScrollTo(across.maxValue + 10_000) } },
@@ -3186,7 +3174,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                         FabItem("Column", Icons.Default.ViewColumn, "Add a column") {
                                             addColumn(); scope.launch { across.animateScrollTo(across.maxValue + 10_000) }
                                         },
-                                        FabItem("Paste", Icons.Default.ContentPaste, "Paste a table from the clipboard") { paste() },
+                                        FabItem("Paste", TableIcons.Paste, "Paste a table from the clipboard") { paste() },
                                     ),
                                     size = 56.dp,
                                     description = "Add a row or a column, or paste a table",
@@ -3537,7 +3525,7 @@ private fun ColumnCard(
                 leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) }, text = { Text(tr("Fill the formula down")) }, onClick = { open = false; onFillDown() },
             )
             androidx.compose.material3.HorizontalDivider()
-            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, text = { Text(tr("Duplicate the column")) }, onClick = { open = false; onDuplicate() })
+            DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Copy, null) }, text = { Text(tr("Duplicate the column")) }, onClick = { open = false; onDuplicate() })
             if (onMoveLeft != null) DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null) }, text = { Text(tr("Move left")) }, onClick = { open = false; onMoveLeft() })
             if (onMoveRight != null) DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) }, text = { Text(tr("Move right")) }, onClick = { open = false; onMoveRight() })
             DropdownMenuItem(leadingIcon = { Icon(Icons.Default.CleaningServices, null) }, text = { Text(tr("Clear the column")) }, onClick = { open = false; onClear() })
@@ -3562,7 +3550,7 @@ private fun RowNumber(r: Int, onInsertAbove: () -> Unit, onInsertBelow: () -> Un
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = RoundedCornerShape(16.dp)) {
             DropdownMenuItem(leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, null) }, text = { Text(tr("Insert a row above")) }, onClick = { open = false; onInsertAbove() })
             DropdownMenuItem(leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) }, text = { Text(tr("Insert a row below")) }, onClick = { open = false; onInsertBelow() })
-            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, text = { Text("Duplicate row ${r + 1}") }, onClick = { open = false; onDuplicate() })
+            DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Copy, null) }, text = { Text("Duplicate row ${r + 1}") }, onClick = { open = false; onDuplicate() })
             if (onRemove != null) DropdownMenuItem(
                 leadingIcon = { Icon(Icons.Default.Delete, null, tint = colors.error) },
                 text = { Text("Remove row ${r + 1}", color = colors.error) }, onClick = { open = false; onRemove() },
@@ -4017,7 +4005,7 @@ fun ResultCard(
                     @Composable
                     fun action(vector: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) =
                         IconButton(onClick = { tap(); onClick() }, modifier = Modifier.size(36.dp)) { Icon(vector, contentDescription = label, tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp)) }
-                    if (copyText != null) action(Icons.Default.ContentCopy, "Copy the value") { clipboard.setText(androidx.compose.ui.text.AnnotatedString(copyText)) }
+                    if (copyText != null) action(TableIcons.Copy, "Copy the value") { clipboard.setText(androidx.compose.ui.text.AnnotatedString(copyText)) }
                     if (onUse != null) action(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardReturn, "Use the value in the calculator", onUse)
                     action(Icons.Default.Close, "Close", onClose)
                 }
@@ -4089,7 +4077,7 @@ fun ResultCard(
                             .padding(start = 12.dp, end = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                        AppIcon(TableIcons.Copy, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(tr("Copy"), color = colors.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
                     }
@@ -4363,7 +4351,7 @@ private fun SelectionBar(address: String, s: com.example.cas.graph.SheetTools.Su
                 modifier = Modifier.horizontalScroll(rememberScrollState()), maxLines = 1,
             )
         }
-        IconButton(onClick = onCopy) { Icon(Icons.Default.ContentCopy, contentDescription = tr("Copy the cells"), tint = colors.onPrimaryContainer) }
+        IconButton(onClick = onCopy) { AppIcon(TableIcons.Copy, contentDescription = tr("Copy the cells"), tint = colors.onPrimaryContainer) }
         IconButton(onClick = onClear) { Icon(Icons.Default.CleaningServices, contentDescription = tr("Clear the cells"), tint = colors.onPrimaryContainer) }
         IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = tr("Stop selecting"), tint = colors.onPrimaryContainer) }
     }
@@ -4463,9 +4451,23 @@ internal class TableTool(
 @Composable
 internal fun DuoIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, ink: Color, accent: Color, modifier: Modifier = Modifier) {
     Box(modifier) {
-        Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.matchParentSize())
+        Icon(TableIcons.inkOf(icon), contentDescription = null, tint = ink, modifier = Modifier.matchParentSize())
         TableIcons.accentOf(icon)?.let { Icon(it, contentDescription = null, tint = accent, modifier = Modifier.matchParentSize()) }
     }
+}
+
+/**
+ * An icon as Material's Icon draws one (24 dp unless sized, in the content color), but the app's
+ * own two-tone icons get their accent layer in [accent] (the primary color, faded as the ink is).
+ */
+@Composable
+internal fun AppIcon(
+    icon: androidx.compose.ui.graphics.vector.ImageVector, contentDescription: String?, modifier: Modifier = Modifier,
+    tint: Color = androidx.compose.material3.LocalContentColor.current, accent: Color = MaterialTheme.colorScheme.primary,
+) {
+    if (TableIcons.accentOf(icon) == null) { Icon(icon, contentDescription, modifier, tint); return }
+    DuoIcon(icon, tint, accent.copy(alpha = accent.alpha * tint.alpha),
+        modifier.size(24.dp).semantics { if (contentDescription != null) this.contentDescription = contentDescription })
 }
 
 /** A ribbon group: its tools, its label underneath, and the little launcher arrow at its corner for the full options. */
@@ -4545,7 +4547,10 @@ internal fun TableRibbon(tab: TableTab, onTab: (TableTab) -> Unit, groups: List<
                                 k += run.size
                                 val slots = mutableListOf<List<TableTool>>()
                                 run.forEach { tool -> val last = slots.lastOrNull(); if (tool.segment != null && last?.first()?.segment == tool.segment) slots[slots.size - 1] = last + tool else slots.add(listOf(tool)) }
-                                slots.chunked(perColumn).forEach { column ->
+                                // A connected group as tall as a column (Left, Center, Right) stands upright with its labels.
+                                val (upright, rest) = slots.partition { it.first().segment != null && it.size >= perColumn }
+                                upright.forEach { ConnectedColumn(it, smallHeight) }
+                                rest.chunked(perColumn).forEach { column ->
                                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                         column.forEach { slot -> if (slot.first().segment != null) ConnectedButtons(slot, smallHeight) else RibbonButton(slot.first(), large = false, height = smallHeight) }
                                     }
@@ -4622,6 +4627,41 @@ private fun RibbonButton(t: TableTool, large: Boolean, height: androidx.compose.
         t.menu?.let { items ->
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, shape = RoundedCornerShape(20.dp), containerColor = colors.surfaceContainerHigh) {
                 items.forEach { (label, act) -> DropdownMenuItem(text = { Text(tr(label)) }, onClick = { menuOpen = false; act() }) }
+            }
+        }
+    }
+}
+
+/**
+ * A connected button group standing upright, each button with its icon and label: the top one
+ * round on top, the bottom one round underneath, small corners between; the one that's on goes
+ * fully round.
+ */
+@Composable
+private fun ConnectedColumn(tools: List<TableTool>, height: androidx.compose.ui.unit.Dp) {
+    val colors = MaterialTheme.colorScheme
+    val tap = rememberKeyTap()
+    Column(Modifier.width(androidx.compose.foundation.layout.IntrinsicSize.Max), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        tools.forEachIndexed { k, t ->
+            val source = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+            val pressed by source.collectIsPressedAsState()
+            val round = height / 2
+            val inner = if (pressed) 4.dp else 6.dp
+            val top by androidx.compose.animation.core.animateDpAsState(if (t.on || k == 0) round else inner, label = "segment top")
+            val bottom by androidx.compose.animation.core.animateDpAsState(if (t.on || k == tools.size - 1) round else inner, label = "segment bottom")
+            val faded = colors.onSurface.copy(alpha = 0.38f)
+            Row(
+                Modifier.fillMaxWidth().height(height)
+                    .clip(RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom))
+                    .background(if (t.on) colors.secondaryContainer else colors.surfaceContainerHighest)
+                    .clickable(source, androidx.compose.material3.ripple(), enabled = t.enabled, onClickLabel = tr(t.label)) { tap(); t.action() }
+                    .semantics { if (t.on) stateDescription = "on" }
+                    .padding(start = 10.dp, end = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                DuoIcon(t.icon, if (!t.enabled) faded else if (t.on) colors.onSecondaryContainer else colors.onSurface, if (!t.enabled) faded else colors.primary, Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(tr(t.label), style = MaterialTheme.typography.labelMedium, color = if (t.on) colors.onSecondaryContainer else colors.onSurface, maxLines = 1)
             }
         }
     }
@@ -4827,10 +4867,10 @@ internal fun SelectionToolbar(
             Text(address, style = MaterialTheme.typography.labelLarge, color = colors.onPrimaryContainer, maxLines = 1)
         }
         Spacer(Modifier.width(4.dp))
-        onEdit?.let { CommandIcon(TableTool(Icons.Default.Edit, "Edit", action = it)) }
+        onEdit?.let { CommandIcon(TableTool(TableIcons.Edit, "Edit", action = it)) }
         CommandIcon(TableTool(TableIcons.Cut, "Cut", action = onCut))
-        CommandIcon(TableTool(Icons.Default.ContentCopy, "Copy", action = onCopy))
-        CommandIcon(TableTool(Icons.Default.ContentPaste, "Paste", action = onPaste))
+        CommandIcon(TableTool(TableIcons.Copy, "Copy", action = onCopy))
+        CommandIcon(TableTool(TableIcons.Paste, "Paste", action = onPaste))
         CommandIcon(TableTool(TableIcons.Eraser, "Clear", action = onClear))
         CommandIcon(TableTool(TableIcons.InsertCells, "Insert", menu = insert))
         CommandIcon(TableTool(TableIcons.DeleteCells, "Delete", menu = delete))
@@ -4846,7 +4886,7 @@ private fun GoToDialog(onDismiss: () -> Unit, onGo: (String) -> Boolean) {
     var wrong by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(TableIcons.GoTo, contentDescription = null) },
+        icon = { AppIcon(TableIcons.GoTo, contentDescription = null) },
         title = { Text(tr("Go to")) },
         text = {
             OutlinedTextField(
@@ -4999,7 +5039,7 @@ internal fun StatusPill(label: String, s: com.example.cas.graph.SheetTools.Summa
             .clickable(enabled = !all, onClickLabel = tr("Show the next summary")) { which++ }.padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Icon(TableIcons.Statistics, contentDescription = null, tint = colors.primary, modifier = Modifier.size(18.dp))
+        AppIcon(TableIcons.Statistics, contentDescription = null, tint = colors.primary, modifier = Modifier.size(18.dp))
         Text(label, style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
         shown.forEachIndexed { k, (name, v) ->
             if (k > 0) Text("·", color = colors.onSurfaceVariant)
@@ -5112,26 +5152,6 @@ internal fun ColumnInspector(letter: String, name: String, role: String?, onRole
     }
 }
 
-/** Arrow keys for the selected cell, beside the formula bar: left, up, down, right. */
-@Composable
-internal fun CellArrows(onMove: (Int, Int) -> Unit, modifier: Modifier = Modifier) {
-    val colors = MaterialTheme.colorScheme
-    val tap = rememberKeyTap()
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End)) {
-        listOf(
-            Triple(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Cell to the left", -1 to 0),
-            Triple(Icons.Default.KeyboardArrowUp, "Cell above", 0 to -1),
-            Triple(Icons.Default.KeyboardArrowDown, "Cell below", 0 to 1),
-            Triple(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Cell to the right", 1 to 0),
-        ).forEach { (icon, label, d) ->
-            Box(
-                Modifier.size(width = 52.dp, height = 36.dp).clip(RoundedCornerShape(18.dp)).background(colors.secondaryContainer)
-                    .clickable(onClickLabel = tr(label)) { tap(); onMove(d.first, d.second) },
-                contentAlignment = Alignment.Center,
-            ) { Icon(icon, contentDescription = tr(label), tint = colors.onSecondaryContainer) }
-        }
-    }
-}
 
 /** A highlight rule for a column: the test, its value, and the tint (conditional formatting). */
 @OptIn(ExperimentalLayoutApi::class)
@@ -5143,7 +5163,7 @@ private fun HighlightDialog(name: String, current: com.example.cas.graph.Highlig
     var tint by remember { mutableStateOf(current?.color ?: 0) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(TableIcons.Highlight, contentDescription = null) },
+        icon = { AppIcon(TableIcons.Highlight, contentDescription = null) },
         title = { Text("Highlight: $name") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -5191,7 +5211,7 @@ internal fun InsightsSheet(
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(colors.tertiaryContainer), contentAlignment = Alignment.Center) {
-                    Icon(TableIcons.Insights, contentDescription = null, tint = colors.onTertiaryContainer)
+                    AppIcon(TableIcons.Insights, contentDescription = null, tint = colors.onTertiaryContainer)
                 }
                 Column(Modifier.padding(start = 12.dp)) {
                     Text(tr("Insights"), style = MaterialTheme.typography.titleLarge)
@@ -5272,9 +5292,9 @@ internal fun TableStatusBar(mode: String, summary: com.example.cas.graph.SheetTo
         summary.average?.let { stat("Average", shortNumber(it)) }
         stat("Count", summary.filled.toString())
         if (summary.numbers > 0) stat("Sum", shortNumber(summary.sum))
-        IconButton(onClick = { onZoom((zoom - 0.1f).coerceAtLeast(0.6f)) }, modifier = Modifier.size(32.dp)) { Icon(TableIcons.ZoomOut, contentDescription = tr("Zoom out"), modifier = Modifier.size(18.dp)) }
+        IconButton(onClick = { onZoom((zoom - 0.1f).coerceAtLeast(0.6f)) }, modifier = Modifier.size(32.dp)) { AppIcon(TableIcons.ZoomOut, contentDescription = tr("Zoom out"), modifier = Modifier.size(18.dp)) }
         ExpressiveSlider(value = zoom, onValueChange = { onZoom((Math.round(it * 10) / 10f).coerceIn(0.6f, 1.6f)) }, valueRange = 0.6f..1.6f, modifier = Modifier.width(140.dp).semantics { contentDescription = tr("Zoom") })
-        IconButton(onClick = { onZoom((zoom + 0.1f).coerceAtMost(1.6f)) }, modifier = Modifier.size(32.dp)) { Icon(TableIcons.ZoomIn, contentDescription = tr("Zoom in"), modifier = Modifier.size(18.dp)) }
+        IconButton(onClick = { onZoom((zoom + 0.1f).coerceAtMost(1.6f)) }, modifier = Modifier.size(32.dp)) { AppIcon(TableIcons.ZoomIn, contentDescription = tr("Zoom in"), modifier = Modifier.size(18.dp)) }
         Text("${Math.round(zoom * 100)}%", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.width(44.dp))
     }
 }
@@ -5289,7 +5309,7 @@ private fun CustomSortDialog(columns: List<String>, start: Int, onDismiss: () ->
     val levels = remember { androidx.compose.runtime.mutableStateListOf(start to false) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(TableIcons.CustomSort, contentDescription = null) },
+        icon = { AppIcon(TableIcons.CustomSort, contentDescription = null) },
         title = { Text(tr("Custom sort")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -5340,7 +5360,7 @@ private fun TextToColumnsDialog(name: String, sample: List<String>, onDismiss: (
     val delimiter = if (choices[picked].first == "Other") other else choices[picked].second
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = { Icon(TableIcons.TextToColumns, contentDescription = null) },
+        icon = { AppIcon(TableIcons.TextToColumns, contentDescription = null) },
         title = { Text("Text to columns: $name") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -5383,11 +5403,11 @@ internal fun InsertFunctionSheet(start: String, onDismiss: () -> Unit, onPick: (
         Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(colors.tertiaryContainer), contentAlignment = Alignment.Center) {
-                    Icon(TableIcons.InsertFunction, contentDescription = null, tint = colors.onTertiaryContainer)
+                    AppIcon(TableIcons.InsertFunction, contentDescription = null, tint = colors.onTertiaryContainer)
                 }
                 Text(tr("Insert function"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 12.dp))
             }
-            OutlinedTextField(query, { query = it }, singleLine = true, leadingIcon = { Icon(TableIcons.Find, contentDescription = null) }, label = { Text(tr("Search for a function")) }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(query, { query = it }, singleLine = true, leadingIcon = { AppIcon(TableIcons.Find, contentDescription = null) }, label = { Text(tr("Search for a function")) }, modifier = Modifier.fillMaxWidth())
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 (listOf("") + com.example.cas.graph.Sheet.CATEGORIES).forEach { cat ->
                     FilterChip(selected = category == cat, onClick = { category = cat }, label = { Text(tr(if (cat.isEmpty()) "All" else cat)) })

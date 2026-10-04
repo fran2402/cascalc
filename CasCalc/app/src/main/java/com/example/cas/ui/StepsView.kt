@@ -192,7 +192,7 @@ private fun Header(solution: Steps.Solution?, question: MathRow) {
             IconButton(onClick = {
                 clipboard.setText(androidx.compose.ui.text.AnnotatedString(Steps.text(question, s)))
                 android.widget.Toast.makeText(context, "Steps copied", android.widget.Toast.LENGTH_SHORT).show()
-            }) { Icon(Icons.Default.ContentCopy, contentDescription = tr("Copy the steps"), tint = colors.onSurfaceVariant) }
+            }) { AppIcon(TableIcons.Copy, contentDescription = tr("Copy the steps"), tint = colors.onSurfaceVariant) }
         }
         solution?.let {
             MathText(

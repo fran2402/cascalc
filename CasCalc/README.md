@@ -203,6 +203,26 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, new calculator icons, two-tone edit/copy/paste/share)
+- **New calculator icons (beta, Settings › Calculator):** the function keys on the Basic,
+  Calculus, Statistics and Complex pages show a two-tone picture of what they do instead of their
+  label. Examples: π as a circle and its half-turn, e as its curve, ∫ as the shaded area, lim as a
+  curve running into its asymptote, the distributions for the statistics keys, the complex plane
+  for the complex keys. Trigonometry, matrices, letters and constants keep their labels.
+  (`ui/KeyIcons.kt`.)
+- **Edit, Copy, Paste and Share** are the app's own two-tone icons everywhere: menus, history,
+  steps, the converter, exports and the data table. Every two-tone icon now also works as a plain
+  one-color icon wherever one is drawn.
+- **Data table:**
+  - A bolder bold.
+  - Exponent digits closer together.
+  - Alignment stands as an upright connected group (Left / Center / Right) on tablets, with no
+    empty space.
+  - The status bar's zoom − and + show their signs again.
+  - The arrow keys over the formula bar are gone.
+- Mockups read the icons straight from the app's source (`preview-render/icons_svg.py`; mockup:
+  `preview-render/round48.png`).
+
 ## Latest changes (4 October, typewriter superscripts, tablet + button)
 - **Superscripts in the typewriter font:** ⁰ ⁴ ⁵ ⁶ ⁷ ⁸ ⁹ ⁺ ⁻ added to the cells' font, in roman,
   italic and bold. Each is made from the font's own digit, scaled and raised just as its ² is, so

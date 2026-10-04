@@ -249,7 +249,7 @@ private fun LimitsDialog(vm: Graph3DViewModel, onDismiss: () -> Unit) {
                     }
                 }
                 IconButton(onClick = { choosing = true }) {
-                    Icon(Icons.Default.Edit, contentDescription = tr("Choose the coordinate letters"), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    AppIcon(TableIcons.Edit, contentDescription = tr("Choose the coordinate letters"), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 }
 

@@ -769,7 +769,7 @@ internal fun ToolToggle(icon: ImageVector, label: String, on: Boolean, onClick: 
             .semantics { contentDescription = label; selected = on },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = null, tint = if (on) colors.onPrimary else colors.onSurface, modifier = Modifier.size(22.dp))
+        AppIcon(icon, contentDescription = null, tint = if (on) colors.onPrimary else colors.onSurface, modifier = Modifier.size(22.dp))
     }
 }
 

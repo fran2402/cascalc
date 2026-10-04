@@ -110,7 +110,7 @@ internal fun tipIcon(key: String): ImageVector = when (key) {
     "units" -> Icons.Default.Science
     "folder" -> Icons.Default.Folder
     "table" -> Icons.Default.TableChart
-    "export" -> Icons.Default.IosShare
+    "export" -> TableIcons.Share
     "axes" -> Icons.Default.ViewInAr
     else -> Icons.Default.Tune
 }
@@ -313,7 +313,7 @@ private fun ColumnScope.Tips(title: String, tips: List<ModeGuides.Tip>, tertiary
                     Modifier.size(40.dp).clip(CircleShape).background(if (tertiary) colors.tertiaryContainer else colors.secondaryContainer),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(tipIcon(t.icon), contentDescription = null, tint = if (tertiary) colors.onTertiaryContainer else colors.onSecondaryContainer, modifier = Modifier.size(20.dp))
+                    AppIcon(tipIcon(t.icon), contentDescription = null, tint = if (tertiary) colors.onTertiaryContainer else colors.onSecondaryContainer, modifier = Modifier.size(20.dp))
                 }
                 Spacer(Modifier.width(14.dp))
                 Column(Modifier.weight(1f)) {
