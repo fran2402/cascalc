@@ -185,9 +185,21 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
     val version = vm.version
     // Sampling and point-finding only redo when the view or a function changes.
     val highlighted = vm.highlighted
-    val plotted = remember(view, version, size, vm.parameters.toMap(), highlighted, vm.polarGrid, vm.scale, AppSettings.specialPoints, AppSettings.fieldQuality) {
+    // Functions are sampled again only when one of them changes (not when a point is dragged);
+    // constructions are drawn again on every change. Then the two go back into list order.
+    val params = vm.parameters.toMap()
+    val curves = remember(view, vm.plotKey, size, params, highlighted, vm.polarGrid, vm.scale, AppSettings.specialPoints, AppSettings.fieldQuality) {
         // Whatever a line does while being sampled, drawing carries on (the line just isn't drawn).
-        if (view == null || size.width == 0) emptyList() else runCatching { plot(vm, view, size, highlighted) }.getOrElse { emptyList() }
+        if (view == null || size.width == 0) emptyList() else runCatching { plot(vm, view, size, highlighted) { it.geometry == null } }.getOrElse { emptyList() }
+    }
+    val constructions = remember(view, version, size, params, vm.scale) {
+        if (view == null || size.width == 0) emptyList() else runCatching { plot(vm, view, size, highlighted) { it.geometry != null } }.getOrElse { emptyList() }
+    }
+    val plotted = remember(curves, constructions) {
+        if (constructions.isEmpty()) curves else {
+            val order = vm.functions.withIndex().associate { (k, f) -> f to k }
+            (curves + constructions).sortedBy { order[it.f] ?: Int.MAX_VALUE }
+        }
     }
     // The drawing as it is now, for gestures that outlive one frame (a dragged point).
     val latestPlotted by androidx.compose.runtime.rememberUpdatedState(plotted)
@@ -407,7 +419,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                     },
                 )
             }
-            .semantics { contentDescription = "Graph. Drag to move, pinch to zoom, tap a curve to read a point, double-tap to reset." },
+            .semantics { contentDescription = tr("Graph. Drag to move, pinch to zoom, tap a curve to read a point, double-tap to reset.") },
     ) {
         Canvas(Modifier.fillMaxSize()) {
             // The canvas's own size (in pixels, as Float), not the view's IntSize state of the same name.
@@ -558,9 +570,11 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 if (isTabletLayout()) {
                     val byList = if (AppSettings.keypadSide == 0) Alignment.TopStart else Alignment.TopEnd
                     ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 140.dp, end = 140.dp))
+                    GeometryGuide(vm, Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp, start = 140.dp, end = 140.dp))
                     ConstructRail(vm, Modifier.align(byList).padding(top = 10.dp, bottom = 84.dp, start = 10.dp, end = 10.dp))
                 } else {
                     ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 12.dp, end = 12.dp))
+                    GeometryGuide(vm, Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp, start = 12.dp, end = 12.dp))
                 }
             }
         }
@@ -570,7 +584,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 color = colors.inverseOnSurface,
                 style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp),
                 modifier = Modifier.align(Alignment.TopCenter).padding(12.dp).clip(CircleShape).background(colors.inverseSurface)
-                    .clickable(onClickLabel = "Cancel") { vm.areaStart = null }.padding(horizontal = 16.dp, vertical = 8.dp),
+                    .clickable(onClickLabel = tr("Cancel")) { vm.areaStart = null }.padding(horizontal = 16.dp, vertical = 8.dp),
             )
         }
         val tap = rememberKeyTap()
@@ -631,7 +645,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
             Spacer(Modifier.width(8.dp))
             Box(
                 Modifier.size(48.dp).shadow(6.dp, CircleShape).clip(CircleShape).background(colors.secondaryContainer)
-                    .clickable(onClickLabel = "Import points from a CSV, Excel or Google Sheets file") {
+                    .clickable(onClickLabel = tr("Import points from a CSV, Excel or Google Sheets file")) {
                         tap()
                         importer.launch(arrayOf(
                             "text/*", "application/csv", "application/vnd.ms-excel", "application/octet-stream", "application/zip",
@@ -641,18 +655,18 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Default.UploadFile, contentDescription = "Import data", tint = colors.onSecondaryContainer)
+                Icon(Icons.Default.UploadFile, contentDescription = tr("Import data"), tint = colors.onSecondaryContainer)
             }
         }, tools = {
             // Circles of constant r mean nothing on log axes: turning the grid on goes back to linear ones.
             ToolToggle(PlotIcons.PolarGrid, "Polar grid", vm.polarGrid) { if (!vm.polarGrid) vm.setLogAxes(false, false); vm.polarGrid = !vm.polarGrid }
             // Equal scales on both axes, so circles look round.
             IconButton(onClick = { tap(); vm.zoomSquare(size.width, size.height) }) {
-                Icon(Icons.Default.CropSquare, contentDescription = "Square zoom: equal scales", tint = colors.onSurface)
+                Icon(Icons.Default.CropSquare, contentDescription = tr("Square zoom: equal scales"), tint = colors.onSurface)
             }
             // The graph's settings, like Desmos's wrench: limits, grid, numbers, angle unit.
             IconButton(onClick = { tap(); graphSettings = true }) {
-                Icon(Icons.Default.Tune, contentDescription = "Graph settings", tint = colors.onSurface)
+                Icon(Icons.Default.Tune, contentDescription = tr("Graph settings"), tint = colors.onSurface)
             }
         })
         if (graphSettings && view != null) GraphSettingsDialog(vm, view, onDismiss = { graphSettings = false })
@@ -689,6 +703,11 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
                 t.label == "point" || t.label.isEmpty() -> null
                 t.label == "y-intercept" -> "y-intercept"
                 t.label == "start" -> "Starting point"
+                // Named here so each can be translated.
+                t.label == "zero" -> "Zero"
+                t.label == "intersection" -> "Intersection"
+                t.label == "maximum" || t.label == "max" -> "Maximum"
+                t.label == "minimum" || t.label == "min" -> "Minimum"
                 else -> t.label.replaceFirstChar { it.uppercase() }
             }
             val actions = listOfNotNull(
@@ -725,8 +744,8 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
  * crossings are found for the highlighted function of x, so the graph doesn't
  * fill up with dots.
  */
-private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighted: PlotFunction?): List<Plotted> {
-    val fns = vm.functions.filter { it.visible && (it.plot != null || it.family.isNotEmpty()) }
+private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighted: PlotFunction?, which: (PlotFunction) -> Boolean = { true }): List<Plotted> {
+    val fns = vm.functions.filter { it.visible && (it.plot != null || it.family.isNotEmpty()) && which(it) }
     val samples = (size.width / 2).coerceIn(200, 900)
     // The view is in scaled coordinates (log₁₀ on a log axis); lines are worked out in values and
     // placed by [sc]. Points and lines below are all in scaled coordinates.
@@ -1414,10 +1433,10 @@ private fun SheetPickerDialog(
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Default.UploadFile, contentDescription = null) },
-        title = { Text("Import sheets") },
+        title = { Text(tr("Import sheets")) },
         text = {
             Column(Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
-                Text("Each sheet becomes its own line.", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                Text(tr("Each sheet becomes its own line."), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
                 Spacer(Modifier.height(8.dp))
                 sheets.forEachIndexed { k, sheet ->
                     val on = k in picked
@@ -1443,7 +1462,7 @@ private fun SheetPickerDialog(
                 Text(if (picked.size == sheets.size) "Import all" else "Import ${picked.size}")
             }
         },
-        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
     )
 }
 
@@ -1457,23 +1476,23 @@ private fun GraphSettingsDialog(vm: Graph2DViewModel, view: Viewport, onDismiss:
     val range = remember { RangeFields(view, vm.scale) }
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Graph settings") },
+        title = { Text(tr("Graph settings")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
                 RangeAndScaleSettings(range, "x", "y")
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Grid lines", modifier = Modifier.weight(1f))
+                    Text(tr("Grid lines"), modifier = Modifier.weight(1f))
                     androidx.compose.material3.Switch(checked = AppSettings.showGrid, onCheckedChange = AppSettings::changeShowGrid)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Numbers on the axes", modifier = Modifier.weight(1f))
+                    Text(tr("Numbers on the axes"), modifier = Modifier.weight(1f))
                     androidx.compose.material3.Switch(checked = AppSettings.axisNumbers, onCheckedChange = AppSettings::changeAxisNumbers)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Degrees", modifier = Modifier.weight(1f))
+                    Text(tr("Degrees"), modifier = Modifier.weight(1f))
                     androidx.compose.material3.Switch(checked = vm.angle == com.example.cas.engine.AngleUnit.Degrees, onCheckedChange = { vm.toggleAngle() })
                 }
-                Text("Field quality", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(tr("Field quality"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 androidx.compose.material3.SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf("Low", "Medium", "High").forEachIndexed { k, name ->
                         SegmentedButton(
@@ -1488,9 +1507,9 @@ private fun GraphSettingsDialog(vm: Graph2DViewModel, view: Viewport, onDismiss:
             }
         },
         confirmButton = {
-            androidx.compose.material3.TextButton(enabled = range.valid, onClick = { range.apply(vm) { vm.view = it }; onDismiss() }) { Text("Done") }
+            androidx.compose.material3.TextButton(enabled = range.valid, onClick = { range.apply(vm) { vm.view = it }; onDismiss() }) { Text(tr("Done")) }
         },
-        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
     )
 }
 

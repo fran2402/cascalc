@@ -147,8 +147,8 @@ fun OpenGraphFileEffect(graphs: Map<Mode, GraphViewModel>, onSwitch: (Mode) -> U
             onDismissRequest = { pending = null },
             title = { androidx.compose.material3.Text("Open “${c.name}”?") },
             text = { androidx.compose.material3.Text("It replaces what's in the ${c.kind.label} now. The file is kept in your saved graphs, but the current lines are lost unless you've saved them.") },
-            confirmButton = { androidx.compose.material3.TextButton(onClick = { pending = null; plot(c) }) { androidx.compose.material3.Text("Open and replace") } },
-            dismissButton = { androidx.compose.material3.TextButton(onClick = { pending = null }) { androidx.compose.material3.Text("Cancel") } },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { pending = null; plot(c) }) { androidx.compose.material3.Text(tr("Open and replace")) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { pending = null }) { androidx.compose.material3.Text(tr("Cancel")) } },
         )
     }
     // Watched for the life of the screen: the link is taken (and cleared) and the file read in

@@ -149,8 +149,12 @@ fun ComplexScreen(vm: ComplexViewModel, onUseValue: (CD) -> Unit = {}, modifier:
                 else if (isTabletLayout()) {
                     val byList = if (AppSettings.keypadSide == 0) Alignment.TopStart else Alignment.TopEnd
                     ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 140.dp, end = 140.dp))
+                    GeometryGuide(vm, Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp, start = 140.dp, end = 140.dp))
                     ConstructRail(vm, Modifier.align(byList).padding(top = 10.dp, bottom = 84.dp, start = 10.dp, end = 10.dp))
-                } else ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 12.dp, end = 12.dp))
+                } else {
+                    ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 12.dp, end = 12.dp))
+                    GeometryGuide(vm, Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp, start = 12.dp, end = 12.dp))
+                }
             }
         }
         // On a phone the tools sit under the plane, in the list's place.
@@ -182,7 +186,9 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
     val sc = vm.scale
 
     // Equations drawn as curves over the coloring (|z − 1| = 2, x² + y² = 4).
-    val curves = remember(view, vm.version, size, params, sc) {
+    // Keyed on the lines other than constructions, so a dragged point doesn't redo them (or the coloring below).
+    val plotKey = vm.plotKey
+    val curves = remember(view, plotKey, size, params, sc) {
         val v = view
         if (v == null || size.width == 0) emptyList() else vm.functions.filter { it.visible && it.complexCurve != null }.mapNotNull { fn ->
             val g = fn.complexCurve!!
@@ -205,7 +211,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
 
 
     // Render coarse first so panning feels live, then sharper once the view settles.
-    LaunchedEffect(view, vm.version, size, vm.options, params, f, f?.colormap, f?.colormapReversed, AppSettings.complexQuality, sc) {
+    LaunchedEffect(view, plotKey, size, vm.options, params, f, f?.colormap, f?.colormapReversed, AppSettings.complexQuality, sc) {
         val v = view ?: return@LaunchedEffect
         val c = f?.complexCompiled
         if (c == null || size.width == 0) { image = null; return@LaunchedEffect }
@@ -324,7 +330,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                     },
                 )
             }
-            .semantics { contentDescription = "Complex plane. Color shows the argument of f(z), brightness its size. Drag to move, pinch to zoom, tap to read a value. f can use r and θ for |z| and arg z." },
+            .semantics { contentDescription = tr("Complex plane. Color shows the argument of f(z), brightness its size. Drag to move, pinch to zoom, tap to read a value. f can use r and θ for |z| and arg z.") },
     ) {
         Canvas(Modifier.fillMaxSize()) {
             // The canvas's own size (in pixels, as Float), not the view's IntSize state of the same name.
@@ -477,8 +483,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                 drawCircle(Color.White, 5.dp.toPx(), o)
             }
         }
-        if (vm.areaFrom != null) Text(
-            "Tap where the area should end",
+        if (vm.areaFrom != null) Text(tr("Tap where the area should end"),
             color = colors.inverseOnSurface,
             style = MaterialTheme.typography.labelLarge,
             modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp).clip(CircleShape).background(colors.inverseSurface).padding(horizontal = 14.dp, vertical = 8.dp),
@@ -579,7 +584,7 @@ private fun androidx.compose.foundation.layout.RowScope.PlotTools(vm: ComplexVie
         // Circles of |z| mean nothing on log axes: turning the grid on goes back to linear ones.
         ToolToggle(PlotIcons.PolarGrid, "Polar grid: circles of |z| and rays of arg z", vm.polarGrid) { if (!vm.polarGrid) vm.setLogAxes(false, false); vm.polarGrid = !vm.polarGrid }
         IconButton(onClick = { settings = true }) {
-            Icon(Icons.Default.Tune, contentDescription = "Graph settings", tint = MaterialTheme.colorScheme.onSurface)
+            Icon(Icons.Default.Tune, contentDescription = tr("Graph settings"), tint = MaterialTheme.colorScheme.onSurface)
         }
     }
 }
@@ -771,11 +776,11 @@ private fun ComplexSettingsDialog(vm: ComplexViewModel, view: Viewport, onDismis
     val range = remember { RangeFields(view, vm.scale) }
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Graph settings") },
+        title = { Text(tr("Graph settings")) },
         text = {
             Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp), modifier = Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
                 RangeAndScaleSettings(range, "Re z", "Im z")
-                Text("Plot quality", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(tr("Plot quality"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     // Shown low to high; stored as 2 (low), 0 (medium), 1 (high).
                     listOf("Low" to 2, "Medium" to 0, "High" to 1).forEachIndexed { k, (name, value) ->
@@ -791,9 +796,9 @@ private fun ComplexSettingsDialog(vm: ComplexViewModel, view: Viewport, onDismis
             }
         },
         confirmButton = {
-            androidx.compose.material3.TextButton(enabled = range.valid, onClick = { range.apply(vm) { vm.view = it }; onDismiss() }) { Text("Done") }
+            androidx.compose.material3.TextButton(enabled = range.valid, onClick = { range.apply(vm) { vm.view = it }; onDismiss() }) { Text(tr("Done")) }
         },
-        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
     )
 }
 

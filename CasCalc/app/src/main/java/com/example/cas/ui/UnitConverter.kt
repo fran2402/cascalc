@@ -292,8 +292,8 @@ private fun plainUnit(q: Units.Quantity): String = q.parts.joinToString(" ") { p
 private fun Header(onBack: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.onSurface) }
-        Text("Unit converter", style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.padding(start = 4.dp).semantics { heading() })
+        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Back"), tint = colors.onSurface) }
+        Text(tr("Unit converter"), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.padding(start = 4.dp).semantics { heading() })
         Spacer(Modifier.weight(1f))
     }
 }
@@ -306,10 +306,10 @@ private fun FromCard(value: String, onValue: (String) -> Unit, state: ConverterS
         Modifier.fillMaxWidth().clip(RoundedCornerShape(32.dp)).background(colors.surfaceContainerHigh).padding(horizontal = 20.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("From", style = MaterialTheme.typography.labelLarge, color = colors.primary)
+        Text(tr("From"), style = MaterialTheme.typography.labelLarge, color = colors.primary)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                if (value.isEmpty()) Text("Value", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 40.sp), color = colors.onSurfaceVariant.copy(alpha = 0.6f))
+                if (value.isEmpty()) Text(tr("Value"), style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 40.sp), color = colors.onSurfaceVariant.copy(alpha = 0.6f))
                 BasicTextField(
                     value, onValue,
                     textStyle = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 40.sp, color = colors.onSurface),
@@ -317,7 +317,7 @@ private fun FromCard(value: String, onValue: (String) -> Unit, state: ConverterS
                     cursorBrush = SolidColor(colors.primary),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     visualTransformation = ScientificTransformation,
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Value" },
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Value") },
                 )
             }
             // Keyboards for numbers often lack e and minus: these add them.
@@ -343,7 +343,7 @@ private fun ToCard(unit: String, onUnit: (String) -> Unit, state: ConverterState
         Modifier.fillMaxWidth().clip(RoundedCornerShape(32.dp)).background(colors.primaryContainer).animateContentSize(spring(stiffness = Spring.StiffnessMediumLow)).padding(horizontal = 20.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("To", style = MaterialTheme.typography.labelLarge, color = colors.onPrimaryContainer)
+        Text(tr("To"), style = MaterialTheme.typography.labelLarge, color = colors.onPrimaryContainer)
         val r = state.result
         Box(Modifier.fillMaxWidth().heightIn(min = 48.dp).horizontalScroll(rememberScrollState()), contentAlignment = Alignment.CenterStart) {
             if (r != null) MathText(
@@ -352,7 +352,7 @@ private fun ToCard(unit: String, onUnit: (String) -> Unit, state: ConverterState
                 color = colors.onPrimaryContainer,
                 mathScale = 1f,
                 modifier = Modifier.semantics { contentDescription = "Result ${Units.plain(r.value, digits)} ${plainUnit(r.to)}" },
-            ) else Text("—", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 40.sp), color = colors.onPrimaryContainer.copy(alpha = 0.5f))
+            ) else Text(tr("—"), style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 40.sp), color = colors.onPrimaryContainer.copy(alpha = 0.5f))
         }
         UnitButton(
             state.toQ, state.toError,
@@ -400,7 +400,7 @@ private fun UnitButton(q: Units.Quantity?, error: String?, caption: String?, con
     val tap = rememberKeyTap()
     Row(
         Modifier.fillMaxWidth().heightIn(min = 68.dp).clip(RoundedCornerShape(22.dp)).background(container)
-            .clickable(onClickLabel = "Change the unit") { tap(); onPick() }
+            .clickable(onClickLabel = tr("Change the unit")) { tap(); onPick() }
             .semantics { contentDescription = label + ": " + (q?.let { plainUnit(it) } ?: "none") }
             .padding(start = 18.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -450,10 +450,10 @@ private fun SwapButton(spin: Float, onSwap: () -> Unit) {
                 .rotate(turn)
                 .clip(shape)
                 .background(colors.tertiary)
-                .clickable(onClickLabel = "Swap the units") { tap(); onSwap() },
+                .clickable(onClickLabel = tr("Swap the units")) { tap(); onSwap() },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.SwapVert, contentDescription = "Swap", tint = colors.onTertiary, modifier = Modifier.size(28.dp).rotate(-turn))
+            Icon(Icons.Default.SwapVert, contentDescription = tr("Swap"), tint = colors.onTertiary, modifier = Modifier.size(28.dp).rotate(-turn))
         }
     }
 }
@@ -541,7 +541,7 @@ private fun DetailsCard(state: ConverterState, digits: Int) {
     Section("Details") {
         val row = @Composable { label: String, math: String ->
             Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(label, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.width(110.dp))
+                Text(tr(label), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.width(110.dp))
                 Box(Modifier.weight(1f).horizontalScroll(rememberScrollState())) { MathText(math, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp), color = colors.onSurface, mathScale = 1f) }
             }
         }
@@ -567,11 +567,11 @@ private fun OptionsCard(digits: Int, onDigits: (Int) -> Unit, c: Boolean, onC: (
             onValueChange = { v -> kotlin.math.round(v).toInt().let { if (it != digits) onDigits(it) } },
             valueRange = 2f..15f,
             steps = 12,
-            modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Significant figures" },
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Significant figures") },
         )
         Spacer(Modifier.height(6.dp))
-        Text("Physical equivalences", style = MaterialTheme.typography.labelLarge, color = colors.onSurface, modifier = Modifier.padding(start = 4.dp))
-        Text("When the dimensions differ, these constants may connect them: mass and energy, energy and frequency or wavelength, energy and temperature.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
+        Text(tr("Physical equivalences"), style = MaterialTheme.typography.labelLarge, color = colors.onSurface, modifier = Modifier.padding(start = 4.dp))
+        Text(tr("When the dimensions differ, these constants may connect them: mass and energy, energy and frequency or wavelength, energy and temperature."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             ToggleChip("\$c\$", "speed of light", c, onC)
             ToggleChip("\$h\$", "Planck", h, onH)
@@ -611,7 +611,7 @@ private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) 
         Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(colors.surface).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Text(title, style = MaterialTheme.typography.titleSmall, color = colors.primary, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp).semantics { heading() })
+        Text(tr(title), style = MaterialTheme.typography.titleSmall, color = colors.primary, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp).semantics { heading() })
         content()
     }
 }
@@ -635,7 +635,7 @@ private fun ActionPill(icon: ImageVector, label: String, onClick: () -> Unit) {
     ) {
         Icon(icon, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
-        Text(label, style = MaterialTheme.typography.labelLarge, color = colors.onPrimaryContainer)
+        Text(tr(label), style = MaterialTheme.typography.labelLarge, color = colors.onPrimaryContainer)
     }
 }
 
@@ -710,12 +710,12 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = colors.surfaceContainerLow) {
         Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(title, style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.weight(1f))
+            Text(tr(title), style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.weight(1f))
             Box(
                 Modifier.height(40.dp).clip(CircleShape).background(colors.primary)
-                    .clickable(onClickLabel = "Use this unit") { tap(); onDone(expr.trim()) }.padding(horizontal = 20.dp),
+                    .clickable(onClickLabel = tr("Use this unit")) { tap(); onDone(expr.trim()) }.padding(horizontal = 20.dp),
                 contentAlignment = Alignment.Center,
-            ) { Text("Done", style = MaterialTheme.typography.labelLarge, color = colors.onPrimary) }
+            ) { Text(tr("Done"), style = MaterialTheme.typography.labelLarge, color = colors.onPrimary) }
         }
         // The unit so far: large, on the primary container, with what it measures.
         Column(
@@ -726,7 +726,7 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
                 val q = parsed.getOrNull()
                 Box(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
                     when {
-                        expr.isBlank() -> Text("Tap units below", style = MaterialTheme.typography.bodyLarge, color = colors.onPrimaryContainer.copy(alpha = 0.7f))
+                        expr.isBlank() -> Text(tr("Tap units below"), style = MaterialTheme.typography.bodyLarge, color = colors.onPrimaryContainer.copy(alpha = 0.7f))
                         q != null -> MathText("\$${q.latex()}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 28.sp), color = colors.onPrimaryContainer, mathScale = 1f)
                         else -> Text(expr, style = MaterialTheme.typography.titleMedium, color = colors.onPrimaryContainer)
                     }
@@ -743,17 +743,17 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
                 Icon(Icons.Default.Edit, contentDescription = null, tint = colors.onPrimaryContainer.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(10.dp))
                 Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                    if (expr.isEmpty()) Text("or type one, like km/s/Mpc", style = MaterialTheme.typography.bodyLarge, color = colors.onPrimaryContainer.copy(alpha = 0.6f))
+                    if (expr.isEmpty()) Text(tr("or type one, like km/s/Mpc"), style = MaterialTheme.typography.bodyLarge, color = colors.onPrimaryContainer.copy(alpha = 0.6f))
                     BasicTextField(
                         expr, { expr = it },
                         textStyle = MaterialTheme.typography.titleMedium.copy(color = colors.onPrimaryContainer),
                         singleLine = true,
                         cursorBrush = SolidColor(colors.primary),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii, capitalization = KeyboardCapitalization.None, autoCorrectEnabled = false),
-                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Type a unit" },
+                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Type a unit") },
                     )
                 }
-                if (expr.isNotEmpty()) IconButton(onClick = { expr = "" }) { Icon(Icons.Default.Close, contentDescription = "Clear the unit", tint = colors.onPrimaryContainer) }
+                if (expr.isNotEmpty()) IconButton(onClick = { expr = "" }) { Icon(Icons.Default.Close, contentDescription = tr("Clear the unit"), tint = colors.onPrimaryContainer) }
             }
             if (expr.isNotBlank()) parsed.exceptionOrNull()?.message?.let { MathText(it, style = MaterialTheme.typography.bodySmall, color = colors.error) }
             Suggestions(expr, visible = true) { token, symbol -> expr = expr.dropLast(token.length) + symbol }
@@ -771,13 +771,13 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
                 }
                 Box(
                     Modifier.weight(1.2f).height(44.dp).clip(RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 22.dp, bottomEnd = 22.dp)).background(colors.tertiary)
-                        .clickable(onClickLabel = "Delete the last unit") { backspace() },
+                        .clickable(onClickLabel = tr("Delete the last unit")) { backspace() },
                     contentAlignment = Alignment.Center,
-                ) { Text("⌫", style = MaterialTheme.typography.titleMedium, color = colors.onTertiary) }
+                ) { Text(tr("⌫"), style = MaterialTheme.typography.titleMedium, color = colors.onTertiary) }
             }
             // Prefixes: the chosen one goes on the next unit tapped (if it takes prefixes).
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Prefix", style = MaterialTheme.typography.labelMedium, color = colors.onPrimaryContainer, modifier = Modifier.padding(end = 6.dp))
+                Text(tr("Prefix"), style = MaterialTheme.typography.labelMedium, color = colors.onPrimaryContainer, modifier = Modifier.padding(end = 6.dp))
                 PICKER_PREFIXES.forEach { p ->
                     val on = p == prefix
                     Box(
@@ -797,15 +797,15 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
             Icon(androidx.compose.material.icons.Icons.Default.Search, contentDescription = null, tint = colors.onSurfaceVariant)
             Spacer(Modifier.width(12.dp))
             Box(Modifier.weight(1f)) {
-                if (query.isEmpty()) Text("Search units", color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
+                if (query.isEmpty()) Text(tr("Search units"), color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
                 BasicTextField(
                     query, { query = it }, singleLine = true,
                     textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface),
                     cursorBrush = SolidColor(colors.primary),
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Search units" },
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Search units") },
                 )
             }
-            if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(androidx.compose.material.icons.Icons.Default.Close, contentDescription = "Clear the search", tint = colors.onSurfaceVariant) }
+            if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(androidx.compose.material.icons.Icons.Default.Close, contentDescription = tr("Clear the search"), tint = colors.onSurfaceVariant) }
         }
         // A chip for each category.
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -850,8 +850,7 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
                         Column(Modifier.weight(1f)) {
                             FlowRow(verticalArrangement = Arrangement.Center, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(prefixName(p) + u.name, color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
-                                if (u.prefixes) Text(
-                                    "prefixes",
+                                if (u.prefixes) Text(tr("prefixes"),
                                     color = colors.onTertiaryContainer,
                                     style = MaterialTheme.typography.labelSmall,
                                     modifier = Modifier.align(Alignment.CenterVertically).clip(CircleShape).background(colors.tertiaryContainer).padding(horizontal = 8.dp, vertical = 2.dp),

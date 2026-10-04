@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.ChangeHistory
 import androidx.compose.material.icons.outlined.Description
@@ -96,6 +97,7 @@ private fun docsIcon(key: String): ImageVector = when (key) {
     "table", "sheet" -> Icons.Outlined.TableChart
     "converter" -> Icons.Outlined.SwapHoriz
     "files" -> Icons.Outlined.FolderOpen
+    "language" -> Icons.Outlined.Language
     "keys" -> Icons.Outlined.Keyboard
     "geometry" -> PlotIcons.Geometry
     else -> Icons.Outlined.Description
@@ -119,7 +121,7 @@ fun DocsPage(onBack: () -> Unit) {
         androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = if (tablet) colors.surfaceContainerLow else colors.surface) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.onSurface) }
+                    IconButton(onClick = back) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Back"), tint = colors.onSurface) }
                     Text(
                         if (!tablet && chapter != null) Docs.chapters[chapter!!].title else "Documentation",
                         style = MaterialTheme.typography.titleLarge, color = colors.onSurface, maxLines = 1,
@@ -175,13 +177,13 @@ private fun DocsContents(onChapter: (Int) -> Unit, onSection: (Int, Int) -> Unit
         Text("Everything CAS Calculator does, with ${Docs.allExamples.size} worked examples. Every answer here was worked out by the calculator itself.", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(horizontal = 4.dp))
         OutlinedTextField(
             value = query, onValueChange = { query = it }, singleLine = true,
-            placeholder = { Text("Search the documentation") },
+            placeholder = { Text(tr("Search the documentation")) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             shape = RoundedCornerShape(28.dp),
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         )
         if (query.isNotBlank()) {
-            if (hits.isEmpty()) Text("Nothing matches", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(16.dp))
+            if (hits.isEmpty()) Text(tr("Nothing matches"), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(16.dp))
             hits.forEach { (c, s) ->
                 val ch = Docs.chapters[c]
                 Row(
@@ -232,7 +234,7 @@ private fun DocsNav(chapter: Int, onChapter: (Int) -> Unit, onSection: (Int, Int
     Column(modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         OutlinedTextField(
             value = query, onValueChange = { query = it }, singleLine = true,
-            placeholder = { Text("Search") },
+            placeholder = { Text(tr("Search")) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             shape = RoundedCornerShape(28.dp),
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
@@ -295,7 +297,7 @@ private fun DocsChapter(index: Int, jumpTo: Int?, onChapter: (Int) -> Unit, modi
                 MathText(ch.summary, style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
                 // On this page: the sections as chips.
                 if (ch.sections.size > 1) {
-                    Text("On this page", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                    Text(tr("On this page"), style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
                     @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
                     androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         ch.sections.forEachIndexed { s, sec ->
@@ -342,7 +344,7 @@ private fun DocsPager(label: String, title: String, alignEnd: Boolean, modifier:
         horizontalAlignment = if (alignEnd) Alignment.End else Alignment.Start,
     ) {
         Text(if (alignEnd) "$label ›" else "‹ $label", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-        Text(title, style = MaterialTheme.typography.titleSmall, color = colors.primary, maxLines = 1)
+        Text(tr(title), style = MaterialTheme.typography.titleSmall, color = colors.primary, maxLines = 1)
     }
 }
 
@@ -411,8 +413,8 @@ private fun DocsExamples(examples: List<Docs.Example>) {
     val colors = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).border(1.dp, colors.outlineVariant, RoundedCornerShape(20.dp))) {
         Row(Modifier.fillMaxWidth().background(colors.surfaceContainerHigh).padding(horizontal = 14.dp, vertical = 8.dp)) {
-            Text("You type", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, modifier = Modifier.weight(1f))
-            Text("Answer", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
+            Text(tr("You type"), style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, modifier = Modifier.weight(1f))
+            Text(tr("Answer"), style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
         }
         examples.forEachIndexed { k, e ->
             if (k > 0) androidx.compose.material3.HorizontalDivider(color = colors.outlineVariant)
@@ -448,13 +450,12 @@ fun FunctionReference(onPick: ((String) -> Unit)?) {
             (query.isBlank() || listOf(h.names, h.example, h.what).any { it.contains(query.trim(), ignoreCase = true) })
     }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            "Start a cell with =. Cells are A1, B2…; ranges A1:A10 or whole columns A:A; \$A\$1 stays put when filled down. Operators + − * / ^ % & and comparisons = <> < > <= >=. Text goes in \"quotes\".",
+        Text(tr("Start a cell with =. Cells are A1, B2…; ranges A1:A10 or whole columns A:A; \$A\$1 stays put when filled down. Operators + − * / ^ % & and comparisons = <> < > <= >=. Text goes in \"quotes\"."),
             style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(bottom = 6.dp),
         )
         OutlinedTextField(
             value = query, onValueChange = { query = it }, singleLine = true,
-            placeholder = { Text("Search, e.g. lookup, NORM, date") },
+            placeholder = { Text(tr("Search, e.g. lookup, NORM, date")) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             shape = RoundedCornerShape(28.dp),
             modifier = Modifier.fillMaxWidth(),
@@ -465,7 +466,7 @@ fun FunctionReference(onPick: ((String) -> Unit)?) {
                 FilterChip(selected = group == c, onClick = { group = c }, label = { Text(c ?: "All") })
             }
         }
-        if (shown.isEmpty()) Text("No functions match", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(vertical = 16.dp))
+        if (shown.isEmpty()) Text(tr("No functions match"), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(vertical = 16.dp))
         shown.forEachIndexed { k, h ->
             if (group == null && (k == 0 || shown[k - 1].category != h.category)) Text(
                 h.category, style = MaterialTheme.typography.labelLarge, color = colors.primary,

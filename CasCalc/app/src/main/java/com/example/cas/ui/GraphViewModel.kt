@@ -502,8 +502,16 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         if (isComplex) FavoriteColormaps.list.firstOrNull()?.let { f.colormap = com.example.cas.graph.Colormap.byName(it) }
         f.editor.onChange = {
             f.version++
+            val wasConstruction = f.geometry != null
             // Lines can use functions defined on other lines, so a list with definitions recompiles whole.
-            if (functions.any { com.example.cas.engine.UserFunction.definition(it.editor.root.items) != null || it.geometry != null } || f.geometry != null) { geometryCache = null; functions.forEach { recompile(it) } }
+            if (functions.any { com.example.cas.engine.UserFunction.definition(it.editor.root.items) != null || it.geometry != null } || f.geometry != null) {
+                geometryCache = null
+                recompile(f)
+                // A construction that's still one (a point dragged, a command edited) can only change
+                // other constructions: functions never read them, so they aren't compiled again.
+                if (wasConstruction && f.geometry != null) functions.forEach { if (it !== f && it.geometry != null) recompile(it) }
+                else functions.forEach { if (it !== f) recompile(it) }
+            }
             else recompile(f)
             // (Not on every frame of a point moving by itself.)
             if (!quietChange) save()
@@ -622,6 +630,16 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         if (functions.none { !it.isFolder }) { active = null; typingFocus = false }
         version++
         save()
+    }
+
+    /**
+     * What the lines other than constructions are now: it changes when one is edited, compiled
+     * again, added, removed, shown, hidden or recolored, but not when a construction changes (a
+     * point dragged). Plots of functions, surfaces and the complex coloring are keyed on it, so
+     * moving a point redraws only the constructions.
+     */
+    val plotKey: List<Any?> get() = functions.filter { it.geometry == null }.map {
+        listOf(it, it.version, it.visible, it.colorIndex, it.compiled, it.implicit3D, it.complexCompiled, it.complexCurve, it.complexPath, it.complexPoints, it.plot, it.family)
     }
 
     /** A list of points in the 2D graph: edited in its table, never typed into. */
@@ -880,6 +898,39 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
 
     private var geometryCache: Pair<List<Any>, Construction>? = null
 
+    /** Compiled numbers from constructions, by the typed nodes they came from, as text (see [memoNumber]). */
+    private val numberMemo = HashMap<String, Pair<List<String>, RealFunction>>()
+    private var numberMemoKey: List<Any?>? = null
+
+    /**
+     * How a construction reads a typed number (Distance(A, B)/2, 3a): worked out once per line
+     * as typed and kept compiled, so a rebuild (every frame of a drag, and many per frame for a
+     * locus) only evaluates it. Anything else it could depend on clears the store. Letters
+     * that aren't known become sliders, reported to [slider].
+     */
+    private fun memoNumber(userFns: Map<String, com.example.cas.engine.UserFunction>, slider: (String) -> Unit): (List<com.example.cas.editor.Node>, Map<String, Double>) -> Double {
+        // (The functions are new objects each time, so their lines' versions stand for them.)
+        val definitions = functions.filter { com.example.cas.engine.UserFunction.definition(it.editor.root.items) != null }.map { it to it.version }
+        val memoKey = listOf(angle, unitSystem, coordinates, storedVariables(), definitions)
+        if (numberMemoKey != memoKey || numberMemo.size > 2000) { numberMemo.clear(); numberMemoKey = memoKey }
+        return { nodes, known ->
+            com.example.cas.graph.Geometry.plainNumber(nodes) ?: run {
+                val (free, compiled) = numberMemo.getOrPut(MathCodec.encode(nodes)) {
+                    val e = Evaluator(angle, null, storedVariables(), unitSystem, coordinates, userFns).evaluate(MathCodec.copyOf(nodes))
+                    val vs = e.freeVars().distinct().sorted()
+                    vs to Compiler.compile(e, vs)
+                }
+                free.filter { it !in known }.forEach { v ->
+                    if (v !in parameters) parameters[v] = 1.0
+                    slider(v)
+                }
+                val value = compiled(DoubleArray(free.size) { k -> known[free[k]] ?: parameters[free[k]] ?: 1.0 })
+                if (!value.isFinite()) throw com.example.cas.graph.Geometry.GeometryError("That number isn't defined")
+                value
+            }
+        }
+    }
+
     /** The construction for the lines as they are now (worked out again when a line or a slider changes). */
     fun construction(): Construction {
         val lines = functions.filter { it.geometry != null || (AppSettings.geometry && !it.isText && com.example.cas.graph.Geometry.parse(it.editor.root.items, complex = isComplex) != null) }
@@ -891,19 +942,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         val sliders = HashMap<PlotFunction, MutableList<String>>()
         var current: PlotFunction? = null
         val userFns = userFunctions()
-        val number = { nodes: List<com.example.cas.editor.Node>, known: Map<String, Double> ->
-            com.example.cas.graph.Geometry.plainNumber(nodes) ?: run {
-                val e = Evaluator(angle, null, storedVariables(), unitSystem, coordinates, userFns).evaluate(MathCodec.copyOf(nodes))
-                val free = e.freeVars().distinct().sorted()
-                free.filter { it !in known }.forEach { v ->
-                    if (v !in parameters) parameters[v] = 1.0
-                    current?.let { f -> sliders.getOrPut(f) { ArrayList() }.let { if (v !in it) it += v } }
-                }
-                val value = Compiler.compile(e, free)(DoubleArray(free.size) { k -> known[free[k]] ?: parameters[free[k]] ?: 1.0 })
-                if (!value.isFinite()) throw com.example.cas.graph.Geometry.GeometryError("That number isn't defined")
-                value
-            }
-        }
+        val number = memoNumber(userFns) { v -> current?.let { f -> sliders.getOrPut(f) { ArrayList() }.let { if (v !in it) it += v } } }
         // Functions f(x) defined on the graph's lines, for Intersect(f, l), Tangent(A, f), Point(f, 2).
         val functionOf: (String) -> ((Double) -> Double)? = { name ->
             userFns[name]?.takeIf { it.variables.size == 1 }?.let { uf ->
@@ -952,19 +991,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         val sliders = HashMap<PlotFunction, MutableList<String>>()
         var current: PlotFunction? = null
         val userFns = userFunctions()
-        val number = { nodes: List<com.example.cas.editor.Node>, known: Map<String, Double> ->
-            com.example.cas.graph.Geometry.plainNumber(nodes) ?: run {
-                val e = Evaluator(angle, null, storedVariables(), unitSystem, coordinates, userFns).evaluate(MathCodec.copyOf(nodes))
-                val free = e.freeVars().distinct().sorted()
-                free.filter { it !in known }.forEach { v ->
-                    if (v !in parameters) parameters[v] = 1.0
-                    current?.let { f -> sliders.getOrPut(f) { ArrayList() }.let { if (v !in it) it += v } }
-                }
-                val value = Compiler.compile(e, free)(DoubleArray(free.size) { k -> known[free[k]] ?: parameters[free[k]] ?: 1.0 })
-                if (!value.isFinite()) throw com.example.cas.graph.Geometry.GeometryError("That number isn't defined")
-                value
-            }
-        }
+        val number = memoNumber(userFns) { v -> current?.let { f -> sliders.getOrPut(f) { ArrayList() }.let { if (v !in it) it += v } } }
         val outcomes = com.example.cas.graph.Geometry3D.build(lines.map { it.geometry }, number, degrees = angle == AngleUnit.Degrees, onStatement = { k -> current = lines[k] })
         val c = Construction3D(lines.indices.mapNotNull { k -> outcomes[k]?.let { lines[k] to it } }.toMap(), sliders)
         geometry3DCache = key to c
@@ -1090,6 +1117,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             add("("); number(x); add(","); number(y); add(")")
         }
         f.editor.replace(row, record = first)
+        if (first) pointsMoved++
     }
 
     /** Moves a free point in space (A = (1, 2, 3)) to (x, y, z), as [moveFreePoint]. */
@@ -1101,6 +1129,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         listOf(x, y, z).forEachIndexed { k, v -> if (k > 0) add(","); com.example.cas.graph.Csv.numberText(v).forEach { add(it.toString()) } }
         add(")")
         f.editor.replace(row, record = first)
+        if (first) pointsMoved++
     }
 
     /** Moves a point on a path (P = Point(c, t)) to the place on its path nearest (x, y): its t is rewritten. */
@@ -1117,6 +1146,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         com.example.cas.graph.Csv.numberText(t).forEach { add(com.example.cas.editor.Sym(it.toString())) }
         add(com.example.cas.editor.Sym(")"))
         f.editor.replace(row, record = first)
+        if (first) pointsMoved++
     }
 
     /** Every name in use: constructions', functions' and sliders' (so a new name takes none of them). */
@@ -1178,6 +1208,12 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
 
     /** What the tool's next tap should be on: a point, an object (a line, circle, conic…), a straight line, a circle or conic, or anything. */
     val geometryNeeds: Char? get() = geometryTool?.let { tool -> if (tool.multi) 'P' else tool.slots.getOrNull(geometryPicks.size) }
+
+    /** The geometry guide is showing, at [guideStep] (see GeometryGuide). */
+    var guideOpen by mutableStateOf(false)
+    var guideStep by mutableStateOf(0)
+    /** Drags of construction points so far (each counted once, as it starts): the guide watches it. */
+    var pointsMoved by mutableStateOf(0)
 
     /** Construct mode: the tool palette is open (with Move, nothing is built by tapping). */
     var constructing by mutableStateOf(false)
@@ -2566,7 +2602,10 @@ class PlaneArea(val f: PlotFunction, val kind: Int, val total: Double, val signe
 class AreaResult(val f: PlotFunction, val g: PlotFunction?, val a: Double, val b: Double, val signed: Double, val total: Double, val arc: Boolean = false)
 
 /** The groups of construction tools. */
-enum class GeometryCategory(val label: String) { Points("Points"), Lines("Lines"), Shapes("Circles & shapes"), Solids("Planes & solids"), Conics("Conics"), Complex("Complex"), Measure("Measure"), Transform("Transform") }
+enum class GeometryCategory(val english: String) { Points("Points"), Lines("Lines"), Shapes("Circles & shapes"), Solids("Planes & solids"), Conics("Conics"), Complex("Complex"), Measure("Measure"), Transform("Transform");
+    /** Its name in the app's language. */
+    val label: String get() = tr(english)
+}
 
 /** Where geometry mode builds: the 2D graph, the complex plane, or space (the 3D graph). */
 enum class GeometrySpace(val code: Char) { Plane('p'), Complex('c'), Space('s') }
@@ -2581,7 +2620,7 @@ enum class GeometrySpace(val code: Char) { Plane('p'), Complex('c'), Space('s') 
  * [ask] is a number asked for once the taps are done (a radius, a number of sides…).
  */
 enum class GeometryTool(
-    val label: String, val command: String, val slots: String, val makes: Char, val category: GeometryCategory, val steps: List<String>,
+    val english: String, val command: String, val slots: String, val makes: Char, val category: GeometryCategory, val steps: List<String>,
     val ask: String? = null, val least: Int = 0,
     /** Where it's offered: p the 2D graph, c the complex plane, s the 3D graph. */
     val where: String = "pc",
@@ -2664,8 +2703,11 @@ enum class GeometryTool(
     /** Whether it's offered in [space]. */
     fun fits(space: GeometrySpace) = space.code in where
 
+    /** Its name in the app's language. */
+    val label: String get() = tr(english)
+
     /** The name on its tile in the palette, short enough for two lines. */
-    val tile: String get() = when (this) {
+    val tile: String get() = tr(when (this) {
         Bisector -> "Perp. bisector"
         Perpendicular -> "Perp. line"
         Inflection -> "Inflections"
@@ -2677,8 +2719,8 @@ enum class GeometryTool(
         PerpendicularToPlane -> "Perp. to plane"
         SphereRadius -> "Sphere, radius"
         RotateAxis -> "Rotate about line"
-        else -> label
-    }
+        else -> english
+    })
 
     companion object {
         /** The tools of [category] offered in [space] (Move first among the points). */
@@ -2693,7 +2735,7 @@ enum class GeometryTool(
     val multi get() = slots.isEmpty() && this != Move
 
     /** What to tap for a step, from its slot. */
-    fun instruction(slot: Char?): String = when (slot) {
+    fun instruction(slot: Char?): String = tr(when (slot) {
         'P' -> when {
             this == Polygon -> "Tap the corners, then the first again to close"
             multi -> "Tap the points, then Finish"
@@ -2707,5 +2749,5 @@ enum class GeometryTool(
         'S' -> "Tap a plane"
         'X' -> "Tap a point or an object"
         else -> "Drag points to move them"
-    }
+    })
 }

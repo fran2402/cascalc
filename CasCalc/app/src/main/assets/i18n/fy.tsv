@@ -1,0 +1,574 @@
+# Frisian (Frysk). Each line: the English text (exactly as in the app), a tab, the translation.
+# \n is a new line; {0}, {1}… are filled in by the app. Missing lines stay English.
+More options	Mear opsjes
+Unit converter	Ienhedenomrekkener
+Settings	Ynstellings
+Acknowledgements	Tankbetsjuttingen
+Clear the history?	Skiednis wiskje?
+Clear	Wiskje
+Cancel	Ofbrekke
+Copy last answer	Lêste antwurd kopiearje
+Clear history	Skiednis wiskje
+Delete this calculation?	Dizze berekkening wiskje?
+It will be removed from the history. This can't be undone.	Hy wurdt út de skiednis helle. Dit kin net ûngedien makke wurde.
+Delete	Wiskje
+Your calculations will appear here	Dyn berekkeningen komme hjir te stean
+Tap a past question or answer to use it again, hold it to copy it, swipe it away to delete it	Tik op in eardere fraach of in antwurd om it wer te brûken, hâld it fêst om it te kopiearjen, feegje it fuort om it te wiskjen
+Expression	Utdrukking
+Show actions	Aksjes sjen litte
+Pinned	Fêstsette
+Use this expression	Dizze utdrukking brûke
+Use this answer	Dit antwurd brûke
+More: folder, share, delete	Mear: map, diele, wiskje
+Use the answer	It antwurd brûke
+Share as image	Diele as ôfbylding
+Share as LaTeX	Diele as LaTeX
+Copy LaTeX	LaTeX kopiearje
+Choose the coordinate letters	Kies de letters fan de koördinaten
+Undefine	Definysje fuortsmite
+Remove symbol	Symboal fuortsmite
+How to use	Hoe te brûken
+Open the NIST page	De NIST-side iepenje
+NIST CODATA value and uncertainty	NIST CODATA-wearde en ûnwissichheid
+Dismiss	Slute
+Hide the keyboard	Toetseboerd ferbergje
+Show the keyboard	Toetseboerd sjen litte
+Matrix size	Grutte fan de matriks
+Insert	Ynfoegje
+Physical constants	Natuerkundige konstanten
+Search constants	Konstanten sykje
+Clear the search	Sykopdracht wiskje
+exact	eksakt
+App color	Kleur fan de app
+Language	Taal
+Translations are new and may be incomplete: anything not translated yet shows in English. The documentation and key explanations are in English.	De oersettingen binne nij en noch net kompleet: wat noch net oerset is, stiet yn it Ingelsk. De dokumintaasje en de taljochtingen by de toetsen binne yn it Ingelsk.
+Put a shortcut on your home screen that opens straight to one of these. Holding the app's icon shows them too.	Set in fluchtoets op dyn startskerm dy't direkt ien fan dizze iepenet. Ast it ikoan fan de app fêsthâldst, sjochst se ek.
+Done	Klear
+System	Systeem
+Spelling	Stavering
+Ijekavian	Ijekavysk
+Ekavian	Ekavysk
+Appearance	Uterlik
+Theme	Tema
+Light	Ljocht
+Dark	Tsjuster
+Colors from your wallpaper	Kleuren fan dyn eftergrûn
+Material You dynamic color	Material You dynamyske kleur
+Math size	Grutte fan de wiskunde
+Small	Lyts
+Medium	Middel
+Large	Grut
+Keypad size	Grutte fan it toetseboerd
+Compact	Kompakt
+Tall	Heech
+Keyboard side	Kant fan it toetseboerd
+Left	Lofts
+Right	Rjochts
+Expressive motion	Ekspressive beweging
+Springy animations; off for calmer ones	Fearjende animaasjes; út foar rêstiger
+Calculator	Rekkenmasine
+Live answer	Direkt antwurd
+The result under what you're typing	De útkomst ûnder watst typest
+Continue from the answer	Fierder mei it antwurd
+An operator after = starts with Ans	In operator nei = begjint mei Ans
+Explanations on long-press	Taljochting by lang yndrukken
+Formula, theory and how to use each key	Formule, teory en hoe't elke toets wurket
+Show steps	Stappen sjen litte
+Worked steps for calculus (integrals, derivatives, limits, sums, series, $\\oint$), algebra and complex numbers, matrices (determinants, inverses, eigenvalues, rref), differential equations, statistics and vector calculus: Steps on a history card. Still in beta, so steps may skip some algebra	Útwurke stappen foar analyze (yntegralen, ôfliedingen, limiten, sommen, rigen, $\\oint$), algebra en komplekse getallen, matriksen (determinanten, inversen, eigenwearden, rref), differinsjaalfergelikingen, statistyk en fektoranalyze: Stappen op in skiednisskaart. Noch yn beta, dus stappen kinne wat algebra oerslaan
+Beta	Beta
+History	Skiednis
+History keeps	Skiednis hâldt
+All	Alles
+Ask before clearing history	Freegje foar it wiskjen fan de skiednis
+Ask before deleting	Freegje foar it wiskjen
+A calculation, or a line in a graph	In berekkening, of in line yn in grafyk
+Numbers	Getallen
+Show answers as	Antwurden sjen litte as
+Exact	Eksakt
+Decimal	Desimaal
+Number format	Getalnotaasje
+Auto	Automatysk
+Scientific	Wittenskiplik
+Engineering	Technysk
+decimal	desimaal
+decimals	desimalen
+Group digits	Sifers groepearje
+1 000 000 rather than 1000000	1 000 000 yn plak fan 1000000
+Complex decimals	Komplekse desimalen
+Polar	Poalêr
+Graphs	Grafiken
+Grid lines	Roasterlinen
+The axes always show	De assen binne altyd te sjen
+Legend	Leginda
+Each line's name in the corner, and in exports. Hold a line to rename it	De namme fan elke line yn 'e hoeke, en by it eksportearjen. Hâld in line fêst om him in oare namme te jaan
+Mark points on curves	Punten op krommen markearje
+Zeros, extrema and crossings of the tapped curve	Nulpunten, ekstremen en snijpunten fan de oantikke kromme
+Geometry mode	Mjitkundemodus
+Constructions in the 2D graph: name points (A = (1, 2)) and build with Segment, Circle, Intersect, Midpoint, Angle, Area and more, or tap with the Construct tools. Drag free points and everything built on them follows. In the 3D graph, geometry in space (planes, spheres, solids); on the complex plane, points as numbers. Early alpha: it will change a lot	Konstruksjes yn de 2D-grafyk: neam punten (A = (1, 2)) en bou mei Segment, Circle, Intersect, Midpoint, Angle, Area en mear, of tik mei it ark fan Konstruearje. Sleep frije punten en alles wat derop boud is, giet mei. Yn de 3D-grafyk mjitkunde yn 'e romte (flakken, bollen, lichems); op it komplekse flak punten as getallen. Iere alfa: it sil noch in soad feroarje
+Alpha	Alfa
+Starting view	Begjinwerjefte
+2D field quality	Kwaliteit fan 2D-fjilden
+Low	Leech
+High	Heech
+3D surface detail	Detail fan 3D-oerflakken
+Complex plot quality	Kwaliteit fan komplekse plots
+Touch and screen	Oanrekking en skerm
+Haptic feedback	Haptyske weromkeppeling
+A tap on each key and button	In tikje by elke toets en knop
+Key sounds	Toetsgelûden
+A click on each key (uses the system's touch sounds)	In klik by elke toets (brûkt de oanrekgelûden fan it systeem)
+Keep the screen on	Skerm oan hâlde
+While the app is open	Salang't de app iepen is
+Home screen	Startskerm
+Add to the home screen	Taheakje oan it startskerm
+Feedback	Weromkeppeling
+Report a bug	In flater melde
+An email to the developer with the app's log attached	In e-mail oan de ûntwikkeler mei it lochboek fan de app derby
+Request a feature	In funksje oanfreegje
+An email to the developer with your idea	In e-mail oan de ûntwikkeler mei dyn idee
+Documentation	Dokumintaasje
+About	Oer
+Fonts, libraries, data and methods, with links	Lettertypen, biblioteken, gegevens en metoaden, mei keppelings
+Open the acknowledgements	De tankbetsjuttingen iepenje
+Complex plane. Color shows the argument of f(z), brightness its size. Drag to move, pinch to zoom, tap to read a value. f can use r and θ for |z| and arg z.	Kompleks flak. De kleur lit it argumint fan f(z) sjen, de helderens de grutte. Sleep om te ferskowen, knyp om te zoomen, tik om in wearde ôf te lêzen. f kin r en θ brûke foar |z| en arg z.
+Tap where the area should end	Tik wêr't it oerflak einigje moat
+Graph settings	Grafykynstellings
+Plot quality	Kwaliteit fan de plot
+Area inside	Oerflak binnen
+Area inside this curve	Oerflak binnen dizze kromme
+To the axis	Oant de as
+Area to the real axis from here	Oerflak oant de reële as fan hjir ôf
+Between	Tusken
+Area between the curves from here	Oerflak tusken de krommen fan hjir ôf
+Start constructing	Begjinne mei konstruearjen
+Construct	Konstruearje
+1 corner	1 hoekpunt
+{0} corners	{0} hoekpunten
+1 point	1 punt
+{0} points	{0} punten
+Step {0} of {1}	Stap {0} fan {1}
+Take back the last pick	De lêste kar weromnimme
+Show {0}	{0} sjen litte
+, in use	, yn gebrûk
+Use {0}	{0} brûke
+Make	Meitsje
+The app closed unexpectedly	De app is ûnferwachts sletten
+This is what went wrong. Report it (an email with it attached) to help fix it.	Dit is wat der mis gie. Meld it (in e-mail mei dit derby) om te helpen it te ferhelpen.
+Report	Melde
+Copy	Kopiearje
+Close	Slute
+Graph. Drag to move, pinch to zoom, tap a curve to read a point, double-tap to reset.	Grafyk. Sleep om te ferskowen, knyp om te zoomen, tik op in kromme om in punt ôf te lêzen, dûbeltik om werom te setten.
+Import points from a CSV, Excel or Google Sheets file	Punten ymportearje út in CSV-, Excel- of Google Sheets-bestân
+Import data	Gegevens ymportearje
+Square zoom: equal scales	Fjouwerkant zoomen: gelikense skalen
+Import sheets	Blêden ymportearje
+Each sheet becomes its own line.	Elk blêd wurdt in eigen line.
+Numbers on the axes	Getallen op de assen
+Degrees	Graden
+Field quality	Kwaliteit fan it fjild
+Area	Oerflak
+Area from here	Oerflak fan hjir ôf
+Between curves	Tusken krommen
+Tangent	Raakline
+Add the tangent line here	Raakline hjir tafoegje
+Normal	Normaal
+Add the normal line here	Normaal hjir tafoegje
+Arc length	Bôgelingte
+Arc length from here	Bôgelingte fan hjir ôf
+Remove	Fuortsmite
+Remove this solution	Dizze oplossing fuortsmite
+Clear all	Alles wiskje
+Remove every solution	Alle oplossingen fuortsmite
+Zoom in	Ynzoome
+Set the limits	De grinzen ynstelle
+Zoom out	Utzoome
+Fit z to the surfaces	z oanpasse oan de oerflakken
+Each lower limit must be below its upper limit.	Elke ûndergrins moat ûnder de boppegrins lizze.
+Coordinates	Koördinaten
+Surface detail	Detail fan it oerflak
+from	fan
+to	oant
+3D graph. Drag to rotate, pinch to zoom, tap the surface to read a point, double-tap to reset.	3D-grafyk. Sleep om te draaien, knyp om te zoomen, tik op it oerflak om in punt ôf te lêzen, dûbeltik om werom te setten.
+Reversed	Omkeard
+Run the colors the other way round	De kleuren de oare kant op litte rinne
+Drag ⠿ to reorder · swipe a map away to remove it	Sleep ⠿ om de folchoarder te feroarjen · feegje in kaart fuort om him fuort te smiten
+Search by name	Sykje op namme
+No colormap by that name	Gjin kleurekaart mei dy namme
+Colormap	Kleurekaart
+Drag to reorder	Sleep om de folchoarder te feroarjen
+Saturation and brightness	Fersêding en helderens
+Line thickness	Linedikte
+Default	Standert
+Edit as a table	Bewurkje as tabel
+Name in the legend	Namme yn de leginda
+Name	Namme
+Math between $ signs, in LaTeX: $\\sin x$	Wiskunde tusken $-tekens, yn LaTeX: $\\sin x$
+(no name: left out of the legend)	(gjin namme: net yn de leginda)
+Save	Bewarje
+Point	Punt
+Point size	Puntgrutte
+Show coordinates	Koördinaten sjen litte
+Join the points	De punten ferbine
+Closed shape (polygon)	Sletten foarm (polygoan)
+Fill opacity	Dekking fan de folling
+Filled	Folle
+Show name	Namme sjen litte
+Move along its path	Lâns it paad bewege
+Round once in 10 s, or back and forth	Ien kear rûn yn 10 s, of hinne en wer
+Color, line style and thickness are above.	Kleur, linestyl en dikte steane hjirboppe.
+Arrows	Pylken
+Color	Kleur
+Change the colormap	De kleurekaart feroarje
+Length	Lingte
+Arrow scale	Skaal fan de pylken
+Arrowhead	Pylkpunt
+Arrowhead size	Grutte fan de pylkpunt
+Number of arrows across	Tal pylken yn 'e breedte
+Arrow thickness	Pylkdikte
+From	Fan
+To	Oant
+Fit to the list	Oanpasse oan de list
+Couldn't fit this to the points	Koe dit net oan de punten oanpasse
+Export the graph	De grafyk eksportearje
+Export	Eksportearje
+Note	Notysje
+Delete folder	Map wiskje
+Into folder above	Yn de map hjirboppe
+Out of folder	Út de map
+Close without saving	Slute sûnder te bewarjen
+Data table	Gegevenstabel
+Formulas	Formules
+Undo	Ungedien meitsje
+Redo	Opnij dwaan
+More	Mear
+Share as CSV	Diele as CSV
+Copy as CSV	Kopiearje as CSV
+Remove empty rows	Lege rigen fuortsmite
+No numbers in this column yet.	Noch gjin getallen yn dizze kolom.
+Text and empty cells are left out; the standard deviation is the sample's. Tap a value to copy it.	Tekst en lege sellen wurde oerslein; de standertdeviaasje is dy fan de stekproef. Tik op in wearde om dy te kopiearjen.
+Fill with a series	Folje mei in rige
+Start	Begjin
+Step	Stap
+Fill	Folje
+Fill handle: drag to copy this cell, double-tap to fill to the end of the data	Follingsgreep: sleep om dizze sel te kopiearjen, dûbeltik om oant de ein fan de gegevens te foljen
+$ keeps a column or row fixed when filling	$ hâldt by it foljen in kolom of rige fêst
+Roles	Rollen
+Columns without a role are kept but not plotted. ＋ › Paste copies a table from a spreadsheet. Drag the grips to resize rows and columns.	Kolommen sûnder rol bliuwe bewarre mar wurde net tekene. ＋ › Plakke kopiearret in tabel út in rekkenblêd. Sleep de grepen om rigen en kolommen grutter of lytser te meitsjen.
+No points yet	Noch gjin punten
+Chosen	Keazen
+Statistics	Statistyk
+Sort smallest first	Sortearje fan lyts nei grut
+Sort largest first	Sortearje fan grut nei lyts
+Fill with 1, 2, 3…	Folje mei 1, 2, 3…
+Fill with a series…	Folje mei in rige…
+Fill the formula down	Formule nei ûnderen folje
+Duplicate the column	Kolom duplisearje
+Move left	Nei lofts
+Move right	Nei rjochts
+Clear the column	Kolom wiskje
+Remove the column	Kolom fuortsmite
+Insert a row above	Rige hjirboppe ynfoegje
+Insert a row below	Rige hjirûnder ynfoegje
+Edit this cell	Dizze sel bewurkje
+Resize the list of lines: drag sideways, double-tap to reset	Grutte fan de list mei linen: sleep sydlings, dûbeltik om werom te setten
+Use	Brûke
+Use the value in the calculator	De wearde yn de rekkenmasine brûke
+Copy the value	De wearde kopiearje
+Each “from” must be a number below its “to”	Elk “fan” moat in getal ûnder syn “oant” wêze
+Axis scale	Asskaal
+Fit statistics	Statistyk fan de oanpassing
+This line can't be fitted to the points (too few points, or values it can't take).	Dizze line kin net oan de punten oanpast wurde (te min punten, of wearden dy't er net oannimme kin).
+No σ(y) on the points, so χ²/ν counts each as σ = 1: it's the residuals' mean square. Give the data a σ(y) column for a true reduced χ².	Gjin σ(y) by de punten, dus χ²/ν rekkenet elk as σ = 1: it is it gemiddelde kwadraat fan de residuen. Jou de gegevens in σ(y)-kolom foar in echte redusearre χ².
+Apply the fit	De oanpassing tapasse
+Residuals	Residuen
+This color	Dizze kleur
+By length	Nei lingte
+Arrow color	Pylkkleur
+Arrow length	Pylklingte
+Line	Line
+Add a line	In line tafoegje
+Add a note	In notysje tafoegje
+Folder	Map
+Add a folder	In map tafoegje
+Table	Tabel
+Add a table	In tabel tafoegje
+Row	Rige
+Add a row	In rige tafoegje
+Column	Kolom
+Add a column	In kolom tafoegje
+Paste	Plakke
+Paste a table from the clipboard	In tabel fan it klamboerd plakke
+Preview of the export	Foarbyld fan de eksport
+Limits	Grinzen
+Each limit needs a number, and “from” must be less than “to”.	Elke grins hat in getal nedich, en “fan” moat lytser wêze as “oant”.
+The graph itself, with its lines, colors and sliders, to open again in CAS Scientific Calculator (Saved graphs › Import).	De grafyk sels, mei syn linen, kleuren en skuorren, om wer te iepenjen yn CAS Scientific Calculator (Bewarre grafiken › Ymportearje).
+Share file	Bestân diele
+Save file	Bestân bewarje
+Share	Diele
+Export graph	Grafyk eksportearje
+Open and replace	Iepenje en ferfange
+Search calculations	Berekkeningen sykje
+Export these calculations	Dizze berekkeningen eksportearje
+Empty the folder (calculations stay)	De map leegmeitsje (berekkeningen bliuwe)
+Rename	Omneame
+Move to folder	Nei map ferpleatse
+New folder	Nije map
+e.g. Homework 3	bgl. Húswurk 3
+Create and move	Meitsje en ferpleatse
+Title	Titel
+Back	Werom
+Search the documentation	Yn de dokumintaasje sykje
+Nothing matches	Neat fûn
+Search	Sykje
+On this page	Op dizze side
+You type	Do typest
+Answer	Antwurd
+Search, e.g. lookup, NORM, date	Sykje, bgl. lookup, NORM, date
+No functions match	Gjin funksjes fûn
+Guide	Gids
+Show the guide to {0}	De gids foar {0} sjen litte
+Try	Besykje
+Open {0}	{0} iepenje
+Guide to {0}	Gids foar {0}
+Saved graphs	Bewarre grafiken
+Close the search	Sykjen slute
+Import a graph file (.g2d, .g3d, .gcp)	In grafykbestân ymportearje (.g2d, .g3d, .gcp)
+Nothing to save	Neat te bewarjen
+OK	OK
+The saved graph will be removed. The graph on screen isn't affected.	De bewarre grafyk wurdt fuortsmiten. De grafyk op it skerm bliuwt sa't er is.
+Save a graph to keep its lines, colors and sliders, and open it again later.	Bewarje in grafyk om syn linen, kleuren en skuorren te hâlden en him letter wer te iepenjen.
+Duplicate	Duplisearje
+No lines	Gjin linen
+Outline	Oersjoch
+Steps	Stappen
+Copy the steps	De stappen kopiearje
+No steps for this one yet	Hjir binne noch gjin stappen foar
+Steps are in beta: calculus, algebra, complex numbers, matrices, differential equations, statistics and vector calculus for now.	Stappen binne yn beta: foar no analyze, algebra, komplekse getallen, matriksen, differinsjaalfergelikingen, statistyk en fektoranalyze.
+Steps are in beta and may skip some algebra.	Stappen binne yn beta en kinne wat algebra oerslaan.
+LaTeX	LaTeX
+Bold	Fet
+For vectors and matrices, as \\boldsymbol	Foar fektors en matriksen, as \\boldsymbol
+None	Gjin
+Tap a box, then type into it from the pad. Scripts can go on the right of the letter, or on its left (as in ¹⁴₆C).	Tik op in fakje en typ der dan yn mei it toetseboerd. Yndeksen kinne rjochts fan de letter of lofts derfan (lykas yn ¹⁴₆C).
+Double-tap a box to type into it with your keyboard (as upright text).	Dûbeltik op in fakje om der mei dyn toetseboerd yn te typen (as rjochte tekst).
+Italic	Skean
+Save and insert	Bewarje en ynfoegje
+Remove this symbol	Dit symboal fuortsmite
+empty	leech
+Written upright, as text (eff, max, ext…)	Rjocht skreaun, as tekst (eff, max, ext…)
+Value	Wearde
+Change the unit	De ienheid feroarje
+Swap the units	De ienheden wikselje
+Swap	Wikselje
+Significant figures	Signifikante sifers
+Physical equivalences	Natuerkundige lykweardichheden
+When the dimensions differ, these constants may connect them: mass and energy, energy and frequency or wavelength, energy and temperature.	As de dimensjes ferskille, kinne dizze konstanten se ferbine: massa en enerzjy, enerzjy en frekwinsje of golflingte, enerzjy en temperatuer.
+Use this unit	Dizze ienheid brûke
+Tap units below	Tik hjirûnder op ienheden
+or type one, like km/s/Mpc	of typ der ien, lykas km/s/Mpc
+Type a unit	Typ in ienheid
+Clear the unit	De ienheid wiskje
+Delete the last unit	De lêste ienheid wiskje
+Prefix	Foarheaksel
+Search units	Ienheden sykje
+prefixes	foarheaksels
+Clear variables (	Fariabelen wiskje (
+Start a cell with =. Cells are A1, B2…; ranges A1:A10 or whole columns A:A; $A$1 stays put when filled down. Operators + − * / ^ % & and comparisons = <> < > <= >=. Text goes in "quotes".	Begjin in sel mei =. Sellen binne A1, B2…; berikken A1:A10 of hiele kolommen A:A; $A$1 bliuwt stean by it nei ûnderen foljen. Operators + − * / ^ % & en fergelikingen = <> < > <= >=. Tekst stiet tusken "oanhalingstekens".
+Maximum	Maksimum
+Minimum	Minimum
+Zero	Nulpunt
+Intersection	Snijpunt
+y-intercept	Snijpunt mei de y-as
+Starting point	Begjinpunt
+Vector	Fektor
+2D graphing	2D-grafiken
+3D graphing	3D-grafiken
+Complex plotting	Komplekse plots
+Points	Punten
+Lines	Linen
+Circles & shapes	Sirkels & foarmen
+Planes & solids	Flakken & lichems
+Conics	Kegelsneden
+Complex	Kompleks
+Measure	Mjitte
+Transform	Transformearje
+Move	Ferpleatse
+Place it	Pleats it
+Point on object	Punt op objekt
+The object	It objekt
+Intersect	Snijpunt
+First object	Earste objekt
+Second object	Twadde objekt
+Midpoint	Middelpunt
+First point	Earste punt
+Second point	Twadde punt
+Roots	Nulpunten
+Root	Nulpunt
+The function	De funksje
+Extrema	Ekstremen
+Extremum	Ekstreem
+Inflection points	Bûgpunten
+Inflection	Bûgpunt
+Closest point	Tichtste punt
+Near	By
+Segment	Linestik
+End	Ein
+Segment of length	Linestik mei lingte
+Ray	Healline
+Through	Troch
+Polyline	Brutsen line
+Best fit line	Bêst passende line
+Perpendicular	Loodline
+The line	De line
+Parallel	Parallel
+Perpendicular bisector	Middelloodline
+Angle bisector	Hoekdielingsline
+Corner	Hoekpunt
+Circle or conic	Sirkel of kegelsnede
+Polar line	Poallline
+Common tangents	Mienskiplike raaklinen
+First circle	Earste sirkel
+Second circle	Twadde sirkel
+Polygon	Polygoan
+Corners	Hoekpunten
+Regular polygon	Regelmjittige polygoan
+First corner	Earste hoekpunt
+Second corner	Twadde hoekpunt
+Number of sides	Tal sydkanten
+Circle	Sirkel
+Center	Middelpunt
+On the circle	Op de sirkel
+Circle with radius	Sirkel mei striel
+Radius	Striel
+Compass	Passer
+Radius from	Striel fan
+Radius to	Striel oant
+Circle through 3	Sirkel troch 3
+Incircle	Ynskreaune sirkel
+Semicircle	Healsirkel
+Arc	Bôge
+Sector	Sektor
+Sector through 3	Sektor troch 3
+Ellipse	Ellips
+Focus	Brânpunt
+On it	Derop
+Hyperbola	Hyperboal
+Parabola	Parabool
+Directrix	Rjochtline
+Conic through 5	Kegelsnede troch 5
+Conic	Kegelsnede
+Angle	Hoeke
+Angle of size	Hoeke mei grutte
+Rotate	Draaie
+Angle (degrees)	Hoeke (graden)
+Distance	Ofstân
+The shape	De foarm
+Slope	Helling
+Relation	Relaasje
+First	Earste
+Second	Twadde
+Locus	Mjitkundige plak
+Tracing point	Spoarpunt
+Moving point	Bewegend punt
+Reflect in line	Spegelje yn line
+Reflect	Spegelje
+What to reflect	Wat spegele wurdt
+Mirror line	Spegelline
+Reflect in point	Spegelje yn punt
+Reflect in circle	Spegelje yn sirkel
+The point	It punt
+The circle	De sirkel
+What to turn	Wat draaid wurdt
+Translate	Ferskowe
+What to move	Wat ferskood wurdt
+The vector	De fektor
+Dilate	Fergrutsje
+What to scale	Wat fergrutte wurdt
+Factor	Faktor
+Plane through 3	Flak troch 3
+Plane	Flak
+Parallel plane	Parallel flak
+The plane	It flak
+Perpendicular plane	Loodrjocht flak
+Perpendicular to plane	Loodrjocht op flak
+Sphere	Bol
+On the sphere	Op de bol
+Sphere with radius	Bol mei striel
+Cube	Kubus
+Edge start	Begjin fan de ribbe
+Edge end	Ein fan de ribbe
+Tetrahedron	Tetraëder
+Pyramid	Piramide
+Apex	Top
+Base polygon	Basispolygoan
+Prism	Prisma
+Top of the first edge	Boppekant fan de earste ribbe
+Volume	Folume
+The solid	It lichem
+Reflect in plane	Spegelje yn flak
+Mirror plane	Spegelflak
+Rotate about line	Draaie om line
+Axis	As
+Multiply	Fermannich­fâldigje
+First number	Earste getal
+Second number	Twadde getal
+Divide	Diele
+Top	Teller
+Bottom	Neamer
+Conjugate	Konjugearre
+Point or shape	Punt of foarm
+nth roots	n-de woartels
+The number	It getal
+n (how many roots)	n (hoefolle woartels)
+Modulus	Modulus
+Argument	Argumint
+Image under f	Byld ûnder f
+Image	Byld
+Function (its name, like f)	Funksje (de namme, lykas f)
+Number	Getal
+Perp. bisector	Middellood
+Perp. line	Loodline
+Inflections	Bûgpunten
+Circle, radius	Sirkel, striel
+Segment, length	Linestik, lingte
+Angle, size	Hoeke, grutte
+Perp. plane	Loodflak
+Perp. to plane	Lood op flak
+Sphere, radius	Bol, striel
+Tap the corners, then the first again to close	Tik de hoekpunten oan, en dan wer it earste om te sluten
+Tap the points, then Finish	Tik de punten oan, en dan Ofmeitsje
+Tap a point, or an empty spot to make one	Tik op in punt, of op in lege plak om ien te meitsjen
+Tap a line, circle, polygon or curve	Tik op in line, sirkel, polygoan of kromme
+Tap a line, segment or ray	Tik op in line, linestik of healline
+Tap a circle or conic	Tik op in sirkel of kegelsnede
+Tap a function's graph	Tik op de grafyk fan in funksje
+Tap a vector	Tik op in fektor
+Tap a plane	Tik op in flak
+Tap a point or an object	Tik op in punt of in objekt
+Drag points to move them	Sleep punten om se te ferpleatsen
+Pick a tool below	Kies hjirûnder in ark
+Pick a tool beside the graph	Kies in ark neist de grafyk
+Finish	Ofmeitsje
+Next	Fierder
+Show the geometry guide	De mjitkundegids sjen litte
+Close the guide	De gids slute
+Skip the guide	Gids oerslaan
+Show me	Lit sjen
+Pick a tool	Kies in ark
+The tools stand in groups beside the graph. Tap Segment to try one, or let the guide pick it.	It ark stiet yn groepen neist de grafyk. Tik op Linestik om ien te besykjen, of lit de gids it kieze.
+The tools are under the graph, in groups. Tap Segment to try one, or let the guide pick it.	It ark stiet ûnder de grafyk, yn groepen. Tik op Linestik om ien te besykjen, of lit de gids it kieze.
+Tap to build	Tik om te bouwen
+Tap two points, or empty spots to put new ones on the floor. The card at the top says what each tap is for.	Tik op twa punten, of op lege plakken om nije op 'e flier te setten. De kaart boppe-oan seit wêr't elke tik foar is.
+Tap two points, or empty spots to make new ones. The card at the top says what each tap is for.	Tik op twa punten, of op lege plakken om nije te meitsjen. De kaart boppe-oan seit wêr't elke tik foar is.
+Drag a point	Sleep in punt
+Drag a point you made: everything built on it follows. A point on a line or circle slides along it.	Sleep in punt datst makke hast: alles wat derop boud is, giet mei. In punt op in line of sirkel glidet der lâns.
+Drag a point you made: it moves level, keeping its height, and everything built on it follows. Edit its line to change its height.	Sleep in punt datst makke hast: it beweecht flak, op deselde hichte, en alles wat derop boud is, giet mei. Bewurkje de line om de hichte te feroarjen.
+Drag a point you made: everything built on it follows. Here points are numbers, so its line reads A = 1 + 2i.	Sleep in punt datst makke hast: alles wat derop boud is, giet mei. Hjir binne punten getallen, dus de line is A = 1 + 2i.
+More to build	Mear te bouwen
+Measure gives lengths, areas and angles; Transform reflects, rotates and dilates. Tools on curves (roots, extrema, tangents) work on your functions too.	Mjitte jout lingten, oerflakken en hoeken; Transformearje spegelet, draait en fergruttet. Ark foar krommen (nulpunten, ekstremen, raaklinen) wurket ek op dyn funksjes.
+Planes and solids	Flakken en lichems
+Build planes through points, spheres, cubes, pyramids and prisms. Planes are cut to the box and drawn see-through, so what's behind still shows.	Bou flakken troch punten, bollen, kubussen, piramides en prisma's. Flakken wurde ôfsnien oan de doaze en trochsichtich tekene, sadat wat der efter sit te sjen bliuwt.
+Complex tools	Kompleks ark
+Multiply and divide points as numbers, take nth roots, or draw where a function f(z) from your list takes a point or a shape.	Fermannichfâldigje en diel punten as getallen, nim n-de woartels, of tekenje wêr't in funksje f(z) út dyn list in punt of in foarm hinne bringt.
+Options and names	Opsjes en nammen
+Tap a line's color dot for its size, name and fill. Every construction is a line of text too: edit A = (1, 2), or type Circle(A, 3).	Tik op it kleurstipke fan in line foar grutte, namme en folling. Elke konstruksje is ek in rigel tekst: bewurkje A = (1, 2), of typ Circle(A, 3).

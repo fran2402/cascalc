@@ -137,7 +137,7 @@ fun SymbolBuilderPage(onDone: (String?) -> Unit) {
             value = latex,
             onValueChange = ::typedLatex,
             singleLine = true,
-            label = { Text("LaTeX") },
+            label = { Text(tr("LaTeX")) },
             isError = latexError,
             supportingText = { Text(if (latexError) "Not one symbol yet: e.g. \\hat{x}_{1}, {}^{14}_{6}C, \\mathbb{R}, \\text{max}" else "Type or paste the symbol in LaTeX, or build it below") },
             textStyle = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 15.sp),
@@ -161,8 +161,8 @@ fun SymbolBuilderPage(onDone: (String?) -> Unit) {
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Bold", style = MaterialTheme.typography.bodyLarge)
-                Text("For vectors and matrices, as \\boldsymbol", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                Text(tr("Bold"), style = MaterialTheme.typography.bodyLarge)
+                Text(tr("For vectors and matrices, as \\boldsymbol"), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             }
             Switch(checked = bold, onCheckedChange = { bold = it; changed() })
         }
@@ -172,7 +172,7 @@ fun SymbolBuilderPage(onDone: (String?) -> Unit) {
         Step("2", "Accent")
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Chip(selected = accent == null, description = "No accent", onClick = { tap(); accent = null; changed() }, modifier = Modifier.height(52.dp)) {
-                Text("None", style = MaterialTheme.typography.labelLarge, color = colors.onSurface)
+                Text(tr("None"), style = MaterialTheme.typography.labelLarge, color = colors.onSurface)
             }
             // Each accent shown on the chosen letter.
             Accent.entries.forEach { a ->
@@ -186,9 +186,9 @@ fun SymbolBuilderPage(onDone: (String?) -> Unit) {
 
     val scriptSection: @Composable ColumnScope.() -> Unit = {
         Step("3", "Scripts")
-        Text("Tap a box, then type into it from the pad. Scripts can go on the right of the letter, or on its left (as in ¹⁴₆C).", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        Text(tr("Tap a box, then type into it from the pad. Scripts can go on the right of the letter, or on its left (as in ¹⁴₆C)."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
         // The four boxes round the letter, where they'll appear.
-        Text("Double-tap a box to type into it with your keyboard (as upright text).", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        Text(tr("Double-tap a box to type into it with your keyboard (as upright text)."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
         typing?.let { k ->
             ScriptTextDialog(k.label, s(k), onDone = { t -> scripts[k] = t; if (k.flag !in upright) upright += k.flag; slot = k; typing = null; changed() }, onDismiss = { typing = null })
         }
@@ -210,7 +210,7 @@ fun SymbolBuilderPage(onDone: (String?) -> Unit) {
         // Italic: letters in the chosen box as math (italic) or as text (upright).
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Italic", style = MaterialTheme.typography.bodyLarge)
+                Text(tr("Italic"), style = MaterialTheme.typography.bodyLarge)
                 Text("Letters in the ${slot.label.lowercase()} as math; off for upright text", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             }
             Switch(checked = slot.flag !in upright, onCheckedChange = { on -> if (on) upright.remove(slot.flag) else if (slot.flag !in upright) upright += slot.flag; changed() })
@@ -233,15 +233,15 @@ fun SymbolBuilderPage(onDone: (String?) -> Unit) {
                 Icon(Icons.AutoMirrored.Outlined.Backspace, contentDescription = null, tint = colors.onSurface)
             }
             Chip(selected = false, description = "Clear", onClick = { tap(); scripts[slot] = ""; changed() }) {
-                Text("Clear", style = MaterialTheme.typography.labelLarge, color = colors.onSurface)
+                Text(tr("Clear"), style = MaterialTheme.typography.labelLarge, color = colors.onSurface)
             }
         }
     }
 
     val buttons: @Composable ColumnScope.() -> Unit = {
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
-            OutlinedButton(onClick = { onDone(null) }) { Text("Cancel") }
-            Button(onClick = { onDone(symbol.encode()) }) { Text("Save and insert") }
+            OutlinedButton(onClick = { onDone(null) }) { Text(tr("Cancel")) }
+            Button(onClick = { onDone(symbol.encode()) }) { Text(tr("Save and insert")) }
         }
     }
 
@@ -253,7 +253,7 @@ fun SymbolBuilderPage(onDone: (String?) -> Unit) {
                     Box(Modifier.weight(1f)) { MathView(MathRow(mutableListOf(Sym(s))), 28.sp, colors.onSurface, computerModern = true) }
                     Text(CustomSymbol.decode(s)?.latex.orEmpty(), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(end = 8.dp))
                     IconButton(onClick = { SavedSymbols.remove(s) }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Remove this symbol", tint = colors.onSurfaceVariant)
+                        Icon(Icons.Default.Delete, contentDescription = tr("Remove this symbol"), tint = colors.onSurfaceVariant)
                     }
                 }
             }
@@ -281,7 +281,7 @@ private fun Step(number: String, title: String) {
                 Text(number, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimary)
             }
         }
-        Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+        Text(tr(title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
@@ -316,9 +316,9 @@ private fun ScriptSlot(title: String, content: String, active: Boolean, upright:
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Text(title, style = MaterialTheme.typography.labelMedium, color = if (active) colors.onSecondaryContainer else colors.onSurfaceVariant, maxLines = 1)
+        Text(tr(title), style = MaterialTheme.typography.labelMedium, color = if (active) colors.onSecondaryContainer else colors.onSurfaceVariant, maxLines = 1)
         Box(Modifier.height(28.dp), contentAlignment = Alignment.CenterStart) {
-            if (content.isEmpty()) Text("empty", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant.copy(alpha = 0.6f))
+            if (content.isEmpty()) Text(tr("empty"), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant.copy(alpha = 0.6f))
             else MathView(
                 if (upright) MathRow(mutableListOf(Sym(com.example.cas.engine.LatexParser.UPRIGHT + content)))
                 else MathRow(content.map { Sym(it.toString()) }.toMutableList()),
@@ -335,17 +335,17 @@ private fun ScriptTextDialog(title: String, initial: String, onDone: (String) ->
     val focus = remember { androidx.compose.ui.focus.FocusRequester() }
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        title = { Text(tr(title)) },
         text = {
             OutlinedTextField(
                 value = text, onValueChange = { text = it.take(16) }, singleLine = true,
-                supportingText = { Text("Written upright, as text (eff, max, ext…)") },
+                supportingText = { Text(tr("Written upright, as text (eff, max, ext…)")) },
                 modifier = Modifier.fillMaxWidth().focusRequester(focus),
             )
             androidx.compose.runtime.LaunchedEffect(Unit) { focus.requestFocus() }
         },
-        confirmButton = { androidx.compose.material3.TextButton(onClick = { onDone(text.trim()) }) { Text("Done") } },
-        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = { onDone(text.trim()) }) { Text(tr("Done")) } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
     )
 }
 

@@ -85,7 +85,7 @@ import java.util.Date
 fun ProjectsButton(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwitch: (Mode) -> Unit) {
     var open by remember { mutableStateOf(false) }
     IconButton(onClick = { open = true }) {
-        Icon(Icons.Default.FolderOpen, contentDescription = "Saved graphs", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Icon(Icons.Default.FolderOpen, contentDescription = tr("Saved graphs"), tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     if (open) ProjectsPage(current, graphs, onSwitch, onClose = { open = false })
 }
@@ -153,20 +153,20 @@ private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwi
                 Column(Modifier.fillMaxSize()) {
                     // The top bar: back, the title (or the search field), search and order.
                     Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.onSurface) }
+                        IconButton(onClick = onClose) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Back"), tint = colors.onSurface) }
                         if (searching) {
                             TextField(
                                 value = query, onValueChange = { query = it }, singleLine = true,
-                                placeholder = { Text("Search by name") },
+                                placeholder = { Text(tr("Search by name")) },
                                 shape = CircleShape,
                                 colors = TextFieldDefaults.colors(focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent),
                                 modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
                             )
-                            IconButton(onClick = { searching = false; query = "" }) { Icon(Icons.Default.Close, contentDescription = "Close the search", tint = colors.onSurfaceVariant) }
+                            IconButton(onClick = { searching = false; query = "" }) { Icon(Icons.Default.Close, contentDescription = tr("Close the search"), tint = colors.onSurfaceVariant) }
                         } else {
-                            Text("Saved graphs", style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.weight(1f).padding(start = 4.dp))
-                            IconButton(onClick = { searching = true }) { Icon(Icons.Default.Search, contentDescription = "Search", tint = colors.onSurfaceVariant) }
-                            IconButton(onClick = importFile) { Icon(Icons.Default.FileOpen, contentDescription = "Import a graph file (.g2d, .g3d, .gcp)", tint = colors.onSurfaceVariant) }
+                            Text(tr("Saved graphs"), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.weight(1f).padding(start = 4.dp))
+                            IconButton(onClick = { searching = true }) { Icon(Icons.Default.Search, contentDescription = tr("Search"), tint = colors.onSurfaceVariant) }
+                            IconButton(onClick = importFile) { Icon(Icons.Default.FileOpen, contentDescription = tr("Import a graph file (.g2d, .g3d, .gcp)"), tint = colors.onSurfaceVariant) }
                         }
                         Box {
                             TextButton(onClick = { orderMenu = true }) { Text(order.label) }
@@ -209,7 +209,7 @@ private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwi
                         ) {
                             groups.forEach { (label, list) ->
                                 if (label.isNotEmpty()) item(span = { GridItemSpan(maxLineSpan) }, contentType = "header") {
-                                    Text(label, style = MaterialTheme.typography.titleSmall, color = colors.primary, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
+                                    Text(tr(label), style = MaterialTheme.typography.titleSmall, color = colors.primary, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
                                 }
                                 items(list, key = { it.mode.name + it.project.id }, contentType = { "card" }) { s ->
                                     ProjectCard(
@@ -243,9 +243,9 @@ private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwi
         if (vm.functions.all { it.editor.isEmpty }) {
             AlertDialog(
                 onDismissRequest = { saving = false },
-                title = { Text("Nothing to save") },
+                title = { Text(tr("Nothing to save")) },
                 text = { Text("The ${current.label.lowercase()} on screen has no lines yet.") },
-                confirmButton = { TextButton(onClick = { saving = false }) { Text("OK") } },
+                confirmButton = { TextButton(onClick = { saving = false }) { Text(tr("OK")) } },
             )
         } else NameDialog("Save graph", "Graph ${vm.projects.size + 1}", onDone = { vm.saveProject(it); saving = false }, onDismiss = { saving = false })
     }
@@ -254,9 +254,9 @@ private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwi
         AlertDialog(
             onDismissRequest = { deleting = null },
             title = { Text("Delete ${s.project.name}?") },
-            text = { Text("The saved graph will be removed. The graph on screen isn't affected.") },
-            confirmButton = { TextButton(onClick = { s.vm.deleteProject(s.project); deleting = null }) { Text("Delete", color = colors.error) } },
-            dismissButton = { TextButton(onClick = { deleting = null }) { Text("Cancel") } },
+            text = { Text(tr("The saved graph will be removed. The graph on screen isn't affected.")) },
+            confirmButton = { TextButton(onClick = { s.vm.deleteProject(s.project); deleting = null }) { Text(tr("Delete"), color = colors.error) } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text(tr("Cancel")) } },
         )
     }
 }
@@ -281,8 +281,7 @@ private fun EmptyProjects(searching: Boolean, modifier: Modifier) {
             Icon(if (searching) Icons.Default.Search else Icons.Default.FolderOpen, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(44.dp))
         }
         Text(if (searching) "No saved graphs with that name" else "No saved graphs yet", style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
-        if (!searching) Text(
-            "Save a graph to keep its lines, colors and sliders, and open it again later.",
+        if (!searching) Text(tr("Save a graph to keep its lines, colors and sliders, and open it again later."),
             style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
@@ -328,12 +327,12 @@ private fun ProjectCard(s: Saved, current: Boolean, onOpen: () -> Unit, onRename
             Box {
                 IconButton(onClick = { menu = true }) { Icon(Icons.Default.MoreVert, contentDescription = "Options for ${p.name}", tint = colors.onSurfaceVariant) }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(text = { Text("Rename") }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { menu = false; onRename() })
-                    DropdownMenuItem(text = { Text("Duplicate") }, leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, onClick = { menu = false; onDuplicate() })
+                    DropdownMenuItem(text = { Text(tr("Rename")) }, leadingIcon = { Icon(Icons.Default.Edit, null) }, onClick = { menu = false; onRename() })
+                    DropdownMenuItem(text = { Text(tr("Duplicate")) }, leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, onClick = { menu = false; onDuplicate() })
                     val ext = s.mode.graphFileKind?.extension.orEmpty()
                     DropdownMenuItem(text = { Text("Share as .$ext file") }, leadingIcon = { Icon(Icons.Default.Share, null) }, onClick = { menu = false; onExportFile(true) })
                     DropdownMenuItem(text = { Text("Save as .$ext file") }, leadingIcon = { Icon(Icons.Default.SaveAlt, null) }, onClick = { menu = false; onExportFile(false) })
-                    DropdownMenuItem(text = { Text("Delete", color = colors.error) }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = colors.error) }, onClick = { menu = false; onDelete() })
+                    DropdownMenuItem(text = { Text(tr("Delete"), color = colors.error) }, leadingIcon = { Icon(Icons.Default.Delete, null, tint = colors.error) }, onClick = { menu = false; onDelete() })
                 }
             }
         }
@@ -342,7 +341,7 @@ private fun ProjectCard(s: Saved, current: Boolean, onOpen: () -> Unit, onRename
             Modifier.padding(end = 10.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(colors.surfaceContainerLowest).padding(horizontal = 12.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            if (summary.lines.isEmpty()) Text("No lines", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            if (summary.lines.isEmpty()) Text(tr("No lines"), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             summary.lines.take(3).forEach { line ->
                 val dot = line.color?.let { Color(it) } ?: palette[line.slot.mod(palette.size)]
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -375,9 +374,9 @@ private fun NameDialog(title: String, initial: String, onDone: (String) -> Unit,
     var name by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { OutlinedTextField(name, { name = it }, singleLine = true, label = { Text("Name") }, modifier = Modifier.fillMaxWidth()) },
-        confirmButton = { TextButton(onClick = { onDone(name) }, enabled = name.isNotBlank()) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        title = { Text(tr(title)) },
+        text = { OutlinedTextField(name, { name = it }, singleLine = true, label = { Text(tr("Name")) }, modifier = Modifier.fillMaxWidth()) },
+        confirmButton = { TextButton(onClick = { onDone(name) }, enabled = name.isNotBlank()) { Text(tr("Save")) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
     )
 }

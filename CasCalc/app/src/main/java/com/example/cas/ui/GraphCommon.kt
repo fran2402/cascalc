@@ -255,8 +255,8 @@ fun ColormapPickerDialog(
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Reversed", style = MaterialTheme.typography.bodyLarge)
-                Text("Run the colors the other way round", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                Text(tr("Reversed"), style = MaterialTheme.typography.bodyLarge)
+                Text(tr("Run the colors the other way round"), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             }
             androidx.compose.material3.Switch(checked = reversed, onCheckedChange = { onPick(current, it) })
         }
@@ -268,7 +268,7 @@ fun ColormapPickerDialog(
             TextButton(onClick = { editing = !editing }) { Text(if (editing) "Done editing" else "Edit") }
         }
         if (editing) {
-            Text("Drag ⠿ to reorder · swipe a map away to remove it", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            Text(tr("Drag ⠿ to reorder · swipe a map away to remove it"), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             ReorderableColumn(items = favorites, key = { it.name }, onMove = { from, to -> FavoriteColormaps.move(from, to) }) { map, handle ->
                 SwipeToRemove(onRemove = { FavoriteColormaps.remove(map.name) }) {
                     ColormapRow(map, current, reversed, onPick, handle = handle)
@@ -289,7 +289,7 @@ fun ColormapPickerDialog(
         heading("All colormaps")
         OutlinedTextField(
             value = search, onValueChange = { search = it }, singleLine = true,
-            placeholder = { Text("Search by name") },
+            placeholder = { Text(tr("Search by name")) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             modifier = Modifier.fillMaxWidth(),
         )
@@ -301,7 +301,7 @@ fun ColormapPickerDialog(
         val shown = com.example.cas.graph.Colormap.ALL.filter { m ->
             (kind == null || m.category == kind) && (search.isBlank() || m.label.contains(search.trim(), ignoreCase = true) || m.name.contains(search.trim(), ignoreCase = true))
         }
-        if (shown.isEmpty()) Text("No colormap by that name", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+        if (shown.isEmpty()) Text(tr("No colormap by that name"), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
         shown.chunked(perRow).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { map ->
@@ -323,7 +323,7 @@ fun ColormapPickerDialog(
             modifier = (if (tablet) Modifier.width(1000.dp) else Modifier.fillMaxWidth(0.94f)).heightIn(max = if (tablet) 760.dp else 780.dp),
         ) {
             Column(Modifier.padding(top = 20.dp, bottom = 12.dp)) {
-                Text("Colormap", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = 24.dp))
+                Text(tr("Colormap"), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = 24.dp))
                 Spacer(Modifier.height(12.dp))
                 if (tablet) {
                     Row(Modifier.weight(1f, fill = false).padding(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
@@ -336,7 +336,7 @@ fun ColormapPickerDialog(
                     }
                 }
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) { Text("Done") }
+                    TextButton(onClick = onDismiss) { Text(tr("Done")) }
                 }
             }
         }
@@ -401,7 +401,7 @@ private fun ColormapRow(
             .padding(end = 12.dp, top = 2.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (handle != null) Icon(Icons.Default.DragIndicator, contentDescription = "Drag to reorder", tint = colors.onSurfaceVariant, modifier = handle.size(40.dp).padding(10.dp))
+        if (handle != null) Icon(Icons.Default.DragIndicator, contentDescription = tr("Drag to reorder"), tint = colors.onSurfaceVariant, modifier = handle.size(40.dp).padding(10.dp))
         Text(map.label, color = if (chosen) colors.onSecondaryContainer else colors.onSurface, style = MaterialTheme.typography.bodyLarge, maxLines = 1, modifier = Modifier.width(96.dp))
         Box(Modifier.weight(1f).height(18.dp).clip(RoundedCornerShape(9.dp)).background(Brush.horizontalGradient(colormapStops(map, reversed = chosen && reversed))))
     }
@@ -573,7 +573,7 @@ fun ColorPickerDialog(
                         drag(down.id) { ch -> ch.consume(); at(ch.position) }
                     }
                 }
-                .semantics { contentDescription = "Saturation and brightness" },
+                .semantics { contentDescription = tr("Saturation and brightness") },
         ) {
             drawRect(Brush.horizontalGradient(listOf(Color.White, pure)))
             drawRect(Brush.verticalGradient(listOf(Color.Transparent, Color.Black)))
@@ -628,7 +628,7 @@ fun ColorPickerDialog(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             labels.forEachIndexed { k, label ->
-                OutlinedTextField(fields.getOrElse(k) { "" }, { typed(k, it) }, singleLine = true, label = { Text(label) }, modifier = Modifier.weight(1f))
+                OutlinedTextField(fields.getOrElse(k) { "" }, { typed(k, it) }, singleLine = true, label = { Text(tr(label)) }, modifier = Modifier.weight(1f))
             }
         }
     }
@@ -658,7 +658,7 @@ fun ColorPickerDialog(
                 }
             } }
             Text("Thickness: ${"%.1f".format(width)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-            ExpressiveSlider(value = width, onValueChange = { width = it }, valueRange = 1f..8f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Line thickness" })
+            ExpressiveSlider(value = width, onValueChange = { width = it }, valueRange = 1f..8f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Line thickness") })
         }
         extra?.invoke(this)
     }
@@ -672,7 +672,7 @@ fun ColorPickerDialog(
             Column(Modifier.padding(top = 20.dp, bottom = 12.dp)) {
                 // Title, and the color as it is now with its hex code.
                 Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+                    Text(tr(title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
                     Row(
                         Modifier.clip(CircleShape).background(colors.surfaceContainerHighest).padding(start = 6.dp, end = 14.dp, top = 6.dp, bottom = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -695,10 +695,10 @@ fun ColorPickerDialog(
                     ) { header?.invoke(this); swatches(); space(); line(); exact() }
                 }
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = { if (lineStyle != null) onStyle(0, 3f); onPick(null) }) { Text("Default") }
+                    TextButton(onClick = { if (lineStyle != null) onStyle(0, 3f); onPick(null) }) { Text(tr("Default")) }
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
-                    TextButton(onClick = { if (lineStyle != null) onStyle(style, width); onPick(picked) }) { Text("Done") }
+                    TextButton(onClick = onDismiss) { Text(tr("Cancel")) }
+                    TextButton(onClick = { if (lineStyle != null) onStyle(style, width); onPick(picked) }) { Text(tr("Done")) }
                 }
             }
         }
@@ -709,7 +709,7 @@ fun ColorPickerDialog(
 @Composable
 private fun ColorTrack(label: String, fraction: Float, track: Brush, onChange: (Float) -> Unit) {
     Column {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(tr(label), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         ExpressiveSlider(
             value = fraction,
             onValueChange = onChange,
@@ -772,7 +772,7 @@ fun GraphLegend(entries: List<ScreenLegendEntry>, modifier: Modifier = Modifier)
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         if (folded) {
-            Text("Legend", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+            Text(tr("Legend"), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
             return@Column
         }
         entries.take(12).forEach { e ->
@@ -900,8 +900,8 @@ fun FunctionList(vm: GraphViewModel, outputLabel: String, modifier: Modifier = M
                 onDismissRequest = { vm.pendingRemoval = null },
                 title = { Text(if (f.isFolder) "Delete this folder?" else if (f.isText) "Delete this note?" else "Delete this line?") },
                 text = { Text(if (f.isFolder) "The lines in it stay, outside the folder." else "It will be removed from the graph.") },
-                confirmButton = { TextButton(onClick = { vm.pendingRemoval = null; vm.remove(f) }) { Text("Delete") } },
-                dismissButton = { TextButton(onClick = { vm.pendingRemoval = null }) { Text("Cancel") } },
+                confirmButton = { TextButton(onClick = { vm.pendingRemoval = null; vm.remove(f) }) { Text(tr("Delete")) } },
+                dismissButton = { TextButton(onClick = { vm.pendingRemoval = null }) { Text(tr("Cancel")) } },
             )
         }
         val params = shown.filter { it.visible }.flatMap { it.parameters }.distinct() - vm.definedLetters
@@ -1066,17 +1066,17 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             // A list of points opens as a table (its columns, x, y and error bars), right here.
             if (vm.plotVars == listOf("x") && (f.plot is Plot2DKind.PointList || f.table != null)) {
                 IconButton(onClick = { vm.tableFor = f }) {
-                    Icon(Icons.Default.TableChart, contentDescription = "Edit as a table", tint = colors.primary)
+                    Icon(Icons.Default.TableChart, contentDescription = tr("Edit as a table"), tint = colors.primary)
                 }
             }
             IconButton(onClick = { vm.requestRemove(f) }) {
-                Icon(Icons.Default.Close, contentDescription = "Remove", tint = colors.onSurfaceVariant)
+                Icon(Icons.Default.Close, contentDescription = tr("Remove"), tint = colors.onSurfaceVariant)
             }
             // Drag here to move the line up or down the list.
             if (handle != null) {
                 Icon(
                     Icons.Default.DragIndicator,
-                    contentDescription = "Drag to reorder",
+                    contentDescription = tr("Drag to reorder"),
                     tint = colors.onSurfaceVariant,
                     modifier = handle.size(40.dp).padding(8.dp),
                 )
@@ -1103,15 +1103,15 @@ private fun RenameDialog(f: PlotFunction, onDone: (String?) -> Unit, onDismiss: 
     val preview = remember(text) { com.example.cas.graph.Legend.row(text) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Name in the legend") },
+        title = { Text(tr("Name in the legend")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
                     singleLine = true,
-                    label = { Text("Name") },
-                    supportingText = { Text("Math between \$ signs, in LaTeX: \$\\sin x\$") },
+                    label = { Text(tr("Name")) },
+                    supportingText = { Text(tr("Math between \$ signs, in LaTeX: \$\\sin x\$")) },
                     textStyle = TextStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 15.sp),
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -1120,16 +1120,16 @@ private fun RenameDialog(f: PlotFunction, onDone: (String?) -> Unit, onDismiss: 
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.surfaceContainerHighest)
                         .horizontalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 12.dp),
                 ) {
-                    if (text.isBlank()) Text("(no name: left out of the legend)", color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                    if (text.isBlank()) Text(tr("(no name: left out of the legend)"), color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                     else MathView(preview, 20.sp, colors.onSurface)
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onDone(text.trim()) }) { Text("Save") } },
+        confirmButton = { TextButton(onClick = { onDone(text.trim()) }) { Text(tr("Save")) } },
         dismissButton = {
             Row {
-                TextButton(onClick = { onDone(null) }) { Text("Default") }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = { onDone(null) }) { Text(tr("Default")) }
+                TextButton(onClick = onDismiss) { Text(tr("Cancel")) }
             }
         },
     )
@@ -1152,39 +1152,39 @@ private fun lineOptions(vm: GraphViewModel, f: PlotFunction): (@Composable andro
     return {
         val colors = MaterialTheme.colorScheme
         if (points) {
-            Text("Point", style = MaterialTheme.typography.labelLarge, color = colors.primary)
+            Text(tr("Point"), style = MaterialTheme.typography.labelLarge, color = colors.primary)
             MarkChooser(vm, f)
             Text("Size: ${String.format(java.util.Locale.US, "%.1f", f.pointSize)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
             // In tenths of a dp.
-            ExpressiveSlider(value = f.pointSize, onValueChange = { vm.setOptions(f, size = kotlin.math.round(it * 10f) / 10f) }, valueRange = 1f..16f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Point size" })
+            ExpressiveSlider(value = f.pointSize, onValueChange = { vm.setOptions(f, size = kotlin.math.round(it * 10f) / 10f) }, valueRange = 1f..16f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Point size") })
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Show coordinates", modifier = Modifier.weight(1f), color = colors.onSurface)
+                Text(tr("Show coordinates"), modifier = Modifier.weight(1f), color = colors.onSurface)
                 androidx.compose.material3.Switch(checked = f.showLabel, onCheckedChange = { vm.setOptions(f, label = it) })
             }
         }
         if (many) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Join the points", modifier = Modifier.weight(1f), color = colors.onSurface)
+                Text(tr("Join the points"), modifier = Modifier.weight(1f), color = colors.onSurface)
                 androidx.compose.material3.Switch(checked = f.connectPoints, onCheckedChange = { vm.setOptions(f, connect = it) })
             }
             // A polygon: joined all the way round and filled.
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Closed shape (polygon)", modifier = Modifier.weight(1f), color = colors.onSurface)
+                Text(tr("Closed shape (polygon)"), modifier = Modifier.weight(1f), color = colors.onSurface)
                 androidx.compose.material3.Switch(checked = f.closedShape, onCheckedChange = { vm.setOptions(f, closed = it) })
             }
             if (f.closedShape) {
                 Text("Fill opacity: ${(f.fillOpacity * 100).roundToInt()}%", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-                ExpressiveSlider(value = f.fillOpacity, onValueChange = { vm.setOptions(f, opacity = it) }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Fill opacity" })
+                ExpressiveSlider(value = f.fillOpacity, onValueChange = { vm.setOptions(f, opacity = it) }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Fill opacity") })
             }
             if (kind is Plot2DKind.PointList) androidx.compose.material3.OutlinedButton(onClick = { vm.tableFor = f }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.TableChart, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Edit as a table")
+                Text(tr("Edit as a table"))
             }
         }
         if (region) {
             Text("Fill opacity: ${(f.fillOpacity * 100).roundToInt()}%", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-            ExpressiveSlider(value = f.fillOpacity, onValueChange = { vm.setOptions(f, opacity = it) }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Fill opacity" })
+            ExpressiveSlider(value = f.fillOpacity, onValueChange = { vm.setOptions(f, opacity = it) }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Fill opacity") })
         }
     }
 }
@@ -1216,7 +1216,7 @@ private fun MarkChooser(vm: GraphViewModel, f: PlotFunction) {
         }
     }
     if (current.fillable) Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Filled", modifier = Modifier.weight(1f), color = colors.onSurface)
+        Text(tr("Filled"), modifier = Modifier.weight(1f), color = colors.onSurface)
         androidx.compose.material3.Switch(checked = filled, onCheckedChange = { vm.setOptions(f, shape = current.filled(it).ordinal) })
     }
 }
@@ -1232,44 +1232,44 @@ private fun androidx.compose.foundation.layout.ColumnScope.GeometryOptions(vm: G
     val kind = vm.constructionKind(f)
     val filled = kind == 'F' || kind == 'A'
     if (isPoint) {
-        Text("Point", style = MaterialTheme.typography.labelLarge, color = colors.primary)
+        Text(tr("Point"), style = MaterialTheme.typography.labelLarge, color = colors.primary)
         MarkChooser(vm, f)
         Text("Size: ${String.format(java.util.Locale.US, "%.1f", f.pointSize)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-        ExpressiveSlider(value = f.pointSize, onValueChange = { vm.setOptions(f, size = kotlin.math.round(it * 10f) / 10f) }, valueRange = 1f..16f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Point size" })
+        ExpressiveSlider(value = f.pointSize, onValueChange = { vm.setOptions(f, size = kotlin.math.round(it * 10f) / 10f) }, valueRange = 1f..16f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Point size") })
         if (f.geometry?.name != null) Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Show name", modifier = Modifier.weight(1f), color = colors.onSurface)
+            Text(tr("Show name"), modifier = Modifier.weight(1f), color = colors.onSurface)
             androidx.compose.material3.Switch(checked = !f.hideName, onCheckedChange = { vm.setGeometryOptions(f, hideName = !it) })
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Show coordinates", modifier = Modifier.weight(1f), color = colors.onSurface)
+            Text(tr("Show coordinates"), modifier = Modifier.weight(1f), color = colors.onSurface)
             androidx.compose.material3.Switch(checked = f.showLabel, onCheckedChange = { vm.setOptions(f, label = it) })
         }
         if (f.geometry?.onPath == true && vm.plotVars == listOf("x")) Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Move along its path", color = colors.onSurface)
-                Text("Round once in 10 s, or back and forth", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                Text(tr("Move along its path"), color = colors.onSurface)
+                Text(tr("Round once in 10 s, or back and forth"), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             }
             androidx.compose.material3.Switch(checked = f.animate, onCheckedChange = { vm.setGeometryOptions(f, animate = it) })
         }
     }
     if (filled) {
         Text("Fill opacity: ${(f.fillOpacity * 100).roundToInt()}%", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-        ExpressiveSlider(value = f.fillOpacity, onValueChange = { vm.setOptions(f, opacity = it) }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Fill opacity" })
+        ExpressiveSlider(value = f.fillOpacity, onValueChange = { vm.setOptions(f, opacity = it) }, valueRange = 0f..1f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Fill opacity") })
     }
-    if (!isPoint && !filled) Text("Color, line style and thickness are above.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+    if (!isPoint && !filled) Text(tr("Color, line style and thickness are above."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
 }
 
 /** Choices in a row of segments, M3's single-choice segmented buttons. */
 @Composable
 private fun Segments(labels: List<String>, selected: Int, description: String, onSelect: (Int) -> Unit) {
-    androidx.compose.material3.SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().semantics { contentDescription = description }) {
+    androidx.compose.material3.SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().semantics { contentDescription = tr(description) }) {
         labels.forEachIndexed { i, label ->
             SegmentedButton(
                 selected = i == selected,
                 onClick = { onSelect(i) },
                 shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(i, labels.size),
                 icon = {},
-                label = { Text(label, maxLines = 1, style = MaterialTheme.typography.labelMedium) },
+                label = { Text(tr(label), maxLines = 1, style = MaterialTheme.typography.labelMedium) },
             )
         }
     }
@@ -1284,15 +1284,15 @@ private fun androidx.compose.foundation.layout.ColumnScope.ArrowOptions(vm: Grap
     val colors = MaterialTheme.colorScheme
     var pickingMap by remember { mutableStateOf(false) }
     if (pickingMap) ColormapPickerDialog(f.colormap, f.colormapReversed, onPick = { map, rev -> vm.setColormap(f, map, rev) }, onDismiss = { pickingMap = false })
-    Text("Arrows", style = MaterialTheme.typography.labelLarge, color = colors.primary)
-    Text("Color", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    Text(tr("Arrows"), style = MaterialTheme.typography.labelLarge, color = colors.primary)
+    Text(tr("Color"), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
     Segments(listOf("This color", "By length"), if (f.arrowsByLength) 1 else 0, "Arrow color") { vm.setArrows(f, byLength = it == 1) }
     if (f.arrowsByLength) {
         // The colormap, as a strip: tap it to pick another.
         Box(
             Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(14.dp))
                 .background(Brush.horizontalGradient(colormapStops(f.colormap, reversed = f.colormapReversed)))
-                .clickable(onClickLabel = "Change the colormap") { pickingMap = true },
+                .clickable(onClickLabel = tr("Change the colormap")) { pickingMap = true },
             contentAlignment = Alignment.CenterStart,
         ) {
             MathText(
@@ -1302,11 +1302,11 @@ private fun androidx.compose.foundation.layout.ColumnScope.ArrowOptions(vm: Grap
             )
         }
     }
-    Text("Length", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    Text(tr("Length"), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
     Segments(com.example.cas.graph.VectorField.Length.entries.map { it.label }, f.arrowLength, "Arrow length") { vm.setArrows(f, length = it) }
     Text("Scale: × ${String.format(java.util.Locale.US, "%.2f", f.arrowScale)}", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-    ExpressiveSlider(value = f.arrowScale, onValueChange = { vm.setArrows(f, scale = kotlin.math.round(it * 20f) / 20f) }, valueRange = 0.2f..3f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Arrow scale" })
-    Text("Arrowhead", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    ExpressiveSlider(value = f.arrowScale, onValueChange = { vm.setArrows(f, scale = kotlin.math.round(it * 20f) / 20f) }, valueRange = 0.2f..3f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Arrow scale") })
+    Text(tr("Arrowhead"), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
     androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         com.example.cas.graph.VectorField.Tip.entries.forEach { tip ->
             val chosen = f.arrowTip == tip.ordinal
@@ -1338,12 +1338,12 @@ private fun androidx.compose.foundation.layout.ColumnScope.ArrowOptions(vm: Grap
     }
     if (f.arrowTip != com.example.cas.graph.VectorField.Tip.None.ordinal) {
         Text("Head size: × ${String.format(java.util.Locale.US, "%.1f", f.arrowTipSize)}", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-        ExpressiveSlider(value = f.arrowTipSize, onValueChange = { vm.setArrows(f, tipSize = kotlin.math.round(it * 10f) / 10f) }, valueRange = 0.4f..3f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Arrowhead size" })
+        ExpressiveSlider(value = f.arrowTipSize, onValueChange = { vm.setArrows(f, tipSize = kotlin.math.round(it * 10f) / 10f) }, valueRange = 0.4f..3f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Arrowhead size") })
     }
     Text("${f.arrowDensity} arrows across", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-    ExpressiveSlider(value = f.arrowDensity.toFloat(), onValueChange = { vm.setArrows(f, density = it.roundToInt()) }, valueRange = 6f..50f, steps = 43, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Number of arrows across" })
+    ExpressiveSlider(value = f.arrowDensity.toFloat(), onValueChange = { vm.setArrows(f, density = it.roundToInt()) }, valueRange = 6f..50f, steps = 43, modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Number of arrows across") })
     Text("Thickness: ${String.format(java.util.Locale.US, "%.1f", f.thickness)} dp", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
-    ExpressiveSlider(value = f.thickness, onValueChange = { vm.setStyle(f, f.lineStyle, kotlin.math.round(it * 10f) / 10f) }, valueRange = 1f..8f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Arrow thickness" })
+    ExpressiveSlider(value = f.thickness, onValueChange = { vm.setStyle(f, f.lineStyle, kotlin.math.round(it * 10f) / 10f) }, valueRange = 1f..8f, modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Arrow thickness") })
 }
 
 @Composable
@@ -1438,7 +1438,7 @@ private fun SliderDialog(name: String, value: Double, min: Double, max: Double, 
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     MathText(if (ints) "\$\\mathbb{Z}\$" else "\$\\mathbb{R}\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 16.sp), mathScale = 1f)
                                     Spacer(Modifier.width(6.dp))
-                                    Text(label, maxLines = 1)
+                                    Text(tr(label), maxLines = 1)
                                 }
                             },
                         )
@@ -1446,8 +1446,8 @@ private fun SliderDialog(name: String, value: Double, min: Double, max: Double, 
                 }
                 OutlinedTextField(v, { v = it }, singleLine = true, label = { Text(if (integers) "Value (rounded to an integer)" else "Value") }, modifier = Modifier.fillMaxWidth())
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(a, { a = it }, singleLine = true, label = { Text("From") }, modifier = Modifier.weight(1f))
-                    OutlinedTextField(b, { b = it }, singleLine = true, label = { Text("To") }, modifier = Modifier.weight(1f))
+                    OutlinedTextField(a, { a = it }, singleLine = true, label = { Text(tr("From")) }, modifier = Modifier.weight(1f))
+                    OutlinedTextField(b, { b = it }, singleLine = true, label = { Text(tr("To")) }, modifier = Modifier.weight(1f))
                 }
                 Text(
                     "You can also set it with a line of its own, like ${spokenName(name)} = 3.",
@@ -1456,8 +1456,8 @@ private fun SliderDialog(name: String, value: Double, min: Double, max: Double, 
                 )
             }
         },
-        confirmButton = { TextButton(enabled = valid, onClick = { onDone(nv!!, na!!, nb!!, integers) }) { Text("Done") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(enabled = valid, onClick = { onDone(nv!!, na!!, nb!!, integers) }) { Text(tr("Done")) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
     )
 }
 
@@ -1669,9 +1669,9 @@ private fun FitButton(vm: GraphViewModel, f: PlotFunction) {
             .padding(horizontal = 2.dp)
             .clip(CircleShape)
             .background(if (failed) colors.errorContainer else colors.tertiaryContainer)
-            .combinedClickable(onClickLabel = "Fit to the list", onLongClickLabel = "Show the fit's statistics", onLongClick = { tap(); stats = true }) { tap(); failed = !vm.fit(f) }
+            .combinedClickable(onClickLabel = tr("Fit to the list"), onLongClickLabel = "Show the fit's statistics", onLongClick = { tap(); stats = true }) { tap(); failed = !vm.fit(f) }
             .padding(horizontal = 12.dp, vertical = 6.dp)
-            .semantics { if (failed) contentDescription = "Couldn't fit this to the points" },
+            .semantics { if (failed) contentDescription = tr("Couldn't fit this to the points") },
     ) {
         Text(if (failed) "No fit" else "Fit", color = if (failed) colors.onErrorContainer else colors.onTertiaryContainer, style = MaterialTheme.typography.labelLarge)
     }
@@ -1751,13 +1751,13 @@ internal fun FabMenu(items: List<FabItem>, size: androidx.compose.ui.unit.Dp, de
                                     .shadow(3.dp, CircleShape)
                                     .clip(CircleShape)
                                     .background(colors.primaryContainer)
-                                    .clickable(onClickLabel = item.spoken) { tap(); open = false; item.action() }
+                                    .clickable(onClickLabel = tr(item.spoken)) { tap(); open = false; item.action() }
                                     .padding(start = 18.dp, end = 24.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
                                 Icon(item.icon, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(24.dp))
-                                Text(item.label, style = MaterialTheme.typography.titleMedium, color = colors.onPrimaryContainer)
+                                Text(tr(item.label), style = MaterialTheme.typography.titleMedium, color = colors.onPrimaryContainer)
                             }
                         }
                     }
@@ -1804,10 +1804,10 @@ fun GraphBottomBar(
                     .shadow(6.dp, CircleShape)
                     .clip(CircleShape)
                     .background(colors.surfaceContainerHigh)
-                    .clickable(onClickLabel = "Export the graph") { tap(); onExport() },
+                    .clickable(onClickLabel = tr("Export the graph")) { tap(); onExport() },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Default.IosShare, contentDescription = "Export", tint = colors.onSurface)
+                Icon(Icons.Default.IosShare, contentDescription = tr("Export"), tint = colors.onSurface)
             }
         }
     }
@@ -1844,14 +1844,14 @@ private fun TextRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
                 cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.primary),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
                 keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { focusManager.clearFocus(); vm.typingFocus = false }),
-                modifier = Modifier.fillMaxWidth().focusRequester(focus).semantics { contentDescription = "Note" },
+                modifier = Modifier.fillMaxWidth().focusRequester(focus).semantics { contentDescription = tr("Note") },
             )
-            if (f.note.isNullOrEmpty()) Text("Note", style = style, color = colors.onSurfaceVariant)
+            if (f.note.isNullOrEmpty()) Text(tr("Note"), style = style, color = colors.onSurfaceVariant)
         }
         IconButton(onClick = { vm.requestRemove(f) }) {
-            Icon(Icons.Default.Close, contentDescription = "Remove", tint = colors.onSurfaceVariant)
+            Icon(Icons.Default.Close, contentDescription = tr("Remove"), tint = colors.onSurfaceVariant)
         }
-        if (handle != null) Icon(Icons.Default.DragIndicator, contentDescription = "Drag to reorder", tint = colors.onSurfaceVariant, modifier = handle.size(40.dp).padding(8.dp))
+        if (handle != null) Icon(Icons.Default.DragIndicator, contentDescription = tr("Drag to reorder"), tint = colors.onSurfaceVariant, modifier = handle.size(40.dp).padding(8.dp))
     }
 }
 
@@ -1900,9 +1900,9 @@ private fun FolderRow(vm: GraphViewModel, f: PlotFunction, handle: Modifier?) {
             Icon(if (f.visible) Icons.Default.Visibility else Icons.Default.VisibilityOff, contentDescription = if (f.visible) "Hide the folder's lines" else "Show the folder's lines", tint = colors.onSurfaceVariant)
         }
         IconButton(onClick = { vm.requestRemove(f) }) {
-            Icon(Icons.Default.Close, contentDescription = "Delete folder", tint = colors.onSurfaceVariant)
+            Icon(Icons.Default.Close, contentDescription = tr("Delete folder"), tint = colors.onSurfaceVariant)
         }
-        if (handle != null) Icon(Icons.Default.DragIndicator, contentDescription = "Drag to reorder", tint = colors.onSurfaceVariant, modifier = handle.size(40.dp).padding(8.dp))
+        if (handle != null) Icon(Icons.Default.DragIndicator, contentDescription = tr("Drag to reorder"), tint = colors.onSurfaceVariant, modifier = handle.size(40.dp).padding(8.dp))
     }
     if (editing) FolderDialog(vm, f, onDismiss = { editing = false; vm.typingFocus = false })
 }
@@ -1919,13 +1919,13 @@ private fun FolderDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () -> U
         onDismiss = onDismiss,
         title = "Folder",
         header = {
-            OutlinedTextField(name, { name = it }, singleLine = true, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(name, { name = it }, singleLine = true, label = { Text(tr("Name")) }, modifier = Modifier.fillMaxWidth())
             if (vm.canNest(f) || vm.folderOf(f) != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (vm.canNest(f)) androidx.compose.material3.OutlinedButton(onClick = { vm.nest(f, 1); onDismiss() }) {
-                    Icon(Icons.AutoMirrored.Filled.FormatIndentIncrease, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Into folder above")
+                    Icon(Icons.AutoMirrored.Filled.FormatIndentIncrease, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("Into folder above"))
                 }
                 if (vm.folderOf(f) != null) androidx.compose.material3.OutlinedButton(onClick = { vm.nest(f, -1); onDismiss() }) {
-                    Icon(Icons.AutoMirrored.Filled.FormatIndentDecrease, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text("Out of folder")
+                    Icon(Icons.AutoMirrored.Filled.FormatIndentDecrease, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("Out of folder"))
                 }
             }
         },
@@ -2178,33 +2178,32 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                 Column(Modifier.fillMaxSize()) {
                     // Top bar: close, the title, Done.
                     Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 6.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close without saving") }
+                        IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = tr("Close without saving")) }
                         Row(Modifier.weight(1f).padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("Data table", style = MaterialTheme.typography.titleLarge)
-                            if (formulas) Text(
-                                "Formulas", style = MaterialTheme.typography.labelMedium, color = colors.onTertiaryContainer,
+                            Text(tr("Data table"), style = MaterialTheme.typography.titleLarge)
+                            if (formulas) Text(tr("Formulas"), style = MaterialTheme.typography.labelMedium, color = colors.onTertiaryContainer,
                                 modifier = Modifier.padding(start = 10.dp).clip(CircleShape).background(colors.tertiaryContainer).padding(horizontal = 10.dp, vertical = 4.dp),
                             )
                         }
-                        IconButton(onClick = { undo() }, enabled = undoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo") }
-                        IconButton(onClick = { redo() }, enabled = redoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo") }
+                        IconButton(onClick = { undo() }, enabled = undoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = tr("Undo")) }
+                        IconButton(onClick = { redo() }, enabled = redoStack.isNotEmpty()) { Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = tr("Redo")) }
                         // More: the table as CSV (shared or copied), and tidying up.
                         var more by remember { mutableStateOf(false) }
                         Box {
-                            IconButton(onClick = { more = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More") }
+                            IconButton(onClick = { more = true }) { Icon(Icons.Default.MoreVert, contentDescription = tr("More")) }
                             DropdownMenu(expanded = more, onDismissRequest = { more = false }, shape = RoundedCornerShape(16.dp)) {
-                                DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Share, null) }, text = { Text("Share as CSV") }, onClick = {
+                                DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Share, null) }, text = { Text(tr("Share as CSV")) }, onClick = {
                                     more = false
                                     val send = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/csv").putExtra(android.content.Intent.EXTRA_TEXT, table().csv())
                                     context.startActivity(android.content.Intent.createChooser(send, "Share the table"))
                                 })
-                                DropdownMenuItem(leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, text = { Text("Copy as CSV") }, onClick = {
+                                DropdownMenuItem(leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, text = { Text(tr("Copy as CSV")) }, onClick = {
                                     more = false
                                     @Suppress("DEPRECATION")
                                     (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("Table", table().csv()))
                                     android.widget.Toast.makeText(context, "Table copied", android.widget.Toast.LENGTH_SHORT).show()
                                 })
-                                DropdownMenuItem(leadingIcon = { Icon(Icons.Default.CleaningServices, null) }, text = { Text("Remove empty rows") }, onClick = { more = false; removeEmptyRows() })
+                                DropdownMenuItem(leadingIcon = { Icon(Icons.Default.CleaningServices, null) }, text = { Text(tr("Remove empty rows")) }, onClick = { more = false; removeEmptyRows() })
                             }
                         }
                         Spacer(Modifier.width(4.dp))
@@ -2214,7 +2213,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                             shape = RoundedCornerShape(16.dp),
                             contentPadding = PaddingValues(start = 16.dp, end = 20.dp),
                             modifier = Modifier.height(48.dp),
-                        ) { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("Done") }
+                        ) { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text(tr("Done")) }
                     }
                     if (!wide) TableCounts(points, cells.size, bad, roleY == null, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
                     Row(Modifier.weight(1f).fillMaxWidth()) {
@@ -2371,7 +2370,7 @@ private fun ColumnStatsDialog(name: String, stats: com.example.cas.graph.DataTab
         icon = { Icon(Icons.Default.Calculate, contentDescription = null) },
         title = { Text(name) },
         text = {
-            if (stats == null) Text("No numbers in this column yet.", color = colors.onSurfaceVariant)
+            if (stats == null) Text(tr("No numbers in this column yet."), color = colors.onSurfaceVariant)
             else Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 listOfNotNull(
                     "Count" to stats.n.toString(), "Sum" to shortNumber(stats.sum), "Mean" to shortNumber(stats.mean), "Median" to shortNumber(stats.median),
@@ -2383,14 +2382,14 @@ private fun ColumnStatsDialog(name: String, stats: com.example.cas.graph.DataTab
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).clickable(onClickLabel = "Copy $label") { clipboard.setText(AnnotatedString(value.replace("−", "-"))) }.padding(horizontal = 4.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(label, modifier = Modifier.weight(1f), color = colors.onSurfaceVariant)
+                        Text(tr(label), modifier = Modifier.weight(1f), color = colors.onSurfaceVariant)
                         Text(geometryValueText(value), style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 18.sp), color = colors.onSurface)
                     }
                 }
-                Text("Text and empty cells are left out; the standard deviation is the sample's. Tap a value to copy it.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+                Text(tr("Text and empty cells are left out; the standard deviation is the sample's. Tap a value to copy it."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Close")) } },
     )
 }
 
@@ -2403,20 +2402,20 @@ private fun SeriesDialog(rows: Int, onDismiss: () -> Unit, onFill: (Double, Doub
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Default.Timeline, contentDescription = null) },
-        title = { Text("Fill with a series") },
+        title = { Text(tr("Fill with a series")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 val keys = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal)
-                OutlinedTextField(start, { start = it }, label = { Text("Start") }, singleLine = true, isError = a == null, keyboardOptions = keys, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(step, { step = it }, label = { Text("Step") }, singleLine = true, isError = d == null, keyboardOptions = keys, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(start, { start = it }, label = { Text(tr("Start")) }, singleLine = true, isError = a == null, keyboardOptions = keys, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(step, { step = it }, label = { Text(tr("Step")) }, singleLine = true, isError = d == null, keyboardOptions = keys, modifier = Modifier.fillMaxWidth())
                 if (a != null && d != null) Text(
                     com.example.cas.graph.DataTable.series(a, d, minOf(rows, 4)).joinToString(", ") + if (rows > 4) ", … (${rows} rows)" else "",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
-        confirmButton = { TextButton(enabled = a != null && d != null, onClick = { onFill(a!!, d!!) }) { Text("Fill") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(enabled = a != null && d != null, onClick = { onFill(a!!, d!!) }) { Text(tr("Fill")) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
     )
 }
 
@@ -2433,7 +2432,7 @@ private fun FillHandle(onStart: () -> Unit, onDrag: (Float, Float) -> Unit, onEn
     Box(
         modifier
             .size(28.dp)
-            .semantics { contentDescription = "Fill handle: drag to copy this cell, double-tap to fill to the end of the data" }
+            .semantics { contentDescription = tr("Fill handle: drag to copy this cell, double-tap to fill to the end of the data") }
             .pointerInput(Unit) { detectTapGestures(onDoubleTap = { double() }) }
             .pointerInput(Unit) {
                 var dx = 0f; var dy = 0f
@@ -2485,7 +2484,7 @@ private fun AnchorBar(next: String, onAnchor: () -> Unit) {
             "$ → $ref", style = TextStyle(fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 14.sp, color = colors.onSecondaryContainer),
             modifier = Modifier.clip(RoundedCornerShape(10.dp)).background(colors.secondaryContainer).clickable(onClickLabel = "Anchor the reference as $ref", onClick = onAnchor).padding(horizontal = 12.dp, vertical = 8.dp),
         )
-        Text("\$ keeps a column or row fixed when filling", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        Text(tr("\$ keeps a column or row fixed when filling"), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
     }
 }
 
@@ -2501,7 +2500,7 @@ private fun ResizeGrip(vertical: Boolean, description: String, onDrag: (Float) -
     var active by remember { mutableStateOf(false) }
     Box(
         modifier
-            .semantics { contentDescription = description }
+            .semantics { contentDescription = tr(description) }
             .pointerInput(vertical) {
                 if (vertical) detectHorizontalDragGestures(onDragStart = { active = true }, onDragEnd = { active = false }, onDragCancel = { active = false }) { change, dx -> change.consume(); drag(dx) }
                 else detectVerticalDragGestures(onDragStart = { active = true }, onDragEnd = { active = false }, onDragCancel = { active = false }) { change, dy -> change.consume(); drag(dy) }
@@ -2564,7 +2563,7 @@ private fun TableSidePane(t: com.example.cas.graph.DataTable, points: Int, colum
         TableCounts(points, columns, bad, needY)
         TablePreview(t, Modifier.fillMaxWidth().aspectRatio(1.2f))
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainer).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Roles", style = MaterialTheme.typography.titleSmall, color = colors.primary)
+            Text(tr("Roles"), style = MaterialTheme.typography.titleSmall, color = colors.primary)
             listOf("x" to "across: without one, rows are numbered 1, 2, 3…", "y" to "up: needed for points", "σx" to "error bars across", "σy" to "error bars up").forEach { (r, what) ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     RoleBadge(r)
@@ -2572,7 +2571,7 @@ private fun TableSidePane(t: com.example.cas.graph.DataTable, points: Int, colum
                     Text(what, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
                 }
             }
-            Text("Columns without a role are kept but not plotted. ＋ › Paste copies a table from a spreadsheet. Drag the grips to resize rows and columns.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            Text(tr("Columns without a role are kept but not plotted. ＋ › Paste copies a table from a spreadsheet. Drag the grips to resize rows and columns."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
         }
     }
 }
@@ -2584,7 +2583,7 @@ private fun TablePreview(t: com.example.cas.graph.DataTable, modifier: Modifier)
     val pts = remember(t) { t.points() }
     val (ex, ey) = remember(t) { t.errors() }
     Box(modifier.clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainer), contentAlignment = Alignment.Center) {
-        if (pts.isEmpty()) { Text("No points yet", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant); return@Box }
+        if (pts.isEmpty()) { Text(tr("No points yet"), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant); return@Box }
         androidx.compose.foundation.Canvas(Modifier.fillMaxSize().padding(18.dp)) {
             fun lo(v: Double, e: Double?) = v - (e?.takeIf { it.isFinite() } ?: 0.0)
             fun hi(v: Double, e: Double?) = v + (e?.takeIf { it.isFinite() } ?: 0.0)
@@ -2614,7 +2613,7 @@ private fun RoleBadge(role: String?, modifier: Modifier = Modifier) {
         modifier.height(30.dp).widthIn(min = 30.dp).clip(if (role == "x" || role == "y") CircleShape else RoundedCornerShape(9.dp)).background(bg).padding(horizontal = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
-        if (role == null) Text("–", style = MaterialTheme.typography.labelLarge, color = fg)
+        if (role == null) Text(tr("–"), style = MaterialTheme.typography.labelLarge, color = fg)
         else Text(roleText(role), color = fg, style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 17.sp))
     }
 }
@@ -2661,27 +2660,27 @@ private fun ColumnCard(
                 DropdownMenuItem(
                     leadingIcon = { RoleBadge(r) },
                     text = { Text(if (r == null) what else what.replaceFirstChar { it.uppercase() }) },
-                    trailingIcon = if (r == role) ({ Icon(Icons.Default.Check, contentDescription = "Chosen") }) else null,
+                    trailingIcon = if (r == role) ({ Icon(Icons.Default.Check, contentDescription = tr("Chosen")) }) else null,
                     onClick = { open = false; onRole(r) },
                 )
             }
             androidx.compose.material3.HorizontalDivider()
-            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Calculate, null) }, text = { Text("Statistics") }, onClick = { open = false; onStats() })
-            DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, null) }, text = { Text("Sort smallest first") }, onClick = { open = false; onSort() })
-            DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, null, modifier = Modifier.graphicsLayer(scaleY = -1f)) }, text = { Text("Sort largest first") }, onClick = { open = false; onSortDown() })
-            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.FormatListNumbered, null) }, text = { Text("Fill with 1, 2, 3…") }, onClick = { open = false; onFill() })
-            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Timeline, null) }, text = { Text("Fill with a series…") }, onClick = { open = false; onSeries() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Calculate, null) }, text = { Text(tr("Statistics")) }, onClick = { open = false; onStats() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, null) }, text = { Text(tr("Sort smallest first")) }, onClick = { open = false; onSort() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, null, modifier = Modifier.graphicsLayer(scaleY = -1f)) }, text = { Text(tr("Sort largest first")) }, onClick = { open = false; onSortDown() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.FormatListNumbered, null) }, text = { Text(tr("Fill with 1, 2, 3…")) }, onClick = { open = false; onFill() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.Timeline, null) }, text = { Text(tr("Fill with a series…")) }, onClick = { open = false; onSeries() })
             if (onFillDown != null) DropdownMenuItem(
-                leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) }, text = { Text("Fill the formula down") }, onClick = { open = false; onFillDown() },
+                leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) }, text = { Text(tr("Fill the formula down")) }, onClick = { open = false; onFillDown() },
             )
             androidx.compose.material3.HorizontalDivider()
-            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, text = { Text("Duplicate the column") }, onClick = { open = false; onDuplicate() })
-            if (onMoveLeft != null) DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null) }, text = { Text("Move left") }, onClick = { open = false; onMoveLeft() })
-            if (onMoveRight != null) DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) }, text = { Text("Move right") }, onClick = { open = false; onMoveRight() })
-            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.CleaningServices, null) }, text = { Text("Clear the column") }, onClick = { open = false; onClear() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, text = { Text(tr("Duplicate the column")) }, onClick = { open = false; onDuplicate() })
+            if (onMoveLeft != null) DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, null) }, text = { Text(tr("Move left")) }, onClick = { open = false; onMoveLeft() })
+            if (onMoveRight != null) DropdownMenuItem(leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) }, text = { Text(tr("Move right")) }, onClick = { open = false; onMoveRight() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.CleaningServices, null) }, text = { Text(tr("Clear the column")) }, onClick = { open = false; onClear() })
             if (onRemove != null) DropdownMenuItem(
                 leadingIcon = { Icon(Icons.Default.Delete, null, tint = colors.error) },
-                text = { Text("Remove the column", color = colors.error) }, onClick = { open = false; onRemove() },
+                text = { Text(tr("Remove the column"), color = colors.error) }, onClick = { open = false; onRemove() },
             )
         }
     }
@@ -2698,8 +2697,8 @@ private fun RowNumber(r: Int, onInsertAbove: () -> Unit, onInsertBelow: () -> Un
             contentAlignment = Alignment.Center,
         ) { Text("${r + 1}", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant) }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = RoundedCornerShape(16.dp)) {
-            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, null) }, text = { Text("Insert a row above") }, onClick = { open = false; onInsertAbove() })
-            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) }, text = { Text("Insert a row below") }, onClick = { open = false; onInsertBelow() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.KeyboardArrowUp, null) }, text = { Text(tr("Insert a row above")) }, onClick = { open = false; onInsertAbove() })
+            DropdownMenuItem(leadingIcon = { Icon(Icons.Default.KeyboardArrowDown, null) }, text = { Text(tr("Insert a row below")) }, onClick = { open = false; onInsertBelow() })
             DropdownMenuItem(leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, text = { Text("Duplicate row ${r + 1}") }, onClick = { open = false; onDuplicate() })
             if (onRemove != null) DropdownMenuItem(
                 leadingIcon = { Icon(Icons.Default.Delete, null, tint = colors.error) },
@@ -2741,7 +2740,7 @@ private fun TableCell(
         )
     if (!editing) {
         Row(
-            base.clickable(onClickLabel = "Edit this cell") { onTap() }.padding(horizontal = 12.dp),
+            base.clickable(onClickLabel = tr("Edit this cell")) { onTap() }.padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -2749,7 +2748,7 @@ private fun TableCell(
                 style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = if (formula && error) colors.error else ink),
                 modifier = Modifier.weight(1f),
             )
-            if (formula) Text("ƒx", style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 12.sp, color = colors.tertiary))
+            if (formula) Text(tr("ƒx"), style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 12.sp, color = colors.tertiary))
         }
         return
     }
@@ -2819,7 +2818,7 @@ private fun PaneHandle(onDrag: (Float) -> Unit, onDone: () -> Unit, onReset: () 
                 ) { change, dx -> change.consume(); onDrag(with(density) { dx.toDp().value }) }
             }
             .pointerInput(Unit) { detectTapGestures(onDoubleTap = { onReset() }) }
-            .semantics { contentDescription = "Resize the list of lines: drag sideways, double-tap to reset" },
+            .semantics { contentDescription = tr("Resize the list of lines: drag sideways, double-tap to reset") },
         contentAlignment = Alignment.Center,
     ) {
         Box(Modifier.width(if (dragging) 6.dp else 4.dp).height(if (dragging) 64.dp else 48.dp).clip(CircleShape).background(if (dragging) colors.primary else colors.outline))
@@ -3028,7 +3027,7 @@ private fun PointCard(color: Color?, kind: String?, name: String?, rows: List<Ca
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (color != null) Box(Modifier.size(12.dp).clip(CircleShape).background(color))
                 if (kind != null) Text(
-                    kind,
+                    tr(kind),
                     color = colors.onTertiaryContainer,
                     style = MaterialTheme.typography.labelMedium,
                     maxLines = 1,
@@ -3040,10 +3039,10 @@ private fun PointCard(color: Color?, kind: String?, name: String?, rows: List<Ca
                     Box(Modifier.widthIn(max = 150.dp).horizontalScroll(rememberScrollState())) { MathView(row, 15.sp, colors.onSurfaceVariant) }
                 }
                 Box(
-                    Modifier.size(32.dp).clip(CircleShape).clickable(onClickLabel = "Close") { tap(); onClose() },
+                    Modifier.size(32.dp).clip(CircleShape).clickable(onClickLabel = tr("Close")) { tap(); onClose() },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(androidx.compose.material.icons.Icons.Default.Close, contentDescription = "Close", tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                    Icon(androidx.compose.material.icons.Icons.Default.Close, contentDescription = tr("Close"), tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
                 }
             }
             rows.forEach { v ->
@@ -3067,7 +3066,7 @@ private fun PointCard(color: Color?, kind: String?, name: String?, rows: List<Ca
                     ) {
                         Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardReturn, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Use", color = colors.onPrimaryContainer, style = MaterialTheme.typography.labelLarge)
+                        Text(tr("Use"), color = colors.onPrimaryContainer, style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
@@ -3078,13 +3077,13 @@ private fun PointCard(color: Color?, kind: String?, name: String?, rows: List<Ca
                     actions.forEach { a ->
                         Row(
                             Modifier.height(38.dp).clip(RoundedCornerShape(12.dp)).background(colors.secondaryContainer)
-                                .clickable(onClickLabel = a.spoken) { tap(); a.onClick() }
+                                .clickable(onClickLabel = tr(a.spoken)) { tap(); a.onClick() }
                                 .padding(start = 10.dp, end = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(a.icon, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text(a.label, color = colors.onSecondaryContainer, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                            Text(tr(a.label), color = colors.onSecondaryContainer, style = MaterialTheme.typography.labelLarge, maxLines = 1)
                         }
                     }
                 }
@@ -3128,7 +3127,7 @@ fun ResultCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(icon, contentDescription = null, tint = colors.primary, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text(title, style = MaterialTheme.typography.labelLarge, color = colors.onSurface, modifier = Modifier.weight(1f), maxLines = 1)
+                    Text(tr(title), style = MaterialTheme.typography.labelLarge, color = colors.onSurface, modifier = Modifier.weight(1f), maxLines = 1)
                     @Composable
                     fun action(vector: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) =
                         IconButton(onClick = { tap(); onClick() }, modifier = Modifier.size(36.dp)) { Icon(vector, contentDescription = label, tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp)) }
@@ -3167,8 +3166,8 @@ fun ResultCard(
                     Icon(icon, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(22.dp))
                 }
                 Spacer(Modifier.width(12.dp))
-                Text(title, style = MaterialTheme.typography.titleSmall, color = colors.onSurface, modifier = Modifier.weight(1f))
-                IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = "Close", tint = colors.onSurfaceVariant) }
+                Text(tr(title), style = MaterialTheme.typography.titleSmall, color = colors.onSurface, modifier = Modifier.weight(1f))
+                IconButton(onClick = onClose) { Icon(Icons.Default.Close, contentDescription = tr("Close"), tint = colors.onSurfaceVariant) }
             }
             Column(Modifier.padding(end = 8.dp)) {
                 if (math != null) Box(Modifier.padding(top = 6.dp).horizontalScroll(rememberScrollState())) { MathView(math, 17.sp, colors.onSurfaceVariant, computerModern = true) }
@@ -3181,7 +3180,7 @@ fun ResultCard(
                 if (stats.isNotEmpty()) androidx.compose.foundation.layout.FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     stats.forEach { (label, v) ->
                         Column(Modifier.clip(RoundedCornerShape(12.dp)).background(colors.surfaceContainerHighest).padding(horizontal = 10.dp, vertical = 6.dp)) {
-                            Text(label, style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
+                            Text(tr(label), style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant)
                             MathText(Readout.markdown(v), style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 15.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, fontFeatureSettings = "tnum"), color = colors.onSurface)
                         }
                     }
@@ -3190,23 +3189,23 @@ fun ResultCard(
                 if (onUse != null || copyText != null) Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (onUse != null) Row(
                         Modifier.height(36.dp).clip(CircleShape).background(colors.primaryContainer)
-                            .clickable(onClickLabel = "Use the value in the calculator") { tap(); onUse() }
+                            .clickable(onClickLabel = tr("Use the value in the calculator")) { tap(); onUse() }
                             .padding(start = 12.dp, end = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardReturn, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Use", color = colors.onPrimaryContainer, style = MaterialTheme.typography.labelLarge)
+                        Text(tr("Use"), color = colors.onPrimaryContainer, style = MaterialTheme.typography.labelLarge)
                     }
                     if (copyText != null) Row(
                         Modifier.height(36.dp).clip(CircleShape).border(1.dp, colors.outlineVariant, CircleShape)
-                            .clickable(onClickLabel = "Copy the value") { tap(); clipboard.setText(androidx.compose.ui.text.AnnotatedString(copyText)) }
+                            .clickable(onClickLabel = tr("Copy the value")) { tap(); clipboard.setText(androidx.compose.ui.text.AnnotatedString(copyText)) }
                             .padding(start = 12.dp, end = 16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(Icons.Default.ContentCopy, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Copy", color = colors.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
+                        Text(tr("Copy"), color = colors.onSurfaceVariant, style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
@@ -3272,11 +3271,10 @@ internal fun RangeAndScaleSettings(state: RangeFields, xName: String, yName: Str
             OutlinedTextField(state.fields[k + 1], { state.edit(k + 1, it) }, singleLine = true, label = { Text("$name to") }, modifier = Modifier.weight(1f))
         }
     }
-    if (!state.valid) Text(
-        "Each “from” must be a number below its “to”" + if (state.logX || state.logY) ", and above 0 on a log axis." else ".",
+    if (!state.valid) Text(tr("Each “from” must be a number below its “to”") + if (state.logX || state.logY) ", and above 0 on a log axis." else ".",
         color = colors.error, style = MaterialTheme.typography.bodySmall,
     )
-    Text("Axis scale", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+    Text(tr("Axis scale"), style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
     listOf(xName to state.logX, yName to state.logY).forEachIndexed { k, (name, log) ->
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.width(64.dp))
@@ -3286,7 +3284,7 @@ internal fun RangeAndScaleSettings(state: RangeFields, xName: String, yName: Str
                         selected = log == value,
                         onClick = { if (k == 0) state.setLog(value, state.logY) else state.setLog(state.logX, value) },
                         shape = SegmentedButtonDefaults.itemShape(i, 2),
-                        label = { Text(label) },
+                        label = { Text(tr(label)) },
                     )
                 }
             }
@@ -3316,7 +3314,7 @@ private fun FitStatsDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () ->
         androidx.compose.material3.Surface(shape = RoundedCornerShape(28.dp), color = colors.surfaceContainerHigh, modifier = Modifier.padding(16.dp).widthIn(max = 600.dp).fillMaxWidth()) {
             Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Column {
-                    Text("Fit statistics", style = MaterialTheme.typography.headlineSmall)
+                    Text(tr("Fit statistics"), style = MaterialTheme.typography.headlineSmall)
                     if (stats != null) Text(
                         "${stats.xs.size} points" + if (stats.sigmas != null) " · weighted by σ(y)" else "",
                         style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
@@ -3324,7 +3322,7 @@ private fun FitStatsDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () ->
                 }
                 Box(Modifier.horizontalScroll(rememberScrollState())) { MathView(f.editor.root, 20.sp, colors.onSurfaceVariant) }
                 if (stats == null) {
-                    Text("This line can't be fitted to the points (too few points, or values it can't take).", color = colors.error, style = MaterialTheme.typography.bodyMedium)
+                    Text(tr("This line can't be fitted to the points (too few points, or values it can't take)."), color = colors.error, style = MaterialTheme.typography.bodyMedium)
                 } else {
                     // Each parameter ± its standard error.
                     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.primaryContainer).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -3344,16 +3342,15 @@ private fun FitStatsDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () ->
                         stats.reducedChiSquared?.let { stat("\\chi^{2}/\\nu", Readout.latex(shortNumber(it))) }
                         stat("\\nu", stats.result.dof.toString())
                     }
-                    if (stats.sigmas == null) Text(
-                        "No σ(y) on the points, so χ²/ν counts each as σ = 1: it's the residuals' mean square. Give the data a σ(y) column for a true reduced χ².",
+                    if (stats.sigmas == null) Text(tr("No σ(y) on the points, so χ²/ν counts each as σ = 1: it's the residuals' mean square. Give the data a σ(y) column for a true reduced χ²."),
                         style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
                     )
                     FitPlot(stats.xs, stats.ys, stats.sigmas, stats.curve, Modifier.fillMaxWidth().height(240.dp))
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) { Text("Close") }
+                    TextButton(onClick = onDismiss) { Text(tr("Close")) }
                     Spacer(Modifier.width(8.dp))
-                    Button(enabled = stats != null, onClick = { vm.fit(f); onDismiss() }) { Text("Apply the fit") }
+                    Button(enabled = stats != null, onClick = { vm.fit(f); onDismiss() }) { Text(tr("Apply the fit")) }
                 }
             }
         }
@@ -3384,7 +3381,7 @@ private fun FitPlot(xs: DoubleArray, ys: DoubleArray, sig: DoubleArray?, f: (Dou
             xs.indices.forEach { i -> drawCircle(colors.onSurface, FIT_POINT_SIZE.dp.toPx(), Offset(sx(xs[i]), sy(ys[i]))) }
             drawPath(path, colors.primary, style = Stroke(3.dp.toPx(), cap = StrokeCap.Round))
         }
-        Text("Residuals", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+        Text(tr("Residuals"), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
         androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().weight(1f)) {
             val m = residuals.maxOfOrNull { kotlin.math.abs(it) }?.takeIf { it > 0 } ?: 1.0
             fun sx(x: Double) = ((x - x0) / (x1 - x0) * size.width).toFloat()

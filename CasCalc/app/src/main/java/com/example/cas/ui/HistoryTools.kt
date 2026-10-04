@@ -88,23 +88,23 @@ fun HistoryToolbar(vm: CalculatorViewModel, modifier: Modifier = Modifier) {
                 Icon(Icons.Default.Search, contentDescription = null, tint = colors.onSurfaceVariant)
                 Spacer(Modifier.width(10.dp))
                 Box(Modifier.weight(1f)) {
-                    if (vm.historyQuery.isEmpty()) Text("Search calculations", style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
+                    if (vm.historyQuery.isEmpty()) Text(tr("Search calculations"), style = MaterialTheme.typography.bodyLarge, color = colors.onSurfaceVariant)
                     BasicTextField(
                         vm.historyQuery, { vm.historyQuery = it }, singleLine = true,
                         textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface),
                         cursorBrush = SolidColor(colors.primary),
-                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Search calculations" },
+                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Search calculations") },
                     )
                 }
-                if (vm.historyQuery.isNotEmpty()) IconButton(onClick = { vm.historyQuery = "" }) { Icon(Icons.Default.Close, contentDescription = "Clear the search") }
+                if (vm.historyQuery.isNotEmpty()) IconButton(onClick = { vm.historyQuery = "" }) { Icon(Icons.Default.Close, contentDescription = tr("Clear the search")) }
             }
             Spacer(Modifier.width(6.dp))
             // Export what's listed, as a PDF or LaTeX.
             Box(
                 Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(colors.secondaryContainer)
-                    .combinedClickable(onClickLabel = "Export these calculations", enabled = visible.isNotEmpty()) { exporting = true },
+                    .combinedClickable(onClickLabel = tr("Export these calculations"), enabled = visible.isNotEmpty()) { exporting = true },
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Default.IosShare, contentDescription = "Export", tint = colors.onSecondaryContainer) }
+            ) { Icon(Icons.Default.IosShare, contentDescription = tr("Export"), tint = colors.onSecondaryContainer) }
         }
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             @Composable
@@ -117,7 +117,7 @@ fun HistoryToolbar(vm: CalculatorViewModel, modifier: Modifier = Modifier) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (icon != null) { Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp), tint = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant); Spacer(Modifier.width(6.dp)) }
-                    Text(label, style = MaterialTheme.typography.labelLarge, color = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant)
+                    Text(tr(label), style = MaterialTheme.typography.labelLarge, color = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant)
                 }
             }
             chip("All", vm.historyFilter == null, null, { vm.historyFilter = null })
@@ -138,15 +138,15 @@ private fun FolderEditDialog(name: String, onRename: (String) -> Unit, onEmpty: 
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Default.Folder, contentDescription = null) },
-        title = { Text("Folder") },
+        title = { Text(tr("Folder")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(text, { text = it }, singleLine = true, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
-                TextButton(onClick = onEmpty) { Icon(Icons.Default.FolderOff, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Empty the folder (calculations stay)") }
+                OutlinedTextField(text, { text = it }, singleLine = true, label = { Text(tr("Name")) }, modifier = Modifier.fillMaxWidth())
+                TextButton(onClick = onEmpty) { Icon(Icons.Default.FolderOff, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(tr("Empty the folder (calculations stay)")) }
             }
         },
-        confirmButton = { TextButton(enabled = text.isNotBlank(), onClick = { onRename(text) }) { Text("Rename") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(enabled = text.isNotBlank(), onClick = { onRename(text) }) { Text(tr("Rename")) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
     )
 }
 
@@ -158,7 +158,7 @@ fun MoveToFolderDialog(current: String?, folders: List<String>, onPick: (String?
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Default.CreateNewFolder, contentDescription = null) },
-        title = { Text("Move to folder") },
+        title = { Text(tr("Move to folder")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 folders.forEach { f ->
@@ -171,12 +171,12 @@ fun MoveToFolderDialog(current: String?, folders: List<String>, onPick: (String?
                         Text(f, style = MaterialTheme.typography.bodyLarge)
                     }
                 }
-                OutlinedTextField(name, { name = it }, singleLine = true, label = { Text("New folder") }, placeholder = { Text("e.g. Homework 3") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(name, { name = it }, singleLine = true, label = { Text(tr("New folder")) }, placeholder = { Text(tr("e.g. Homework 3")) }, modifier = Modifier.fillMaxWidth())
                 if (current != null) TextButton(onClick = { onPick(null) }) { Icon(Icons.Default.FolderOff, null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Take it out of “$current”") }
             }
         },
-        confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = { onPick(name) }) { Text("Create and move") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = { onPick(name) }) { Text(tr("Create and move")) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
     )
 }
 
@@ -213,10 +213,10 @@ private fun ExportHistoryDialog(items: List<HistoryItem>, onDismiss: () -> Unit)
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf(true to "PDF", false to "LaTeX").forEachIndexed { k, (isPdf, label) ->
-                        SegmentedButton(icon = {}, selected = pdf == isPdf, onClick = { pdf = isPdf }, shape = SegmentedButtonDefaults.itemShape(k, 2), label = { Text(label) })
+                        SegmentedButton(icon = {}, selected = pdf == isPdf, onClick = { pdf = isPdf }, shape = SegmentedButtonDefaults.itemShape(k, 2), label = { Text(tr(label)) })
                     }
                 }
-                OutlinedTextField(title, { title = it }, singleLine = true, label = { Text("Title") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(title, { title = it }, singleLine = true, label = { Text(tr("Title")) }, modifier = Modifier.fillMaxWidth())
                 Text(
                     if (pdf) "A4 pages in Computer Modern: each question with its answer on the right, numbered." else "A .tex document (amsmath), one numbered equation per calculation, ready to compile.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -237,11 +237,11 @@ private fun ExportHistoryDialog(items: List<HistoryItem>, onDismiss: () -> Unit)
                             onDismiss()
                         }.onFailure(::failed)
                     }
-                }) { Text("Share") }
-                TextButton(onClick = { if (pdf) savePdf.launch(fileName()) else saveTex.launch(fileName()) }) { Text("Save") }
+                }) { Text(tr("Share")) }
+                TextButton(onClick = { if (pdf) savePdf.launch(fileName()) else saveTex.launch(fileName()) }) { Text(tr("Save")) }
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
     )
 }
 
@@ -315,7 +315,7 @@ fun HistoryBrowser(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, mod
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (title == "Pinned") { Icon(Icons.Default.PushPin, null, tint = colors.primary, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)) }
-                    Text(title, style = MaterialTheme.typography.titleMedium, color = colors.primary, modifier = Modifier.weight(1f))
+                    Text(tr(title), style = MaterialTheme.typography.titleMedium, color = colors.primary, modifier = Modifier.weight(1f))
                     Text("${list.size}", style = MaterialTheme.typography.labelLarge, color = colors.onSecondaryContainer,
                         modifier = Modifier.clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 10.dp, vertical = 2.dp))
                 }
@@ -325,10 +325,10 @@ fun HistoryBrowser(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, mod
                     var confirm by remember { mutableStateOf(false) }
                     if (confirm) AlertDialog(
                         onDismissRequest = { confirm = false },
-                        title = { Text("Delete this calculation?") },
-                        text = { Text("It will be removed from the history. This can't be undone.") },
-                        confirmButton = { TextButton(onClick = { confirm = false; vm.deleteHistory(item) }) { Text("Delete") } },
-                        dismissButton = { TextButton(onClick = { confirm = false }) { Text("Cancel") } },
+                        title = { Text(tr("Delete this calculation?")) },
+                        text = { Text(tr("It will be removed from the history. This can't be undone.")) },
+                        confirmButton = { TextButton(onClick = { confirm = false; vm.deleteHistory(item) }) { Text(tr("Delete")) } },
+                        dismissButton = { TextButton(onClick = { confirm = false }) { Text(tr("Cancel")) } },
                     )
                     // Every calculation in full, as on the calculator; a tap shows its actions.
                     Box(Modifier.animateItem().padding(bottom = 8.dp)) {

@@ -359,7 +359,7 @@ fun ExportDialog(
             contentAlignment = Alignment.Center,
         ) {
             val p = preview
-            if (p != null) androidx.compose.foundation.Image(p, contentDescription = "Preview of the export", modifier = Modifier.fillMaxSize())
+            if (p != null) androidx.compose.foundation.Image(p, contentDescription = tr("Preview of the export"), modifier = Modifier.fillMaxSize())
             else Busy()
         }
     }
@@ -385,7 +385,7 @@ fun ExportDialog(
             },
             style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
         )
-        Text("Limits", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
+        Text(tr("Limits"), style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
         pairs.forEach { (a, b) ->
             val letter = listOf("x", "y", "z")[a / 2]
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -393,7 +393,7 @@ fun ExportDialog(
                 OutlinedTextField(fields[b], { fields[b] = it }, singleLine = true, label = { Text("$letter to") }, modifier = Modifier.weight(1f))
             }
         }
-        if (!valid) Text("Each limit needs a number, and “from” must be less than “to”.", style = MaterialTheme.typography.bodySmall, color = colors.error)
+        if (!valid) Text(tr("Each limit needs a number, and “from” must be less than “to”."), style = MaterialTheme.typography.bodySmall, color = colors.error)
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             listOf("Light", "Dark").forEachIndexed { k, name ->
                 SegmentedButton(
@@ -409,20 +409,19 @@ fun ExportDialog(
         if (graphFile != null) {
             androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical = 4.dp))
             Text("Graph file (.${graphFile.extension})", style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
-            Text(
-                "The graph itself, with its lines, colors and sliders, to open again in CAS Scientific Calculator (Saved graphs › Import).",
+            Text(tr("The graph itself, with its lines, colors and sliders, to open again in CAS Scientific Calculator (Saved graphs › Import)."),
                 style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                androidx.compose.material3.FilledTonalButton(onClick = { onGraphFile(true) }) { Text("Share file") }
-                androidx.compose.material3.FilledTonalButton(onClick = { onGraphFile(false) }) { Text("Save file") }
+                androidx.compose.material3.FilledTonalButton(onClick = { onGraphFile(true) }) { Text(tr("Share file")) }
+                androidx.compose.material3.FilledTonalButton(onClick = { onGraphFile(false) }) { Text(tr("Save file")) }
             }
         }
     }
     val buttons: @Composable () -> Unit = {
         Row {
-            TextButton(enabled = valid, onClick = { onExport(request(), true) }) { Text("Share") }
-            TextButton(enabled = valid, onClick = { onExport(request(), false) }) { Text("Save") }
+            TextButton(enabled = valid, onClick = { onExport(request(), true) }) { Text(tr("Share")) }
+            TextButton(enabled = valid, onClick = { onExport(request(), false) }) { Text(tr("Save")) }
         }
     }
     if (isTabletLayout()) {
@@ -430,7 +429,7 @@ fun ExportDialog(
         androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
             androidx.compose.material3.Surface(shape = RoundedCornerShape(28.dp), color = colors.surfaceContainerHigh, modifier = Modifier.width(940.dp).heightIn(max = 720.dp)) {
                 Column(Modifier.padding(24.dp)) {
-                    Text("Export graph", style = MaterialTheme.typography.headlineSmall)
+                    Text(tr("Export graph"), style = MaterialTheme.typography.headlineSmall)
                     Spacer(Modifier.height(16.dp))
                     Row(Modifier.weight(1f, fill = false), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                         Box(Modifier.weight(1.1f)) { previewBox() }
@@ -438,7 +437,7 @@ fun ExportDialog(
                     }
                     Spacer(Modifier.height(12.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = onDismiss) { Text("Cancel") }
+                        TextButton(onClick = onDismiss) { Text(tr("Cancel")) }
                         buttons()
                     }
                 }
@@ -448,7 +447,7 @@ fun ExportDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Export graph") },
+        title = { Text(tr("Export graph")) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 previewBox()
@@ -456,6 +455,6 @@ fun ExportDialog(
             }
         },
         confirmButton = { buttons() },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
     )
 }

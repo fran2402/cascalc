@@ -68,10 +68,10 @@ fun CrashReportDialog() {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     AlertDialog(
         onDismissRequest = close,
-        title = { Text("The app closed unexpectedly") },
+        title = { Text(tr("The app closed unexpectedly")) },
         text = {
             Column {
-                Text("This is what went wrong. Report it (an email with it attached) to help fix it.", style = MaterialTheme.typography.bodyMedium)
+                Text(tr("This is what went wrong. Report it (an email with it attached) to help fix it."), style = MaterialTheme.typography.bodyMedium)
                 Text(
                     shown,
                     style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp),
@@ -80,12 +80,12 @@ fun CrashReportDialog() {
             }
         },
         confirmButton = {
-            TextButton(onClick = { scope.launch { Feedback.reportBug(context); close() } }) { Text("Report") }
+            TextButton(onClick = { scope.launch { Feedback.reportBug(context); close() } }) { Text(tr("Report")) }
         },
         dismissButton = {
             androidx.compose.foundation.layout.Row {
-                TextButton(onClick = { clipboard.setText(AnnotatedString(shown)); close() }) { Text("Copy") }
-                TextButton(onClick = close) { Text("Close") }
+                TextButton(onClick = { clipboard.setText(AnnotatedString(shown)); close() }) { Text(tr("Copy")) }
+                TextButton(onClick = close) { Text(tr("Close")) }
             }
         },
     )

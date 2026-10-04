@@ -148,7 +148,7 @@ private fun TabletSteps(expression: MathRow, solution: Steps.Solution?, ready: B
                         Spacer(Modifier.height(12.dp))
                         AnswerCard(s.answer)
                         Spacer(Modifier.height(20.dp))
-                        Text("Outline", style = MaterialTheme.typography.titleSmall, color = colors.primary, modifier = Modifier.semantics { heading() })
+                        Text(tr("Outline"), style = MaterialTheme.typography.titleSmall, color = colors.primary, modifier = Modifier.semantics { heading() })
                         Spacer(Modifier.height(8.dp))
                         s.steps.forEachIndexed { k, step ->
                             val reached = k < state.shown
@@ -166,8 +166,8 @@ private fun TabletSteps(expression: MathRow, solution: Steps.Solution?, ready: B
                 }
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     Row(Modifier.fillMaxWidth().padding(start = 28.dp, end = 12.dp, top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Steps", style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.weight(1f))
-                        IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = "Close", tint = colors.onSurfaceVariant) }
+                        Text(tr("Steps"), style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.weight(1f))
+                        IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, contentDescription = tr("Close"), tint = colors.onSurfaceVariant) }
                     }
                     Box(Modifier.weight(1f)) { Body(solution, ready, state, list, Modifier.padding(horizontal = 28.dp)) }
                 }
@@ -183,7 +183,7 @@ private fun Header(solution: Steps.Solution?, question: MathRow) {
     val context = LocalContext.current
     @Suppress("DEPRECATION") val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text("Steps", style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.semantics { heading() })
+        Text(tr("Steps"), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.semantics { heading() })
         Spacer(Modifier.width(10.dp))
         BetaBadge()
         Spacer(Modifier.weight(1f))
@@ -192,7 +192,7 @@ private fun Header(solution: Steps.Solution?, question: MathRow) {
             IconButton(onClick = {
                 clipboard.setText(androidx.compose.ui.text.AnnotatedString(Steps.text(question, s)))
                 android.widget.Toast.makeText(context, "Steps copied", android.widget.Toast.LENGTH_SHORT).show()
-            }) { Icon(Icons.Default.ContentCopy, contentDescription = "Copy the steps", tint = colors.onSurfaceVariant) }
+            }) { Icon(Icons.Default.ContentCopy, contentDescription = tr("Copy the steps"), tint = colors.onSurfaceVariant) }
         }
         solution?.let {
             MathText(
@@ -215,7 +215,7 @@ private fun Question(expression: MathRow) {
 private fun AnswerCard(answer: MathRow) {
     val colors = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(colors.primaryContainer).padding(16.dp)) {
-        Text("Answer", style = MaterialTheme.typography.labelLarge, color = colors.onPrimaryContainer)
+        Text(tr("Answer"), style = MaterialTheme.typography.labelLarge, color = colors.onPrimaryContainer)
         Spacer(Modifier.height(6.dp))
         Box(Modifier.horizontalScroll(rememberScrollState())) { MathView(answer, 20.sp, colors.onPrimaryContainer) }
     }
@@ -230,8 +230,8 @@ private fun Body(solution: Steps.Solution?, ready: Boolean, state: StepsState, l
         solution == null -> Column(Modifier.fillMaxSize().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Icon(Icons.Default.Info, contentDescription = null, tint = colors.outline, modifier = Modifier.size(36.dp))
             Spacer(Modifier.height(8.dp))
-            Text("No steps for this one yet", style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
-            Text("Steps are in beta: calculus, algebra, complex numbers, matrices, differential equations, statistics and vector calculus for now.", style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+            Text(tr("No steps for this one yet"), style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
+            Text(tr("Steps are in beta: calculus, algebra, complex numbers, matrices, differential equations, statistics and vector calculus for now."), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
         }
         else -> LazyColumn(state = list, modifier = modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)) {
             itemsIndexed(solution.steps, key = { k, _ -> k }) { k, step ->
@@ -318,8 +318,8 @@ private fun BetaNote() {
         Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 12.dp).clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainer).padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("Steps are in beta and may skip some algebra.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.weight(1f))
-        TextButton(onClick = { scope.launch { Feedback.reportBug(context) } }) { Text("Report") }
+        Text(tr("Steps are in beta and may skip some algebra."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.weight(1f))
+        TextButton(onClick = { scope.launch { Feedback.reportBug(context) } }) { Text(tr("Report")) }
     }
 }
 

@@ -35,11 +35,14 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
-enum class Mode(val label: String, val icon: ImageVector) {
+enum class Mode(val english: String, val icon: ImageVector) {
     Calculator("Calculator", Icons.Default.Calculate),
     Graph2D("2D graphing", Icons.AutoMirrored.Filled.ShowChart),
     Graph3D("3D graphing", Icons.Default.ViewInAr),
-    Complex("Complex plotting", TabIcons.Complex),
+    Complex("Complex plotting", TabIcons.Complex);
+
+    /** Its name in the app's language. */
+    val label: String get() = tr(english)
 }
 
 /**
@@ -78,8 +81,8 @@ fun ModeSwitcher(selected: Mode, onSelect: (Mode) -> Unit, modifier: Modifier = 
                     .background(bg)
                     // Hold for the mode's guide: what it does and examples to try.
                     .combinedClickable(
-                        onClickLabel = "Open ${mode.label}",
-                        onLongClickLabel = "Guide to ${mode.label}",
+                        onClickLabel = tr("Open {0}", mode.label),
+                        onLongClickLabel = tr("Guide to {0}", mode.label),
                         onLongClick = { haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); onGuide(mode) },
                         onClick = { onSelect(mode) },
                     )

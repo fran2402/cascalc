@@ -130,7 +130,7 @@ fun Graph3DScreen(vm: Graph3DViewModel, onUseValue: (Double) -> Unit = {}, modif
                     vm.setCoordinates(Coordinates3D.Mode.Spherical)
                 }
                 IconButton(onClick = { settings = true }) {
-                    Icon(Icons.Default.Tune, contentDescription = "Graph settings", tint = MaterialTheme.colorScheme.onSurface)
+                    Icon(Icons.Default.Tune, contentDescription = tr("Graph settings"), tint = MaterialTheme.colorScheme.onSurface)
                     // (geometry's construct UI follows the bar, below)
                 }
             })
@@ -142,8 +142,12 @@ fun Graph3DScreen(vm: Graph3DViewModel, onUseValue: (Double) -> Unit = {}, modif
                 else if (isTabletLayout()) {
                     val byList = if (AppSettings.keypadSide == 0) Alignment.TopStart else Alignment.TopEnd
                     ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 140.dp, end = 140.dp))
+                    GeometryGuide(vm, Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp, start = 140.dp, end = 140.dp))
                     ConstructRail(vm, Modifier.align(byList).padding(top = 10.dp, bottom = 84.dp, start = 10.dp, end = 10.dp))
-                } else ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 12.dp, end = 12.dp))
+                } else {
+                    ConstructStatus(vm, Modifier.align(Alignment.TopCenter).padding(top = 10.dp, start = 12.dp, end = 12.dp))
+                    GeometryGuide(vm, Modifier.align(Alignment.BottomCenter).padding(bottom = 10.dp, start = 12.dp, end = 12.dp))
+                }
             }
         }
         // On a phone the tools sit under the graph, in the list's place.
@@ -170,17 +174,17 @@ private fun RangeControl(vm: Graph3DViewModel, modifier: Modifier = Modifier) {
     if (editing) LimitsDialog(vm, onDismiss = { editing = false })
     Row(modifier.clip(CircleShape).background(colors.surfaceContainerHigh), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = { tap(); vm.scaleRanges(0.5) }) {
-            Icon(Icons.Default.Remove, contentDescription = "Zoom in", tint = colors.onSurface)
+            Icon(Icons.Default.Remove, contentDescription = tr("Zoom in"), tint = colors.onSurface)
         }
         MathText(
             limitsText(vm),
             color = colors.onSurface,
             style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 15.sp),
             mathScale = 1f,
-            modifier = Modifier.clickable(onClickLabel = "Set the limits") { editing = true }.padding(vertical = 8.dp),
+            modifier = Modifier.clickable(onClickLabel = tr("Set the limits")) { editing = true }.padding(vertical = 8.dp),
         )
         IconButton(onClick = { tap(); vm.scaleRanges(2.0) }) {
-            Icon(Icons.Default.Add, contentDescription = "Zoom out", tint = colors.onSurface)
+            Icon(Icons.Default.Add, contentDescription = tr("Zoom out"), tint = colors.onSurface)
         }
     }
 }
@@ -207,18 +211,18 @@ private fun LimitsDialog(vm: Graph3DViewModel, onDismiss: () -> Unit) {
     val valid = ok(xs) && ok(ys) && (autoZ || ok(zs)) && letters.values.all(::lettersOk)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Graph settings") },
+        title = { Text(tr("Graph settings")) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 LimitRow("x", x0, x1, { x0 = it }, { x1 = it })
                 LimitRow("y", y0, y1, { y0 = it }, { y1 = it })
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Fit z to the surfaces", modifier = Modifier.weight(1f))
+                    Text(tr("Fit z to the surfaces"), modifier = Modifier.weight(1f))
                     Switch(checked = autoZ, onCheckedChange = { autoZ = it })
                 }
                 if (!autoZ) LimitRow("z", z0, z1, { z0 = it }, { z1 = it })
-                if (!valid) Text("Each lower limit must be below its upper limit.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                Text("Coordinates", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (!valid) Text(tr("Each lower limit must be below its upper limit."), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                Text(tr("Coordinates"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 // As on the calculator's ∇ tab: the systems by their letters, and ✎ to choose them.
                 var choosing by remember { mutableStateOf(false) }
                 if (choosing) {
@@ -244,11 +248,11 @@ private fun LimitsDialog(vm: Graph3DViewModel, onDismiss: () -> Unit) {
                     }
                 }
                 IconButton(onClick = { choosing = true }) {
-                    Icon(Icons.Default.Edit, contentDescription = "Choose the coordinate letters", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(Icons.Default.Edit, contentDescription = tr("Choose the coordinate letters"), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 }
 
-                Text("Surface detail", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(tr("Surface detail"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf("Low", "Medium", "High").forEachIndexed { k, name ->
                         SegmentedButton(
@@ -269,18 +273,18 @@ private fun LimitsDialog(vm: Graph3DViewModel, onDismiss: () -> Unit) {
                 vm.zRange = if (autoZ) null else zs.first!! to zs.second!!
                 letters.forEach { (m, l) -> if (l != vm.letters3D[m]) vm.setLetters3D(m, l) }
                 onDismiss()
-            }) { Text("Done") }
+            }) { Text(tr("Done")) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
     )
 }
 
 @Composable
 private fun LimitRow(letter: String, lo: String, hi: String, onLo: (String) -> Unit, onHi: (String) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(lo, onLo, singleLine = true, label = { Text("from") }, modifier = Modifier.weight(1f))
+        OutlinedTextField(lo, onLo, singleLine = true, label = { Text(tr("from")) }, modifier = Modifier.weight(1f))
         Text(letter, style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 22.sp))
-        OutlinedTextField(hi, onHi, singleLine = true, label = { Text("to") }, modifier = Modifier.weight(1f))
+        OutlinedTextField(hi, onHi, singleLine = true, label = { Text(tr("to")) }, modifier = Modifier.weight(1f))
     }
 }
 
@@ -300,8 +304,10 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier, onUseValue: 
     val limits = listOf(vm.xMin, vm.xMax, vm.yMin, vm.yMax)
 
     // The box: x and y as set; z as set, or fitted to the explicit surfaces.
-    val bounds = remember(version, limits, vm.zRange, params) { surfaceBounds(vm) }
-    val surfaces = remember(version, bounds, params, AppSettings.surfaceDetail) { surfacePolygons(vm, bounds) }
+    // Keyed on the surfaces' lines only, so dragging a construction's point doesn't sample them again.
+    val plotKey = vm.plotKey
+    val bounds = remember(plotKey, limits, vm.zRange, params) { surfaceBounds(vm) }
+    val surfaces = remember(plotKey, bounds, params, AppSettings.surfaceDetail) { surfacePolygons(vm, bounds) }
     // Geometry in space: each construction's drawing; its faces (planes, spheres, solids) join the
     // surfaces so they're sorted by depth with them, see-through.
     val geometry = remember(version, bounds, params, AppSettings.geometry) {
@@ -388,7 +394,7 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier, onUseValue: 
                     },
                 )
             }
-            .semantics { contentDescription = "3D graph. Drag to rotate, pinch to zoom, tap the surface to read a point, double-tap to reset." },
+            .semantics { contentDescription = tr("3D graph. Drag to rotate, pinch to zoom, tap the surface to read a point, double-tap to reset.") },
     ) {
         Canvas(Modifier.fillMaxSize()) {
             // The canvas's own size (in pixels, as Float), not the view's IntSize state of the same name.

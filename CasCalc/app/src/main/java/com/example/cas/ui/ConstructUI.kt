@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.North
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.foundation.layout.PaddingValues
@@ -78,6 +79,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
@@ -112,12 +116,12 @@ internal fun ConstructButton(onClick: () -> Unit, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
     Row(
         modifier.shadow(4.dp, CircleShape).clip(CircleShape).background(colors.secondaryContainer)
-            .clickable(onClickLabel = "Start constructing", onClick = onClick).padding(start = 12.dp, end = 14.dp, top = 9.dp, bottom = 9.dp),
+            .clickable(onClickLabel = tr("Start constructing"), onClick = onClick).padding(start = 12.dp, end = 14.dp, top = 9.dp, bottom = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Icon(PlotIcons.Geometry, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(20.dp))
-        Text("Construct", color = colors.onSecondaryContainer, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp, fontWeight = FontWeight.Medium))
+        Text(tr("Construct"), color = colors.onSecondaryContainer, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp, fontWeight = FontWeight.Medium))
         BetaBadge("Alpha")
     }
 }
@@ -143,18 +147,22 @@ internal fun ConstructStatus(vm: GraphViewModel, modifier: Modifier) {
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 val stepName = when {
-                    tool == GeometryTool.Move -> "Pick a tool below"
-                    tool.multi -> if (picks.isEmpty()) tool.steps.first() else "${picks.size} " + (if (tool == GeometryTool.Polygon) "corner" else "point") + (if (picks.size == 1) "" else "s")
-                    else -> "Step ${picks.size + 1} of ${tool.slots.length} · " + tool.steps.getOrElse(picks.size) { "" }
+                    tool == GeometryTool.Move -> tr(if (isTabletLayout()) "Pick a tool beside the graph" else "Pick a tool below")
+                    tool.multi -> if (picks.isEmpty()) tr(tool.steps.first()) else if (tool == GeometryTool.Polygon) (if (picks.size == 1) tr("1 corner") else tr("{0} corners", picks.size)) else (if (picks.size == 1) tr("1 point") else tr("{0} points", picks.size))
+                    else -> tr("Step {0} of {1}", picks.size + 1, tool.slots.length) + " · " + tr(tool.steps.getOrElse(picks.size) { "" })
                 }
                 Text(tool.label, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 16.sp, fontWeight = FontWeight.Medium), color = colors.onSurface)
                 Text(stepName, style = MaterialTheme.typography.labelMedium, color = colors.primary)
             }
             if (picks.isNotEmpty()) IconButton(onClick = { vm.undoPick() }) {
-                Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Take back the last pick", tint = colors.onSurfaceVariant)
+                Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = tr("Take back the last pick"), tint = colors.onSurfaceVariant)
             }
-            if (tool.multi && picks.size >= tool.least) androidx.compose.material3.FilledTonalButton(onClick = { vm.finishMulti() }, contentPadding = PaddingValues(horizontal = 14.dp)) { Text(if (tool == GeometryTool.Polygon) "Close" else "Finish") }
-            androidx.compose.material3.TextButton(onClick = { vm.stopConstructing() }) { Text("Done") }
+            if (tool.multi && picks.size >= tool.least) androidx.compose.material3.FilledTonalButton(onClick = { vm.finishMulti() }, contentPadding = PaddingValues(horizontal = 14.dp)) { Text(tr(if (tool == GeometryTool.Polygon) "Close" else "Finish")) }
+            // The guide again, from its start.
+            if (!vm.guideOpen) IconButton(onClick = { vm.guideStep = 0; vm.guideOpen = true }) {
+                Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = tr("Show the geometry guide"), tint = colors.onSurfaceVariant)
+            }
+            androidx.compose.material3.TextButton(onClick = { vm.stopConstructing() }) { Text(tr("Done")) }
         }
         // Progress: a dot per step, filled when done, ringed for the current one.
         if (tool != GeometryTool.Move && !tool.multi && tool.slots.length > 1) Row(Modifier.padding(start = 48.dp, top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -174,7 +182,7 @@ internal fun ConstructStatus(vm: GraphViewModel, modifier: Modifier) {
                     Modifier.clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 10.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(tool.steps.getOrElse(k) { tool.steps.firstOrNull() ?: "" } + " ", style = MaterialTheme.typography.labelSmall, color = colors.onSecondaryContainer.copy(alpha = 0.7f))
+                    Text(tr(tool.steps.getOrElse(k) { tool.steps.firstOrNull() ?: "" }) + " ", style = MaterialTheme.typography.labelSmall, color = colors.onSecondaryContainer.copy(alpha = 0.7f))
                     Text(geometryLabel(name), style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 15.sp), color = colors.onSecondaryContainer)
                 }
             }
@@ -204,7 +212,7 @@ internal fun ConstructPalette(vm: GraphViewModel, modifier: Modifier) {
                     style = MaterialTheme.typography.labelLarge,
                     color = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant,
                     modifier = Modifier.clip(CircleShape).background(if (on) colors.secondaryContainer else Color.Transparent)
-                        .clickable(onClickLabel = "Show ${c.label}") { category = c }.padding(horizontal = 14.dp, vertical = 8.dp),
+                        .clickable(onClickLabel = tr("Show {0}", c.label)) { category = c }.padding(horizontal = 14.dp, vertical = 8.dp),
                 )
             }
         }
@@ -266,20 +274,24 @@ internal fun ToolChip(vm: GraphViewModel, tool: GeometryTool, compact: Boolean) 
     if (compact) {
         Box(
             Modifier.size(44.dp).clip(CircleShape).background(bg).clickable(onClickLabel = tool.label) { vm.selectTool(tool) }
-                .semantics { contentDescription = tool.label + if (on) ", in use" else "" },
+                .semantics { contentDescription = tool.label + if (on) tr(", in use") else "" },
             contentAlignment = Alignment.Center,
         ) { androidx.compose.foundation.Canvas(Modifier.size(26.dp)) { drawToolIcon(tool, ink, accent) } }
     } else {
         Column(
-            Modifier.fillMaxWidth().height(TILE_HEIGHT).clip(RoundedCornerShape(18.dp)).background(bg).clickable(onClickLabel = "Use ${tool.label}") { vm.selectTool(tool) }
+            Modifier.fillMaxWidth().height(TILE_HEIGHT).clip(RoundedCornerShape(18.dp)).background(bg).clickable(onClickLabel = tr("Use {0}", tool.label)) { vm.selectTool(tool) }
                 .padding(top = 8.dp, bottom = 4.dp, start = 3.dp, end = 3.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             androidx.compose.foundation.Canvas(Modifier.size(28.dp)) { drawToolIcon(tool, ink, accent) }
             Spacer(Modifier.height(3.dp))
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                // Translated names can have long words: those get a smaller size, and may break at a hyphen.
+                val name = tool.tile
+                val longest = name.split(' ').maxOf { it.replace("\u00AD", "").length }
+                val size = when { longest > 13 -> 9.sp; longest > 10 -> 10.sp; else -> 11.sp }
                 Text(
-                    tool.tile, style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 12.sp), color = ink, maxLines = 2,
+                    name, style = MaterialTheme.typography.labelSmall.copy(fontSize = size, lineHeight = 12.sp, hyphens = androidx.compose.ui.text.style.Hyphens.Auto), color = ink, maxLines = 2,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 )
             }
@@ -408,14 +420,118 @@ internal fun ToolNumberDialog(tool: GeometryTool, onDone: (String) -> Boolean, o
         text = {
             androidx.compose.material3.OutlinedTextField(
                 value = text, onValueChange = { text = it; bad = false },
-                label = { Text(tool.ask ?: "Number") },
+                label = { Text(tr(tool.ask ?: "Number")) },
                 singleLine = true, isError = bad,
                 supportingText = { if (bad) Text(when (tool) { GeometryTool.RegularPolygon -> "A whole number, 3 or more"; GeometryTool.ComplexRoots -> "A whole number, 1 or more"; GeometryTool.Image -> "A function of z defined in the list, like f(z) = z²"; else -> "Type a number" }) },
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = if (tool == GeometryTool.Image) androidx.compose.ui.text.input.KeyboardType.Text else androidx.compose.ui.text.input.KeyboardType.Decimal),
             )
         },
-        confirmButton = { androidx.compose.material3.TextButton(onClick = { if (!onDone(text)) bad = true }) { Text("Make") } },
-        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = { if (!onDone(text)) bad = true }) { Text(tr("Make")) } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
     )
 }
 
+
+
+/** A step of the geometry guide: what it says, and what you do to finish it (null: just Next). */
+private class GuideStep(val title: String, val text: String, val goal: GuideGoal?, val show: ((GraphViewModel) -> Unit)? = null)
+
+/** What finishes a guide step, checked against how things were when it began. */
+private enum class GuideGoal { PickTool, Build, Drag }
+
+/** The guide's steps for [space]: the same three to do everywhere, then what's special there. */
+private fun guideSteps(space: GeometrySpace, tablet: Boolean): List<GuideStep> = listOf(
+    GuideStep(
+        "Pick a tool",
+        if (tablet) "The tools stand in groups beside the graph. Tap Segment to try one, or let the guide pick it." else "The tools are under the graph, in groups. Tap Segment to try one, or let the guide pick it.",
+        GuideGoal.PickTool, show = { it.selectTool(GeometryTool.Segment) },
+    ),
+    GuideStep(
+        "Tap to build",
+        when (space) {
+            GeometrySpace.Space -> "Tap two points, or empty spots to put new ones on the floor. The card at the top says what each tap is for."
+            else -> "Tap two points, or empty spots to make new ones. The card at the top says what each tap is for."
+        },
+        GuideGoal.Build,
+    ),
+    GuideStep(
+        "Drag a point",
+        when (space) {
+            GeometrySpace.Plane -> "Drag a point you made: everything built on it follows. A point on a line or circle slides along it."
+            GeometrySpace.Space -> "Drag a point you made: it moves level, keeping its height, and everything built on it follows. Edit its line to change its height."
+            GeometrySpace.Complex -> "Drag a point you made: everything built on it follows. Here points are numbers, so its line reads A = 1 + 2i."
+        },
+        GuideGoal.Drag,
+    ),
+    when (space) {
+        GeometrySpace.Plane -> GuideStep("More to build", "Measure gives lengths, areas and angles; Transform reflects, rotates and dilates. Tools on curves (roots, extrema, tangents) work on your functions too.", null)
+        GeometrySpace.Space -> GuideStep("Planes and solids", "Build planes through points, spheres, cubes, pyramids and prisms. Planes are cut to the box and drawn see-through, so what's behind still shows.", null)
+        GeometrySpace.Complex -> GuideStep("Complex tools", "Multiply and divide points as numbers, take nth roots, or draw where a function f(z) from your list takes a point or a shape.", null)
+    },
+    GuideStep("Options and names", "Tap a line's color dot for its size, name and fill. Every construction is a line of text too: edit A = (1, 2), or type Circle(A, 3).", null),
+)
+
+/**
+ * The geometry guide, a card over the bottom of the graph the first time Construct opens in
+ * each graph (the ? on the status card opens it again). Each step says what to do and is
+ * ticked off when you've done it: pick a tool, build something, drag a point. The rest are read
+ * and passed with Next. Skip or Done ends it for this graph.
+ */
+@Composable
+internal fun GeometryGuide(vm: GraphViewModel, modifier: Modifier) {
+    val space = vm.geometrySpace
+    androidx.compose.runtime.LaunchedEffect(vm.constructing) {
+        if (vm.constructing && !AppSettings.geometryGuideSeen(space.code)) { vm.guideStep = 0; vm.guideOpen = true }
+    }
+    if (!vm.guideOpen || !vm.constructing) return
+    val colors = MaterialTheme.colorScheme
+    val steps = guideSteps(space, isTabletLayout())
+    val k = vm.guideStep.coerceIn(0, steps.lastIndex)
+    val step = steps[k]
+    fun finish() { vm.guideOpen = false; AppSettings.markGeometryGuideSeen(space.code) }
+    // How things were when the step began, to tell when its goal is met.
+    val start = remember(k) { Triple(vm.functions.size, vm.pointsMoved, vm.geometryTool) }
+    val met = when (step.goal) {
+        GuideGoal.PickTool -> vm.geometryTool != null
+        GuideGoal.Build -> vm.functions.size > start.first && vm.geometryPicks.isEmpty() && vm.geometryTool != null
+        GuideGoal.Drag -> vm.pointsMoved > start.second
+        null -> false
+    }
+    // A step done moves on by itself, after a moment to see its tick.
+    androidx.compose.runtime.LaunchedEffect(k, met) {
+        if (met) { kotlinx.coroutines.delay(900); if (vm.guideStep == k) vm.guideStep = k + 1 }
+    }
+    Column(
+        modifier.widthIn(max = 460.dp).fillMaxWidth().shadow(8.dp, RoundedCornerShape(24.dp)).clip(RoundedCornerShape(24.dp))
+            .background(colors.tertiaryContainer).blockGraphTouches().padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 6.dp)
+            .semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // A dot per step: done ones filled, this one wider.
+            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically) {
+                steps.indices.forEach { j ->
+                    Box(Modifier.height(6.dp).width(if (j == k) 18.dp else 6.dp).clip(CircleShape).background(if (j <= k) colors.onTertiaryContainer else colors.onTertiaryContainer.copy(alpha = 0.3f)))
+                }
+            }
+            Text(tr("Step {0} of {1}", k + 1, steps.size), style = MaterialTheme.typography.labelMedium, color = colors.onTertiaryContainer.copy(alpha = 0.8f))
+            IconButton(onClick = { finish() }) { Icon(Icons.Filled.Close, contentDescription = tr("Close the guide"), tint = colors.onTertiaryContainer) }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(tr(step.title), style = MaterialTheme.typography.titleMedium, color = colors.onTertiaryContainer, modifier = Modifier.semantics { heading() })
+            AnimatedVisibility(met, enter = fadeIn() + androidx.compose.animation.scaleIn(), exit = fadeOut()) {
+                Icon(Icons.Filled.CheckCircle, contentDescription = tr("Done"), tint = colors.onTertiaryContainer, modifier = Modifier.padding(start = 8.dp).size(20.dp))
+            }
+        }
+        Text(tr(step.text), style = MaterialTheme.typography.bodyMedium, color = colors.onTertiaryContainer, modifier = Modifier.padding(top = 4.dp, end = 8.dp))
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (k < steps.lastIndex) androidx.compose.material3.TextButton(onClick = { finish() }) { Text(tr("Skip the guide"), color = colors.onTertiaryContainer) }
+            Spacer(Modifier.weight(1f))
+            if (k > 0) androidx.compose.material3.TextButton(onClick = { vm.guideStep = k - 1 }) { Text(tr("Back"), color = colors.onTertiaryContainer) }
+            step.show?.takeIf { !met }?.let { show -> androidx.compose.material3.TextButton(onClick = { show(vm) }) { Text(tr("Show me"), color = colors.onTertiaryContainer) } }
+            androidx.compose.material3.FilledTonalButton(
+                onClick = { if (k == steps.lastIndex) finish() else vm.guideStep = k + 1 },
+                colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = colors.onTertiaryContainer, contentColor = colors.tertiaryContainer),
+            ) { Text(tr(if (k == steps.lastIndex) "Done" else "Next")) }
+        }
+    }
+}

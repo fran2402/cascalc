@@ -138,15 +138,15 @@ private fun GraphMenuAction() {
     if (converter) UnitConverterPage(onBack = { converter = false })
     Box {
         IconButton(onClick = { menu = true }) {
-            Icon(Icons.Default.MoreVert, contentDescription = "More options", tint = colors.onSurfaceVariant)
+            Icon(Icons.Default.MoreVert, contentDescription = tr("More options"), tint = colors.onSurfaceVariant)
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             if (AppSettings.unitConverter) DropdownMenuItem(
-                text = { Text("Unit converter") },
+                text = { Text(tr("Unit converter")) },
                 onClick = { menu = false; converter = true },
             )
-            DropdownMenuItem(text = { Text("Settings") }, onClick = { menu = false; settings = true })
-            DropdownMenuItem(text = { Text("Acknowledgements") }, onClick = { menu = false; acknowledgements = true })
+            DropdownMenuItem(text = { Text(tr("Settings")) }, onClick = { menu = false; settings = true })
+            DropdownMenuItem(text = { Text(tr("Acknowledgements")) }, onClick = { menu = false; acknowledgements = true })
         }
     }
 }

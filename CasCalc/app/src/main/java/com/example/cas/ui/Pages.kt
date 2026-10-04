@@ -52,9 +52,9 @@ fun FullScreenPage(title: String, onBack: () -> Unit, content: @Composable Colum
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Back"), tint = MaterialTheme.colorScheme.onSurface)
                     }
-                    Text(title, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(start = 4.dp))
+                    Text(tr(title), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(start = 4.dp))
                 }
                 Column(
                     Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 8.dp),
@@ -79,7 +79,7 @@ class PageSection(val title: String, val icon: androidx.compose.ui.graphics.vect
 fun SectionedPage(title: String, sections: List<PageSection>, onBack: () -> Unit, intro: String? = null) {
     if (!isTabletLayout()) {
         FullScreenPage(title, onBack = onBack) {
-            intro?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            intro?.let { Text(tr(it), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             sections.forEach { s ->
                 SettingsSection(s.title)
                 s.content(this)
@@ -99,8 +99,8 @@ fun SectionedPage(title: String, sections: List<PageSection>, onBack: () -> Unit
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Row(Modifier.padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.onSurface) }
-                        Text(title, style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, maxLines = 1, modifier = Modifier.padding(start = 4.dp))
+                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Back"), tint = colors.onSurface) }
+                        Text(tr(title), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, maxLines = 1, modifier = Modifier.padding(start = 4.dp))
                     }
                     sections.forEachIndexed { i, s ->
                         val on = i == chosen
@@ -110,13 +110,13 @@ fun SectionedPage(title: String, sections: List<PageSection>, onBack: () -> Unit
                                 .height(56.dp)
                                 .clip(androidx.compose.foundation.shape.CircleShape)
                                 .background(if (on) colors.secondaryContainer else androidx.compose.ui.graphics.Color.Transparent)
-                                .clickable(onClickLabel = "Show ${s.title}") { chosen = i }
+                                .clickable(onClickLabel = tr("Show {0}", tr(s.title))) { chosen = i }
                                 .padding(horizontal = 18.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(s.icon, contentDescription = null, tint = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant)
                             Spacer(Modifier.width(14.dp))
-                            Text(s.title, style = MaterialTheme.typography.titleMedium, color = if (on) colors.onSecondaryContainer else colors.onSurface)
+                            Text(tr(s.title), style = MaterialTheme.typography.titleMedium, color = if (on) colors.onSecondaryContainer else colors.onSurface)
                         }
                     }
                 }
@@ -135,8 +135,8 @@ fun SectionedPage(title: String, sections: List<PageSection>, onBack: () -> Unit
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Column(Modifier.widthIn(max = 720.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            Text(s.title, style = MaterialTheme.typography.headlineSmall, color = colors.onSurface)
-                            if (chosen == 0) intro?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant) }
+                            Text(tr(s.title), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface)
+                            if (chosen == 0) intro?.let { Text(tr(it), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant) }
                             s.content(this)
                         }
                     }

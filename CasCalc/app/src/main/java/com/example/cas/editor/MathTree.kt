@@ -211,6 +211,9 @@ fun row(text: String) = MathRow(text.map { Sym(it.toString()) }.toMutableList())
 object MathCodec {
     fun encode(row: MathRow): String = buildString { encodeRow(row) }
 
+    /** Some of a row's nodes as text, as [encode] writes them (without moving them out of their row). */
+    fun encode(nodes: List<Node>): String = buildString { nodes.forEach { encodeNode(it) } }
+
     private fun StringBuilder.encodeRow(row: MathRow) = row.items.forEach { encodeNode(it) }
 
     private fun StringBuilder.encodeNode(n: Node) {

@@ -121,6 +121,10 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Language
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.Pin
 import androidx.compose.material.icons.automirrored.outlined.ShowChart
@@ -320,10 +324,10 @@ fun CalculatorTrailingAction(vm: CalculatorViewModel) {
     if (confirmClear) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },
-            title = { Text("Clear the history?") },
+            title = { Text(tr("Clear the history?")) },
             text = { Text("${vm.clearableCount} calculation${if (vm.clearableCount == 1) "" else "s"} will be removed" + (if (vm.clearableCount < vm.history.size) "; pinned ones and those in folders stay" else "") + ". This can't be undone.") },
-            confirmButton = { TextButton(onClick = { confirmClear = false; vm.clearHistory() }) { Text("Clear") } },
-            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel") } },
+            confirmButton = { TextButton(onClick = { confirmClear = false; vm.clearHistory() }) { Text(tr("Clear")) } },
+            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text(tr("Cancel")) } },
         )
     }
     if (settings) AppSettingsPage(vm, onBack = { settings = false }, onAcknowledgements = { settings = false; acknowledgements = true })
@@ -336,11 +340,11 @@ fun CalculatorTrailingAction(vm: CalculatorViewModel) {
     run {
         Box {
             IconButton(onClick = { menu = true }) {
-                Icon(Icons.Default.MoreVert, contentDescription = "More options", tint = colors.onSurfaceVariant)
+                Icon(Icons.Default.MoreVert, contentDescription = tr("More options"), tint = colors.onSurfaceVariant)
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(
-                    text = { Text("Copy last answer") },
+                    text = { Text(tr("Copy last answer")) },
                     enabled = vm.history.isNotEmpty(),
                     onClick = {
                         menu = false
@@ -349,24 +353,24 @@ fun CalculatorTrailingAction(vm: CalculatorViewModel) {
                 )
                 if (vm.variables.isNotEmpty()) {
                     DropdownMenuItem(
-                        text = { Text("Clear variables (" + vm.variables.keys.sorted().joinToString(", ") + ")") },
+                        text = { Text(tr("Clear variables (") + vm.variables.keys.sorted().joinToString(", ") + ")") },
                         onClick = { menu = false; vm.clearVariables() },
                     )
                 }
                 if (AppSettings.unitConverter) DropdownMenuItem(
-                    text = { Text("Unit converter") },
+                    text = { Text(tr("Unit converter")) },
                     onClick = { menu = false; converter = true },
                 )
                 DropdownMenuItem(
-                    text = { Text("Settings") },
+                    text = { Text(tr("Settings")) },
                     onClick = { menu = false; settings = true },
                 )
                 DropdownMenuItem(
-                    text = { Text("Acknowledgements") },
+                    text = { Text(tr("Acknowledgements")) },
                     onClick = { menu = false; acknowledgements = true },
                 )
                 DropdownMenuItem(
-                    text = { Text("Clear history") },
+                    text = { Text(tr("Clear history")) },
                     enabled = vm.history.isNotEmpty(),
                     onClick = { menu = false; if (AppSettings.confirmClearHistory) confirmClear = true else vm.clearHistory() },
                 )
@@ -402,10 +406,10 @@ private fun Display(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, mo
                 if (confirm) {
                     AlertDialog(
                         onDismissRequest = { confirm = false },
-                        title = { Text("Delete this calculation?") },
-                        text = { Text("It will be removed from the history. This can't be undone.") },
-                        confirmButton = { TextButton(onClick = { confirm = false; vm.deleteHistory(item) }) { Text("Delete") } },
-                        dismissButton = { TextButton(onClick = { confirm = false }) { Text("Cancel") } },
+                        title = { Text(tr("Delete this calculation?")) },
+                        text = { Text(tr("It will be removed from the history. This can't be undone.")) },
+                        confirmButton = { TextButton(onClick = { confirm = false; vm.deleteHistory(item) }) { Text(tr("Delete")) } },
+                        dismissButton = { TextButton(onClick = { confirm = false }) { Text(tr("Cancel")) } },
                     )
                 }
                 // Swiping deletes, or asks first when that's turned on in settings.
@@ -418,9 +422,8 @@ private fun Display(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, mo
                     Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Outlined.History, contentDescription = null, tint = colors.outline, modifier = Modifier.size(40.dp))
                         Spacer(Modifier.height(10.dp))
-                        Text("Your calculations will appear here", color = colors.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "Tap a past question or answer to use it again, hold it to copy it, swipe it away to delete it",
+                        Text(tr("Your calculations will appear here"), color = colors.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
+                        Text(tr("Tap a past question or answer to use it again, hold it to copy it, swipe it away to delete it"),
                             color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 4.dp),
                         )
@@ -472,7 +475,7 @@ private fun InputPanel(vm: CalculatorViewModel) {
                     onTap = vm::tapAt,
                     modifier = Modifier
                         .padding(vertical = 8.dp)
-                        .semantics { contentDescription = "Expression" },
+                        .semantics { contentDescription = tr("Expression") },
                 )
                 // Room past the end: a tap here reaches the end of the line.
                 Spacer(Modifier.width(16.dp))
@@ -537,13 +540,13 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
             .clip(RoundedCornerShape(if (focused) 28.dp else 22.dp))
             .background(background)
             // A tap on the card (not on its math) shows its actions.
-            .clickable(onClickLabel = "Show actions") { vm.focused = item }
+            .clickable(onClickLabel = tr("Show actions")) { vm.focused = item }
             .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow))
             .padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = if (focused) 12.dp else 14.dp),
     ) {
         // Pinned, and its folder, as small marks above the question.
         if (item.pinned || item.folder != null) Row(Modifier.padding(bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (item.pinned) Icon(Icons.Default.PushPin, contentDescription = "Pinned", tint = colors.primary, modifier = Modifier.size(14.dp))
+            if (item.pinned) Icon(Icons.Default.PushPin, contentDescription = tr("Pinned"), tint = colors.primary, modifier = Modifier.size(14.dp))
             item.folder?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = colors.onSecondaryContainer, modifier = Modifier.clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 8.dp, vertical = 2.dp)) }
         }
         // The question: small and muted, tap to use it again, hold to copy it.
@@ -553,7 +556,7 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                 MathSizes.historyInput,
                 colors.onSurfaceVariant,
                 modifier = Modifier.combinedClickable(
-                    onClickLabel = "Use this expression",
+                    onClickLabel = tr("Use this expression"),
                     onLongClick = { copy(Formatter.plain(item.expression), "Expression") },
                     onClick = { vm.reuse(item.expression) },
                 ),
@@ -578,7 +581,7 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                     answerSize,
                     colors.onSurface,
                     modifier = Modifier.combinedClickable(
-                        onClickLabel = "Use this answer",
+                        onClickLabel = tr("Use this answer"),
                         onLongClick = { copy(Formatter.plain(shown), "Answer") },
                         onClick = { vm.reuse(shown) },
                     ),
@@ -603,7 +606,7 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                         val fg = if (tonal) colors.onSecondaryContainer else colors.onSurfaceVariant
                         Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text(label, color = fg, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                        Text(tr(label), color = fg, style = MaterialTheme.typography.labelLarge, maxLines = 1)
                     }
                 }
                 val g = item.graph
@@ -633,12 +636,12 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                 }
                 Box {
                     Box(
-                        Modifier.size(34.dp).clip(CircleShape).clickable(onClickLabel = "More: folder, share, delete") { tap(); shareMenu = true },
+                        Modifier.size(34.dp).clip(CircleShape).clickable(onClickLabel = tr("More: folder, share, delete")) { tap(); shareMenu = true },
                         contentAlignment = Alignment.Center,
-                    ) { Icon(Icons.Default.MoreVert, contentDescription = "More: folder, share, delete", tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp)) }
+                    ) { Icon(Icons.Default.MoreVert, contentDescription = tr("More: folder, share, delete"), tint = colors.onSurfaceVariant, modifier = Modifier.size(20.dp)) }
                     DropdownMenu(expanded = shareMenu, onDismissRequest = { shareMenu = false }, shape = RoundedCornerShape(16.dp)) {
                         if (g != null) DropdownMenuItem(
-                            text = { Text("Use the answer") }, leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardReturn, null) },
+                            text = { Text(tr("Use the answer")) }, leadingIcon = { Icon(Icons.AutoMirrored.Filled.KeyboardReturn, null) },
                             onClick = { shareMenu = false; vm.reuse(shown) },
                         )
                         DropdownMenuItem(
@@ -646,16 +649,16 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                             onClick = { shareMenu = false; movingToFolder = true },
                         )
                         HorizontalDivider()
-                        DropdownMenuItem(text = { Text("Share as image") }, leadingIcon = { Icon(Icons.Default.Share, null) }, onClick = {
+                        DropdownMenuItem(text = { Text(tr("Share as image")) }, leadingIcon = { Icon(Icons.Default.Share, null) }, onClick = {
                             shareMenu = false
                             scope.launch { shareImage(context, layer.toImageBitmap().asAndroidBitmap()) }
                         })
-                        DropdownMenuItem(text = { Text("Share as LaTeX") }, leadingIcon = { Icon(Icons.Default.Share, null) }, onClick = { shareMenu = false; shareText(context, latex()) })
-                        DropdownMenuItem(text = { Text("Copy LaTeX") }, leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, onClick = { shareMenu = false; copy(latex(), "LaTeX") })
+                        DropdownMenuItem(text = { Text(tr("Share as LaTeX")) }, leadingIcon = { Icon(Icons.Default.Share, null) }, onClick = { shareMenu = false; shareText(context, latex()) })
+                        DropdownMenuItem(text = { Text(tr("Copy LaTeX")) }, leadingIcon = { Icon(Icons.Default.ContentCopy, null) }, onClick = { shareMenu = false; copy(latex(), "LaTeX") })
                         HorizontalDivider()
                         // Delete, as swiping does (asking first when that's on).
                         DropdownMenuItem(
-                            text = { Text("Delete", color = colors.error) },
+                            text = { Text(tr("Delete"), color = colors.error) },
                             leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = colors.error) },
                             onClick = { shareMenu = false; if (AppSettings.confirmDeleteEntry) confirm = true else vm.deleteHistory(item) },
                         )
@@ -663,10 +666,10 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                 }
                 if (confirm) AlertDialog(
                     onDismissRequest = { confirm = false },
-                    title = { Text("Delete this calculation?") },
-                    text = { Text("It will be removed from the history. This can't be undone.") },
-                    confirmButton = { TextButton(onClick = { confirm = false; vm.deleteHistory(item) }) { Text("Delete") } },
-                    dismissButton = { TextButton(onClick = { confirm = false }) { Text("Cancel") } },
+                    title = { Text(tr("Delete this calculation?")) },
+                    text = { Text(tr("It will be removed from the history. This can't be undone.")) },
+                    confirmButton = { TextButton(onClick = { confirm = false; vm.deleteHistory(item) }) { Text(tr("Delete")) } },
+                    dismissButton = { TextButton(onClick = { confirm = false }) { Text(tr("Cancel")) } },
                 )
             }
         }
@@ -734,7 +737,7 @@ private fun ControlRow(vm: KeypadHost) {
                 }
             }
             IconButton(onClick = { editing = true }) {
-                Icon(Icons.Default.Edit, contentDescription = "Choose the coordinate letters", tint = colors.onSurfaceVariant)
+                Icon(Icons.Default.Edit, contentDescription = tr("Choose the coordinate letters"), tint = colors.onSurfaceVariant)
             }
             if (editing) CoordinatesDialog(vm.coordinates, onDone = { vm.selectCoordinates(it); editing = false }, onDismiss = { editing = false })
         } else if (onConstants) {
@@ -1016,7 +1019,7 @@ private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, 
         LabelView(spec.label, fg, fontSize, iconSize = if (spec.label == KeyLabel.BackspaceIcon || spec.label == KeyLabel.EnterIcon) 28.dp else 24.dp)
         if (pinned) {
             Icon(
-                Icons.Default.PushPin, contentDescription = "Pinned", tint = fg.copy(alpha = 0.7f),
+                Icons.Default.PushPin, contentDescription = tr("Pinned"), tint = fg.copy(alpha = 0.7f),
                 modifier = Modifier.align(Alignment.TopStart).padding(start = 6.dp, top = 4.dp).size(11.dp).rotate(-30f),
             )
         }
@@ -1077,18 +1080,18 @@ private fun KeyHelpDialog(
                         if (onUndefine != null) FilledTonalButton(onClick = onUndefine) {
                             Icon(Icons.Default.Clear, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Undefine" + (symbol?.let { s -> com.example.cas.cas.CustomSymbol.decode(s)?.let { "" } ?: " $s" } ?: ""))
+                            Text(tr("Undefine") + (symbol?.let { s -> com.example.cas.cas.CustomSymbol.decode(s)?.let { "" } ?: " $s" } ?: ""))
                         }
                         if (onRemove != null) OutlinedButton(onClick = onRemove) {
                             Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.error)
                             Spacer(Modifier.width(8.dp))
-                            Text("Remove symbol", color = colors.error)
+                            Text(tr("Remove symbol"), color = colors.error)
                         }
                     }
                 }
                 if (help.usage.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("How to use", style = MaterialTheme.typography.labelLarge, color = colors.primary)
+                        Text(tr("How to use"), style = MaterialTheme.typography.labelLarge, color = colors.primary)
                         MathText(help.usage, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
                     }
                 }
@@ -1098,14 +1101,13 @@ private fun KeyHelpDialog(
                     Row(
                         Modifier
                             .clip(RoundedCornerShape(12.dp))
-                            .clickable(onClickLabel = "Open the NIST page") { runCatching { uri.openUri(url) } }
+                            .clickable(onClickLabel = tr("Open the NIST page")) { runCatching { uri.openUri(url) } }
                             .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = colors.primary, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(
-                            "NIST CODATA value and uncertainty",
+                        Text(tr("NIST CODATA value and uncertainty"),
                             style = MaterialTheme.typography.bodyMedium.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline),
                             color = colors.primary,
                         )
@@ -1113,7 +1115,7 @@ private fun KeyHelpDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Dismiss") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Dismiss")) } },
     )
 }
 
@@ -1191,7 +1193,7 @@ private fun KeypadHandle(onHide: () -> Unit) {
                     onDragEnd = { if (pulled > 24.dp.toPx()) onHide() },
                 )
             }
-            .clickable(onClickLabel = "Hide the keyboard", onClick = onHide),
+            .clickable(onClickLabel = tr("Hide the keyboard"), onClick = onHide),
         contentAlignment = Alignment.Center,
     ) {
         // Just the pill: swipe it down (or tap it) to hide the keyboard.
@@ -1203,7 +1205,7 @@ private fun KeypadHandle(onHide: () -> Unit) {
 fun ShowKeypadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     SmallFloatingActionButton(
         onClick = onClick,
-        modifier = modifier.semantics { contentDescription = "Show the keyboard" },
+        modifier = modifier.semantics { contentDescription = tr("Show the keyboard") },
         containerColor = MaterialTheme.colorScheme.secondaryContainer,
     ) {
         Icon(Icons.Default.Keyboard, contentDescription = null)
@@ -1266,7 +1268,7 @@ private fun MatrixPickerDialog(onPick: (Int, Int) -> Unit, onDismiss: () -> Unit
     var cols by remember { mutableStateOf(2) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Matrix size") },
+        title = { Text(tr("Matrix size")) },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 MathText("\$$rows \\times $cols\$", style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 20.sp), color = colors.onSurface)
@@ -1290,8 +1292,8 @@ private fun MatrixPickerDialog(onPick: (Int, Int) -> Unit, onDismiss: () -> Unit
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onPick(rows, cols) }) { Text("Insert") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = { onPick(rows, cols) }) { Text(tr("Insert")) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
     )
 }
 
@@ -1333,7 +1335,7 @@ private fun ConstantsSheet(units: UnitSystem, onPick: (String) -> Unit, onDismis
     }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerLow) {
         Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Physical constants", style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.weight(1f))
+            Text(tr("Physical constants"), style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.weight(1f))
             Text(
                 "${units.label} units",
                 style = MaterialTheme.typography.labelMedium,
@@ -1349,15 +1351,15 @@ private fun ConstantsSheet(units: UnitSystem, onPick: (String) -> Unit, onDismis
             Icon(Icons.Default.Search, contentDescription = null, tint = colors.onSurfaceVariant)
             Spacer(Modifier.width(12.dp))
             Box(Modifier.weight(1f)) {
-                if (query.isEmpty()) Text("Search constants", color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
+                if (query.isEmpty()) Text(tr("Search constants"), color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge)
                 androidx.compose.foundation.text.BasicTextField(
                     query, { query = it }, singleLine = true,
                     textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface),
                     cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.primary),
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Search constants" },
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Search constants") },
                 )
             }
-            if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Default.Close, contentDescription = "Clear the search", tint = colors.onSurfaceVariant) }
+            if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Default.Close, contentDescription = tr("Clear the search"), tint = colors.onSurfaceVariant) }
         }
         // A chip for each section of the list.
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1405,8 +1407,7 @@ private fun ConstantsSheet(units: UnitSystem, onPick: (String) -> Unit, onDismis
                         Column(Modifier.weight(1f)) {
                             FlowRow(verticalArrangement = Arrangement.Center, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(k.description, color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
-                                if (k.exact && units == UnitSystem.SI) Text(
-                                    "exact",
+                                if (k.exact && units == UnitSystem.SI) Text(tr("exact"),
                                     color = colors.onTertiaryContainer,
                                     style = MaterialTheme.typography.labelSmall,
                                     modifier = Modifier.align(Alignment.CenterVertically).clip(CircleShape).background(colors.tertiaryContainer).padding(horizontal = 8.dp, vertical = 2.dp),
@@ -1417,7 +1418,7 @@ private fun ConstantsSheet(units: UnitSystem, onPick: (String) -> Unit, onDismis
                                 MathView(Formatter.row(com.example.cas.cas.Numeric.approx(value)), 16.sp, colors.onSurface)
                                 // SI units only mean something in SI; other systems are in their own units.
                                 if (units == UnitSystem.SI && k.unit.isNotEmpty()) {
-                                    Text("  " + k.unit, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                                    Text(tr("  ") + k.unit, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                                 }
                             }
                         }
@@ -1436,7 +1437,7 @@ private fun ConstantsSheet(units: UnitSystem, onPick: (String) -> Unit, onDismis
 
 @Composable
 internal fun SettingsSection(title: String) =
-    Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
+    Text(tr(title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
 
 @Composable
 private fun SettingsToggle(title: String, detail: String?, checked: Boolean, onChange: (Boolean) -> Unit, badge: String? = null) {
@@ -1444,13 +1445,13 @@ private fun SettingsToggle(title: String, detail: String?, checked: Boolean, onC
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(title, color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
+                Text(tr(title), color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
                 if (badge != null) {
                     Spacer(Modifier.width(8.dp))
-                    BetaBadge(badge)
+                    BetaBadge(tr(badge))
                 }
             }
-            if (detail != null) MathText(detail, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+            if (detail != null) MathText(tr(detail), color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
         Switch(checked = checked, onCheckedChange = onChange)
     }
@@ -1461,12 +1462,12 @@ private fun SettingsToggle(title: String, detail: String?, checked: Boolean, onC
 private fun SettingsLink(title: String, detail: String?, clickLabel: String, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = clickLabel, onClick = onClick).padding(vertical = 8.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = tr(clickLabel), onClick = onClick).padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
-            if (detail != null) MathText(detail, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+            Text(tr(title), color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
+            if (detail != null) MathText(tr(detail), color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.onSurfaceVariant)
     }
@@ -1477,14 +1478,14 @@ private fun SettingsLink(title: String, detail: String?, clickLabel: String, onC
 private fun SettingsSlider(title: String, subtitle: String?, value: Int, range: IntRange, description: String, onChange: (Int) -> Unit) {
     val colors = MaterialTheme.colorScheme
     Column {
-        MathText(title, color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
-        if (subtitle != null) MathText(subtitle, color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        MathText(tr(title), color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
+        if (subtitle != null) MathText(tr(subtitle), color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         ExpressiveSlider(
             value = value.toFloat(),
             onValueChange = { v -> v.roundToInt().let { if (it != value) onChange(it) } },
             valueRange = range.first.toFloat()..range.last.toFloat(),
             steps = range.last - range.first - 1,
-            modifier = Modifier.semantics { contentDescription = description },
+            modifier = Modifier.semantics { contentDescription = tr(description) },
         )
     }
 }
@@ -1498,7 +1499,7 @@ private fun ThemeColorChoice() {
     val current = AppSettings.themeColor
     val custom = TonalScheme.PRESETS.none { it.second == current }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("App color", color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
+        Text(tr("App color"), color = colors.onSurface, style = MaterialTheme.typography.bodyLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             @Composable
             fun Swatch(fill: Color, selected: Boolean, label: String, onClick: () -> Unit, content: @Composable () -> Unit = {}) {
@@ -1530,12 +1531,29 @@ private fun ThemeColorChoice() {
     )
 }
 
+/** A choice of a few longer options (languages), one per row with a radio button. */
+@Composable
+private fun SettingsRadio(title: String, options: List<String>, selected: Int, onChange: (Int) -> Unit) {
+    Column(Modifier.selectableGroup()) {
+        Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(bottom = 2.dp))
+        options.forEachIndexed { k, name ->
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).selectable(selected = selected == k, role = Role.RadioButton) { onChange(k) }.padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                androidx.compose.material3.RadioButton(selected = selected == k, onClick = null, modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp))
+                Text(name, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+    }
+}
+
 @Composable
 private fun SettingsChoice(title: String, options: List<String>, selected: Int, onChange: (Int) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(title, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyLarge)
+        Text(tr(title), color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyLarge)
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            options.forEachIndexed { k, name ->
+            options.map { tr(it) }.forEachIndexed { k, name ->
                 SegmentedButton(
                     selected = selected == k,
                     onClick = { onChange(k) },
@@ -1556,6 +1574,14 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
     if (howTo) DocsPage(onBack = { howTo = false })
     // One scrolling page on a phone; on a tablet, the sections down the left and one at a time on the right.
     SectionedPage("Settings", onBack = onBack, sections = listOf(
+        PageSection("Language", Icons.Outlined.Language) {
+            // The system's language, or one picked here; each written in itself.
+            val codes = listOf("") + I18n.languages.map { it.code }
+            // Its title says "Language" in English too, so it can be found from any language.
+            SettingsRadio(if (I18n.code == "en") "Language" else tr("Language") + " (Language)", listOf(tr("System")) + I18n.languages.map { it.name }, codes.indexOf(AppSettings.language).coerceAtLeast(0)) { AppSettings.changeLanguage(codes[it]) }
+            if (I18n.code == "sh") SettingsChoice("Spelling", listOf("Ijekavian", "Ekavian"), if (AppSettings.ekavian) 1 else 0) { AppSettings.changeEkavian(it == 1) }
+            if (I18n.code != "en") Text(tr("Translations are new and may be incomplete: anything not translated yet shows in English. The documentation and key explanations are in English."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        },
         PageSection("Appearance", Icons.Outlined.Palette) {
             SettingsChoice("Theme", listOf("System", "Light", "Dark"), AppSettings.theme, AppSettings::changeTheme)
             val wallpaperColors = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
@@ -1640,7 +1666,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
         },
         PageSection("Home screen", Icons.Outlined.AddToHomeScreen) {
             val context = LocalContext.current
-            Text("Put a shortcut on your home screen that opens straight to one of these. Holding the app's icon shows them too.", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            Text(tr("Put a shortcut on your home screen that opens straight to one of these. Holding the app's icon shows them too."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
             Shortcuts.entries.forEach { e ->
                 SettingsLink(e.longLabel, "Add to the home screen", "Add a ${e.longLabel} shortcut to the home screen") { Shortcuts.pin(context, e) }
             }
@@ -1716,7 +1742,7 @@ internal fun CoordinateLettersDialog(title: String, roles: List<String>, current
     val letters = (defaults + COORDINATE_LETTERS + current).distinct()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        title = { Text(tr(title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 roles.forEachIndexed { k, role ->
@@ -1744,7 +1770,7 @@ internal fun CoordinateLettersDialog(title: String, roles: List<String>, current
                 }
             }
         },
-        confirmButton = { TextButton(enabled = valid, onClick = { onDone(names) }) { Text("Done") } },
+        confirmButton = { TextButton(enabled = valid, onClick = { onDone(names) }) { Text(tr("Done")) } },
         dismissButton = { TextButton(onClick = { names = defaults }) { Text("Reset to ${defaults.joinToString(", ")}") } },
     )
 }

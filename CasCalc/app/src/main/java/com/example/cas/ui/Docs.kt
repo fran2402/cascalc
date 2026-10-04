@@ -590,6 +590,7 @@ object Docs {
                 ),
                 section(
                     "Building by tapping",
+                    para("The first time Construct opens in each graph, a short guide walks through it at the bottom of the graph: pick a tool, tap to build, drag a point, then what's special to that graph. Each step ticks itself off when you've done it, Show me does it for you, and Skip ends it. The ? on the status card shows the guide again."),
                     para("Construct, top right of the graph, starts building. On a phone the tool palette takes the list's place under the graph (the list comes back when you're done, or when you edit a line or add something), always the same size, its tiles all alike, scrolling when a group has more; on a tablet the tools stand in a rail beside the graph, and touches on it never move the graph. The tools come in groups (points, lines, circles and shapes, conics, measure, transform, and planes and solids in 3D or complex on the complex plane), each with an icon, and each graph offers only the tools that work there; Move, the first, just drags points. A card at the top shows each step (its dots, what it's for, what to tap) and what you've picked, with Undo, Close for a polygon, Finish for tools that take any number of points (polyline, best-fit line), and Done."),
                     para("Some tools ask for a number after the taps: a segment's length, a circle's radius, a regular polygon's sides, an angle's size, a rotation's angle or a dilation's factor. Compass takes a radius from two points and a center from a third. The Transform group mirrors in a line or point, inverts in a circle, rotates, translates by a vector and dilates."),
                     para("Tap points, or empty space to make one there; tools that need a line, circle or curve take a tap on it, and whatever the next tap can take glows. New lines are named on their own (A, B… for points, f, g… for others, α, β… for angles)."),
@@ -606,6 +607,19 @@ object Docs {
                 section(
                     "Export",
                     para("PNG, SVG or PDF, in the style of pgfplots with LaTeX fonts and a legend; 3D surfaces also as STL for printing."),
+                ),
+            ),
+        ),
+        Chapter(
+            "Languages", "language", "English, Frisian and Serbo-Croatian.", part = APP, sections = listOf(
+                section(
+                    "Choosing one",
+                    para("Settings › Language picks English, Frysk (West Frisian) or srpskohrvatski (Serbo-Croatian), or follows the phone's language. Serbo-Croatian is written in the Latin alphabet, in ijekavian (vrijeme, mjesto) or ekavian (vreme, mesto) spelling, chosen under Spelling; it starts as ekavian on a phone set to Serbian. The setting's title also says Language in English, so it's easy to find again."),
+                    para("The translations are new: the menus, settings, graphs, data tables and geometry tools are translated, and anything not yet translated (this documentation and the key explanations among them) stays in English. Math looks the same in every language."),
+                ),
+                section(
+                    "Adding or fixing translations",
+                    para("Each language is a plain text file in the app, assets/i18n: one line per string, the English, a tab, then the translation. Serbo-Croatian writes both spellings as {ijekavian|ekavian} where they differ. A missing line simply shows the English, and a test checks every line matches a string the app shows."),
                 ),
             ),
         ),

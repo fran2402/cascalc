@@ -203,6 +203,28 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, languages, speed, geometry guide)
+- **Languages (test):** Settings › Language picks English, Frysk (West Frisian) or
+  srpskohrvatski (Serbo-Croatian), or follows the phone. Serbo-Croatian has a Spelling choice,
+  ijekavian (vrijeme) or ekavian (vreme); it starts as ekavian on a phone set to Serbian. The
+  setting's title also says "Language" in English so it can always be found.
+  - About 570 strings are translated: settings, menus, graphs, data tables, the converter and
+    every geometry tool. Anything not translated yet, including the documentation and the key
+    explanations, stays in English.
+  - Translations are plain files, `assets/i18n/fy.tsv` and `sh.tsv`: the English, a tab, then
+    the translation. Serbo-Croatian writes `{ijekavian|ekavian}` where the spellings differ.
+    `TranslationsTest` checks each line matches a string the app shows, keeps its placeholders,
+    and that both languages cover the same strings.
+  - The strings are machine-written and need a native speaker's review.
+- **Faster dragging:** moving a construction's point no longer compiles every function again,
+  samples the 3D surfaces again, or redraws the complex colouring; only the constructions are
+  worked out again. Numbers typed in constructions (Distance(A, B)/2) are compiled once and
+  reused, which speeds up loci most.
+- **Geometry guide:** the first time Construct opens in each graph, a card at the bottom walks
+  through it: pick a tool, tap to build, drag a point, then what's special to that graph. Each
+  step ticks itself off when done. Show me does it for you, Skip ends it, and the ? on the
+  status card shows it again.
+
 ## Latest changes (4 October, dragging in 3D and the complex plane, typing fixes)
 - **Deleting every line (phones):** the list no longer stays full screen with no keyboard.
   Deleting the line being typed in ends typing, and so does deleting the last line: the

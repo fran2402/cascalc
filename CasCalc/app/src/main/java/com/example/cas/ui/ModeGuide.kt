@@ -154,13 +154,13 @@ private fun TabletGuide(mode: Mode, onMode: (Mode) -> Unit, onTry: (Mode, MathRo
                     Modifier.width(260.dp).fillMaxHeight().background(colors.surfaceContainer).padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("Guide", style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 8.dp))
+                    Text(tr("Guide"), style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 8.dp))
                     Mode.entries.forEach { m ->
                         val on = m == mode
                         val bg by animateColorAsState(if (on) colors.secondaryContainer else colors.surfaceContainer, label = "rail")
                         Row(
                             Modifier.fillMaxWidth().clip(RoundedCornerShape(if (on) 28.dp else 16.dp)).background(bg)
-                                .clickable(onClickLabel = "Show the guide to ${m.label}") { onMode(m) }
+                                .clickable(onClickLabel = tr("Show the guide to {0}", m.label)) { onMode(m) }
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -187,7 +187,7 @@ private fun TabletGuide(mode: Mode, onMode: (Mode) -> Unit, onTry: (Mode, MathRo
                         }
                     }
                     IconButton(onClick = onDismiss, modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = colors.onSurfaceVariant)
+                        Icon(Icons.Default.Close, contentDescription = tr("Close"), tint = colors.onSurfaceVariant)
                     }
                 }
             }
@@ -205,7 +205,7 @@ private fun ModeChips(mode: Mode, onMode: (Mode) -> Unit) {
             val bg by animateColorAsState(if (on) colors.primary else colors.surfaceContainerHigh, label = "chip")
             Row(
                 Modifier.height(40.dp).clip(CircleShape).background(bg)
-                    .clickable(onClickLabel = "Show the guide to ${m.label}") { onMode(m) }
+                    .clickable(onClickLabel = tr("Show the guide to {0}", m.label)) { onMode(m) }
                     .padding(start = 12.dp, end = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -286,7 +286,7 @@ private fun ExampleGrid(mode: Mode, examples: List<ModeGuides.Example>, columns:
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             val tryInk = if (emphasized) colors.onTertiary else colors.onPrimaryContainer
-                            Text("Try", style = MaterialTheme.typography.labelMedium, color = tryInk)
+                            Text(tr("Try"), style = MaterialTheme.typography.labelMedium, color = tryInk)
                             Spacer(Modifier.width(4.dp))
                             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = tryInk, modifier = Modifier.size(16.dp))
                         }
