@@ -203,6 +203,11 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, larger symbols tab)
+
+- The **symbols tab** letters (and saved symbols), set in LaTeX's font, are drawn about half
+  again as large, still fitted inside the key.
+
 ## Latest changes (4 October, bigger key symbols, gesture hands, ⊤)
 
 - **One tone on tertiary**: a defined symbol's key (tertiary container) and tertiary tips draw

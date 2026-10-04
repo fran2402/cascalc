@@ -1205,7 +1205,10 @@ private fun LabelView(label: KeyLabel, fg: Color, fontSize: Float, iconSize: Dp)
                 fontSize = (if (label.text.length > 3) fontSize * 0.85f else fontSize).sp,
             ),
         )
-        is KeyLabel.Math -> FitInside { MathView(label.row, (fontSize * 0.9f).sp, fg, emptyAsDot = true, computerModern = label.latex) }
+        // Symbols set in LaTeX's font (the symbols tab, saved symbols) are drawn larger, as big as the key allows.
+        is KeyLabel.Math -> if (label.latex) Box(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
+            FitInside { MathView(label.row, (fontSize * 1.35f).sp, fg, emptyAsDot = true, computerModern = true) }
+        } else FitInside { MathView(label.row, (fontSize * 0.9f).sp, fg, emptyAsDot = true, computerModern = label.latex) }
         is KeyLabel.Icon -> AppIcon(iconFor(label.id), contentDescription = null, tint = fg, modifier = Modifier.size(iconSize))
         is KeyLabel.Matrix -> MatrixLabel(label, fg)
         KeyLabel.BackspaceIcon -> AppIcon(TableIcons.Backspace, contentDescription = null, tint = fg, modifier = Modifier.size(iconSize))
