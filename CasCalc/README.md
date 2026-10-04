@@ -203,6 +203,18 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, dragging in 3D and the complex plane, typing fixes)
+- **Deleting every line (phones):** the list no longer stays full screen with no keyboard.
+  Deleting the line being typed in ends typing, and so does deleting the last line: the
+  keyboard and the list step back and the graph returns.
+- **Dragging points in 3D and on the complex plane:** free construction points drag, as on the
+  2D graph. In 3D a point moves level (its height kept) and snaps to a fortieth of the box. On
+  the complex plane a point snaps to a hundredth of the view, and a point typed as a number
+  (A = 1 + 1.5i) is rewritten as one. Points on paths slide along them.
+- **Complex plane drawn like the 2D graph:** lines, curves, loops and constructions have no dark
+  outline any more. They use their own thickness and style (dashed, dotted…), points their mark
+  and size, vectors an arrowhead, and names are set in math italic. Exports match.
+
 ## Latest changes (4 October, geometry in space and on the complex plane)
 - **3D geometry:** with geometry mode on, the 3D graph builds in space (`graph/Geometry3D.kt`,
   with tests).

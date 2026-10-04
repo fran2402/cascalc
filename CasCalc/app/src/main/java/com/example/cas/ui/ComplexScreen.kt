@@ -11,6 +11,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -251,6 +253,40 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                     }
                 }
             }
+            .pointerInput(Unit) {
+                // Drag a construction's free point (A = 1 + 2i, A = (1, 2)) to move it, or a point on
+                // a path along it; what's built on it follows. (Reads the latest drawing as it moves.)
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    if (!AppSettings.geometry || OverlayTouch.owns(down)) return@awaitEachGesture
+                    val v0 = vm.view ?: return@awaitEachGesture
+                    val reach = 28.dp.toPx()
+                    val hitFn = geometryState.value.asSequence().filter { (fn, o, _) -> o is com.example.cas.graph.Geometry.Point && vm.isDraggablePoint(fn) }
+                        .map { (fn, o, _) -> val p = o as com.example.cas.graph.Geometry.Point; fn to (toScreen(v0, CD(p.x, p.y), size.width.toFloat(), size.height.toFloat(), sc) - down.position).getDistance() }
+                        .filter { it.second < reach }.minByOrNull { it.second }?.first ?: return@awaitEachGesture
+                    val slop = viewConfiguration.touchSlop
+                    var dragging = false
+                    var moved = false
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        if (event.changes.count { it.pressed } > 1) break
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) break
+                        if (!dragging && (change.position - down.position).getDistance() > slop) { dragging = true; probe = null; hit = null }
+                        if (!dragging) continue
+                        change.consume()
+                        val v = vm.view ?: break
+                        val z = toPlane(v, change.position, size, sc)
+                        if (hitFn.geometry?.onPath == true) vm.movePathPoint(hitFn, z.re, z.im, first = !moved)
+                        else {
+                            // Snapped to a tidy value, a hundredth of the view.
+                            val snapX = com.example.cas.graph.Plot2D.niceStep(v.width, 100); val snapY = com.example.cas.graph.Plot2D.niceStep(v.height, 100)
+                            vm.moveFreePoint(hitFn, Math.round(z.re / snapX) * snapX, Math.round(z.im / snapY) * snapY, first = !moved)
+                        }
+                        moved = true
+                    }
+                }
+            }
             // Hold and drag to read f(z) continuously as the finger moves.
             .holdToTrace(Unit) { o -> vm.view?.let { v -> hit = null; probe = toPlane(v, o, size, sc) } }
             .pointerInput(Unit) {
@@ -299,7 +335,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
             // with a halo in the surface color so they read over the coloring.
             if (vm.polarGrid && sc.linear) drawPolarGrid(v, if (AppSettings.showGrid) colors.outlineVariant else Color.Transparent, colors.onSurfaceVariant, measurer, vm.angle == com.example.cas.engine.AngleUnit.Degrees, halo = colors.surface)
             else drawGrid(v, if (AppSettings.showGrid) colors.outlineVariant else Color.Transparent, colors.onSurfaceVariant, measurer, ySuffix = "i", halo = colors.surface, scale = sc)
-            // Curves, outlined so they show on any color.
+            // Curves, in their line's thickness and style, as on the 2D graph.
             // The first line in the list last, so it's on top.
             curves.asReversed().forEach { (fn, segs) ->
                 val lineColor = complexLineColor(fn)
@@ -308,8 +344,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                     val a = toScreen(v, CD(sg[0], sg[1]), size.width, size.height, sc); val b = toScreen(v, CD(sg[2], sg[3]), size.width, size.height, sc)
                     path.moveTo(a.x, a.y); path.lineTo(b.x, b.y)
                 }
-                drawPath(path, Color.Black.copy(alpha = 0.55f), style = Stroke(4.5.dp.toPx(), cap = StrokeCap.Round))
-                drawPath(path, lineColor, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
+                drawPath(path, lineColor, style = lineStroke(fn))
             }
             // A picked area, shaded in its line's color.
             vm.complexArea?.let { ar ->
@@ -319,8 +354,10 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                     drawPath(path, c.copy(alpha = 0.3f))
                 }
             }
-            // Geometry: fills, then lines outlined so they show on any color, points, names and labels.
-            val geoLabel = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 15.sp, color = Color.White)
+            // Geometry, drawn as on the 2D graph: fills, lines (with a vector's arrowhead), points in
+            // their mark and size, names in math italic and values (with a soft halo over the coloring).
+            val halo = androidx.compose.ui.graphics.Shadow(colors.surface, blurRadius = 5f)
+            val geoLabel = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 16.sp, color = colors.onSurface, shadow = halo)
             for ((fn, o, d) in geometry) {
                 val c = complexLineColor(fn)
                 fun at(x: Double, y: Double) = toScreen(v, CD(x, y), size.width, size.height, sc)
@@ -330,23 +367,19 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                 d.lines.forEach { line ->
                     val path = Path()
                     line.forEachIndexed { k, (x, y) -> val q = at(x, y); if (k == 0) path.moveTo(q.x, q.y) else path.lineTo(q.x, q.y) }
-                    drawPath(path, Color.Black.copy(alpha = 0.55f), style = Stroke((fn.thickness + 2.5f).dp.toPx(), cap = StrokeCap.Round))
-                    drawPath(path, c, style = Stroke(fn.thickness.dp.toPx(), cap = StrokeCap.Round))
+                    drawPath(path, c, style = lineStroke(fn))
+                    if (d.arrow && line.size >= 2) drawArrowHead(at(line[line.size - 2].first, line[line.size - 2].second), at(line.last().first, line.last().second), c, fn.thickness.dp.toPx())
                 }
-                d.points.forEach { p ->
-                    val q = at(p.x, p.y)
-                    drawCircle(Color.Black.copy(alpha = 0.55f), 7.5.dp.toPx(), q)
-                    drawCircle(c, 6.dp.toPx(), q)
-                    drawCircle(colors.surface, 2.dp.toPx(), q)
-                }
+                val mark = com.example.cas.graph.Marker.of(fn.pointShape)
+                d.points.forEach { p -> drawMarker(mark, at(p.x, p.y), fn.pointSize.dp.toPx(), c) }
                 val name = fn.geometry?.name
                 if (name != null && !fn.hideName && o is com.example.cas.graph.Geometry.Point) {
                     val q = at(o.x, o.y); val t = measurer.measure(geometryLabel(name), geoLabel)
-                    drawText(t, topLeft = Offset(q.x + 8.dp.toPx(), q.y - t.size.height - 3.dp.toPx()), shadow = androidx.compose.ui.graphics.Shadow(Color.Black, blurRadius = 4f))
+                    drawText(t, topLeft = Offset(q.x + 6.dp.toPx(), q.y - t.size.height - 2.dp.toPx()))
                 }
                 d.labels.forEach { (p, text) ->
-                    val q = at(p.x, p.y); val t = measurer.measure(text, geoLabel.copy(fontFamily = CasFonts.CmRoman, fontSize = 13.sp))
-                    drawText(t, topLeft = Offset(q.x - t.size.width / 2f, q.y - t.size.height / 2f), shadow = androidx.compose.ui.graphics.Shadow(Color.Black, blurRadius = 4f))
+                    val q = at(p.x, p.y); val t = measurer.measure(text, geoLabel.copy(fontFamily = CasFonts.CmRoman, fontSize = 14.sp))
+                    drawText(t, topLeft = Offset(q.x - t.size.width / 2f, q.y - t.size.height / 2f))
                 }
             }
             // What a tool has picked so far: points ringed, objects in a broad band.
@@ -362,11 +395,10 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
             }
             hit?.let { h ->
                 val o = toScreen(v, h.z, size.width, size.height, sc)
-                drawCircle(Color.Black.copy(alpha = 0.55f), 8.dp.toPx(), o)
-                drawCircle(complexLineColor(h.fn), 6.5.dp.toPx(), o)
-                drawCircle(colors.surface, 2.5.dp.toPx(), o)
+                drawCircle(colors.surface, 5.dp.toPx(), o)
+                drawCircle(complexLineColor(h.fn), 5.dp.toPx(), o, style = Stroke(2.dp.toPx()))
             }
-            // Points ([1 + i, 2]) and curves z(t) (e^{it}), outlined like the curves above.
+            // Points ([1 + i, 2]) and curves z(t) (e^{it}), styled like the curves above.
             fun screen(w: com.example.cas.cas.CD) = toScreen(v, w, size.width, size.height, sc)
             vm.functions.filter { it.visible && (it.complexPoints != null || it.complexPath != null) }.asReversed().forEach { fn ->
                 val lineColor = complexLineColor(fn)
@@ -385,8 +417,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                         if (pen) path.lineTo(o.x, o.y) else path.moveTo(o.x, o.y)
                         pen = true; last = o
                     }
-                    drawPath(path, Color.Black.copy(alpha = 0.55f), style = Stroke(4.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-                    drawPath(path, lineColor, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+                    drawPath(path, lineColor, style = lineStroke(fn))
                 }
                 fn.complexPoints?.let { cs ->
                     val ws = cs.mapNotNull { c -> runCatching { c(com.example.cas.cas.CD(0.0), p) }.getOrNull()?.takeIf { it.re.isFinite() && it.im.isFinite() } }
@@ -395,12 +426,10 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                     if (os.size > 1 && (fn.connectPoints || fn.closedShape)) {
                         val path = Path().apply { os.forEachIndexed { k, o -> if (k == 0) moveTo(o.x, o.y) else lineTo(o.x, o.y) }; if (fn.closedShape) close() }
                         if (fn.closedShape) drawPath(path, lineColor.copy(alpha = fn.fillOpacity))
-                        drawPath(path, Color.Black.copy(alpha = 0.55f), style = Stroke(4.5.dp.toPx(), join = StrokeJoin.Round))
-                        drawPath(path, lineColor, style = Stroke(2.dp.toPx(), join = StrokeJoin.Round))
+                        drawPath(path, lineColor, style = lineStroke(fn))
                     }
                     val marker = com.example.cas.graph.Marker.of(fn.pointShape)
                     os.forEachIndexed { k, o ->
-                        drawMarker(marker, o, fn.pointSize.dp.toPx() + 1.5.dp.toPx(), Color.Black.copy(alpha = 0.55f))
                         drawMarker(marker, o, fn.pointSize.dp.toPx(), lineColor)
                         if (fn.showLabel) {
                             val t = measurer.measure(complexText(ws[k]), TextStyle(fontFamily = CasFonts.Ui, fontSize = 12.sp, color = colors.onSurface, shadow = androidx.compose.ui.graphics.Shadow(colors.surface, blurRadius = 5f)))
@@ -421,8 +450,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                     val o = toScreen(v, CD(c.centerRe + c.radius * kotlin.math.cos(a), c.centerIm + c.radius * kotlin.math.sin(a)), size.width, size.height, sc)
                     if (k == 0) ring.moveTo(o.x, o.y) else ring.lineTo(o.x, o.y)
                 }
-                drawPath(ring, Color.Black.copy(alpha = 0.55f), style = Stroke(4.5.dp.toPx()))
-                drawPath(ring, lineColor, style = Stroke(2.dp.toPx()))
+                drawPath(ring, lineColor, style = lineStroke(fn))
                 // Arrowhead at the right of the circle, pointing up (counterclockwise).
                 val right = toScreen(v, CD(c.centerRe + c.radius, c.centerIm), size.width, size.height, sc)
                 val tip = Offset(right.x, right.y - 8.dp.toPx())
@@ -430,7 +458,6 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                     moveTo(tip.x, tip.y); lineTo(tip.x - 6.dp.toPx(), tip.y + 10.dp.toPx()); lineTo(tip.x + 6.dp.toPx(), tip.y + 10.dp.toPx()); close()
                 }
                 drawPath(arrow, lineColor)
-                drawPath(arrow, Color.Black.copy(alpha = 0.55f), style = Stroke(1.dp.toPx()))
                 // (Its value is on a result card, top left.)
             }
             // The drawn loop.
@@ -490,6 +517,13 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
 }
 
 /** The value of z under a point of the screen (on a log axis, 10 to the view's coordinate). */
+/** A line's own thickness and style (solid, dashed, dotted…), as on the 2D graph. */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.lineStroke(fn: PlotFunction): Stroke {
+    val w = fn.thickness.dp.toPx()
+    val dash = com.example.cas.graph.LineStyle.of(fn.lineStyle).pattern(w.toDouble())?.let { d -> androidx.compose.ui.graphics.PathEffect.dashPathEffect(FloatArray(d.size) { d[it].toFloat() }) }
+    return Stroke(w, cap = StrokeCap.Round, join = StrokeJoin.Round, pathEffect = dash)
+}
+
 private fun toPlane(v: Viewport, o: Offset, size: IntSize, sc: com.example.cas.graph.AxisScale) =
     CD(sc.realX(v.xMin + o.x / size.width * v.width), sc.realY(v.yMax - o.y / size.height * v.height))
 
@@ -565,7 +599,6 @@ internal fun complexScene(vm: ComplexViewModel, view: Viewport, size: Double, da
     fun sx(x: Double) = Pgf.sx(v, frame, sc.x(x).let { if (it.isFinite()) it else v.xMin - 10 * v.width })
     fun sy(y: Double) = Pgf.sy(v, frame, sc.y(y).let { if (it.isFinite()) it else v.yMin - 10 * v.height })
     val white = 0xFFFFFFFF.toInt()
-    val halo = 0x8C000000.toInt()
     scene.add(Scene.ClipStart(frame.left, frame.top, frame.width, frame.height))
     val f = vm.plotted
     val c = f?.complexCompiled
@@ -590,9 +623,8 @@ internal fun complexScene(vm: ComplexViewModel, view: Viewport, size: Double, da
         lines += (0 until 12).map { a -> val ang = a * Math.PI / 6; doubleArrayOf(ox, oy, ox + reach * kotlin.math.cos(ang), oy - reach * kotlin.math.sin(ang)) }
         scene.add(Scene.Stroke(lines, 0x8CFFFFFF.toInt(), 0.5))
     }
-    // Curves and loops: a dark outline, then their color.
+    // Curves and loops in their color (no outline, as on screen and on the 2D graph).
     fun outlined(paths: List<DoubleArray>, color: Int) {
-        scene.add(Scene.Stroke(paths, halo, 3.0))
         scene.add(Scene.Stroke(paths, color, 1.3))
     }
     vm.functions.filter { it.visible && it.complexCurve != null }.asReversed().forEach { fn ->
@@ -614,7 +646,7 @@ internal fun complexScene(vm: ComplexViewModel, view: Viewport, size: Double, da
         val shown = runCatching { roundedComplex(com.example.cas.cas.Numeric.eval(cc.value)) }.getOrDefault("?")
         scene.add(Scene.Label(minOf(cx + rx * 0.72, frame.right - 4), maxOf(cy - ry * 0.72 - 8, frame.top + 10), "Integral ≈ $shown", 13.0, white, Scene.Anchor.Start, Scene.Font.Roman, italic = setOf('i')))
     }
-    // Points and curves z(t), as on screen: outlined, points with their marks.
+    // Points and curves z(t), as on screen: points with their marks.
     vm.functions.filter { it.visible && (it.complexPoints != null || it.complexPath != null) }.asReversed().forEach { fn ->
         val color = complexLineColor(fn).toArgb()
         if (fn.complexPath != null) {
@@ -646,7 +678,6 @@ internal fun complexScene(vm: ComplexViewModel, view: Viewport, size: Double, da
             }
             val marker = com.example.cas.graph.Marker.of(fn.pointShape)
             pts.forEachIndexed { k, (x, y) ->
-                marker.addTo(scene, x, y, fn.pointSize * 0.43 + 0.8, halo)
                 marker.addTo(scene, x, y, fn.pointSize * 0.43, color)
                 if (fn.showLabel) scene.add(Scene.Label(x + 5, y - 9, complexText(ws[k]), Pgf.TICK_SIZE * 0.85, white, Scene.Anchor.Start, Scene.Font.Roman, italic = setOf('i')))
             }

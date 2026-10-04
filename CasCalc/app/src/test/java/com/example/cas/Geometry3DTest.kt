@@ -103,6 +103,16 @@ class Geometry3DTest {
         assertEquals(-2.0, c.y, 0.0)
     }
 
+    @Test fun draggedPointsReadBack() {
+        // A dragged point on the complex plane is rewritten as a number, its sign as typed (−).
+        val p = cobj("A=2−0.5i") as Geometry.Point
+        assertEquals(2.0, p.x, 1e-12); assertEquals(-0.5, p.y, 1e-12)
+        val q = cobj("A=0+3i") as Geometry.Point
+        assertEquals(0.0, q.x, 1e-12); assertEquals(3.0, q.y, 1e-12)
+        // In space a dragged point stays free (A = (x, y, z)).
+        assertTrue(Geometry3D.isFree(Geometry3D.parse(row("A=(1.5,−2,0)"))!!))
+    }
+
     @Test fun rootsAndImages() {
         val roots = cobj("{RootsOfUnity}(4)") as Geometry.Many
         assertEquals(4, roots.items.size)

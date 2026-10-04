@@ -611,12 +611,15 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     }
 
     fun remove(f: PlotFunction) {
-        if (active === f) active = null
+        // Deleting the line being typed in ends typing: the keyboard and the list step back and the
+        // graph returns (a backspace that goes on in the line above brings them back).
+        if (active === f) { active = null; typingFocus = false }
         functions.remove(f)
         // A deleted folder's lines stay, one level up.
         normalizeFolders()
         // Constructions built on a deleted one are worked out again (and say what's missing).
         if (f.geometry != null) { geometryCache = null; functions.filter { it.geometry != null }.forEach { recompile(it) } }
+        if (functions.none { !it.isFolder }) { active = null; typingFocus = false }
         version++
         save()
     }
@@ -1054,15 +1057,48 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     /** The names given on construction lines (A, B, c…). */
     fun geometryNames(): Set<String> = functions.mapNotNull { it.geometry?.name }.toSet()
 
+    /**
+     * A point of the complex plane written as a plain number (A = 1 + 1.5i, A = −2i): only
+     * digits, a point, signs and i after "A =".
+     */
+    fun isComplexNumberPoint(f: PlotFunction): Boolean {
+        if (!isComplex || f.geometry?.name == null) return false
+        val rhs = f.editor.root.items.drop(2)
+        return rhs.isNotEmpty() && rhs.all { n -> (n as? com.example.cas.editor.Sym)?.text?.let { t -> t.length == 1 && (t[0].isDigit() || t[0] in ".+−-i") } == true } &&
+            rhs.any { (it as com.example.cas.editor.Sym).text == "i" }
+    }
+
+    /** A construction point the finger can drag: free (A = (1, 2), or a plain number on the complex plane) or on a path. */
+    fun isDraggablePoint(f: PlotFunction): Boolean {
+        val st = f.geometry ?: return false
+        return if (plotVars.size == 2) com.example.cas.graph.Geometry3D.isFree(st) else st.isFree || st.onPath || isComplexNumberPoint(f)
+    }
+
     /** Moves a free point (A = (1, 2)) to (x, y): its line is rewritten. [first] starts the drag (one undo step for it). */
     fun moveFreePoint(f: PlotFunction, x: Double, y: Double, first: Boolean) {
         val name = f.editor.root.items.firstOrNull() as? com.example.cas.editor.Sym ?: return
         val row = MathRow()
         fun add(t: String) { row.add(row.items.size, com.example.cas.editor.Sym(t)) }
+        fun number(v: Double) = com.example.cas.graph.Csv.numberText(v).forEach { add(it.toString()) }
+        add(name.text); add("=")
+        // Written as it was: a number on the complex plane (1 + 1.5i) stays one.
+        if (isComplexNumberPoint(f)) {
+            number(x)
+            add(if (y < 0) "−" else "+")
+            number(kotlin.math.abs(y)); add("i")
+        } else {
+            add("("); number(x); add(","); number(y); add(")")
+        }
+        f.editor.replace(row, record = first)
+    }
+
+    /** Moves a free point in space (A = (1, 2, 3)) to (x, y, z), as [moveFreePoint]. */
+    fun moveFreePoint3(f: PlotFunction, x: Double, y: Double, z: Double, first: Boolean) {
+        val name = f.editor.root.items.firstOrNull() as? com.example.cas.editor.Sym ?: return
+        val row = MathRow()
+        fun add(t: String) { row.add(row.items.size, com.example.cas.editor.Sym(t)) }
         add(name.text); add("="); add("(")
-        com.example.cas.graph.Csv.numberText(x).forEach { add(it.toString()) }
-        add(",")
-        com.example.cas.graph.Csv.numberText(y).forEach { add(it.toString()) }
+        listOf(x, y, z).forEachIndexed { k, v -> if (k > 0) add(","); com.example.cas.graph.Csv.numberText(v).forEach { add(it.toString()) } }
         add(")")
         f.editor.replace(row, record = first)
     }

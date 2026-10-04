@@ -1041,7 +1041,7 @@ internal fun DrawScope.drawMarker(marker: com.example.cas.graph.Marker, center: 
 }
 
 /** The arrowhead at the end of a vector. */
-private fun DrawScope.drawArrowHead(from: Offset, to: Offset, color: Color, width: Float) {
+internal fun DrawScope.drawArrowHead(from: Offset, to: Offset, color: Color, width: Float) {
     val dx = to.x - from.x
     val dy = to.y - from.y
     val len = kotlin.math.hypot(dx, dy)

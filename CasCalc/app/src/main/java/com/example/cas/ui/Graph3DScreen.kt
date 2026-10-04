@@ -10,6 +10,8 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -307,6 +309,8 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier, onUseValue: 
             vm.geometry3DOf(f)?.let { o -> Triple(f, o, runCatching { Geometry3D.draw(o, bounds) { vm.angleText(it) } }.getOrNull() ?: return@let null) }
         }
     }
+    val geometryState = androidx.compose.runtime.rememberUpdatedState(geometry)
+    val boundsState = androidx.compose.runtime.rememberUpdatedState(bounds)
     val polygons = remember(surfaces, geometry) { surfaces + geometry.flatMap { (f, _, d) -> d.faces.map { Polygon(it, f.colorIndex, wall = true) } } }
     val palette = (0 until GraphViewModel.PLOT_COLOR_COUNT).map { plotColor(it) }
     fun colorOf(f: PlotFunction) = f.customColor?.let { Color(it) } ?: palette[f.colorIndex % palette.size]
@@ -335,6 +339,37 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier, onUseValue: 
                 detectAxisTransformGestures(skip = { OverlayTouch.owns(it) }) { _, pan, zoomX, zoomY ->
                     vm.camera = vm.camera.rotateBy(-pan.x * 0.008, pan.y * 0.008).zoomBy(kotlin.math.sqrt(zoomX * zoomY))
                     picked = null
+                }
+            }
+            .pointerInput(Unit) {
+                // Drag a construction's free point (A = (1, 2, 3)) to move it level, its height kept;
+                // what's built on it follows. (Reads the latest drawing as it moves.)
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    if (!AppSettings.geometry || OverlayTouch.owns(down)) return@awaitEachGesture
+                    val b0 = boundsState.value; val cam0 = vm.camera
+                    val w = size.width.toFloat(); val h = size.height.toFloat()
+                    val reach = 28.dp.toPx()
+                    val hit = geometryState.value.asSequence().filter { (f, o, _) -> o is Geometry3D.Point && vm.isDraggablePoint(f) }
+                        .map { (f, o, _) -> val p = o as Geometry3D.Point; Triple(f, p, Surface3D.project(p.x, p.y, p.z, b0, cam0, w, h).let { (Offset(it.first, it.second) - down.position).getDistance() }) }
+                        .filter { it.third < reach }.minByOrNull { it.third } ?: return@awaitEachGesture
+                    val (f, p0, _) = hit
+                    val slop = viewConfiguration.touchSlop
+                    var dragging = false
+                    var moved = false
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        if (event.changes.count { it.pressed } > 1) break
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) break
+                        if (!dragging && (change.position - down.position).getDistance() > slop) { dragging = true; picked = null }
+                        if (!dragging) continue
+                        change.consume()
+                        // In the box as it was when the drag began, so the point doesn't run as the box refits.
+                        val (x, y) = levelPointUnder(change.position, p0.z, b0, cam0, w, h)
+                        vm.moveFreePoint3(f, x, y, p0.z, first = !moved)
+                        moved = true
+                    }
                 }
             }
             // Hold and drag over the surface to read (x, y, z) continuously.
@@ -671,6 +706,27 @@ internal fun coordinateGuides(mode: Coordinates3D.Mode, b: Bounds): List<List<Do
  * object of the kind the tool needs (a line, a plane, a circle or sphere…), or on empty space,
  * which makes a point there on the floor (z = 0, or the box's bottom if 0 is outside it).
  */
+/**
+ * The point at height [z] under the finger at [tap]: the projection undone by Newton's method,
+ * kept inside the box and at a tidy value (a fortieth of the box).
+ */
+private fun levelPointUnder(tap: Offset, z: Double, b: Bounds, cam: Camera, w: Float, h: Float): Pair<Double, Double> {
+    fun at(x: Double, y: Double) = Surface3D.project(x, y, z, b, cam, w, h).let { Offset(it.first, it.second) }
+    var x = (b.x0 + b.x1) / 2; var y = (b.y0 + b.y1) / 2
+    val e = 1e-4 * maxOf(b.x1 - b.x0, b.y1 - b.y0)
+    repeat(12) {
+        val s0 = at(x, y); val sx = at(x + e, y); val sy = at(x, y + e)
+        val a11 = (sx.x - s0.x) / e; val a21 = (sx.y - s0.y) / e; val a12 = (sy.x - s0.x) / e; val a22 = (sy.y - s0.y) / e
+        val det = a11 * a22 - a12 * a21
+        if (kotlin.math.abs(det) < 1e-9) return@repeat
+        val rx = tap.x - s0.x; val ry = tap.y - s0.y
+        x += (a22 * rx - a12 * ry) / det; y += (a11 * ry - a21 * rx) / det
+    }
+    val snap = com.example.cas.graph.Plot2D.niceStep(b.x1 - b.x0, 40)
+    fun tidy(v: Double, lo: Double, hi: Double) = Math.round(v.coerceIn(lo, hi) / snap) * snap
+    return tidy(x, b.x0, b.x1) to tidy(y, b.y0, b.y1)
+}
+
 private fun constructTap3D(
     vm: Graph3DViewModel, tool: GeometryTool, tap: Offset,
     geometry: List<Triple<PlotFunction, Geometry3D.Obj, Geometry3D.Drawing>>, b: Bounds, cam: Camera, w: Float, h: Float, reach: Float,
@@ -707,22 +763,10 @@ private fun constructTap3D(
         f to minOf(lineD, faceD)
     }.filter { it.second < reach }.minByOrNull { it.second }?.first?.let { vm.nameLine(it) }
     fun newPoint(): String {
-        // The floor's point under the finger: the projection undone by Newton's method, z held.
+        // The floor's point under the finger.
         val z = if (0.0 in b.z0..b.z1) 0.0 else b.z0
-        var x = (b.x0 + b.x1) / 2; var y = (b.y0 + b.y1) / 2
-        val e = 1e-4 * maxOf(b.x1 - b.x0, b.y1 - b.y0)
-        repeat(12) {
-            val s0 = at(doubleArrayOf(x, y, z)); val sx = at(doubleArrayOf(x + e, y, z)); val sy = at(doubleArrayOf(x, y + e, z))
-            val a11 = (sx.x - s0.x) / e; val a21 = (sx.y - s0.y) / e; val a12 = (sy.x - s0.x) / e; val a22 = (sy.y - s0.y) / e
-            val det = a11 * a22 - a12 * a21
-            if (kotlin.math.abs(det) < 1e-9) return@repeat
-            val rx = tap.x - s0.x; val ry = tap.y - s0.y
-            x += (a22 * rx - a12 * ry) / det; y += (a11 * ry - a21 * rx) / det
-        }
-        // Inside the box, at a tidy value.
-        val snap = com.example.cas.graph.Plot2D.niceStep(b.x1 - b.x0, 40)
-        fun tidy(v: Double, lo: Double, hi: Double) = (Math.round(v.coerceIn(lo, hi) / snap) * snap)
-        return vm.addFreePoint3(tidy(x, b.x0, b.x1), tidy(y, b.y0, b.y1), z)
+        val (x, y) = levelPointUnder(tap, z, b, cam, w, h)
+        return vm.addFreePoint3(x, y, z)
     }
     when (tool) {
         GeometryTool.Move -> {}
