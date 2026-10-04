@@ -203,6 +203,16 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, per-cell styles and pinch to zoom)
+- **Bold, Italic and Fill color per cell:** they style the selected cell or range, as in Excel and
+  Sheets, and are saved with the table. Each cell keeps its look when rows are sorted, shuffled,
+  inserted or deleted, when columns are inserted, moved or deleted, and when it's cut, copied,
+  pasted or painted with Format Painter. Paste values leaves looks behind; Clear › formats removes
+  them.
+- **Pinch to zoom:** two fingers zoom the table between 60% and 160%; one finger still scrolls and
+  taps. (`graph/DataTable.kt`, `CellStyle` in `graph/SheetTools.kt`, `SheetToolsTest`; mockup:
+  `preview-render/round46.png`.)
+
 ## Latest changes (4 October, many more ribbon commands)
 - **Home:**
   - Clipboard: Paste formats, Paste transposed and Format Painter.

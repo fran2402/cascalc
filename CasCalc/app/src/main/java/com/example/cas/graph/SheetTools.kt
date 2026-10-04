@@ -19,11 +19,6 @@ data class ColumnFormat(
     val highlight: HighlightRule? = null,
     /** Where the cells' text sits: 0 as usual (at the start), 1 left, 2 centered, 3 right. */
     val align: Int = 0,
-    /** Bold and italic text, as Excel's Font group. */
-    val bold: Boolean = false,
-    val italic: Boolean = false,
-    /** A fill color for the column's cells, one of [HighlightRule.COLORS]. */
-    val tint: Int? = null,
     /** Hidden from view (View › Hide column); still saved and plotted. */
     val hidden: Boolean = false,
     /** A currency symbol in front of the numbers ($, €, £, ¥), two decimals unless set. */
@@ -61,7 +56,7 @@ data class ColumnFormat(
         if (percent) add("p"); if (scientific) add("s"); if (thousands) add("t"); if (colorScale) add("c"); if (dataBars) add("b")
         highlight?.let { add("h" + it.encode()) }
         if (align != 0) add("a$align")
-        if (bold) add("w"); if (italic) add("i"); tint?.let { add("f$it") }; if (hidden) add("x")
+        if (hidden) add("x")
         currency?.let { add("u$it") }
     }.joinToString(".")
 
@@ -73,8 +68,7 @@ data class ColumnFormat(
                 t == "t" -> f.copy(thousands = true); t == "c" -> f.copy(colorScale = true); t == "b" -> f.copy(dataBars = true)
                 t.startsWith("h") -> f.copy(highlight = HighlightRule.decode(t.drop(1)))
                 t.startsWith("a") -> f.copy(align = t.drop(1).toIntOrNull()?.coerceIn(0, 3) ?: 0)
-                t == "w" -> f.copy(bold = true); t == "i" -> f.copy(italic = true); t == "x" -> f.copy(hidden = true)
-                t.startsWith("f") -> f.copy(tint = t.drop(1).toIntOrNull()?.coerceIn(0, HighlightRule.COLORS.size - 1))
+                t == "x" -> f.copy(hidden = true)
                 t.startsWith("u") && t.length > 1 -> f.copy(currency = t.drop(1))
                 else -> f
             }
@@ -102,6 +96,38 @@ data class ColumnFormat(
  * A conditional format: cells whose value passes [op] against [value] are tinted with color
  * [color] (an index into [COLORS]), as Sheets' and Excel's highlight rules.
  */
+/** One cell's look, as Excel's Font group: bold, italic and a fill color (one of [HighlightRule.COLORS]). */
+data class CellStyle(val bold: Boolean = false, val italic: Boolean = false, val tint: Int? = null) {
+    val isDefault get() = this == CellStyle()
+
+    /** "w" bold, "i" italic, "f2" the third fill color: "wif2". */
+    fun encode(): String = (if (bold) "w" else "") + (if (italic) "i" else "") + (tint?.let { "f$it" } ?: "")
+
+    companion object {
+        fun decode(s: String) = CellStyle(
+            bold = 'w' in s, italic = 'i' in s,
+            tint = Regex("f(\\d+)").find(s)?.groupValues?.get(1)?.toIntOrNull()?.coerceIn(0, HighlightRule.COLORS.size - 1),
+        )
+
+        /** Styles moved with their rows: row r goes to [to](r), or is dropped when that's null. */
+        fun movedRows(styles: Map<Pair<Int, Int>, CellStyle>, to: (Int) -> Int?): Map<Pair<Int, Int>, CellStyle> =
+            styles.entries.mapNotNull { (at, st) -> to(at.second)?.let { (at.first to it) to st } }.toMap()
+
+        /** Styles moved with their columns: column c goes to [to](c), or is dropped when that's null. */
+        fun movedColumns(styles: Map<Pair<Int, Int>, CellStyle>, to: (Int) -> Int?): Map<Pair<Int, Int>, CellStyle> =
+            styles.entries.mapNotNull { (at, st) -> to(at.first)?.let { (it to at.second) to st } }.toMap()
+
+        /** Where each row (or column) goes when [n] are put in at [at]. */
+        fun inserted(at: Int, n: Int = 1): (Int) -> Int? = { k -> if (k >= at) k + n else k }
+
+        /** Where each row (or column) goes when the one at [at] is taken out. */
+        fun removed(at: Int): (Int) -> Int? = { k -> if (k == at) null else if (k > at) k - 1 else k }
+
+        /** Where each row (or column) goes when they're put in the order [order] (new k is old order[k]). */
+        fun reordered(order: List<Int>): (Int) -> Int? { val back = order.withIndex().associate { (k, old) -> old to k }; return { back[it] } }
+    }
+}
+
 data class HighlightRule(val op: SheetTools.FilterOp, val value: String = "", val color: Int = 0) {
     /** Whether row [row] of column [column] gets the tint. */
     fun matches(t: DataTable, column: Int, row: Int): Boolean = SheetTools.Filter(column, op, value).keeps(t, row)

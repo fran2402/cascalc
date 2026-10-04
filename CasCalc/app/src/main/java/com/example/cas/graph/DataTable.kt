@@ -18,8 +18,12 @@ class DataTable(
     val formats: List<ColumnFormat> = emptyList(),
     /** The first column stays in view while the table scrolls sideways. */
     val frozen: Boolean = false,
+    /** Single cells' bold, italic and fill color, by (column, row). */
+    val styles: Map<Pair<Int, Int>, CellStyle> = emptyMap(),
 ) {
     fun format(column: Int): ColumnFormat = formats.getOrElse(column) { ColumnFormat() }
+
+    fun style(column: Int, row: Int): CellStyle = styles[column to row] ?: CellStyle()
 
     val rowCount get() = columns.maxOfOrNull { it.size } ?: 0
 
@@ -56,7 +60,7 @@ class DataTable(
         columns.getOrNull(c)?.indices?.count { r -> cell(c, r).isNotBlank() && value(c, r) == null } ?: 0
     }
 
-    fun withRoles(x: Int?, y: Int?, sigmaX: Int?, sigmaY: Int?) = DataTable(names, columns, x, y, sigmaX, sigmaY, formats, frozen)
+    fun withRoles(x: Int?, y: Int?, sigmaX: Int?, sigmaY: Int?) = DataTable(names, columns, x, y, sigmaX, sigmaY, formats, frozen, styles)
 
     /** A column's numbers (formulas worked out); text and empty cells left out. */
     fun numbers(column: Int): List<Double> = (0 until rowCount).mapNotNull { value(column, it) }
@@ -87,6 +91,8 @@ class DataTable(
         append(listOf(x, y, sigmaX, sigmaY).joinToString("\t") { (it ?: -1).toString() })
         if (formats.any { !it.isDefault }) append("\tF:").append(formats.joinToString(",") { it.encode() })
         if (frozen) append("\tZ")
+        val styled = styles.filterValues { !it.isDefault }
+        if (styled.isNotEmpty()) append("\tS:").append(styled.entries.sortedWith(compareBy({ it.key.first }, { it.key.second })).joinToString(",") { (at, st) -> "${at.first}.${at.second}.${st.encode()}" })
         append('\n')
         append(names.joinToString("\t") { esc(it) })
         columns.forEach { c -> append('\n').append(c.joinToString("\t") { esc(it) }) }
@@ -138,10 +144,15 @@ class DataTable(
             val roles = head.mapNotNull { it.toIntOrNull() }
             val formats = head.firstOrNull { it.startsWith("F:") }?.removePrefix("F:")?.split(',')?.map { ColumnFormat.decode(it) }.orEmpty()
             val frozen = "Z" in head
+            val styles = head.firstOrNull { it.startsWith("S:") }?.removePrefix("S:")?.split(',')?.mapNotNull { e ->
+                val p = e.split('.')
+                val c = p.getOrNull(0)?.toIntOrNull(); val r = p.getOrNull(1)?.toIntOrNull()
+                if (c == null || r == null) null else (c to r) to CellStyle.decode(p.getOrElse(2) { "" })
+            }?.filter { !it.second.isDefault }?.toMap().orEmpty()
             val names = lines.getOrElse(1) { "" }.split('\t').map { unesc(it) }
             val columns = lines.drop(2).map { l -> l.split('\t').map { unesc(it) } }
             fun role(k: Int) = roles.getOrNull(k)?.takeIf { it in columns.indices }
-            DataTable(names, columns, role(0), role(1), role(2), role(3), formats, frozen)
+            DataTable(names, columns, role(0), role(1), role(2), role(3), formats, frozen, styles)
         }.getOrNull()
 
         private fun esc(t: String) = t.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")

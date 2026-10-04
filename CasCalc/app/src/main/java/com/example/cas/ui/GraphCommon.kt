@@ -125,6 +125,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.material3.TextButton
@@ -1977,6 +1978,14 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     // Each column's number format and color scale, kept beside the columns; the first column frozen in view.
     val fmts = remember(f) { androidx.compose.runtime.mutableStateListOf(*List(start.columns.size) { start.format(it) }.toTypedArray()) }
     var frozen by remember(f) { mutableStateOf(start.frozen) }
+    // Single cells' bold, italic and fill color, by (column, row); moved along with rows and columns.
+    val styles = remember(f) { androidx.compose.runtime.mutableStateMapOf<Pair<Int, Int>, com.example.cas.graph.CellStyle>().apply { putAll(start.styles) } }
+    fun moveStyles(rowsTo: ((Int) -> Int?)? = null, columnsTo: ((Int) -> Int?)? = null) {
+        var m: Map<Pair<Int, Int>, com.example.cas.graph.CellStyle> = styles.toMap()
+        if (rowsTo != null) m = com.example.cas.graph.CellStyle.movedRows(m, rowsTo)
+        if (columnsTo != null) m = com.example.cas.graph.CellStyle.movedColumns(m, columnsTo)
+        styles.clear(); styles.putAll(m)
+    }
     // Filters (one per column, all must hold): rows they hide stay in the table and are plotted.
     val filters = remember(f) { androidx.compose.runtime.mutableStateMapOf<Int, com.example.cas.graph.SheetTools.Filter>() }
     // A range picked by holding a cell (then tapping another to stretch it), as (column, row) corners.
@@ -2018,6 +2027,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     var clip by remember(f) { mutableStateOf<Clip?>(null) }
     // Format Painter: the column whose format the next tapped column takes; Go To's dialog.
     var painterFrom by remember(f) { mutableStateOf<Int?>(null) }
+    var painterStyle by remember(f) { mutableStateOf<com.example.cas.graph.CellStyle?>(null) }
     var goingTo by remember(f) { mutableStateOf(false) }
     var sorting by remember(f) { mutableStateOf(false) }
     var splitFor by remember(f) { mutableStateOf<Int?>(null) }
@@ -2031,7 +2041,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     var editing by remember(f) { mutableStateOf<Pair<Int, Int>?>(null) }
     var fillTo by remember(f) { mutableStateOf<Pair<Int, Int>?>(null) }
     // Undo and redo: whole-table snapshots, one per change (typing in a cell counts once per cell).
-    class Snapshot(val names: List<String>, val cells: List<List<String>>, val roles: List<Int?>, val formats: List<com.example.cas.graph.ColumnFormat>, val frozen: Boolean)
+    class Snapshot(val names: List<String>, val cells: List<List<String>>, val roles: List<Int?>, val formats: List<com.example.cas.graph.ColumnFormat>, val frozen: Boolean, val styles: Map<Pair<Int, Int>, com.example.cas.graph.CellStyle>)
     val undoStack = remember(f) { androidx.compose.runtime.mutableStateListOf<Snapshot>() }
     val redoStack = remember(f) { androidx.compose.runtime.mutableStateListOf<Snapshot>() }
     var typingRecorded by remember(f) { mutableStateOf<Pair<Int, Int>?>(null) }
@@ -2042,13 +2052,13 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     val heights = remember(f) { androidx.compose.runtime.mutableStateMapOf<Int, androidx.compose.ui.unit.Dp>() }
     val formulas = AppSettings.sheetFormulas
     val rows = cells.maxOfOrNull { it.size } ?: 0
-    fun table() = com.example.cas.graph.DataTable(names.toList(), cells.map { it.toList() }, roleX, roleY, roleSx, roleSy, fmts.toList(), frozen)
+    fun table() = com.example.cas.graph.DataTable(names.toList(), cells.map { it.toList() }, roleX, roleY, roleSx, roleSy, fmts.toList(), frozen, styles.toMap())
     // Worked out again only when a cell, name or role changes, not on every redraw.
     val current by remember(f) { androidx.compose.runtime.derivedStateOf { table() } }
     val points by remember(f) { androidx.compose.runtime.derivedStateOf { current.points().size } }
     val bad by remember(f) { androidx.compose.runtime.derivedStateOf { current.badCells() } }
     fun roleOf(c: Int) = when (c) { roleX -> "x"; roleY -> "y"; roleSx -> "σx"; roleSy -> "σy"; else -> null }
-    fun snapshot() = Snapshot(names.toList(), cells.map { it.toList() }, listOf(roleX, roleY, roleSx, roleSy), fmts.toList(), frozen)
+    fun snapshot() = Snapshot(names.toList(), cells.map { it.toList() }, listOf(roleX, roleY, roleSx, roleSy), fmts.toList(), frozen, styles.toMap())
     /** Keeps the table as it is now, before a change, for undo. */
     val quiet = remember(f) { booleanArrayOf(false) }
     fun record() {
@@ -2064,6 +2074,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         cells.clear(); s.cells.forEach { col -> cells.add(androidx.compose.runtime.mutableStateListOf(*col.toTypedArray())) }
         roleX = s.roles[0]; roleY = s.roles[1]; roleSx = s.roles[2]; roleSy = s.roles[3]
         fmts.clear(); fmts.addAll(s.formats); frozen = s.frozen
+        styles.clear(); styles.putAll(s.styles)
         filters.clear(); selA = null; selB = null
     }
     fun undo() { undoStack.removeLastOrNull()?.let { redoStack.add(snapshot()); restore(it) } }
@@ -2081,7 +2092,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         moved.forEach { (k, v) -> if (k + by >= at) map[k + by] = v }
     }
     fun addRow() { record(); cells.forEach { it.add("") } }
-    fun insertRow(at: Int) { record(); cells.forEach { it.add(at.coerceIn(0, it.size), "") }; shiftKeys(heights, at, 1) }
+    fun insertRow(at: Int) { record(); cells.forEach { it.add(at.coerceIn(0, it.size), "") }; shiftKeys(heights, at, 1); moveStyles(rowsTo = com.example.cas.graph.CellStyle.inserted(at)) }
     fun addColumn() { record(); names.add(""); fmts.add(com.example.cas.graph.ColumnFormat()); cells.add(androidx.compose.runtime.mutableStateListOf(*Array(maxOf(rows, 1)) { "" })) }
     fun removeRow(r: Int) {
         if (rows <= 1) return
@@ -2089,6 +2100,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         editing = null
         cells.forEach { if (r < it.size) it.removeAt(r) }
         heights.remove(r); shiftKeys(heights, r + 1, -1)
+        moveStyles(rowsTo = com.example.cas.graph.CellStyle.removed(r))
     }
     fun removeColumn(c: Int) {
         if (cells.size <= 1) return
@@ -2096,6 +2108,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         editing = null
         assign(c, null)
         names.removeAt(c); cells.removeAt(c); if (c < fmts.size) fmts.removeAt(c)
+        moveStyles(columnsTo = com.example.cas.graph.CellStyle.removed(c))
         filters.clear(); selA = null; selB = null
         widths.remove(c); shiftKeys(widths, c + 1, -1)
         fun shift(k: Int?) = k?.let { if (it > c) it - 1 else it }
@@ -2109,6 +2122,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
             val copy = order.map { col.getOrElse(it) { "" } }
             col.clear(); col.addAll(copy.ifEmpty { listOf("") })
         }
+        moveStyles(rowsTo = com.example.cas.graph.CellStyle.reordered(order))
     }
     /** Rows by column [c]'s numbers, smallest first (text and empty cells last). */
     fun sortBy(c: Int) { val t = table(); reorder((0 until rows).sortedWith(compareBy(nullsLast()) { r: Int -> t.value(c, r) })) }
@@ -2127,6 +2141,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         names.add(c + 1, names[c]); cells.add(c + 1, androidx.compose.runtime.mutableStateListOf(*cells[c].toTypedArray()))
         fmts.add((c + 1).coerceAtMost(fmts.size), fmts.getOrElse(c) { com.example.cas.graph.ColumnFormat() }); filters.clear()
         shiftKeys(widths, c + 1, 1); widths[c]?.let { widths[c + 1] = it }
+        moveStyles(columnsTo = com.example.cas.graph.CellStyle.inserted(c + 1)); styles.filterKeys { it.first == c }.forEach { (at, st) -> styles[c + 1 to at.second] = st }
         fun shift(k: Int?) = k?.let { if (it > c) it + 1 else it }
         roleX = shift(roleX); roleY = shift(roleY); roleSx = shift(roleSx); roleSy = shift(roleSy)
     }
@@ -2140,6 +2155,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         names.clear(); names.addAll(order.map { oldNames[it] })
         cells.clear(); cells.addAll(order.map { oldCells[it] })
         widths.clear(); order.forEachIndexed { k, old -> oldWidths[old]?.let { widths[k] = it } }
+        moveStyles(columnsTo = com.example.cas.graph.CellStyle.reordered(order))
         fun place(k: Int?) = k?.let { order.indexOf(it) }
         roleX = place(roleX); roleY = place(roleY); roleSx = place(roleSx); roleSy = place(roleSy)
     }
@@ -2148,6 +2164,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         record(); editing = null
         cells.forEach { col -> col.add(r + 1, col.getOrElse(r) { "" }) }
         shiftKeys(heights, r + 1, 1)
+        moveStyles(rowsTo = com.example.cas.graph.CellStyle.inserted(r + 1)); styles.filterKeys { it.second == r }.forEach { (at, st) -> styles[at.first to r + 1] = st }
     }
     /** Every row kept, in the order given, after the rows not kept (a tidy-up). */
     fun keepRows(keep: List<Int>) = reorder(keep.ifEmpty { listOf(0) })
@@ -2171,6 +2188,9 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         cells.clear(); c.forEach { col -> cells.add(androidx.compose.runtime.mutableStateListOf(*col.toTypedArray())) }
         fmts.clear(); fmts.addAll(List(n.size) { com.example.cas.graph.ColumnFormat() })
         widths.clear(); heights.clear()
+        // Styles go with their cells: (column, row) becomes (row, column) past the names row.
+        moveStyles(); val turned = styles.toMap().mapKeys { (at, _) -> at.second + 1 to at.first }.filterKeys { it.first < cells.size }
+        styles.clear(); styles.putAll(turned)
         roleX = null; roleY = if (cells.size >= 2) { roleX = 0; 1 } else 0; roleSx = null; roleSy = null
     }
     // A column's statistics, or its fill with a series, being shown.
@@ -2315,7 +2335,10 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
             if (t != null) { for (c in t[0]..t[2]) for (r in t[1]..t[3]) cells.getOrNull(c)?.let { col -> if (r < col.size) col[r] = "" } }
             else cells.getOrNull(focusCol)?.let { col -> col.indices.forEach { col[it] = "" } }
         }
-        if (formats) cols.forEach { c -> if (c < fmts.size) fmts[c] = com.example.cas.graph.ColumnFormat() }
+        if (formats) {
+            cols.forEach { c -> if (c < fmts.size) fmts[c] = com.example.cas.graph.ColumnFormat() }
+            if (t != null) { for (c in t[0]..t[2]) for (r in t[1]..t[3]) styles.remove(c to r) } else styles.keys.filter { it.first == focusCol }.forEach { styles.remove(it) }
+        }
     }
     /** Copy (or cut) the picked cells, as Excel: kept for Paste here (formulas move with it), and on the clipboard as tab-separated text for other apps. */
     fun copyCells(cut: Boolean) {
@@ -2324,7 +2347,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         clip = Clip(t[0], t[1], rowsOut, current)
         @Suppress("DEPRECATION")
         (context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager).setPrimaryClip(android.content.ClipData.newPlainText("Cells", com.example.cas.graph.SheetTools.rangeText(current, t[0], t[1], t[2], t[3])))
-        if (cut) { record(); for (c in t[0]..t[2]) for (r in t[1]..t[3]) cells.getOrNull(c)?.let { col -> if (r < col.size) col[r] = "" } }
+        if (cut) { record(); for (c in t[0]..t[2]) for (r in t[1]..t[3]) { cells.getOrNull(c)?.let { col -> if (r < col.size) col[r] = "" }; styles.remove(c to r) } }
         android.widget.Toast.makeText(context, if (cut) "Cut" else "Copied", android.widget.Toast.LENGTH_SHORT).show()
     }
     /** Paste the copied cells at the selected cell (columns and rows added if needed); [values] pastes what formulas work out to. */
@@ -2338,6 +2361,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
             while ((cells.maxOfOrNull { it.size } ?: 0) < r + k.rows.size) addRow()
             k.rows.forEachIndexed { i, rowCells -> rowCells.forEachIndexed { j, text ->
                 cells[c + j][r + i] = com.example.cas.graph.SheetTools.pasted(k.from, k.c0 + j, k.r0 + i, text, c + j, r + i, values)
+                // A plain paste brings the cells' looks too, as Excel's; Paste values doesn't.
+                if (!values) k.from.style(k.c0 + j, k.r0 + i).let { st -> if (st.isDefault) styles.remove(c + j to r + i) else styles[c + j to r + i] = st }
             } }
         } finally { quiet[0] = false }
     }
@@ -2347,7 +2372,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
             val at = after + 1 + k
             names.add(at, ""); fmts.add(at.coerceAtMost(fmts.size), com.example.cas.graph.ColumnFormat())
             cells.add(at, androidx.compose.runtime.mutableStateListOf(*List(maxOf(rows, values.size)) { values.getOrElse(it) { "" } }.toTypedArray()))
-            shiftKeys(widths, at, 1)
+            shiftKeys(widths, at, 1); moveStyles(columnsTo = com.example.cas.graph.CellStyle.inserted(at))
             fun shift(x: Int?) = x?.let { if (it >= at) it + 1 else it }
             roleX = shift(roleX); roleY = shift(roleY); roleSx = shift(roleSx); roleSy = shift(roleSy)
         }
@@ -2390,6 +2415,11 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
             targetCells().forEach { (c, r) -> cells.getOrNull(c)?.let { col -> if (r < col.size) { val n = change(c, r, col[r]); if (n != col[r]) col[r] = n } } }
         } finally { quiet[0] = false }
     }
+    /** Each target cell's look changed (bold, italic, fill), as one step to undo. */
+    fun styleCells(change: (com.example.cas.graph.CellStyle) -> com.example.cas.graph.CellStyle) {
+        record()
+        targetCells().forEach { at -> val n = change(styles[at] ?: com.example.cas.graph.CellStyle()); if (n.isDefault) styles.remove(at) else styles[at] = n }
+    }
     /** What a cell shows: a formula's value, else what's typed. */
     fun shownText(c: Int, r: Int): String {
         val t = cells.getOrNull(c)?.getOrNull(r) ?: return ""
@@ -2430,6 +2460,9 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
             val c = at[0] + j
             if (c < cells.size) { while (fmts.size <= c) fmts.add(com.example.cas.graph.ColumnFormat()); fmts[c] = k.from.format(k.c0 + j).copy(hidden = false) }
         }
+        k.rows.indices.forEach { i -> (0 until (k.rows.firstOrNull()?.size ?: 1)).forEach { j ->
+            k.from.style(k.c0 + j, k.r0 + i).let { st -> if (st.isDefault) styles.remove(at[0] + j to at[1] + i) else styles[at[0] + j to at[1] + i] = st }
+        } }
     }
     fun pasteTransposed() {
         val k = clip ?: run { android.widget.Toast.makeText(context, "Copy some cells first", android.widget.Toast.LENGTH_SHORT).show(); return }
@@ -2664,8 +2697,10 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                             "Clear filters" to { filters.clear() },
                         )
                         val caseMenu = com.example.cas.graph.SheetTools.Case.entries.map { k -> k.label to { mapCells { _, _, t -> com.example.cas.graph.SheetTools.changeCase(t, k) } } }
-                        val fillMenu = listOf("No fill" to { setFmt(fmt.copy(tint = null)) }) +
-                            com.example.cas.graph.HighlightRule.COLOR_NAMES.mapIndexed { k, n -> n to { setFmt(fmt.copy(tint = k)) } }
+                        // The selected cell's look (or the range's first cell) for the Font buttons' state.
+                        val cellStyle = (editing ?: selA)?.let { styles[it] } ?: com.example.cas.graph.CellStyle()
+                        val fillMenu = listOf("No fill" to { styleCells { it.copy(tint = null) } }) +
+                            com.example.cas.graph.HighlightRule.COLOR_NAMES.mapIndexed { k, n -> n to { styleCells { it.copy(tint = k) } } }
                         val derivedMenu = com.example.cas.graph.SheetTools.Derived.entries.map { k -> k.label to { deriveColumn(c, k) } }
                         val lastCell = intArrayOf(maxOf(0, cells.size - 1), maxOf(0, rows - 1))
                         val selectMenu = listOf(
@@ -2690,13 +2725,16 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     TableTool(TableIcons.CopyTable, "Copy", large = false) { copyCells(false) },
                                     TableTool(TableIcons.FormatPainter, "Format Painter", on = painterFrom != null, large = false) {
                                         if (painterFrom != null) painterFrom = null
-                                        else { painterFrom = c; android.widget.Toast.makeText(context, "Tap a cell in the column to give this format", android.widget.Toast.LENGTH_SHORT).show() }
+                                        else {
+                                            painterFrom = c; painterStyle = (editing ?: selA)?.let { styles[it] }
+                                            android.widget.Toast.makeText(context, "Tap a cell to give it this format", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
                                     },
                                 )),
                                 ToolGroup("Font", listOf(
-                                    TableTool(TableIcons.Bold, "Bold", on = fmt.bold, large = false) { setFmt(fmt.copy(bold = !fmt.bold)) },
-                                    TableTool(TableIcons.Italic, "Italic", on = fmt.italic, large = false) { setFmt(fmt.copy(italic = !fmt.italic)) },
-                                    TableTool(TableIcons.FillColor, "Fill color", on = fmt.tint != null, large = false, menu = fillMenu),
+                                    TableTool(TableIcons.Bold, "Bold", on = cellStyle.bold, large = false) { val b = !cellStyle.bold; styleCells { it.copy(bold = b) } },
+                                    TableTool(TableIcons.Italic, "Italic", on = cellStyle.italic, large = false) { val i = !cellStyle.italic; styleCells { it.copy(italic = i) } },
+                                    TableTool(TableIcons.FillColor, "Fill color", on = cellStyle.tint != null, large = false, menu = fillMenu),
                                     TableTool(TableIcons.ChangeCase, "Change case", large = false, menu = caseMenu),
                                 )),
                                 ToolGroup("Alignment", listOf(
@@ -2920,7 +2958,21 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                         }
                         Box(Modifier.weight(1f).fillMaxHeight()) {
                             // The sheet: column cards on top, then the rows; both scroll sideways together.
-                            Column(Modifier.fillMaxSize().padding(horizontal = if (wide) 16.dp else 8.dp).clip(RoundedCornerShape(28.dp)).background(colors.surface)) {
+                            Column(Modifier.fillMaxSize().padding(horizontal = if (wide) 16.dp else 8.dp).clip(RoundedCornerShape(28.dp)).background(colors.surface)
+                                // Pinch to zoom, as in Sheets: two fingers change the zoom; one finger still scrolls and taps.
+                                .pointerInput(f) {
+                                    awaitEachGesture {
+                                        awaitFirstDown(requireUnconsumed = false, pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                                        do {
+                                            val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                                            if (event.changes.count { it.pressed } >= 2) {
+                                                val z = event.calculateZoom()
+                                                if (z != 1f) zoom = (zoom * z).coerceIn(0.6f, 1.6f)
+                                                event.changes.forEach { if (it.position != it.previousPosition) it.consume() }
+                                            }
+                                        } while (event.changes.any { it.pressed })
+                                    }
+                                }) {
                                 // On a tablet the formula bar sits above the grid, as in Excel.
                                 if (wide) formulaBar(Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp))
                                 // A column's card and the grip after it (drag to resize, double-tap for the usual width).
@@ -2985,6 +3037,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     val shade = ruleTint ?: if (fmt.colorScale && number != null) scales[c]?.let { (lo, hi) -> Color(com.example.cas.graph.SheetTools.scaleColor(com.example.cas.graph.SheetTools.scalePosition(number, lo, hi))) } else null
                                     val barLength = if (fmt.dataBars && number != null) scales[c]?.let { (lo, hi) -> val a = minOf(0.0, lo); val b = maxOf(0.0, hi); if (b > a) ((number - a) / (b - a)).toFloat() else null } else null
                                     val found = finding && com.example.cas.graph.SheetTools.matches(t, query, matchCase, wholeCell)
+                                    val look = styles[c to r]
                                     Box(Modifier.width(widthOf(c)).height(heightOf(r))) {
                                         TableCell(
                                             // With Show formulas on, every cell shows what's typed in it.
@@ -2992,13 +3045,17 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                             // Typed in the formula bar; the cell is outlined while it's the one selected.
                                             editing = false,
                                             highlight = if (inFill(c, r)) colors.primary else if (found) colors.tertiary else if ((c to r) in marked) colors.error else refColor(c, r),
-                                            display = if (showFormulas) null else display, fill = shade ?: fmt.tint?.let { Color(com.example.cas.graph.HighlightRule.COLORS[it]) },
+                                            display = if (showFormulas) null else display, fill = shade ?: look?.tint?.let { Color(com.example.cas.graph.HighlightRule.COLORS[it]) },
                                             selected = here || inSelection(c, r), bar = barLength,
-                                            align = fmt.align, textScale = zoom, bold = fmt.bold, italic = fmt.italic,
+                                            align = fmt.align, textScale = zoom, bold = look?.bold == true, italic = look?.italic == true,
                                             onTap = {
                                                 // With a range picked, a tap stretches it; otherwise it selects the cell to type in.
                                                 val painter = painterFrom
-                                                if (painter != null) { setFormat(c, fmts.getOrElse(painter) { com.example.cas.graph.ColumnFormat() }.copy(hidden = false)); painterFrom = null; focusCol = c }
+                                                if (painter != null) {
+                                                    setFormat(c, fmts.getOrElse(painter) { com.example.cas.graph.ColumnFormat() }.copy(hidden = false))
+                                                    painterStyle.let { st -> if (st == null || st.isDefault) styles.remove(c to r) else styles[c to r] = st }
+                                                    painterFrom = null; painterStyle = null; focusCol = c
+                                                }
                                                 else if (selA != null) selB = c to r
                                                 else if (here) scope.launch { runCatching { barFocus.requestFocus() } }
                                                 else { editing = c to r; focusCol = c }

@@ -164,8 +164,8 @@ class SheetToolsTest {
         assertEquals(ColumnFormat(align = 2), ColumnFormat.decode(ColumnFormat(align = 2).encode()))
     }
 
-    @Test fun fontFillCurrencyAndHiddenFormats() {
-        val f = ColumnFormat(bold = true, italic = true, tint = 3, hidden = true, currency = "€", decimals = 1)
+    @Test fun currencyAndHiddenFormats() {
+        val f = ColumnFormat(hidden = true, currency = "€", decimals = 1)
         assertEquals(f, ColumnFormat.decode(f.encode()))
         assertEquals("$" + ColumnFormat(thousands = true, decimals = 2).show(1234567.5), ColumnFormat(currency = "$", thousands = true).show(1234567.5))
         assertEquals("$4.50", ColumnFormat(currency = "$").show(4.5))
@@ -210,5 +210,27 @@ class SheetToolsTest {
         val z = SheetTools.derived(listOf(1.0, 2.0, 3.0), SheetTools.Derived.ZScore)
         assertEquals(-1.0, z[0]!!, 1e-12); assertEquals(0.0, z[1]!!, 1e-12); assertEquals(1.0, z[2]!!, 1e-12)
         assertEquals(listOf<Double?>(null, null), SheetTools.derived(listOf(5.0, 5.0), SheetTools.Derived.Normalize))
+    }
+
+    @Test fun cellStyles() {
+        val st = com.example.cas.graph.CellStyle(bold = true, tint = 2)
+        assertEquals(st, com.example.cas.graph.CellStyle.decode(st.encode()))
+        assertEquals(com.example.cas.graph.CellStyle(italic = true), com.example.cas.graph.CellStyle.decode("i"))
+        val t = DataTable(listOf("a", "b"), listOf(listOf("1", "2"), listOf("3", "4")), 0, 1, styles = mapOf((1 to 0) to st, (0 to 1) to com.example.cas.graph.CellStyle(italic = true)))
+        val back = DataTable.decode(t.encode())!!
+        assertEquals(st, back.style(1, 0))
+        assertTrue(back.style(0, 1).italic)
+        assertTrue(back.style(0, 0).isDefault)
+        assertEquals(t.styles, back.withRoles(0, 1, null, null).styles)
+        // Moving with rows and columns.
+        val m = mapOf((0 to 0) to st, (0 to 2) to st, (1 to 1) to st)
+        val C = com.example.cas.graph.CellStyle
+        assertEquals(setOf(0 to 0, 0 to 3, 1 to 2), C.movedRows(m, C.inserted(1)).keys)
+        assertEquals(setOf(0 to 0, 0 to 1), C.movedRows(m, C.removed(1)).keys)
+        assertEquals(setOf(0 to 2, 0 to 0, 1 to 1), C.movedRows(m, C.reordered(listOf(2, 1, 0))).keys)
+        // Rows left out of the new order lose their styles.
+        assertEquals(setOf(0 to 0, 1 to 1), C.movedRows(m, C.reordered(listOf(0, 1))).keys)
+        assertEquals(setOf(0 to 0, 0 to 2), C.movedColumns(m, C.removed(1)).keys)
+        assertEquals(setOf(0 to 0, 0 to 2, 2 to 1), C.movedColumns(m, C.inserted(1)).keys)
     }
 }
