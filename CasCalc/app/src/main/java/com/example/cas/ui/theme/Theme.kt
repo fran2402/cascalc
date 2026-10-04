@@ -193,6 +193,15 @@ object CasFonts {
     val NcmRoman = FontFamily(Font(R.font.ncm_roman))
     /** New Computer Modern's italic for the same Latin letters, in italic runs. */
     val NcmLatinItalic = FontFamily(Font(R.font.ncm_latin_italic))
+    /**
+     * The data table's cells: New Computer Modern Mono, the Unicode version of Computer Modern's
+     * typewriter (CMU Typewriter), with its true italic (cmitt, not the roman slanted) and bold.
+     */
+    val Mono = FontFamily(
+        Font(R.font.ncm_mono),
+        Font(R.font.ncm_mono_italic, androidx.compose.ui.text.font.FontWeight.Normal, androidx.compose.ui.text.font.FontStyle.Italic),
+        Font(R.font.ncm_mono_bold, androidx.compose.ui.text.font.FontWeight.Bold),
+    )
     /** Math on keys: Google Sans Flex, rounded like the rest of the interface. */
     val Math = googleSansFlex(weight = 400)
     val MathItalic = googleSansFlex(weight = 400, slant = -10f)

@@ -56,7 +56,7 @@ val CREDITS: List<CreditGroup> = listOf(
             "Android's own typeface, used as the fallback.", "SIL Open Font License 1.1", "https://fonts.google.com/specimen/Roboto"),
         Credit("MathJax TeX fonts", "The MathJax Consortium, after Donald Knuth's Computer Modern", "All the math: Main, Math Italic, Caligraphic, Fraktur and Size2 (the large \$\\int\$ and \$\\oint\$)",
             "The fonts LaTeX documents are set in, so answers look as they would in print.", "SIL Open Font License 1.1", "https://github.com/mathjax/MathJax/tree/legacy-v2/fonts"),
-        Credit("New Computer Modern", "Antonis Tsolomitis, after Donald Knuth's Computer Modern", "Blackboard bold (\$\\mathbb{R}\$, \$\\mathbb{C}\$…), Hebrew letters, upright Greek, ħ, the Greek letters Computer Modern lacks, and accented letters and unit symbols (Å, °Ré, °Rø, ‰, ℉, ☉) in the unit converter",
+        Credit("New Computer Modern", "Antonis Tsolomitis, after Donald Knuth's Computer Modern", "Blackboard bold (\$\\mathbb{R}\$, \$\\mathbb{C}\$…), Hebrew letters, upright Greek, ħ, the Greek letters Computer Modern lacks, accented letters and unit symbols (Å, °Ré, °Rø, ‰, ℉, ☉) in the unit converter, and its Mono (the typewriter, with its true italic) for the data table's cells",
             "Computer Modern extended with Unicode math and more scripts, so these match the rest of the math.", "GUST Font License", "https://ctan.org/pkg/newcomputermodern"),
         Credit("Material Symbols", "Google", "Icons",
             "Google's icon set, through Compose's extended icons.", "Apache License 2.0", "https://fonts.google.com/icons"),

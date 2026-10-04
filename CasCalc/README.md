@@ -203,6 +203,21 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (4 October, two-tone icons, Expressive ribbon, typewriter cells)
+- **Two-tone icons:** every data-table icon has an ink layer (what a command acts on) and an
+  accent layer (what it makes or does: a sort's arrow, an insert's plus, AutoSum's Σ), as the
+  geometry tools' icons. They show two-tone in the ribbon, the phone's bottom bar, the ⌃ list,
+  the selection toolbar and the column sheet.
+- **Material 3 Expressive ribbon:**
+  - Tabs with a sliding pill.
+  - Each group in its own rounded card.
+  - Large buttons are tonal shapes that square up when pressed or on; small ones are pills.
+  - Bold | Italic and Left | Center | Right are connected button groups.
+  - A menu's ▾ turns over while it's open, and the fold button is round and tonal.
+- **Cells in Computer Modern's typewriter:** New Computer Modern Mono (the Unicode CMU
+  Typewriter), with its true italic and its bold, in the cells and the formula bar.
+  (`ui/TableIcons.kt`, `res/font/ncm_mono*.otf`; mockup: `preview-render/round47.png`.)
+
 ## Latest changes (4 October, per-cell styles and pinch to zoom)
 - **Bold, Italic and Fill color per cell:** they style the selected cell or range, as in Excel and
   Sheets, and are saved with the table. Each cell keeps its look when rows are sorted, shuffled,

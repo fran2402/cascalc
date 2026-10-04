@@ -80,6 +80,7 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.zIndex
@@ -2732,15 +2733,15 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                     },
                                 )),
                                 ToolGroup("Font", listOf(
-                                    TableTool(TableIcons.Bold, "Bold", on = cellStyle.bold, large = false) { val b = !cellStyle.bold; styleCells { it.copy(bold = b) } },
-                                    TableTool(TableIcons.Italic, "Italic", on = cellStyle.italic, large = false) { val i = !cellStyle.italic; styleCells { it.copy(italic = i) } },
+                                    TableTool(TableIcons.Bold, "Bold", on = cellStyle.bold, large = false, segment = "font") { val b = !cellStyle.bold; styleCells { it.copy(bold = b) } },
+                                    TableTool(TableIcons.Italic, "Italic", on = cellStyle.italic, large = false, segment = "font") { val i = !cellStyle.italic; styleCells { it.copy(italic = i) } },
                                     TableTool(TableIcons.FillColor, "Fill color", on = cellStyle.tint != null, large = false, menu = fillMenu),
                                     TableTool(TableIcons.ChangeCase, "Change case", large = false, menu = caseMenu),
                                 )),
                                 ToolGroup("Alignment", listOf(
-                                    TableTool(TableIcons.AlignLeft, "Left", on = fmt.align == 1, large = false) { setFmt(fmt.copy(align = if (fmt.align == 1) 0 else 1)) },
-                                    TableTool(TableIcons.AlignCenter, "Center", on = fmt.align == 2, large = false) { setFmt(fmt.copy(align = if (fmt.align == 2) 0 else 2)) },
-                                    TableTool(TableIcons.AlignRight, "Right", on = fmt.align == 3, large = false) { setFmt(fmt.copy(align = if (fmt.align == 3) 0 else 3)) },
+                                    TableTool(TableIcons.AlignLeft, "Left", on = fmt.align == 1, large = false, segment = "align") { setFmt(fmt.copy(align = if (fmt.align == 1) 0 else 1)) },
+                                    TableTool(TableIcons.AlignCenter, "Center", on = fmt.align == 2, large = false, segment = "align") { setFmt(fmt.copy(align = if (fmt.align == 2) 0 else 2)) },
+                                    TableTool(TableIcons.AlignRight, "Right", on = fmt.align == 3, large = false, segment = "align") { setFmt(fmt.copy(align = if (fmt.align == 3) 0 else 3)) },
                                 )),
                                 ToolGroup("Number", listOf(
                                     TableTool(TableIcons.NumberFormat, "Format", menu = numberMenu),
@@ -3625,8 +3626,9 @@ private fun TableCell(
             Text(
                 shown ?: display ?: text, maxLines = 1, softWrap = false, overflow = androidx.compose.ui.text.style.TextOverflow.Clip,
                 style = TextStyle(
-                    fontFamily = if (italic) CasFonts.CmItalic else CasFonts.CmRoman, fontSize = 17.sp * textScale, color = if (formula && error) colors.error else ink,
+                    fontFamily = CasFonts.Mono, fontSize = 16.sp * textScale, color = if (formula && error) colors.error else ink,
                     fontWeight = if (bold) androidx.compose.ui.text.font.FontWeight.Bold else null,
+                    fontStyle = if (italic) androidx.compose.ui.text.font.FontStyle.Italic else null,
                 ),
                 textAlign = when (align) { 2 -> androidx.compose.ui.text.style.TextAlign.Center; 3 -> androidx.compose.ui.text.style.TextAlign.End; else -> androidx.compose.ui.text.style.TextAlign.Start },
                 modifier = Modifier.weight(1f),
@@ -3644,7 +3646,7 @@ private fun TableCell(
         value = value,
         onValueChange = { value = it; if (it.text != text) onChange(it.text) },
         singleLine = true,
-        textStyle = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 17.sp, color = ink),
+        textStyle = TextStyle(fontFamily = CasFonts.Mono, fontSize = 16.sp, color = ink),
         cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.primary),
         // With formulas, a keyboard with letters, = and brackets.
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -3964,7 +3966,7 @@ private fun PointCard(color: Color?, kind: String?, name: String?, rows: List<Ca
                                 .padding(start = 10.dp, end = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(a.icon, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(18.dp))
+                            DuoIcon(a.icon, colors.onSecondaryContainer, colors.primary, Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
                             Text(tr(a.label), color = colors.onSecondaryContainer, style = MaterialTheme.typography.labelLarge, maxLines = 1)
                         }
@@ -4008,7 +4010,7 @@ fun ResultCard(
         ) {
             Column(Modifier.padding(start = 12.dp, end = 2.dp, top = 2.dp, bottom = 10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(icon, contentDescription = null, tint = colors.primary, modifier = Modifier.size(18.dp))
+                    DuoIcon(icon, colors.onSurface, colors.primary, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(tr(title), style = MaterialTheme.typography.labelLarge, color = colors.onSurface, modifier = Modifier.weight(1f), maxLines = 1)
                     @Composable
@@ -4046,7 +4048,7 @@ fun ResultCard(
         Column(Modifier.padding(start = 14.dp, end = 6.dp, top = 10.dp, bottom = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(colors.primaryContainer), contentAlignment = Alignment.Center) {
-                    Icon(icon, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size(22.dp))
+                    DuoIcon(icon, colors.onPrimaryContainer, colors.primary, Modifier.size(22.dp))
                 }
                 Spacer(Modifier.width(12.dp))
                 Text(tr(title), style = MaterialTheme.typography.titleSmall, color = colors.onSurface, modifier = Modifier.weight(1f))
@@ -4448,8 +4450,22 @@ internal class TableTool(
     val menu: List<Pair<String, () -> Unit>>? = null,
     /** A large button (icon over its label), or a small one (icon beside its label, stacked with the next small ones), as on Excel's ribbon. */
     val large: Boolean = true,
+    /** Small tools with the same segment sit together as one connected button group (Bold | Italic, Left | Center | Right), icons only. */
+    val segment: String? = null,
     val action: () -> Unit = {},
 )
+
+/**
+ * A data-table icon in two colors, as the geometry tools' icons: [ink] for what a command acts
+ * on, [accent] for what it makes or does. Material icons, which have one layer, come out in [ink].
+ */
+@Composable
+internal fun DuoIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, ink: Color, accent: Color, modifier: Modifier = Modifier) {
+    Box(modifier) {
+        Icon(icon, contentDescription = null, tint = ink, modifier = Modifier.matchParentSize())
+        TableIcons.accentOf(icon)?.let { Icon(it, contentDescription = null, tint = accent, modifier = Modifier.matchParentSize()) }
+    }
+}
 
 /** A ribbon group: its tools, its label underneath, and the little launcher arrow at its corner for the full options. */
 internal class ToolGroup(val label: String, val tools: List<TableTool>, val launcher: (() -> Unit)? = null)
@@ -4458,12 +4474,12 @@ internal class ToolGroup(val label: String, val tools: List<TableTool>, val laun
 internal enum class TableTab(val label: String) { Home("Home"), Insert("Insert"), Formulas("Formulas"), Data("Data"), View("View") }
 
 /**
- * The data table's ribbon, after Excel's: text tabs with an underline that slides to the chosen
- * one, and under them the tab's groups, each with its large buttons (icon over label) and small
- * ones stacked in columns (icon beside label), a ▾ on buttons that open a menu, the group's name
- * underneath with a launcher arrow at its corner, and lines between groups. ⌃ folds the ribbon
- * down to its tabs. In Material 3 Expressive colors and shapes; on a phone ([wide] false) the
- * small buttons stack two high and everything scrolls sideways.
+ * The data table's ribbon, after Excel's and in Material 3 Expressive: tabs with a pill that
+ * slides to the chosen one, and under them the tab's groups, each in its own rounded card with
+ * its name (and launcher) at the bottom. Large buttons are tonal shapes that morph when pressed
+ * or on; small ones are pills stacked in columns, and toggles that belong together (Bold | Italic,
+ * Left | Center | Right) form connected button groups. A ▾ turns over while its menu is open;
+ * the round button at the end folds the ribbon down to its tabs.
  */
 @Composable
 internal fun TableRibbon(tab: TableTab, onTab: (TableTab) -> Unit, groups: List<ToolGroup>, wide: Boolean, collapsed: Boolean, onCollapse: (Boolean) -> Unit, modifier: Modifier = Modifier) {
@@ -4471,69 +4487,78 @@ internal fun TableRibbon(tab: TableTab, onTab: (TableTab) -> Unit, groups: List<
     val tap = rememberKeyTap()
     val density = LocalDensity.current
     val perColumn = if (wide) 3 else 2
-    val smallHeight = if (wide) 26.dp else 30.dp
-    val bodyHeight = smallHeight * perColumn
+    val smallHeight = if (wide) 30.dp else 32.dp
+    val bodyHeight = smallHeight * perColumn + 4.dp * (perColumn - 1)
     Column(modifier.fillMaxWidth()) {
-        // The tabs: text, with an underline under the chosen one that slides across.
+        // The tabs: a pill behind the chosen one slides and stretches to the next.
         val tabX = remember { mutableStateMapOf<TableTab, Pair<Float, Float>>() }
         val target = tabX[tab]
-        val lineX by androidx.compose.animation.core.animateFloatAsState(target?.first ?: 0f, label = "tab line x")
-        val lineW by androidx.compose.animation.core.animateFloatAsState(target?.second ?: 0f, label = "tab line width")
+        val pillX by androidx.compose.animation.core.animateFloatAsState(target?.first ?: 0f, androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 500f), label = "tab pill x")
+        val pillW by androidx.compose.animation.core.animateFloatAsState(target?.second ?: 0f, androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 500f), label = "tab pill width")
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
-                Row {
+            Box(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(vertical = 4.dp)) {
+                if (target != null) Box(
+                    Modifier.offset { androidx.compose.ui.unit.IntOffset(pillX.toInt(), 0) }
+                        .width(with(density) { pillW.toDp() }).height(40.dp).clip(CircleShape).background(colors.secondaryContainer),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     TableTab.entries.forEach { t ->
                         val on = t == tab
                         Box(
-                            Modifier.height(44.dp).clip(RoundedCornerShape(12.dp))
+                            Modifier.height(40.dp).clip(CircleShape)
                                 .selectable(selected = on, role = androidx.compose.ui.semantics.Role.Tab) { tap(); onTab(t); if (collapsed) onCollapse(false) }
                                 .onGloballyPositioned { tabX[t] = it.positionInParent().x to it.size.width.toFloat() }
-                                .padding(horizontal = 16.dp),
+                                .padding(horizontal = 18.dp),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text(tr(t.label), style = MaterialTheme.typography.titleSmall, color = if (on) colors.primary else colors.onSurfaceVariant, maxLines = 1)
+                            Text(tr(t.label), style = MaterialTheme.typography.titleSmall, color = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant, maxLines = 1)
                         }
                     }
                 }
-                // The underline: a rounded bar under the chosen tab's label.
-                if (target != null) Box(
-                    Modifier.offset { androidx.compose.ui.unit.IntOffset((lineX + with(density) { 12.dp.toPx() }).toInt(), with(density) { 40.dp.toPx() }.toInt()) }
-                        .width(with(density) { (lineW - 24.dp.toPx()).coerceAtLeast(0f).toDp() }).height(3.dp)
-                        .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)).background(colors.primary),
-                )
             }
-            IconButton(onClick = { onCollapse(!collapsed) }) {
-                Icon(if (collapsed) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp, contentDescription = tr(if (collapsed) "Show the ribbon" else "Fold the ribbon away"), tint = colors.onSurfaceVariant)
+            val turn by androidx.compose.animation.core.animateFloatAsState(if (collapsed) 180f else 0f, label = "fold turn")
+            androidx.compose.material3.FilledTonalIconButton(onClick = { tap(); onCollapse(!collapsed) }) {
+                Icon(Icons.Default.KeyboardArrowUp, contentDescription = tr(if (collapsed) "Show the ribbon" else "Fold the ribbon away"),
+                    modifier = Modifier.graphicsLayer { rotationZ = turn })
             }
         }
-        androidx.compose.material3.HorizontalDivider(color = colors.outlineVariant)
         androidx.compose.animation.AnimatedVisibility(!collapsed, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 8.dp, end = 8.dp, top = 6.dp, bottom = 4.dp),
-                verticalAlignment = Alignment.Top,
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 4.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Top,
             ) {
-                groups.forEachIndexed { k, g ->
-                    if (k > 0) Box(Modifier.padding(horizontal = 6.dp).width(1.dp).height(bodyHeight + 18.dp).background(colors.outlineVariant))
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Row(Modifier.height(bodyHeight), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Top) {
-                            // Large buttons on their own; runs of small ones stacked in columns.
-                            var k2 = 0
+                groups.forEach { g ->
+                    // A group: its own card, its buttons, its name underneath.
+                    Column(
+                        Modifier.clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainer).padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 2.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Row(Modifier.height(bodyHeight), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.Top) {
+                            // Large buttons on their own; runs of small ones stacked in columns, connected groups taking one slot.
+                            var k = 0
                             val tools = g.tools
-                            while (k2 < tools.size) {
-                                val t = tools[k2]
-                                if (t.large) { RibbonButton(t, large = true, height = bodyHeight); k2++ }
-                                else {
-                                    val run = tools.drop(k2).takeWhile { !it.large }.take(perColumn)
-                                    Column { run.forEach { RibbonButton(it, large = false, height = smallHeight) } }
-                                    k2 += run.size
+                            while (k < tools.size) {
+                                val t = tools[k]
+                                if (t.large) { RibbonButton(t, large = true, height = bodyHeight); k++; continue }
+                                val run = tools.drop(k).takeWhile { !it.large }
+                                k += run.size
+                                val slots = mutableListOf<List<TableTool>>()
+                                run.forEach { tool -> val last = slots.lastOrNull(); if (tool.segment != null && last?.first()?.segment == tool.segment) slots[slots.size - 1] = last + tool else slots.add(listOf(tool)) }
+                                slots.chunked(perColumn).forEach { column ->
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        column.forEach { slot -> if (slot.first().segment != null) ConnectedButtons(slot, smallHeight) else RibbonButton(slot.first(), large = false, height = smallHeight) }
+                                    }
                                 }
                             }
                         }
-                        Row(Modifier.height(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text(tr(g.label), style = MaterialTheme.typography.labelSmall, color = colors.onSurfaceVariant, maxLines = 1)
+                        Row(Modifier.height(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(tr(g.label), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, maxLines = 1)
                             g.launcher?.let { open ->
-                                Icon(TableIcons.Launcher, contentDescription = tr("More {0} options", tr(g.label)), tint = colors.onSurfaceVariant,
-                                    modifier = Modifier.padding(start = 4.dp).size(16.dp).clip(CircleShape).clickable { tap(); open() })
+                                Box(
+                                    Modifier.padding(start = 6.dp).size(20.dp).clip(CircleShape).background(colors.secondaryContainer)
+                                        .clickable(onClickLabel = tr("More {0} options", tr(g.label))) { tap(); open() },
+                                    contentAlignment = Alignment.Center,
+                                ) { DuoIcon(TableIcons.Launcher, colors.onSecondaryContainer, colors.primary, Modifier.size(14.dp)) }
                             }
                         }
                     }
@@ -4543,34 +4568,90 @@ internal fun TableRibbon(tab: TableTab, onTab: (TableTab) -> Unit, groups: List<
     }
 }
 
-/** One ribbon button: large (icon over label, a ▾ under if it opens a menu) or small (icon, label, ▾ in a row). */
+/**
+ * One ribbon button. Large: a tonal shape holding the icon, its label under it, the shape
+ * squaring up while pressed or on. Small: a pill with icon and label. A ▾ turns over while its
+ * menu is open.
+ */
 @Composable
 private fun RibbonButton(t: TableTool, large: Boolean, height: androidx.compose.ui.unit.Dp) {
     val colors = MaterialTheme.colorScheme
     val tap = rememberKeyTap()
     var menuOpen by remember { mutableStateOf(false) }
-    val corner by androidx.compose.animation.core.animateDpAsState(if (t.on || menuOpen) 10.dp else 14.dp, label = "ribbon corner")
-    val bg = when { t.on -> colors.secondaryContainer; menuOpen -> colors.surfaceContainerHighest; else -> Color.Transparent }
-    val ink = if (!t.enabled) colors.onSurface.copy(alpha = 0.38f) else if (t.on) colors.onSecondaryContainer else colors.primary
-    val text = if (!t.enabled) colors.onSurface.copy(alpha = 0.38f) else colors.onSurface
+    val source = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val corner by androidx.compose.animation.core.animateDpAsState(
+        when { pressed -> 8.dp; t.on || menuOpen -> 12.dp; large -> 18.dp; else -> height / 2 },
+        androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 600f), label = "ribbon corner",
+    )
+    val turn by androidx.compose.animation.core.animateFloatAsState(if (menuOpen) 180f else 0f, label = "menu arrow")
+    val faded = colors.onSurface.copy(alpha = 0.38f)
+    val ink = if (!t.enabled) faded else if (t.on) colors.onSecondaryContainer else colors.onSurface
+    val accent = if (!t.enabled) faded else colors.primary
+    val text = if (!t.enabled) faded else colors.onSurface
+    val shape = RoundedCornerShape(corner)
+    val click = Modifier.clickable(source, androidx.compose.material3.ripple(), enabled = t.enabled, onClickLabel = tr(t.label)) { tap(); if (t.menu != null) menuOpen = true else t.action() }
+        .semantics { if (t.on) stateDescription = "on" }
     Box {
-        val m = Modifier.clip(RoundedCornerShape(corner)).background(bg)
-            .clickable(enabled = t.enabled, onClickLabel = tr(t.label)) { tap(); if (t.menu != null) menuOpen = true else t.action() }
-            .semantics { if (t.on) stateDescription = "on" }
-        if (large) Column(m.height(height).widthIn(min = 56.dp).padding(horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(t.icon, contentDescription = null, tint = ink, modifier = Modifier.size(26.dp))
-            Spacer(Modifier.height(3.dp))
-            Text(tr(t.label), style = MaterialTheme.typography.labelSmall, color = text, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 13.sp)
-            if (t.menu != null) Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(14.dp))
-        } else Row(m.height(height).padding(start = 6.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(t.icon, contentDescription = null, tint = ink, modifier = Modifier.size(18.dp))
+        if (large) Column(
+            Modifier.height(height).widthIn(min = 64.dp).clip(RoundedCornerShape(18.dp)).then(click).padding(horizontal = 4.dp, vertical = 2.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
+        ) {
+            Box(
+                Modifier.size(width = 52.dp, height = 36.dp).clip(shape)
+                    .background(when { t.on -> colors.secondaryContainer; menuOpen || pressed -> colors.surfaceContainerHighest; else -> colors.surfaceContainerHigh }),
+                contentAlignment = Alignment.Center,
+            ) { DuoIcon(t.icon, ink, accent, Modifier.size(24.dp)) }
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(tr(t.label), style = MaterialTheme.typography.labelSmall, color = text, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, lineHeight = 13.sp)
+                if (t.menu != null) Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(16.dp).graphicsLayer { rotationZ = turn })
+            }
+        } else Row(
+            Modifier.height(height).clip(shape)
+                .background(when { t.on -> colors.secondaryContainer; menuOpen || pressed -> colors.surfaceContainerHighest; else -> Color.Transparent })
+                .then(click).padding(start = 8.dp, end = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            DuoIcon(t.icon, ink, accent, Modifier.size(18.dp))
             Spacer(Modifier.width(6.dp))
             Text(tr(t.label), style = MaterialTheme.typography.labelMedium, color = text, maxLines = 1)
-            if (t.menu != null) Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(16.dp))
+            if (t.menu != null) Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(16.dp).graphicsLayer { rotationZ = turn })
         }
         t.menu?.let { items ->
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, shape = RoundedCornerShape(16.dp)) {
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, shape = RoundedCornerShape(20.dp), containerColor = colors.surfaceContainerHigh) {
                 items.forEach { (label, act) -> DropdownMenuItem(text = { Text(tr(label)) }, onClick = { menuOpen = false; act() }) }
+            }
+        }
+    }
+}
+
+/**
+ * Toggles that belong together as Material 3 Expressive's connected button group: icons side by
+ * side with small inner corners and round outer ones; the one that's on goes fully round.
+ */
+@Composable
+private fun ConnectedButtons(tools: List<TableTool>, height: androidx.compose.ui.unit.Dp) {
+    val colors = MaterialTheme.colorScheme
+    val tap = rememberKeyTap()
+    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        tools.forEachIndexed { k, t ->
+            val source = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+            val pressed by source.collectIsPressedAsState()
+            val round = height / 2
+            val inner = if (pressed) 4.dp else 6.dp
+            val start by androidx.compose.animation.core.animateDpAsState(if (t.on || k == 0) round else inner, label = "segment start")
+            val end by androidx.compose.animation.core.animateDpAsState(if (t.on || k == tools.size - 1) round else inner, label = "segment end")
+            val faded = colors.onSurface.copy(alpha = 0.38f)
+            Box(
+                Modifier.height(height).width(if (t.on) 48.dp else 42.dp)
+                    .clip(RoundedCornerShape(topStart = start, bottomStart = start, topEnd = end, bottomEnd = end))
+                    .background(if (t.on) colors.secondaryContainer else colors.surfaceContainerHighest)
+                    .clickable(source, androidx.compose.material3.ripple(), enabled = t.enabled, onClickLabel = tr(t.label)) { tap(); t.action() }
+                    .semantics { contentDescription = tr(t.label); if (t.on) stateDescription = "on" },
+                contentAlignment = Alignment.Center,
+            ) {
+                DuoIcon(t.icon, if (!t.enabled) faded else if (t.on) colors.onSecondaryContainer else colors.onSurface, if (!t.enabled) faded else colors.primary, Modifier.size(18.dp))
             }
         }
     }
@@ -4640,8 +4721,8 @@ private fun CommandIcon(t: TableTool) {
                 .semantics { contentDescription = tr(t.label); if (t.on) stateDescription = "on" },
             contentAlignment = Alignment.Center,
         ) {
-            Icon(t.icon, contentDescription = null, modifier = Modifier.size(22.dp),
-                tint = if (!t.enabled) colors.onSurface.copy(alpha = 0.38f) else if (t.on) colors.onSecondaryContainer else colors.onSurfaceVariant)
+            DuoIcon(t.icon, if (!t.enabled) colors.onSurface.copy(alpha = 0.38f) else if (t.on) colors.onSecondaryContainer else colors.onSurface,
+                if (!t.enabled) colors.onSurface.copy(alpha = 0.38f) else colors.primary, Modifier.size(22.dp))
             if (t.menu != null) Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = colors.outline,
                 modifier = Modifier.align(Alignment.BottomEnd).size(14.dp))
         }
@@ -4693,7 +4774,7 @@ internal fun TableCommandSheet(tab: TableTab, onTab: (TableTab) -> Unit, groups:
             } else {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = { menu = null }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = tr("Back")) }
-                    Icon(open.icon, contentDescription = null, tint = colors.primary, modifier = Modifier.size(22.dp))
+                    DuoIcon(open.icon, colors.onSurface, colors.primary, Modifier.size(22.dp))
                     Text(tr(open.label), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 10.dp))
                 }
                 Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp).clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainer)) {
@@ -4718,7 +4799,7 @@ private fun CommandRow(icon: androidx.compose.ui.graphics.vector.ImageVector?, l
         if (icon != null) Box(
             Modifier.size(36.dp).clip(RoundedCornerShape(if (on) 10.dp else 18.dp)).background(if (on) colors.secondaryContainer else colors.surfaceContainerHighest),
             contentAlignment = Alignment.Center,
-        ) { Icon(icon, contentDescription = null, tint = if (!enabled) ink else if (on) colors.onSecondaryContainer else colors.primary, modifier = Modifier.size(20.dp)) }
+        ) { DuoIcon(icon, if (!enabled) ink else if (on) colors.onSecondaryContainer else colors.onSurface, if (!enabled) ink else colors.primary, Modifier.size(20.dp)) }
         Text(tr(label), style = MaterialTheme.typography.bodyLarge, color = ink, modifier = Modifier.weight(1f).padding(start = if (icon != null) 14.dp else 4.dp))
         if (on) Icon(Icons.Default.Check, contentDescription = null, tint = colors.primary)
         else if (opens) Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = colors.onSurfaceVariant)
@@ -4858,7 +4939,7 @@ internal fun FormulaBar(
                 value = value,
                 onValueChange = { value = it; if (it.text != text) onChange(it.text) },
                 singleLine = true,
-                textStyle = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 18.sp, color = colors.onSurface),
+                textStyle = TextStyle(fontFamily = CasFonts.Mono, fontSize = 17.sp, color = colors.onSurface),
                 cursorBrush = androidx.compose.ui.graphics.SolidColor(colors.primary),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                     // The whole keyboard (letters too: words, units, a formula's =), not just a number pad.
@@ -4988,7 +5069,7 @@ internal fun ColumnSheet(letter: String, name: String, summary: String, role: St
                             .clickable(onClickLabel = tr(a.label)) { a.action() }.padding(horizontal = 4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                     ) {
-                        Icon(a.icon, contentDescription = null, tint = ink, modifier = Modifier.size(24.dp))
+                        DuoIcon(a.icon, ink, if (a.on) colors.inversePrimary else if (a.danger) colors.error else colors.primary, Modifier.size(24.dp))
                         Spacer(Modifier.height(4.dp))
                         Text(tr(a.label), style = MaterialTheme.typography.labelSmall, color = if (a.danger) colors.error else if (a.on) colors.onPrimary else colors.onSurface, maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                     }
