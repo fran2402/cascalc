@@ -1,0 +1,98 @@
+<!doctype html><html><head><meta charset="utf-8"><title>x</title><style>
+*{font-variation-settings:"ROND" 100 !important;box-sizing:border-box}
+@font-face{font-family:GSF;src:url(../app/src/main/res/font/google_sans_flex.ttf);font-weight:1 1000;font-stretch:25% 151%}
+@font-face{font-family:CMR;src:url(../app/src/main/res/font/cm_main.otf)}
+@font-face{font-family:CMI;src:url(../app/src/main/res/font/cm_italic.otf)}
+@font-face{font-family:NCMR;src:url(../app/src/main/res/font/ncm_roman.otf)}
+@font-face{font-family:NCMI;src:url(../app/src/main/res/font/ncm_latin_italic.otf)}
+@font-face{font-family:NCMM;src:url(../app/src/main/res/font/ncm_math.otf)}
+body{margin:0;background:#dcd8cf;font-family:GSF;padding:40px;width:1900px}
+h2{font:600 26px GSF;margin:0 0 6px;color:#2a2a22}
+p.note{font:15px/1.45 GSF;color:#47473B;margin:0 0 22px;max-width:1600px}
+.row{display:flex;gap:40px;align-items:flex-start;margin-bottom:56px;flex-wrap:wrap}
+.cap{font:500 15px GSF;color:#47473B;margin-top:16px;width:412px;line-height:1.4}
+.light{--bg:#FCF9EE;--on:#1C1C16;--onv:#47473B;--low:#F6F4E8;--lowest:#fff;--c:#F1EEE2;--ch:#EBE9DC;--chh:#E5E3D6;--pri:#5B6133;--onpri:#fff;--pc:#DEE5A0;--onpc:#1A1E00;--sec:#5E6045;--onsec:#fff;--sc:#E2E4C4;--onsc:#1B1D0A;--ter:#3C6A5A;--onter:#fff;--tc:#BEECDB;--ontc:#002019;--outv:#C8C7B5;--out:#77786A;--err:#BA1A1A;--ec:#FFDAD6;--onec:#410002}
+.dark{--bg:#12130C;--on:#E5E3D6;--onv:#C8C7B5;--low:#1B1C14;--lowest:#0D0F08;--c:#1F2018;--ch:#292A22;--chh:#34352C;--pri:#C5CB86;--onpri:#2F3300;--pc:#434A12;--onpc:#E1E7A0;--sec:#C6C8A9;--onsec:#2F321B;--sc:#45483A;--onsc:#E2E4C4;--ter:#A2D0BF;--onter:#05372B;--tc:#214E41;--ontc:#BEECDB;--outv:#47473B;--out:#919283;--err:#FFB4AB;--ec:#93000A;--onec:#FFDAD6}
+.phone{position:relative;width:412px;height:900px;border-radius:44px;overflow:hidden;background:var(--low);color:var(--on);box-shadow:0 0 0 10px #1a1a1a,0 30px 60px rgba(0,0,0,.35)}
+
+.phone .status{padding:0 44px !important}
+.tbar{display:flex;align-items:center;padding:4px 10px 4px 4px;gap:2px}
+.tbar .ib{width:36px;height:42px;font-size:19px;flex:none}
+.ttl{font:400 20px GSF;padding-left:2px;white-space:nowrap}
+.fchip{white-space:nowrap;font:500 12px GSF;background:var(--tc);color:var(--ontc);border-radius:12px;padding:3px 10px;margin-left:8px}
+.donebtn{height:44px;border-radius:16px;background:var(--pri);color:var(--onpri);display:flex;align-items:center;gap:6px;padding:0 14px 0 10px;font:600 15px GSF;margin-left:2px;white-space:nowrap;flex:none}
+.cards{display:flex;gap:10px;padding:8px 0 8px 52px}
+.cc{width:110px;border-radius:18px;padding:8px 4px 6px 8px;display:flex;flex-direction:column;gap:6px;flex:none}
+.cc .h{display:flex;align-items:center;gap:8px}
+.rb{height:28px;min-width:28px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;font:italic 16px CMI;padding:0 6px}
+.cc .l{font:600 13px GSF;color:var(--onv)}.cc .dots{margin-left:auto;color:var(--onv);font:700 16px GSF;padding-right:4px}
+.cc .nm{font:13px GSF}
+.trow{display:flex;align-items:center;gap:10px;padding:3px 0}
+.rn{width:42px;flex:none;text-align:center;font:600 14px GSF;color:var(--onv)}
+.cell{width:110px;flex:none;height:42px;border-radius:10px;display:flex;align-items:center;padding:0 12px;font:17px CMR;position:relative}
+.cell small{position:absolute;right:6px;bottom:3px;font:italic 10px CMI;color:var(--ter)}
+.menu{position:absolute;background:var(--c);border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.3);padding:6px 0;width:250px;z-index:5}
+.menu div{display:flex;align-items:center;gap:12px;padding:9px 16px;font:15px GSF}
+.menu div .mi{width:22px;text-align:center;color:var(--onv);font:17px GSF}
+.menu div.on{background:color-mix(in srgb,var(--pri) 10%,transparent)}
+.menu div.new:after{content:"new";margin-left:auto;font:600 10px GSF;color:var(--onpri);background:var(--pri);border-radius:8px;padding:2px 6px}
+.menu hr{border:none;border-top:1px solid var(--outv);margin:4px 0}
+.err{color:var(--err)}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.32);z-index:4}
+.dlg{position:absolute;left:28px;right:28px;background:var(--chh);border-radius:28px;padding:22px 22px 14px;z-index:6;box-shadow:0 12px 32px rgba(0,0,0,.3)}
+.dlg .ic{text-align:center;font:24px GSF;color:var(--sec)}.dlg h3{text-align:center;font:400 22px GSF;margin:10px 0 14px}
+.srow{display:flex;justify-content:space-between;align-items:center;padding:8px 4px;border-radius:10px}.srow span{color:var(--onv);font:15px GSF}.srow b{font:400 19px CMR}
+.srow.tap{background:color-mix(in srgb,var(--pri) 10%,transparent)}
+.dnote{font:12.5px GSF;color:var(--onv);margin-top:8px}
+.btns{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}.btns span{font:500 14px GSF;color:var(--pri);padding:10px 12px}
+.field{border:1px solid var(--out);border-radius:6px;height:56px;padding:0 14px;display:flex;align-items:center;font:16px GSF;position:relative;margin-bottom:14px}
+.field label{position:absolute;top:-9px;left:10px;background:var(--chh);padding:0 4px;font:12px GSF;color:var(--onv)}
+.field.f{border:2px solid var(--pri)}.field.f label{color:var(--pri)}
+.fab2{position:absolute;right:24px;bottom:24px;width:56px;height:56px;border-radius:18px;background:var(--pc);color:var(--onpc);display:flex;align-items:center;justify-content:center;font:26px GSF;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.toast{position:absolute;left:50%;transform:translateX(-50%);bottom:96px;background:#303030;color:#fff;border-radius:20px;padding:8px 16px;font:14px GSF;z-index:7}
+</style></head>
+<body style="width:2060px">
+<h2>Round 38: New data table features</h2>
+<p class="note">A column's ⋮ now has Statistics, Sort largest first, Fill with a series, Duplicate and Move left/right, as well as the roles and the existing options. A row's number can duplicate the row. A new ⋮ at the top shares or copies the whole table as CSV (formulas give their values) and removes empty rows. Spreadsheet formulas are out of beta, so the chip just says Formulas. Everything can be undone.</p>
+<div class="row" id="row"></div>
+<script>
+const roles={x:['var(--pri)','var(--onpri)'],y:['var(--ter)','var(--onter)'],sy:['var(--sec)','var(--onsec)']};
+const data=[['0','1.02','=B1*2'],['0.5','1.31','=B2*2'],['1','2.24','=B3*2'],['1.5','3.30','=B4*2'],['2','5.01','=B5*2'],['2.5','7.48','=B6*2'],['3','11.2','=B7*2'],['3.5','16.4','=B8*2'],['4','24.9','=B9*2']];
+const shown=r=>(parseFloat(data[r][1])*2).toFixed(2).replace(/\.?0+$/,'');
+function table(opts={}){
+ const cols=[['x','A','time t'],['y','B','height h'],[null,'C','2h']];
+ let h=`<div class="status"><span>12:30</span><span>▴ ▮</span></div><div class="tbar"><span class="ib">✕</span><span class="ttl">Data table</span><span class="fchip">Formulas</span><span style="flex:1"></span><span class="ib">↶</span><span class="ib" style="opacity:.4">↷</span><span class="ib" style="${opts.more?'background:var(--sc);border-radius:21px':''}">⋮</span><span class="donebtn">✓ Done</span></div>`;
+ h+=`<div style="background:var(--bg);border-radius:28px 28px 0 0;height:820px;position:relative;overflow:hidden">`;
+ h+=`<div class="cards">`+cols.map(([r,l,n],i)=>{const t=r?`color-mix(in srgb, ${roles[r][0]} 16%, var(--low))`:'var(--c)';return `<div class="cc" style="background:${t};${opts.colMenu===i?'outline:2px solid var(--pri)':''}"><div class="h">${r?`<span class="rb" style="background:${roles[r][0]};color:${roles[r][1]}">${r}</span>`:'<span class="rb" style="background:var(--ch)">–</span>'}<span class="l">${l}</span><span class="dots">⋮</span></div><div class="nm">${n}</div></div>`}).join('')+`</div>`;
+ data.forEach((row,r)=>{
+  h+=`<div class="trow"><div class="rn" style="${opts.rowMenu===r?'background:var(--sc);border-radius:16px;height:32px;line-height:32px':''}">${r+1}</div>`;
+  row.forEach((t,c)=>{const tint=c==0?'color-mix(in srgb, var(--pri) 9%, var(--low))':c==1?'color-mix(in srgb, var(--ter) 9%, var(--low))':'var(--ch)';
+   h+=`<div class="cell" style="background:${tint}">${c==2?shown(r)+'<small>ƒx</small>':t}</div>`});
+  h+=`</div>`});
+ h+=`<div class="fab2">＋</div>`;
+ return h;
+}
+const P=(cls,inner,cap)=>`<div><div class="${cls}"><div class="phone">${inner}</div></div><div class="cap">${cap}</div></div>`;
+const row=document.getElementById('row');
+// 1 column menu
+row.innerHTML+=P('light',table({colMenu:1})+`<div class="menu" style="left:150px;top:132px">
+<div><span class="mi"><span class="rb" style="background:var(--pri);color:var(--onpri);height:22px;min-width:22px;font-size:13px">x</span></span>Across</div>
+<div class="on"><span class="mi"><span class="rb" style="background:var(--ter);color:var(--onter);height:22px;min-width:22px;font-size:13px">y</span></span>Up<span style="margin-left:auto">✓</span></div>
+<div><span class="mi">σ</span>Error bars across</div><div><span class="mi">σ</span>Error bars up</div><div><span class="mi">–</span>Not used</div><hr>
+<div class="new"><span class="mi">▦</span>Statistics</div><div><span class="mi">≡</span>Sort smallest first</div><div class="new"><span class="mi">≡</span>Sort largest first</div>
+<div><span class="mi">#</span>Fill with 1, 2, 3…</div><div class="new"><span class="mi">⟋</span>Fill with a series…</div><hr>
+<div class="new"><span class="mi">⧉</span>Duplicate the column</div><div class="new"><span class="mi">‹</span>Move left</div><div class="new"><span class="mi">›</span>Move right</div>
+<div><span class="mi">⌫</span>Clear the column</div><div class="err"><span class="mi err">🗑</span>Remove the column</div></div></div>`,`<b>1 · A column's ⋮.</b> The roles first, then what can be done with it. The new options are marked: statistics, sorting either way, a series, duplicating and moving (its role and width go with it).`);
+// 2 stats
+row.innerHTML+=P('light',table()+`<div class="scrim"></div><div class="dlg" style="top:170px"><div class="ic">▦</div><h3>height h</h3>
+${[['Count','9'],['Sum','72.86'],['Mean','8.0956'],['Median','5.01'],['Standard deviation','8.0954'],['Smallest','1.02'],['Largest','24.9'],['Range','23.88']].map(([a,b],i)=>`<div class="srow${i==2?' tap':''}"><span>${a}</span><b>${b}</b></div>`).join('')}
+<div class="dnote">Text and empty cells are left out; the standard deviation is the sample's. Tap a value to copy it.</div><div class="btns"><span>Close</span></div></div><div class="toast" style="bottom:60px">Mean copied</div>`,`<b>2 · Statistics.</b> Count, sum, mean, median, standard deviation, smallest, largest and range. A formula column counts by its values. Tap a row to copy that number.`);
+// 3 series
+row.innerHTML+=P('light',table()+`<div class="scrim"></div><div class="dlg" style="top:250px"><div class="ic">⟋</div><h3>Fill with a series</h3>
+<div class="field"><label>Start</label>0</div><div class="field f"><label>Step</label>0.25<span style="width:2px;height:22px;background:var(--pri);margin-left:2px"></span></div>
+<div style="font:15px GSF;color:var(--onv)">0, 0.25, 0.5, 0.75, … (9 rows)</div><div class="btns"><span>Cancel</span><span>Fill</span></div></div>`,`<b>3 · Fill with a series.</b> Any start and step, with a preview of the first values; the column is filled to the last row. Undo puts it back.`);
+// 4 dark: top menu + row menu
+row.innerHTML+=P('dark',table({more:true,rowMenu:3})+`<div class="menu" style="right:70px;top:84px;width:230px"><div><span class="mi">⇪</span>Share as CSV</div><div><span class="mi">⧉</span>Copy as CSV</div><div><span class="mi">⌫</span>Remove empty rows</div></div>
+<div class="menu" style="left:56px;top:350px;width:230px"><div><span class="mi">˄</span>Insert a row above</div><div><span class="mi">˅</span>Insert a row below</div><div class="new"><span class="mi">⧉</span>Duplicate row 4</div><div class="err"><span class="mi err">🗑</span>Remove row 4</div></div>`,`<b>4 · The top ⋮ and a row's number (dark).</b> Share the table as a CSV file (to Sheets, Excel, a message) or copy it; formulas go as their values. A row can now be duplicated.`);
+document.title='ready';
+</script></body></html>
