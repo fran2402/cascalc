@@ -203,6 +203,12 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (5 October, cleaner italic x)
+
+- The **x key** is redrawn after Computer Modern's italic x as two arcs, a ")" and a "(",
+  touching once in the middle and slanted, with the outer ends flicked out; the earlier trace
+  ran its two strokes side by side, which blurred into a blob at key size.
+
 ## Latest changes (5 October, Computer Modern x)
 
 - The **x key** is traced from Computer Modern's italic x: a reversed c and a c back to back,
