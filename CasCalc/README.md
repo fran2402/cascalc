@@ -203,6 +203,24 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (5 October, three more tabs, icons for every extra key)
+
+- **Three more tabs** to add in Settings › Calculator tabs, 15 keys each:
+  - **More trigonometry**: sec, csc, cot, their inverses, the hyperbolic sech, csch, coth and
+    their inverses, hypot(x, y), atan2(y, x) and sinc. Written in the six basic functions, so they
+    simplify, differentiate, integrate and graph (and follow Deg).
+  - **Signals**: Heaviside step, rect, tri, ramp, pulse(x, a, b), sawtooth, square and triangle
+    waves, logistic sigmoid, softplus, clamp, lerp, smoothstep, Gaussian and wrap; written in
+    |x|, ⌊x⌋, sgn, min and max, so they graph.
+  - **Primes and sequences**: is prime, next and previous prime, the n-th prime, π(n), φ(n),
+    τ(n), σ(n), μ(n), n!!, Fibonacci, Lucas, Catalan and Bernoulli numbers and partitions p(n),
+    exact for whole numbers (new cas/NumberTheory.kt).
+- **Icons for all 75 keys** on the five extra tabs, in the keys' two-tone style: words and
+  letters from the shared stroked alphabet (gcd, erf, Si, sec, pₙ, Fₙ, φ(n)…), symbols (⌊□⌋, ⌈□⌉,
+  {□}, n ∈ ℙ), small graphs for every signal, a right triangle for hypot and a quadrant angle for
+  atan2; tab icons for the three new tabs (a tangent on the unit circle, a square wave, a sieve).
+- Every new key has its long-press explanation; MoreTabsTest checks the new functions.
+
 ## Latest changes (5 October, calculator tabs in Settings, two new tabs)
 
 - **Settings › Calculator › Calculator tabs**: choose which groups of keys sit above the keypad.

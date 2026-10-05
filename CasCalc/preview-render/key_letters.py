@@ -68,6 +68,27 @@ L = {
  'θ': (5.2, lambda x: ([ring(x+2.6, 12, 2.6, 7.5), f"M{f(x)} 12h5.2"], [])),
  'τ': (5.4, lambda x: ([f"M{f(x)} 10h5.4", f"M{f(x+2.7)} 10v7.6c0 1.3.6 1.9 1.6 1.9"], [])),
  'ν': (5, lambda x: ([f"M{f(x)} 10l2.4 9.5c1.6-2.6 2.6-5.6 2.6-9.5"], [])),
+ 'ψ': (6.4, lambda x: ([f"M{f(x)} 10v3.5c0 3 1.6 4.5 3.2 4.5s3.2-1.5 3.2-4.5V10", f"M{f(x+3.2)} 5.5v17"], [])),
+ 'ζ': (5.6, lambda x: ([f"M{f(x+1)} 4.5h4.4", f"M{f(x+5.4)} 4.5c-3 2.4-5.4 5.3-5.4 8.8c0 2.6 1.4 3.7 3.4 4.1c1.6.4 2.2 1.3 1.8 2.6c-.3 1-1 1.8-1.8 2.5"], [])),
+ 'φ': (6, lambda x: ([ring(x+3, 14.75, 3, 4.5), f"M{f(x+3)} 6.5v16"], [])),
+ 'π': (7, lambda x: ([f"M{f(x)} 10.5h7", f"M{f(x+2)} 10.5v9", f"M{f(x+5.2)} 10.5v7.5c0 1.1.5 1.5 1.3 1.5"], [])),
+ 'Γ': (5.6, lambda x: ([f"M{f(x+5.6)} 4.5H{f(x)}v15"], [])),
+ # Sets and brackets.
+ '∈': (5.5, lambda x: ([f"M{f(x+5.5)} 10.5h-2.5a4.25 4.25 0 0 0 0 8.5h2.5", f"M{f(x+.3)} 14.75h5"], [])),
+ 'ℙ': (6.6, lambda x: ([f"M{f(x)} 19.5v-15h3.4a3.6 3.6 0 0 1 0 7.2H{f(x)}", f"M{f(x+2.4)} 4.5v15"], [])),
+ '+': (5, lambda x: ([f"M{f(x)} 14.75h5", f"M{f(x+2.5)} 12.25v5"], [])),
+ # Raised + and −, full size: the next and the previous prime.
+ '⁺': (4.4, lambda x: ([f"M{f(x)} 7h4.4", f"M{f(x+2.2)} 4.8v4.4"], [])),
+ '⁻': (4.4, lambda x: ([f"M{f(x)} 7h4.4"], [])),
+ '⌊': (2.6, lambda x: ([f"M{f(x)} 4.5v15h2.6"], [])),
+ '⌋': (2.6, lambda x: ([f"M{f(x+2.6)} 4.5v15h-2.6"], [])),
+ '⌈': (2.6, lambda x: ([f"M{f(x)} 19.5v-15h2.6"], [])),
+ '⌉': (2.6, lambda x: ([f"M{f(x+2.6)} 19.5v-15h-2.6"], [])),
+ '{': (3, lambda x: ([f"M{f(x+3)} 4.5c-1.5 0-2 .8-2 2.2v3.6c0 1.2-.4 1.7-1 1.7c.6 0 1 .5 1 1.7v3.6c0 1.4.5 2.2 2 2.2"], [])),
+ '}': (3, lambda x: ([f"M{f(x)} 4.5c1.5 0 2 .8 2 2.2v3.6c0 1.2.4 1.7 1 1.7c-.6 0-1 .5-1 1.7v3.6c0 1.4-.5 2.2-2 2.2"], [])),
+ ',': (1.4, lambda x: ([f"M{f(x+1.2)} 18.6c0 1.4-.4 2.4-1.2 3"], [])),
+ # A box: what a function acts on (drawn thin, in ink).
+ '□': (6, lambda x: ([f"M{f(x)} 9h6v6h-6z"], [])),
  # Digits and signs.
  '0': (5, lambda x: ([ring(x+2.5, 12, 2.5, 7.5)], [])),
  '1': (3.4, lambda x: ([f"M{f(x)} 7l2.4-2.5v15"], [])),
@@ -115,7 +136,7 @@ def word(parts, W):
     seq = [(ch, role) for text, role in parts for ch in ([text] if text in L else list(text))]
     total = sum(L[ch][0] * k_of(ch) for ch, _ in seq) + GAP * (sum(1 for ch, _ in seq if L[ch][0] > 0) - 1)
     x = (W - total) / 2
-    out = {'ink': [], 'accent': [], 'inkFill': [], 'accentFill': []}
+    out = {'ink': [], 'accent': [], 'inkFill': [], 'accentFill': [], 'inkThin': [], 'accentThin': []}
     for ch, role in seq:
         k = k_of(ch)
         x0 = x
@@ -129,7 +150,7 @@ def word(parts, W):
         s, fl = L[ch][1](x)
         out[role] += [stretch(p, x0, k) for p in s]
         # Dots (an i's, a matrix's entries) widen in place without turning into ellipses.
-        out[role + 'Fill'] += [stretch(p, x0, 1) if ch != 'M' else p for p in fl] if k == 1 else [shift_dot(p, x0, k) for p in fl]
+        out[role.replace('Thin', '') + 'Fill'] += [stretch(p, x0, 1) if ch != 'M' else p for p in fl] if k == 1 else [shift_dot(p, x0, k) for p in fl]
         if L[ch][0] > 0: x += L[ch][0] * k + GAP
     return out
 def shift_dot(d, x0, k):
@@ -308,4 +329,65 @@ def constants_list():
     args = [f'{kk} = listOf({", ".join(chr(34) + p + chr(34) for p in v)})' for kk, v in o.items() if v]
     return f'            "list of constants with names" to key("ConstantList", {", ".join(args)}),'
 lines.append(constants_list())
+
+# The extra tabs: number theory, special functions, more trigonometry, primes and sequences.
+def ckt(spoken, name, pieces):
+    o, W = constant(pieces)
+    args = [f'{k} = listOf({", ".join(chr(34) + p + chr(34) for p in v)})' for k, v in o.items() if v]
+    w = '' if W == 24 else f', width = {W}f'
+    return f'            "{spoken}" to key("{name}"{w}, {", ".join(args)}),'
+def call(letter, inner):
+    """A function letter in the accent color with its argument in brackets, in ink: φ(n), Γ(s,x)."""
+    return [(letter, 'accent'), ('(', 'ink')] + [(c, 'ink') for c in inner] + [(')', 'ink')]
+box = ('□', 'inkThin')
+lines += [
+ kt('greatest common divisor', 'Gcd', [('gcd', 'accent')]),
+ kt('least common multiple', 'Lcm', [('lcm', 'accent')]),
+ kt('floor', 'Floor', [('⌊', 'accent'), box, ('⌋', 'accent')]),
+ kt('ceiling', 'Ceiling', [('⌈', 'accent'), box, ('⌉', 'accent')]),
+ kt('round', 'Round', [('⌊', 'accent'), box, ('⌉', 'accent')]),
+ kt('fractional part', 'FracPart', [('{', 'accent'), box, ('}', 'accent')]),
+ kt('sign', 'Sgn', [('sgn', 'accent')]),
+ kt('maximum', 'Max', [('max', 'accent')]),
+ kt('minimum', 'Min', [('min', 'accent')]),
+ kt('error function', 'Erf', [('erf', 'accent')]),
+ kt('imaginary error function', 'Erfi', [('erf', 'ink'), ('i', 'accent')]),
+ kt('upper incomplete gamma function', 'GammaInc', call('Γ', ['s', ',', 'x'])),
+ kt('digamma function', 'Digamma', [('ψ', 'accent')]),
+ kt('Hurwitz zeta function', 'Hurwitz', call('ζ', ['s', ',', 'a'])),
+ kt('sine integral', 'SinInt', [('S', 'accent'), ('i', 'ink')]),
+ kt('cosine integral', 'CosInt', [('C', 'accent'), ('i', 'ink')]),
+ kt('exponential integral', 'ExpInt', [('E', 'accent'), ('i', 'ink')]),
+ kt('logarithmic integral', 'LogInt', [('l', 'accent'), ('i', 'ink')]),
+ ckt('polylogarithm', 'Polylog', [('Li', 's', '')]),
+ kt('hyperbolic sine integral', 'SinhInt', [('S', 'accent'), ('hi', 'ink')]),
+ kt('hyperbolic cosine integral', 'CoshInt', [('C', 'accent'), ('hi', 'ink')]),
+ kt('Fresnel sine integral', 'FresnelS', call('S', ['x'])),
+ kt('Fresnel cosine integral', 'FresnelC', call('C', ['x'])),
+ kt('incomplete elliptic integral of the first kind', 'EllipticF', call('F', ['φ'])),
+]
+for fn, full in (('sec', 'secant'), ('csc', 'cosecant'), ('cot', 'cotangent')):
+    F = fn.capitalize()
+    lines += [kt(full, F, [(fn, 'ink')]),
+              kt(f'inverse {full}', 'A' + F, [('a', 'accent'), (fn, 'ink')]),
+              kt(f'hyperbolic {full}', F + 'h', [(fn, 'ink'), ('h', 'accent')]),
+              kt(f'inverse hyperbolic {full}', 'A' + F + 'h', [('a', 'accent'), (fn, 'ink'), ('h', 'accent')])]
+lines += [
+ kt('sinc function', 'Sinc', [('sin', 'ink'), ('c', 'accent')]),
+ kt('is prime', 'IsPrime', [('n', 'ink'), ('∈', 'ink'), ('ℙ', 'accent')]),
+ kt('next prime', 'NextPrime', [('p', 'accent'), ('⁺', 'ink')]),
+ kt('previous prime', 'PrevPrime', [('p', 'accent'), ('⁻', 'ink')]),
+ ckt('n-th prime', 'NthPrime', [('p', 'n', '')]),
+ kt('prime counting function', 'PrimePi', call('π', ['n'])),
+ kt("Euler's totient", 'Totient', call('φ', ['n'])),
+ kt('number of divisors', 'NDivisors', call('τ', ['n'])),
+ kt('sum of divisors', 'SumDivisors', call('σ', ['n'])),
+ kt('Möbius function', 'Moebius', call('μ', ['n'])),
+ kt('double factorial', 'DoubleFactorial', [('n', 'ink'), ('!', 'accent'), ('!', 'accent')]),
+ ckt('Fibonacci number', 'Fibonacci', [('F', 'n', '')]),
+ ckt('Lucas number', 'Lucas', [('L', 'n', '')]),
+ ckt('Catalan number', 'Catalan', [('C', 'n', '')]),
+ ckt('Bernoulli number', 'Bernoulli', [('B', 'n', '')]),
+ kt('partition number', 'Partitions', call('p', ['n'])),
+]
 print('\n'.join(lines))

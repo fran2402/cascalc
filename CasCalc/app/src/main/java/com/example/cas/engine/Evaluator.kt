@@ -21,6 +21,7 @@ import com.example.cas.cas.div
 import com.example.cas.cas.fn
 import com.example.cas.cas.freeVars
 import com.example.cas.cas.freeOf
+import com.example.cas.cas.isConstant
 import com.example.cas.cas.mul
 import com.example.cas.cas.neg
 import com.example.cas.cas.num
@@ -484,7 +485,86 @@ class Evaluator(
                 "approx" -> Numeric.approx(x)
                 "sin", "cos", "tan" -> fn(f.name, if (angle == AngleUnit.Degrees) mul(x, div(PI, num(180))) else x)
                 "asin", "acos", "atan" -> fn(f.name, x).let { if (angle == AngleUnit.Degrees) mul(it, div(num(180), PI)) else it }
+                in MORE_TRIG -> moreTrig(f.name, args)
+                in SIGNALS -> signal(f.name, args)
+                in com.example.cas.cas.NumberTheory.NAMES -> com.example.cas.cas.NumberTheory.eval(f.name, args) ?: com.example.cas.cas.Fn(f.name, args)
                 else -> fn(f.name, *args.toTypedArray())
+            }
+        }
+
+        /** An angle in, in the angle unit set: radians for the functions below. */
+        private fun inAngle(x: Expr) = if (angle == AngleUnit.Degrees) mul(x, div(PI, num(180))) else x
+        /** An angle out, in the angle unit set. */
+        private fun outAngle(x: Expr) = if (angle == AngleUnit.Degrees) mul(x, div(num(180), PI)) else x
+
+        /**
+         * The reciprocal trigonometric and hyperbolic functions and their inverses, atan2, hypot
+         * and sinc, written in the six basic ones, so they simplify, differentiate, integrate and
+         * graph as those do.
+         */
+        private fun moreTrig(name: String, a: List<Expr>): Expr {
+            val x = a[0]
+            fun need(n: Int) { if (a.size != n) throw MathError("$name takes $n values") }
+            return when (name) {
+                "sec" -> div(ONE, fn("cos", inAngle(x)))
+                "csc" -> div(ONE, fn("sin", inAngle(x)))
+                "cot" -> div(fn("cos", inAngle(x)), fn("sin", inAngle(x)))
+                "asec" -> outAngle(fn("acos", div(ONE, x)))
+                "acsc" -> outAngle(fn("asin", div(ONE, x)))
+                "acot" -> outAngle(fn("atan", div(ONE, x)))
+                "sech" -> div(ONE, fn("cosh", x))
+                "csch" -> div(ONE, fn("sinh", x))
+                "coth" -> div(fn("cosh", x), fn("sinh", x))
+                "asech" -> fn("acosh", div(ONE, x))
+                "acsch" -> fn("asinh", div(ONE, x))
+                "acoth" -> fn("atanh", div(ONE, x))
+                // sinc x = sin x / x, with sinc 0 = 1.
+                "sinc" -> if (x == com.example.cas.cas.ZERO) ONE else div(fn("sin", x), x)
+                // hypot(x, y) = √(x² + y²).
+                "hypot" -> { need(2); pow(add(pow(x, 2), pow(a[1], 2)), HALF) }
+                // atan2(y, x): the angle of the point (x, y), from −π to π.
+                // At numbers, exactly (atan2(1, 1) = π/4); with letters, 2 atan(y / (√(x² + y²) + x)), which graphs.
+                "atan2" -> { need(2); outAngle(
+                    if (x.isConstant && a[1].isConstant) fn("arg", add(a[1], mul(I, x)))
+                    else mul(num(2), fn("atan", div(x, add(pow(add(pow(x, 2), pow(a[1], 2)), HALF), a[1]))))
+                ) }
+                else -> fn(name, *a.toTypedArray())
+            }
+        }
+
+        /**
+         * Waveforms and piecewise functions for signals, written in |x|, ⌊x⌋, sgn, min and max,
+         * so they graph, and simplify at numbers.
+         */
+        private fun signal(name: String, a: List<Expr>): Expr {
+            val x = a[0]
+            fun need(n: Int) { if (a.size != n) throw MathError("$name takes $n values") }
+            fun heaviside(t: Expr) = div(add(ONE, fn("sgn", t)), num(2))
+            fun clamp(t: Expr, lo: Expr, hi: Expr) = fn("min", fn("max", t, lo), hi)
+            return when (name) {
+                "heaviside" -> heaviside(x)
+                // The unit box: 1 for |x| < ½.
+                "rect" -> heaviside(sub(HALF, fn("abs", x)))
+                // The unit triangle: 1 − |x|, down to 0.
+                "tri" -> fn("max", sub(ONE, fn("abs", x)), com.example.cas.cas.ZERO)
+                "ramp" -> fn("max", x, com.example.cas.cas.ZERO)
+                // Period-1 waves: the sawtooth from 0 up to 1, the square ±1, the triangle ±1.
+                "sawtooth" -> sub(x, fn("floor", x))
+                "squarewave" -> fn("sgn", fn("sin", mul(num(2), PI, x)))
+                "trianglewave" -> sub(mul(num(4), fn("abs", sub(x, fn("floor", add(x, HALF))))), ONE)
+                "clamp" -> { need(3); clamp(x, a[1], a[2]) }
+                // lerp(a, b, t) = a + (b − a) t.
+                "lerp" -> { need(3); add(x, mul(sub(a[1], x), a[2])) }
+                // 3u² − 2u³ with u = x clamped to [0, 1].
+                "smoothstep" -> clamp(x, com.example.cas.cas.ZERO, ONE).let { u -> mul(pow(u, 2), sub(num(3), mul(num(2), u))) }
+                "sigmoid" -> div(ONE, add(ONE, pow(E, neg(x))))
+                "softplus" -> fn("ln", add(ONE, pow(E, x)))
+                "gauss" -> pow(E, neg(pow(x, 2)))
+                // 1 between a and b, 0 elsewhere.
+                "pulse" -> { need(3); sub(heaviside(sub(x, a[1])), heaviside(sub(x, a[2]))) }
+                // x brought into [a, b) by whole periods b − a.
+                "wrap" -> { need(3); val w = sub(a[2], a[1]); sub(x, mul(w, fn("floor", div(sub(x, a[1]), w)))) }
+                else -> fn(name, *a.toTypedArray())
             }
         }
 
@@ -595,6 +675,8 @@ class Evaluator(
     companion object {
         /** Function names that may appear as plain words in a reused answer, e.g. "ln" in ln|x|. */
         val FUNCTION_WORDS = setOf("ln", "sin", "cos", "tan")
+        val MORE_TRIG = setOf("sec", "csc", "cot", "asec", "acsc", "acot", "sech", "csch", "coth", "asech", "acsch", "acoth", "sinc", "hypot", "atan2")
+        val SIGNALS = setOf("heaviside", "rect", "tri", "ramp", "sawtooth", "squarewave", "trianglewave", "clamp", "lerp", "smoothstep", "sigmoid", "softplus", "gauss", "wrap", "pulse")
         val RELATIONS = setOf("<", ">", "≤", "≥")
     }
 }

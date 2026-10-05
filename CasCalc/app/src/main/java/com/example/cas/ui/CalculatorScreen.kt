@@ -1250,6 +1250,9 @@ private fun iconFor(id: IconId): ImageVector = when (id) {
     IconId.Triangle -> TabIcons.Triangle
     IconId.Integers -> TabIcons.Integers
     IconId.Special -> TabIcons.Special
+    IconId.TrigMore -> TabIcons.TrigMore
+    IconId.Signals -> TabIcons.Signals
+    IconId.Primes -> TabIcons.Primes
 }
 
 

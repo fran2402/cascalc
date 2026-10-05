@@ -74,6 +74,15 @@ object TabIcons {
     /** The S-curve of erf crossing its axes: the special functions tab. */
     val Special: ImageVector by lazy { icon("Special", stroke = listOf("M3 18.5C9 18.5 9.5 12 12 12S15 5.5 21 5.5"), thin = listOf("M3 12h18", "M12 3v18"), accent = setOf("M3 18.5C9 18.5 9.5 12 12 12S15 5.5 21 5.5")) }
 
+    /** The unit circle with the tangent line that gives tan and sec: more trigonometry. */
+    val TrigMore: ImageVector by lazy { icon("TrigMore", stroke = listOf("M5 12a7 7 0 1 0 14 0a7 7 0 1 0-14 0", "M19 3v18"), thin = listOf("M12 12L19 6.5"), accent = setOf("M19 3v18")) }
+
+    /** A square wave over its axis: signals and piecewise functions. */
+    val Signals: ImageVector by lazy { icon("Signals", stroke = listOf("M3 16h4V7h5v9h5V7h4"), thin = listOf("M3 20h18"), accent = setOf("M3 16h4V7h5v9h5V7h4")) }
+
+    /** A sieve of the numbers 2 to 10, the primes picked out: primes and sequences. */
+    val Primes: ImageVector by lazy { icon("Primes", stroke = emptyList(), fill = listOf("M17.9 5a1.1 1.1 0 1 0 2.2 0a1.1 1.1 0 1 0 -2.2 0z", "M10.9 12a1.1 1.1 0 1 0 2.2 0a1.1 1.1 0 1 0 -2.2 0z", "M3.9 19a1.1 1.1 0 1 0 2.2 0a1.1 1.1 0 1 0 -2.2 0z", "M10.9 19a1.1 1.1 0 1 0 2.2 0a1.1 1.1 0 1 0 -2.2 0z", "M17.9 19a1.1 1.1 0 1 0 2.2 0a1.1 1.1 0 1 0 -2.2 0z", "M3.3 5a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0 -3.4 0z", "M10.3 5a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0 -3.4 0z", "M3.3 12a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0 -3.4 0z", "M17.3 12a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0 -3.4 0z"), accent = setOf("M3.3 5a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0 -3.4 0z", "M10.3 5a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0 -3.4 0z", "M3.3 12a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0 -3.4 0z", "M17.3 12a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0 -3.4 0z")) }
+
     /** Aα: Latin and Greek letters. */
     val Letters: ImageVector by lazy { icon("Letters", stroke = listOf("M2.5 19L7 5l4.5 14", "M4.2 14h5.6", "M22 11.5c-.8 3-2.2 7.5-4.3 7.5c-1.9 0-3.2-1.6-3.2-3.8c0-2.2 1.4-3.9 3.3-3.9c2.6 0 3.2 5.1 4.7 7.7"), accent = setOf("M22 11.5c-.8 3-2.2 7.5-4.3 7.5c-1.9 0-3.2-1.6-3.2-3.8c0-2.2 1.4-3.9 3.3-3.9c2.6 0 3.2 5.1 4.7 7.7")) }
 }
