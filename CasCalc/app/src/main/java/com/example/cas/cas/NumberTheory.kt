@@ -193,6 +193,9 @@ object NumberTheory {
         return row[k]
     }
 
+    /** S(n, k), for the Touchard polynomials. */
+    fun stirling2Of(n: Int, k: Int): BigInteger = stirling2(n, k)
+
     /** Stirling numbers of the second kind: ways to split n things into k non-empty groups. */
     private fun stirling2(n: Int, k: Int): BigInteger {
         if (k < 0 || k > n) return BigInteger.ZERO

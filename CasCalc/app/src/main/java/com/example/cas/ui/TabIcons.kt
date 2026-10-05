@@ -95,6 +95,18 @@ object TabIcons {
     /** A box plot: quartiles, median and whiskers, more statistics. */
     val StatsMore: ImageVector by lazy { icon("StatsMore", stroke = listOf("M7.5 7.5h9v9h-9z", "M12 7.5v9"), thin = listOf("M4 12h3.5", "M16.5 12H20", "M4 9.5v5", "M20 9.5v5"), accent = setOf("M12 7.5v9")) }
 
+    /** Two arrows from one point, one picked out: vectors and coordinates. */
+    val Vectors: ImageVector by lazy { icon("Vectors", stroke = listOf("M4 18L17 5", "M11 5h6v6", "M4 18h16", "M16.5 14.5L20 18l-3.5 3.5"), accent = setOf("M4 18L17 5", "M11 5h6v6")) }
+
+    /** A clock face, the arithmetic that wraps around: modular arithmetic and bits. */
+    val Modular: ImageVector by lazy { icon("Modular", stroke = listOf("M3.5 12a8.5 8.5 0 1 0 17 0a8.5 8.5 0 1 0 -17 0z", "M12 12V7", "M12 12l3.5 2"), thin = listOf("M12 3.5v1.8", "M20.5 12h-1.8", "M12 20.5v-1.8", "M3.5 12h1.8"), accent = setOf("M12 12V7", "M12 12l3.5 2")) }
+
+    /** Growing bars under a rising arrow: finance. */
+    val Finance: ImageVector by lazy { icon("Finance", stroke = listOf("M6.5 20v-4", "M11.5 20v-6.5", "M16.5 20v-9", "M4 12l4.5-4l3 2.5L19 4", "M15 4h4v4"), thin = listOf("M3 20h18"), accent = setOf("M4 12l4.5-4l3 2.5L19 4", "M15 4h4v4")) }
+
+    /** A cubic over its axes: special polynomials. */
+    val Polynomials: ImageVector by lazy { icon("Polynomials", stroke = listOf("M3.5 20c2.5-13 5.5-13 8.5-8s6 5 8.5-8"), thin = listOf("M3 12h18", "M12 3.5v17"), accent = setOf("M3.5 20c2.5-13 5.5-13 8.5-8s6 5 8.5-8")) }
+
     /** Aα: Latin and Greek letters. */
     val Letters: ImageVector by lazy { icon("Letters", stroke = listOf("M2.5 19L7 5l4.5 14", "M4.2 14h5.6", "M22 11.5c-.8 3-2.2 7.5-4.3 7.5c-1.9 0-3.2-1.6-3.2-3.8c0-2.2 1.4-3.9 3.3-3.9c2.6 0 3.2 5.1 4.7 7.7"), accent = setOf("M22 11.5c-.8 3-2.2 7.5-4.3 7.5c-1.9 0-3.2-1.6-3.2-3.8c0-2.2 1.4-3.9 3.3-3.9c2.6 0 3.2 5.1 4.7 7.7")) }
 }

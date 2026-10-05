@@ -86,7 +86,7 @@ enum class KeyRole { Digit, Operator, Function, Clear, Equals }
 enum class IconId {
     Simplify, Expand, Factor, Apart, Together, Answer, MoreConstants,
     // Tab icons (TabIcons.kt)
-    Roots, Triangle, Balance, Area, Nabla, Matrix, ComplexC, Atom, Abs, Stats, Letters, PolarGrid, SymbolBuilder, Integers, Special, TrigMore, Signals, Primes, MathConst, Distributions, Combinatorics, StatsMore,
+    Roots, Triangle, Balance, Area, Nabla, Matrix, ComplexC, Atom, Abs, Stats, Letters, PolarGrid, SymbolBuilder, Integers, Special, TrigMore, Signals, Primes, MathConst, Distributions, Combinatorics, StatsMore, Vectors, Modular, Finance, Polynomials,
 }
 
 sealed interface KeyLabel {
@@ -649,6 +649,114 @@ val FunctionTabs: List<FunctionTab> = listOf(
             ),
         ),
         columns = 5, optional = true, about = "Mode, range, quartiles, geometric, harmonic and RMS means, spread, skewness, kurtosis",
+    ),
+    FunctionTab(
+        "Vectors", KeyLabel.Icon(IconId.Vectors),
+        listOf(
+            listOf(
+                notation(row(Func("norm", listOf(row("v")))), KeyAction.Insert(0) { Func("norm", 1) }, "vector length"),
+                notation(row(Func("unit", listOf(row("v")))), KeyAction.Insert(0) { Func("unit", 1) }, "unit vector"),
+                notation(row(Func("vangle", listOf(row("u"), row("v")))), KeyAction.Insert(0) { Func("vangle", 2) }, "angle between vectors"),
+                notation(row(Func("proj", listOf(row("u"), row("v")))), KeyAction.Insert(0) { Func("proj", 2) }, "vector projection"),
+                notation(row(Func("reject", listOf(row("u"), row("v")))), KeyAction.Insert(0) { Func("reject", 2) }, "vector rejection"),
+            ),
+            listOf(
+                notation(row(Func("dist", listOf(row("P"), row("Q")))), KeyAction.Insert(0) { Func("dist", 2) }, "distance between points"),
+                notation(row(Func("midpoint", listOf(row("P"), row("Q")))), KeyAction.Insert(0) { Func("midpoint", 2) }, "midpoint"),
+                notation(row(Func("triple", listOf(row("a"), row("b"), row("c")))), KeyAction.Insert(0) { Func("triple", 3) }, "scalar triple product"),
+                notation(row(Func("triarea", listOf(row("A"), row("B"), row("C")))), KeyAction.Insert(0) { Func("triarea", 3) }, "triangle area"),
+                notation(row(Func("outer", listOf(row("u"), row("v")))), KeyAction.Insert(0) { Func("outer", 2) }, "outer product"),
+            ),
+            listOf(
+                notation(row(Func("cart2pol", listOf(row("P")))), KeyAction.Insert(0) { Func("cart2pol", 1) }, "Cartesian to polar"),
+                notation(row(Func("pol2cart", listOf(row("r"), row("θ")))), KeyAction.Insert(0) { Func("pol2cart", 2) }, "polar to Cartesian"),
+                notation(row(Func("cart2sph", listOf(row("P")))), KeyAction.Insert(0) { Func("cart2sph", 1) }, "Cartesian to spherical"),
+                notation(row(Func("sph2cart", listOf(row("ρ"), row("θ"), row("φ")))), KeyAction.Insert(0) { Func("sph2cart", 3) }, "spherical to Cartesian"),
+                notation(row(Func("cart2cyl", listOf(row("P")))), KeyAction.Insert(0) { Func("cart2cyl", 1) }, "Cartesian to cylindrical"),
+            ),
+        ),
+        columns = 5, optional = true, about = "Length, unit vector, angle, projection, distance, midpoint, triple product, triangle area, polar and spherical coordinates",
+    ),
+    FunctionTab(
+        "Modular & bits", KeyLabel.Icon(IconId.Modular),
+        listOf(
+            listOf(
+                notation(row(Func("powmod", listOf(row("a"), row("b"), row("m")))), KeyAction.Insert(0) { Func("powmod", 3) }, "modular power"),
+                notation(row(Func("modinv", listOf(row("a"), row("m")))), KeyAction.Insert(0) { Func("modinv", 2) }, "modular inverse"),
+                notation(row(Func("isqrt", listOf(row("n")))), KeyAction.Insert(0) { Func("isqrt", 1) }, "integer square root"),
+                notation(row(Func("iroot", listOf(row("n"), row("k")))), KeyAction.Insert(0) { Func("iroot", 2) }, "integer k-th root"),
+                notation(row(Func("digitsum", listOf(row("n")))), KeyAction.Insert(0) { Func("digitsum", 1) }, "digit sum"),
+            ),
+            listOf(
+                notation(row(Func("ndigits", listOf(row("n")))), KeyAction.Insert(0) { Func("ndigits", 1) }, "number of digits"),
+                notation(row(Func("revdigits", listOf(row("n")))), KeyAction.Insert(0) { Func("revdigits", 1) }, "reversed digits"),
+                notation(row(Func("popcount", listOf(row("n")))), KeyAction.Insert(0) { Func("popcount", 1) }, "population count"),
+                notation(row(Func("band", listOf(row("a"), row("b")))), KeyAction.Insert(0) { Func("band", 2) }, "bitwise and"),
+                notation(row(Func("bor", listOf(row("a"), row("b")))), KeyAction.Insert(0) { Func("bor", 2) }, "bitwise or"),
+            ),
+            listOf(
+                notation(row(Func("bxor", listOf(row("a"), row("b")))), KeyAction.Insert(0) { Func("bxor", 2) }, "bitwise exclusive or"),
+                notation(row(Func("shl", listOf(row("a"), row("k")))), KeyAction.Insert(0) { Func("shl", 2) }, "shift left"),
+                notation(row(Func("shr", listOf(row("a"), row("k")))), KeyAction.Insert(0) { Func("shr", 2) }, "shift right"),
+                notation(row(Func("jacobi", listOf(row("a"), row("n")))), KeyAction.Insert(0) { Func("jacobi", 2) }, "Jacobi symbol"),
+                notation(row(Func("issquare", listOf(row("n")))), KeyAction.Insert(0) { Func("issquare", 1) }, "is a perfect square"),
+            ),
+        ),
+        columns = 5, optional = true, about = "Modular powers and inverses, integer roots, digits, bitwise and, or, xor and shifts, the Jacobi symbol",
+    ),
+    FunctionTab(
+        "Finance", KeyLabel.Icon(IconId.Finance),
+        listOf(
+            listOf(
+                notation(row(Func("fv", listOf(row("P"), row("r"), row("n")))), KeyAction.Insert(0) { Func("fv", 3) }, "future value"),
+                notation(row(Func("pv", listOf(row("F"), row("r"), row("n")))), KeyAction.Insert(0) { Func("pv", 3) }, "present value"),
+                notation(row(Func("pmt", listOf(row("P"), row("r"), row("n")))), KeyAction.Insert(0) { Func("pmt", 3) }, "loan payment"),
+                notation(row(Func("nper", listOf(row("P"), row("A"), row("r")))), KeyAction.Insert(0) { Func("nper", 3) }, "number of periods"),
+                notation(row(Func("annuityfv", listOf(row("A"), row("r"), row("n")))), KeyAction.Insert(0) { Func("annuityfv", 3) }, "future value of an annuity"),
+            ),
+            listOf(
+                notation(row(Func("annuitypv", listOf(row("A"), row("r"), row("n")))), KeyAction.Insert(0) { Func("annuitypv", 3) }, "present value of an annuity"),
+                notation(row(Func("effrate", listOf(row("r"), row("m")))), KeyAction.Insert(0) { Func("effrate", 2) }, "effective annual rate"),
+                notation(row(Func("contcomp", listOf(row("P"), row("r"), row("t")))), KeyAction.Insert(0) { Func("contcomp", 3) }, "continuous compounding"),
+                notation(row(Func("simpleint", listOf(row("P"), row("r"), row("t")))), KeyAction.Insert(0) { Func("simpleint", 3) }, "simple interest"),
+                notation(row(Func("cagr", listOf(row("B"), row("E"), row("n")))), KeyAction.Insert(0) { Func("cagr", 3) }, "compound annual growth rate"),
+            ),
+            listOf(
+                notation(row(Func("doubling", listOf(row("r")))), KeyAction.Insert(0) { Func("doubling", 1) }, "doubling time"),
+                notation(row(Func("fisher", listOf(row("i"), row("π")))), KeyAction.Insert(0) { Func("fisher", 2) }, "real interest rate"),
+                notation(row(Func("npv", listOf(row("r"), row("c")))), KeyAction.Insert(0) { Func("npv", 2) }, "net present value"),
+                notation(row(Func("irr", listOf(row("c")))), KeyAction.Insert(0) { Func("irr", 1) }, "internal rate of return"),
+                notation(row(Func("sldep", listOf(row("C"), row("S"), row("n")))), KeyAction.Insert(0) { Func("sldep", 3) }, "straight-line depreciation"),
+            ),
+        ),
+        columns = 5, optional = true, about = "Compound interest, present and future value, loan payments, annuities, effective rates, NPV, IRR, depreciation",
+    ),
+    FunctionTab(
+        "Polynomials", KeyLabel.Icon(IconId.Polynomials),
+        listOf(
+            listOf(
+                notation(row(Func("legendre", listOf(row("n"), row("x")))), KeyAction.Insert(0) { Func("legendre", 2) }, "Legendre polynomial"),
+                notation(row(Func("hermite", listOf(row("n"), row("x")))), KeyAction.Insert(0) { Func("hermite", 2) }, "Hermite polynomial"),
+                notation(row(Func("hermitehe", listOf(row("n"), row("x")))), KeyAction.Insert(0) { Func("hermitehe", 2) }, "probabilists' Hermite polynomial"),
+                notation(row(Func("laguerre", listOf(row("n"), row("x")))), KeyAction.Insert(0) { Func("laguerre", 2) }, "Laguerre polynomial"),
+                notation(row(Func("genlaguerre", listOf(row("n"), row("α"), row("x")))), KeyAction.Insert(0) { Func("genlaguerre", 3) }, "generalized Laguerre polynomial"),
+            ),
+            listOf(
+                notation(row(Func("chebyshevt", listOf(row("n"), row("x")))), KeyAction.Insert(0) { Func("chebyshevt", 2) }, "Chebyshev polynomial of the first kind"),
+                notation(row(Func("chebyshevu", listOf(row("n"), row("x")))), KeyAction.Insert(0) { Func("chebyshevu", 2) }, "Chebyshev polynomial of the second kind"),
+                notation(row(Func("gegenbauer", listOf(row("n"), row("α"), row("x")))), KeyAction.Insert(0) { Func("gegenbauer", 3) }, "Gegenbauer polynomial"),
+                notation(row(Func("assoclegendre", listOf(row("n"), row("m"), row("x")))), KeyAction.Insert(0) { Func("assoclegendre", 3) }, "associated Legendre function"),
+                notation(row(Func("bernoullipoly", listOf(row("n"), row("x")))), KeyAction.Insert(0) { Func("bernoullipoly", 2) }, "Bernoulli polynomial"),
+            ),
+            listOf(
+                notation(row(Func("fibpoly", listOf(row("n"), row("x")))), KeyAction.Insert(0) { Func("fibpoly", 2) }, "Fibonacci polynomial"),
+                notation(row(Func("lucaspoly", listOf(row("n"), row("x")))), KeyAction.Insert(0) { Func("lucaspoly", 2) }, "Lucas polynomial"),
+                notation(row(Func("besselpoly", listOf(row("n"), row("x")))), KeyAction.Insert(0) { Func("besselpoly", 2) }, "Bessel polynomial"),
+                notation(row(Func("touchard", listOf(row("n"), row("x")))), KeyAction.Insert(0) { Func("touchard", 2) }, "Touchard polynomial"),
+                notation(row(Func("cyclotomic", listOf(row("n"), row("x")))), KeyAction.Insert(0) { Func("cyclotomic", 2) }, "cyclotomic polynomial"),
+            ),
+        ),
+        columns = 5, optional = true, about = "Legendre, Hermite, Laguerre, Chebyshev, Gegenbauer, Bernoulli, Fibonacci, Lucas, Bessel, Touchard and cyclotomic polynomials",
     ),
 )
 

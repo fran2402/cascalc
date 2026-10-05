@@ -139,4 +139,73 @@ class MoreTabsTest {
         assertEquals("3/2", list("mad"))
         list("geomean"); list("harmean"); list("cv"); list("skew"); list("kurt")
     }
+
+    // Vectors are typed as one-row matrices.
+    private fun v(vararg c: String) = MathRow(mutableListOf(com.example.cas.editor.Matrix(1, c.size, c.map { arg(it) })))
+    private fun vec(name: String, vararg args: MathRow) = Printer.plain(Evaluator().evaluate(MathRow(mutableListOf(Func(name, args.toList())))))
+
+    @Test fun vectors() {
+        assertEquals("5", vec("norm", v("3", "4")))
+        assertEquals("5", vec("dist", v("1", "2"), v("4", "6")))
+        assertEquals("[[3/2,2]]", vec("midpoint", v("1", "2"), v("2", "2")))
+        assertEquals("1", vec("triple", v("1", "0", "0"), v("0", "1", "0"), v("0", "0", "1")))
+        assertEquals("1/2", vec("triarea", v("0", "0"), v("1", "0"), v("0", "1")))
+        assertEquals("[[2,0]]", vec("proj", v("2", "3"), v("1", "0")))
+        assertEquals("[[0,3]]", vec("reject", v("2", "3"), v("1", "0")))
+        vec("vangle", v("1", "0"), v("0", "1")); vec("unit", v("3", "4")); vec("outer", v("1", "2"), v("3", "4"))
+        vec("cart2pol", v("1", "1")); vec("cart2sph", v("1", "1", "1")); vec("cart2cyl", v("1", "1", "1"))
+    }
+
+    @Test fun integers() {
+        assertEquals("24", exact("powmod", "2", "10", "1000"))
+        assertEquals("4", exact("modinv", "3", "11"))
+        assertEquals("31", exact("isqrt", "1000"))
+        assertEquals("10", exact("iroot", "1000", "3")); assertEquals("9", exact("iroot", "999", "3"))
+        assertEquals("15", exact("digitsum", "12345")); assertEquals("5", exact("ndigits", "12345"))
+        assertEquals("54321", exact("revdigits", "12345"))
+        assertEquals("3", exact("popcount", "7"))
+        assertEquals("8", exact("band", "12", "10")); assertEquals("14", exact("bor", "12", "10")); assertEquals("6", exact("bxor", "12", "10"))
+        assertEquals("40", exact("shl", "5", "3")); assertEquals("2", exact("shr", "20", "3"))
+        assertEquals("-1", exact("jacobi", "2", "3")); assertEquals("1", exact("jacobi", "2", "7"))
+        assertEquals("1", exact("issquare", "144")); assertEquals("0", exact("issquare", "145"))
+        assertEquals("powmod(a,2,5)", exact("powmod", "a", "2", "5").replace(" ", ""))
+    }
+
+    @Test fun finance() {
+        assertEquals("121", exact("fv", "100", "1/10", "2"))
+        assertEquals("100", exact("pv", "121", "1/10", "2"))
+        near(1000 * 0.05 / (1 - Math.pow(1.05, -10.0)), "pmt", "1000", "0.05", "10")
+        near(10.0, "nper", "1000", "129.50457496545667", "0.05")
+        assertEquals("331", exact("annuityfv", "100", "1/10", "3"))
+        near(100 * (1 - Math.pow(1.1, -3.0)) / 0.1, "annuitypv", "100", "0.1", "3")
+        near(Math.pow(1.01, 12.0) - 1, "effrate", "0.12", "12")
+        near(100 * kotlin.math.exp(0.1), "contcomp", "100", "0.05", "2")
+        assertEquals("30", exact("simpleint", "100", "1/10", "3"))
+        assertEquals("1", exact("cagr", "1", "8", "3"))
+        near(kotlin.math.ln(2.0) / kotlin.math.ln(1.07), "doubling", "0.07")
+        near(1.05 / 1.02 - 1, "fisher", "0.05", "0.02")
+        assertEquals("100", exact("sldep", "1100", "100", "10"))
+        near(-100 + 60 / 1.1 + 60 / 1.21, "npv", "0.1", "−100", "60", "60")
+        near(120 / (kotlin.math.sqrt(27600.0) - 60) - 1, "irr", "−100", "60", "60")
+    }
+
+    @Test fun polynomials() {
+        fun p(name: String, vararg a: String) = exact(name, *a).replace(" ", "")
+        near(0.5 * (3 * 0.09 - 1), "legendre", "2", "0.3")
+        assertEquals("4x^2-2", p("hermite", "2", "x"))
+        assertEquals("x^2-1", p("hermitehe", "2", "x"))
+        assertEquals("4x^3-3x", p("chebyshevt", "3", "x"))
+        assertEquals("4x^2-1", p("chebyshevu", "2", "x"))
+        assertEquals("x^2-x+1", p("cyclotomic", "6", "x"))
+        assertEquals("x^4+x^3+x^2+x+1", p("cyclotomic", "5", "x"))
+        assertEquals("x^2+1", p("fibpoly", "3", "x")); assertEquals("x", p("fibpoly", "2", "x"))
+        assertEquals("x^2+2", p("lucaspoly", "2", "x"))
+        assertEquals("3x^2+3x+1", p("besselpoly", "2", "x"))
+        assertEquals("x^3+3x^2+x", p("touchard", "3", "x"))
+        near(-7.0 / 16, "legendre", "3", "0.5")
+        near(1.0 / 6, "bernoullipoly", "2", "0")
+        near(0.5 * (2 - 4 * 0.3 + 0.09), "laguerre", "2", "0.3")
+        near(-1.5 * kotlin.math.sqrt(0.75), "assoclegendre", "2", "1", "0.5")
+        assertEquals("legendre(n,x)", p("legendre", "n", "x"))
+    }
 }

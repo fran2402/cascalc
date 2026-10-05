@@ -128,6 +128,20 @@ L = {
  # A vector arrow over the letter before it.
  # (drawn centred over the letter before it; see word())
  '→': (0, lambda c: ([f"M{f(c-3.2)} 6.2h6.4", f"M{f(c+1.1)} 4.1l2.1 2.1l-2.1 2.1"], [])),
+ # The four newest tabs: vectors, modular arithmetic and bits, finance, polynomials.
+ 'j': (2.6, lambda x: ([f"M{f(x+1.8)} 10v10.6c0 1.6-.7 2.4-1.8 2.4"], [ring(x+1.8, 6.4, 1.25)])),
+ 'q': (5, lambda x: ([ring(x+2.5, 14.75, 2.5, 5), f"M{f(x+5)} 10v12.5"], [])),
+ 'z': (5, lambda x: ([f"M{f(x)} 10h5L{f(x)} 19.5h5"], [])),
+ '‖': (4.6, lambda x: ([f"M{f(x+.8)} 4.5v15", f"M{f(x+3.8)} 4.5v15"], [])),
+ '|': (1.6, lambda x: ([f"M{f(x+.8)} 4.5v15"], [])),
+ '∠': (7, lambda x: ([f"M{f(x+6.5)} 6L{f(x)} 19.5h7"], [])),
+ '=': (5, lambda x: ([f"M{f(x)} 12.75h5", f"M{f(x)} 16.75h5"], [])),
+ 'U': (6.4, lambda x: ([f"M{f(x)} 4.5v10c0 3.2 1.4 5 3.2 5s3.2-1.8 3.2-5v-10"], [])),
+ 'χ': (6, lambda x: ([f"M{f(x)} 10c1.3 0 2 .8 2.6 2.8l2 6.6c.5 1.6 1 2.6 1.4 2.6", f"M{f(x+6)} 10L{f(x)} 22.5"], [])),
+ '⟶': (8, lambda x: ([f"M{f(x)} 14.75h7.6", f"M{f(x+5)} 12.2l2.6 2.55l-2.6 2.55"], [])),
+ '√': (7, lambda x: ([f"M{f(x)} 13.2l1.8-1.2l2.4 7.5L{f(x+7)} 4.5"], [])),
+ # A hat over the letter before it (a unit vector), placed like the arrow.
+ '̂': (0, lambda c: ([f"M{f(c-2.4)} 7.8l2.4-2.6l2.4 2.6"], [])),
 }
 GAP = 3.0
 # Letters drawn wider than their outlines above (strokes stay 2), so the words read as text, not condensed.
@@ -152,7 +166,7 @@ def word(parts, W):
     for ch, role in seq:
         k = k_of(ch)
         x0 = x
-        if ch == '→':
+        if ch in ('→', '̂'):
             # The vector arrow sits centred over the (already widened) letter before it, unstretched.
             prev = seq[seq.index((ch, role)) - 1][0]
             w = L[prev][0] * k_of(prev)
@@ -242,7 +256,7 @@ def constant(pieces):
     for text, sub, sup in pieces:
         for ch in text:
             if ch in '¹²': items.append(('supd', '1' if ch == '¹' else '2'))
-            elif ch in '()/': items.append(('sep', ch))
+            elif ch in '()/=|': items.append(('sep', ch))
             else: items.append(('main', ch))
         if sub or sup: items.append(('script', (sub, sup)))
     # Lay out once to measure, then again centred.
@@ -438,4 +452,123 @@ lines += [
  ckt('sum of squares', 'SumSq', [('Σx', '', '2')]),
  kt('product of a list', 'ProdList', [('Π', 'accent'), ('x', 'ink')]),
 ]
+# Distributions: the curve (bars for whole numbers) with the family's letter, small, in the free corner.
+def badge(text, cx, cy, scale):
+    """The letters of text (² as a raised small 2) scaled about their box's centre to (cx, cy)."""
+    ps, fl = [], []
+    x = 0
+    for ch in text:
+        if ch == '²':
+            st, f2, w = small('2', x - GAP + 2.2, False); ps += st; fl += f2; x += w + 1; continue
+        k = k_of(ch)
+        st, f2 = L[ch][1](x)
+        ps += [stretch(d, x, k) for d in st]; fl += f2
+        x += L[ch][0] * k + GAP
+    b = ControlBoundsPen(None)
+    for d in ps + fl: parse_path(d, b)
+    x0, y0, x1, y1 = b.bounds
+    tx, ty = cx - scale * (x0 + x1) / 2, cy - scale * (y0 + y1) / 2
+    out = []
+    for d in ps + fl:
+        pen = SVGPathPen(None, ntos=lambda v: ('%.2f' % v).rstrip('0').rstrip('.'))
+        parse_path(d, TransformPen(pen, (scale, 0, 0, scale, tx, ty)))
+        out.append(pen.getCommands())
+    return out[:len(ps)], out[len(ps):]
+def dist(spoken, name, curve, letter, at, thin=('M3 19h18',), scale=0.54):
+    st, fl = badge(letter, *at, scale)
+    o = {'accent': list(curve), 'inkThin': list(thin) + st, 'inkFill': fl}
+    args = [f'{k} = listOf({", ".join(chr(34) + p + chr(34) for p in v)})' for k, v in o.items() if v]
+    return f'            "{spoken}" to key("{name}", {", ".join(args)}),'
+TR, BR, TL = (17.6, 7.4), (17.6, 14), (6.2, 7)
+axes = ('M3 19h18', 'M4 4v15')
+lines += [
+ dist('exponential density', 'ExpPdf', ['M4 5.5C6 11 9 16 21 18'], 'E', TR, axes),
+ dist('exponential distribution function', 'ExpCdf', ['M4 19C6 11 9 7 21 5.5'], 'E', BR, axes),
+ dist('uniform density', 'UnifPdf', ['M3 19h4V9h10v10h4'], 'U', (12, 14.3), scale=0.46),
+ dist('uniform distribution function', 'UnifCdf', ['M3 19h4l10-13h4'], 'U', (18.4, 14)),
+ dist('cumulative Poisson probability', 'PoissonCdf', ['M3 18h3.5v-4h3.5v-4h3.5v-3h3.5v-1.5H21'], 'P', BR),
+ dist('geometric probability', 'GeomPdf', ['M5 19V6', 'M9 19V10', 'M13 19V13', 'M17 19V15.2', 'M21 19V16.6'], 'G', TR),
+ dist('cumulative geometric probability', 'GeomCdf', ['M5 19V13', 'M9 19V9.5', 'M13 19V7.5', 'M17 19V6.3', 'M21 19V5.6'], 'G', (5.4, 6.6), scale=0.5),
+ dist('chi-squared density', 'Chi2Pdf', ['M3.5 19c1.5-8 3.5-11 5.5-11s5.5 8 12 10.5'], 'χ', (18, 7.4), scale=0.5),
+ dist('chi-squared distribution function', 'Chi2Cdf', ['M3.5 19c3-1 4-10 8-12s6-1.5 9.5-1.5'], 'χ', (18, 13.8), scale=0.5),
+ dist('log-normal density', 'LognPdf', ['M3.5 19c1-9 2.2-12 3.8-12s4 7 13.7 11'], 'L', TR),
+ dist('log-normal distribution function', 'LognCdf', ['M3.5 19c1.5 0 2-11 5-12.5s7-1 12.5-1'], 'L', BR),
+ dist('Cauchy density', 'CauchyPdf', ['M3 16.5c5-.3 7.2-10.5 9-10.5s4 10.2 9 10.5'], 'C', TR),
+ dist('Cauchy distribution function', 'CauchyCdf', ['M3 17.5c6.5-.3 7.5-5.5 9-5.5s2.5-5.2 9-5.5'], 'C', (18.4, 15.2), scale=0.48),
+ dist('Weibull density', 'WeibPdf', ['M3.5 19c3 0 4-11 7-11s3.5 11 10.5 11'], 'W', (18.2, 6.6), scale=0.44),
+ dist('Weibull distribution function', 'WeibCdf', ['M3.5 19c4 0 5-13 9-13.5s4 0 8 0'], 'W', (17.6, 14.4), scale=0.46),
+]
+# Vectors and coordinates.
+lines += [
+ kt('vector length', 'Norm', [('‖', 'accent'), ('v', 'ink'), ('‖', 'accent')]),
+ kt('unit vector', 'UnitVec', [('v', 'ink'), ('̂', 'accent')]),
+ kt('angle between vectors', 'VAngle', call('∠', ['u', ',', 'v'])),
+ kt('vector projection', 'Proj', [('proj', 'accent')]),
+ kt('vector rejection', 'Reject', [('rej', 'accent')]),
+ kt('distance between points', 'Dist', call('d', ['P', ',', 'Q'])),
+ kt('midpoint', 'Midpoint', [('mid', 'accent')]),
+ kt('scalar triple product', 'Triple', [('u', 'ink'), ('·', 'accent'), ('v', 'ink'), ('×', 'accent'), ('w', 'ink')]),
+ kt('triangle area', 'TriArea', [('|', 'ink'), ('Δ', 'accent'), ('|', 'ink')]),
+ kt('outer product', 'Outer', [('u', 'ink'), ('⊗', 'accent'), ('v', 'ink')]),
+ kt('Cartesian to polar', 'CartPol', [('⟶', 'ink'), ('rθ', 'accent')]),
+ kt('polar to Cartesian', 'PolCart', [('⟶', 'ink'), ('xy', 'accent')]),
+ kt('Cartesian to spherical', 'CartSph', [('⟶', 'ink'), ('ρθφ', 'accent')]),
+ kt('spherical to Cartesian', 'SphCart', [('⟶', 'ink'), ('xyz', 'accent')]),
+ kt('Cartesian to cylindrical', 'CartCyl', [('⟶', 'ink'), ('rθz', 'accent')]),
+]
+# Modular arithmetic and bits.
+lines += [
+ ckt('modular power', 'PowMod', [('a', '', 'b'), ('mod', '', '')]),
+ ckt('modular inverse', 'ModInv', [('a', '', '−1'), ('mod', '', '')]),
+ kt('integer square root', 'ISqrt', [('⌊', 'ink'), ('√', 'accent'), ('n', 'ink'), ('⌋', 'ink')]),
+ kt('integer k-th root', 'IRoot', [('⌊', 'ink'), ('k', 'accent'), ('√', 'accent'), ('n', 'ink'), ('⌋', 'ink')]),
+ kt('digit sum', 'DigitSum', [('Σ', 'accent'), ('d', 'ink')]),
+ kt('number of digits', 'NDigits', [('#', 'accent'), ('d', 'ink')]),
+ kt('reversed digits', 'RevDigits', [('rev', 'accent')]),
+ kt('population count', 'PopCount', [('pop', 'accent')]),
+ kt('bitwise and', 'BitAnd', [('and', 'accent')]),
+ kt('bitwise or', 'BitOr', [('or', 'accent')]),
+ kt('bitwise exclusive or', 'BitXor', [('xor', 'accent')]),
+ kt('shift left', 'Shl', [('shl', 'accent')]),
+ kt('shift right', 'Shr', [('shr', 'accent')]),
+ kt('Jacobi symbol', 'Jacobi', [('(', 'ink'), ('a', 'accent'), ('|', 'ink'), ('n', 'accent'), (')', 'ink')]),
+ ckt('is a perfect square', 'IsSquare', [('n=k', '', '2')]),
+]
+# Finance.
+lines += [
+ kt('future value', 'Fv', [('FV', 'accent')]),
+ kt('present value', 'Pv', [('PV', 'accent')]),
+ kt('loan payment', 'Pmt', [('P', 'accent'), ('Ṁ', 'accent'), ('T', 'accent')]),
+ kt('number of periods', 'NPer', [('N', 'accent'), ('PER', 'ink')]),
+ ckt('future value of an annuity', 'AnnuityFv', [('FV', 'a', '')]),
+ ckt('present value of an annuity', 'AnnuityPv', [('PV', 'a', '')]),
+ kt('effective annual rate', 'EffRate', [('EAR', 'accent')]),
+ ckt('continuous compounding', 'ContComp', [('Pe', '', 'rt')]),
+ kt('simple interest', 'SimpleInt', [('P', 'ink'), ('rt', 'accent')]),
+ kt('compound annual growth rate', 'Cagr', [('CAGR', 'accent')]),
+ kt('doubling time', 'Doubling', [('×', 'ink'), ('2', 'accent')]),
+ kt('real interest rate', 'Fisher', [('real', 'accent')]),
+ kt('net present value', 'Npv', [('NPV', 'accent')]),
+ kt('internal rate of return', 'Irr', [('IRR', 'accent')]),
+ kt('straight-line depreciation', 'SlDep', [('SLN', 'accent')]),
+]
+# Polynomials.
+lines += [
+ ckt('Legendre polynomial', 'Legendre', [('P', 'n', '')]),
+ ckt('Hermite polynomial', 'Hermite', [('H', 'n', '')]),
+ ckt("probabilists' Hermite polynomial", 'HermiteHe', [('He', 'n', '')]),
+ ckt('Laguerre polynomial', 'Laguerre', [('L', 'n', '')]),
+ ckt('generalized Laguerre polynomial', 'GenLaguerre', [('L', 'n', 'α')]),
+ ckt('Chebyshev polynomial of the first kind', 'ChebyshevT', [('T', 'n', '')]),
+ ckt('Chebyshev polynomial of the second kind', 'ChebyshevU', [('U', 'n', '')]),
+ ckt('Gegenbauer polynomial', 'Gegenbauer', [('C', 'n', 'α')]),
+ ckt('associated Legendre function', 'AssocLegendre', [('P', 'n', 'm')]),
+ ckt('Bernoulli polynomial', 'BernoulliPoly', [('B', 'n', ''), ('(x)', '', '')]),
+ ckt('Fibonacci polynomial', 'FibPoly', [('F', 'n', ''), ('(x)', '', '')]),
+ ckt('Lucas polynomial', 'LucasPoly', [('L', 'n', ''), ('(x)', '', '')]),
+ ckt('Bessel polynomial', 'BesselPoly', [('y', 'n', ''), ('(x)', '', '')]),
+ ckt('Touchard polynomial', 'Touchard', [('T', 'n', ''), ('(x)', '', '')]),
+ ckt('cyclotomic polynomial', 'Cyclotomic', [('Φ', 'n', '')]),
+]
+#NEWTABS
 print('\n'.join(lines))

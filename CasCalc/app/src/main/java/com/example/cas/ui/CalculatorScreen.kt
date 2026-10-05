@@ -1257,6 +1257,10 @@ private fun iconFor(id: IconId): ImageVector = when (id) {
     IconId.Distributions -> TabIcons.Distributions
     IconId.Combinatorics -> TabIcons.Combinatorics
     IconId.StatsMore -> TabIcons.StatsMore
+    IconId.Vectors -> TabIcons.Vectors
+    IconId.Modular -> TabIcons.Modular
+    IconId.Finance -> TabIcons.Finance
+    IconId.Polynomials -> TabIcons.Polynomials
 }
 
 

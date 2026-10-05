@@ -203,6 +203,26 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (5 October, family letters, four more tabs: vectors, modular & bits, finance, polynomials)
+
+- **Distribution keys show their family**: a small E, U, P, G, χ, L, C or W sits in the free
+  corner of each curve (top right for densities, bottom right for distribution functions). These
+  icons are now generated with the rest in preview-render/key_letters.py.
+- **Vectors**: length ‖v‖, unit vector, angle between vectors (follows Deg), projection and
+  rejection, distance and midpoint, scalar triple product, triangle area (2D or 3D corners), outer
+  product, and Cartesian ⇄ polar, spherical and cylindrical coordinates. A row in gives a row out.
+- **Modular & bits**: powmod, modinv, integer square and k-th roots, digit sum, digit count,
+  reversed digits, popcount, bitwise and, or and xor, shifts, the Jacobi symbol and the
+  perfect-square test. All exact; with letters the call stays as typed.
+- **Finance**: future and present value, loan payment, number of periods, annuity FV and PV,
+  effective annual rate, continuous compounding, simple interest, CAGR, doubling time, the Fisher
+  real rate, NPV and IRR on cash-flow lists, and straight-line depreciation.
+- **Polynomials** in any variable: Legendre, Hermite (both kinds), Laguerre and generalized
+  Laguerre, Chebyshev T and U, Gegenbauer, associated Legendre, Bernoulli, Fibonacci, Lucas,
+  Bessel, Touchard and cyclotomic, expanded exactly (degree up to 120). New file: cas/MoreMath.kt.
+- 60 new key icons in the same two-tone style, tab icons (arrows, a clock face, growing bars, a
+  cubic), help for every key, and tests.
+
 ## Latest changes (5 October, four more tabs: constants, distributions, combinatorics, statistics II)
 
 - **Mathematical constants** (new MathConstant list, shown and typed like the physical constants):

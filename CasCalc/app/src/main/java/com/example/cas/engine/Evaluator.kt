@@ -380,6 +380,12 @@ class Evaluator(
                         else -> com.example.cas.cas.Statistics.variance(xs)
                     }
                 }
+                // Finance: npv(r, c₀, c₁, …) and irr(c₀, c₁, …) take lists of cash flows.
+                in com.example.cas.cas.MoreMath.FINANCE -> {
+                    val items = splitCommas(f.args.flatMap { r -> r.items + listOf(com.example.cas.editor.Sym(",")) }.dropLast(1)).filter { it.isNotEmpty() }.map { RowParser(it, env).parse() }
+                    val flat = if (items.size == 1 && items[0] is Mat) (items[0] as Mat).cells else items
+                    return com.example.cas.cas.MoreMath.finance(f.name, if (f.name in setOf("npv", "irr")) flat else f.args.map { eval(it, env) }) { from -> flat.drop(from) }
+                }
                 // Statistics II: more of a list's statistics.
                 in com.example.cas.cas.Statistics.MORE -> return com.example.cas.cas.Statistics.more(f.name, listArgument(f.args[0]))
                     ?: throw MathError("Unknown statistic")
@@ -492,6 +498,9 @@ class Evaluator(
                 in SIGNALS -> signal(f.name, args)
                 in com.example.cas.cas.NumberTheory.NAMES -> com.example.cas.cas.NumberTheory.eval(f.name, args) ?: com.example.cas.cas.Fn(f.name, args)
                 in DISTRIBUTIONS -> distribution(f.name, args)
+                in com.example.cas.cas.MoreMath.VECTORS -> com.example.cas.cas.MoreMath.vectors(f.name, args, ::outAngle, ::inAngle)
+                in com.example.cas.cas.MoreMath.INTEGERS -> com.example.cas.cas.MoreMath.integers(f.name, args) ?: com.example.cas.cas.Fn(f.name, args)
+                in com.example.cas.cas.MoreMath.POLYNOMIALS -> com.example.cas.cas.MoreMath.polynomial(f.name, args) ?: com.example.cas.cas.Fn(f.name, args)
                 // Rising x(x + 1)…(x + n − 1) and falling x(x − 1)…(x − n + 1) factorials: x may be a letter.
                 "rising", "falling" -> {
                     if (args.size != 2) throw MathError("${f.name} takes 2 values")
