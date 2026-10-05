@@ -61,6 +61,49 @@ class Colormap private constructor(
         /** The UI's primary color (ARGB), set by the app's theme; the [THEME] map follows it. */
         @Volatile var themePrimary: Int = 0xFF5B6133.toInt()
 
+        /**
+         * Single-hue sequential maps for the hues matplotlib's set has none of (a clean yellow,
+         * teal, magenta, pink), so every theme color has a map of its own: name to OKLCH hue.
+         */
+        private val EXTRA_HUES = listOf("Yellows" to 100.0, "Teals" to 195.0, "Magentas" to 325.0, "Pinks" to 355.0)
+
+        /**
+         * A sequential ramp at one OKLCH hue, as matplotlib's Blues or Greens run: from near white
+         * to deep, lightness falling evenly, chroma rising to the middle and easing off at the
+         * dark end, each color brought into sRGB by lowering its chroma.
+         */
+        internal fun ramp(hue: Double, n: Int = 256): IntArray = IntArray(n) { k ->
+            val t = k / (n - 1.0)
+            val l = 0.97 - 0.67 * t
+            var c = 0.17 * (if (t < 0.6) t / 0.6 else 1 - 0.35 * (t - 0.6) / 0.4)
+            val hr = Math.toRadians(hue)
+            var rgb: DoubleArray
+            while (true) {
+                rgb = oklab(l, c * kotlin.math.cos(hr), c * kotlin.math.sin(hr))
+                if (rgb.all { it in -0.0005..1.0005 } || c <= 0.0) break
+                c -= 0.004
+            }
+            fun enc(v: Double): Int {
+                val x = v.coerceIn(0.0, 1.0)
+                val e = if (x <= 0.0031308) 12.92 * x else 1.055 * Math.pow(x, 1 / 2.4) - 0.055
+                return (e * 255).roundToInt().coerceIn(0, 255)
+            }
+            (enc(rgb[0]) shl 16) or (enc(rgb[1]) shl 8) or enc(rgb[2])
+        }
+
+        /** Linear sRGB from OKLab. */
+        private fun oklab(l: Double, a: Double, b: Double): DoubleArray {
+            val l_ = l + 0.3963377774 * a + 0.2158037573 * b
+            val m_ = l - 0.1055613458 * a - 0.0638541728 * b
+            val s_ = l - 0.0894841775 * a - 1.2914855480 * b
+            val l3 = l_ * l_ * l_; val m3 = m_ * m_ * m_; val s3 = s_ * s_ * s_
+            return doubleArrayOf(
+                4.0767416621 * l3 - 3.3077115913 * m3 + 0.2309699292 * s3,
+                -1.2684380046 * l3 + 2.6097574011 * m3 - 0.3413193965 * s3,
+                -0.0041960863 * l3 - 0.7034186147 * m3 + 1.7076147010 * s3,
+            )
+        }
+
         /** The sequential map for [themePrimary]: by its hue, or Greys for a near-grey theme. */
         fun themeMap(): Colormap {
             val r = ((themePrimary shr 16) and 0xFF) / 255.0
@@ -75,15 +118,16 @@ class Colormap private constructor(
             }
             if (h < 0) h += 360
             val name = when {
-                h < 18 || h >= 340 -> "Reds"
+                h < 15 || h >= 345 -> "Reds"
                 h < 40 -> "Oranges"
-                h < 58 -> "YlOrBr"
+                h < 66 -> "Yellows"
                 h < 95 -> "YlGn"
                 h < 155 -> "Greens"
-                h < 195 -> "BuGn"
+                h < 195 -> "Teals"
                 h < 245 -> "Blues"
                 h < 290 -> "Purples"
-                else -> "RdPu"
+                h < 325 -> "Magentas"
+                else -> "Pinks"
             }
             return byName(name)
         }
@@ -92,7 +136,7 @@ class Colormap private constructor(
         val ALL: List<Colormap> by lazy {
             listOf(CLASSIC, THEME) + COLORMAP_DATA.map { d ->
                 Colormap(d.name, d.category, d.cyclic, d.qualitative, IntArray(d.hex.length / 6) { k -> d.hex.substring(6 * k, 6 * k + 6).toInt(16) })
-            }
+            } + EXTRA_HUES.map { (n, h) -> Colormap(n, "Sequential (more hues)", cyclic = false, qualitative = false, samples = ramp(h)) }
         }
 
         val VIRIDIS get() = byName("viridis")

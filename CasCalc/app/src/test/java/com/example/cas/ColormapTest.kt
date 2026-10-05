@@ -50,8 +50,8 @@ class ColormapTest {
     }
 
     @Test fun everyMatplotlibMapIsThere() {
-        // matplotlib's 86, the classic wheel and the theme's own map.
-        assertEquals(88, Colormap.ALL.size)
+        // matplotlib's 86, the classic wheel, the theme's own map and four more single hues.
+        assertEquals(92, Colormap.ALL.size)
         assertEquals(Colormap.ALL.size, Colormap.ALL.map { it.name }.toSet().size)
         for (n in listOf("RdBu", "coolwarm", "tab10", "cubehelix", "berlin", "gist_ncar")) assertEquals(n, Colormap.byName(n).name)
     }
@@ -63,10 +63,24 @@ class ColormapTest {
             Colormap.themePrimary = 0xFF386A20.toInt(); assertEquals("Greens", Colormap.themeMap().name)
             Colormap.themePrimary = 0xFF6750A4.toInt(); assertEquals("Purples", Colormap.themeMap().name)
             Colormap.themePrimary = 0xFF707070.toInt(); assertEquals("Greys", Colormap.themeMap().name)
+            // Hues matplotlib has no single-hue map for get the generated ones.
+            Colormap.themePrimary = 0xFF006A6A.toInt(); assertEquals("Teals", Colormap.themeMap().name)
+            Colormap.themePrimary = 0xFF9A25AE.toInt(); assertEquals("Magentas", Colormap.themeMap().name)
+            Colormap.themePrimary = 0xFF6D5E0F.toInt(); assertEquals("Yellows", Colormap.themeMap().name)
             // The theme map is first among the default favorites, and draws from the matching map.
             assertEquals("theme", Colormap.DEFAULT_FAVORITES.first())
-            assertTrue(close(Colormap.THEME.rgb(1.0), Colormap.byName("Greys").rgb(1.0)))
+            assertTrue(close(Colormap.THEME.rgb(1.0), Colormap.themeMap().rgb(1.0)))
         } finally { Colormap.themePrimary = before }
+    }
+
+    @Test fun generatedRampsRunLightToDark() {
+        for (n in listOf("Yellows", "Teals", "Magentas", "Pinks")) {
+            val m = Colormap.byName(n)
+            assertEquals(n, m.name)
+            fun lum(c: Int) = 0.2126 * ((c shr 16) and 0xFF) + 0.7152 * ((c shr 8) and 0xFF) + 0.0722 * (c and 0xFF)
+            var prev = 999.0
+            for (k in 0..10) { val v = lum(m.rgb(k / 10.0)); assertTrue("$n gets darker", v < prev + 1e-9); prev = v }
+        }
     }
 
     @Test fun reversedNamesRoundTrip() {

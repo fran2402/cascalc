@@ -459,8 +459,9 @@ private fun InputPanel(vm: CalculatorViewModel) {
 }
 
 /**
- * A past calculation. The answer leads, large and to the right, with = or ≈ in the accent color;
- * the question sits above it, smaller and muted (tap either to use it again). When an answer has
+ * A past calculation, read as an equation: the question on top at the left, as large as the
+ * answer and in full ink (its pin and folder marks at the end of its line), then the answer at
+ * the right with = or ≈ in the accent color (tap either to use it again). When an answer has
  * both forms, a chip on the left switches between the exact answer and the decimal. The newest card (or
  * one you tap) also shows its actions: use the answer, graph it, copy, share, delete.
  */
@@ -504,25 +505,27 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
             .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow))
             .padding(start = 20.dp, end = 16.dp, top = 14.dp, bottom = if (focused) 12.dp else 14.dp),
     ) {
-        // Pinned, and its folder, as small marks above the question.
-        if (item.pinned || item.folder != null) Row(Modifier.padding(bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (item.pinned) AppIcon(TableIcons.Pin, contentDescription = tr("Pinned"), tint = colors.primary, modifier = Modifier.size(14.dp))
-            item.folder?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = colors.onSecondaryContainer, modifier = Modifier.clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 8.dp, vertical = 2.dp)) }
+        // The question: large, left, in full ink; tap to use it again, hold to copy it. Its pin and
+        // folder marks sit at the end of its line.
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
+                MathView(
+                    item.expression,
+                    if (focused) MathSizes.historyInput * 1.1f else MathSizes.historyInput,
+                    colors.onSurface,
+                    modifier = Modifier.combinedClickable(
+                        onClickLabel = tr("Use this expression"),
+                        onLongClick = { copy(Formatter.plain(item.expression), "Expression") },
+                        onClick = { vm.reuse(item.expression) },
+                    ),
+                )
+            }
+            if (item.pinned || item.folder != null) Row(Modifier.padding(start = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                item.folder?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = colors.onSecondaryContainer, maxLines = 1, modifier = Modifier.widthIn(max = 96.dp).clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 8.dp, vertical = 2.dp)) }
+                if (item.pinned) AppIcon(TableIcons.Pin, contentDescription = tr("Pinned"), tint = colors.primary, modifier = Modifier.size(14.dp))
+            }
         }
-        // The question: small and muted, tap to use it again, hold to copy it.
-        Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-            MathView(
-                item.expression,
-                MathSizes.historyInput,
-                colors.onSurfaceVariant,
-                modifier = Modifier.combinedClickable(
-                    onClickLabel = tr("Use this expression"),
-                    onLongClick = { copy(Formatter.plain(item.expression), "Expression") },
-                    onClick = { vm.reuse(item.expression) },
-                ),
-            )
-        }
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(8.dp))
         // The answer, large, to the right; on the left, when there's a decimal too, the chip that swaps them.
         // The chip stays at the left edge; the answer takes the rest of the row, right-aligned.
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -721,8 +724,7 @@ private fun ControlRow(vm: KeypadHost) {
                         onClick = { if (vm.angleUnit != unit) vm.toggleAngle() },
                         shape = SegmentedButtonDefaults.itemShape(i, 2),
                         icon = {},
-                        // Pictures rather than words: a one-radian sector, and an angle with its degree ring.
-                        label = { AppIcon(if (unit == AngleUnit.Radians) TableIcons.Radians else TableIcons.Degrees, contentDescription = tr(if (unit == AngleUnit.Radians) "Radians" else "Degrees"), modifier = Modifier.size(22.dp)) },
+                        label = { Text(if (unit == AngleUnit.Radians) "Rad" else "Deg", style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp)) },
                     )
                 }
             }
@@ -1767,7 +1769,7 @@ internal fun CoordinateLettersDialog(title: String, roles: List<String>, current
 object MathSizes {
     val input get() = (30 * AppSettings.mathScale).sp
     val preview get() = (17 * AppSettings.mathScale).sp
-    val historyInput get() = (19 * AppSettings.mathScale).sp
+    val historyInput get() = (23 * AppSettings.mathScale).sp
     val historyAnswer get() = (23 * AppSettings.mathScale).sp
 }
 

@@ -97,7 +97,7 @@ object KeyIcons {
             // Letters in math italic, like the imaginary unit's i: slanted, with curled ends for serifs.
             "z" to key("Z", accent = listOf("M9.2 11.2c.8-.9 1.8-1.2 2.9-.8c1.2.5 2 .7 3.2-.1c.3-.2.5-.3.7-.3L7.5 19.3c.3-.2.6-.3.9-.3c1 0 1.9.8 3.1.8c1.1 0 2-.4 2.7-1.2")),
             "w" to key("W", accent = listOf("M4.6 11.6c.6-1 1.4-1.6 2.2-1.6c1 0 1.4.8 1.2 1.9l-.8 3.7c-.4 2 .3 3.9 2 3.9c1.4 0 2.4-1.2 2.8-2.8", "M13.2 10.4l-1.2 6.3c-.3 1.6.4 2.8 1.9 2.8c2.6 0 4.6-4 4.6-7.4c0-1.1-.4-1.6-1-2")),
-            "x" to key("X", accent = listOf("M6.5 11.2c.7-.9 1.5-1.3 2.3-1.1c.9.2 1.4.9 1.6 1.9l1.4 5.8c.2 1 .7 1.6 1.6 1.7c.8.1 1.6-.3 2.2-1.1", "M17.6 11.4c-.4-.9-1.2-1.4-2.1-1.3c-1 .1-1.7.9-2.2 1.8l-2.8 5.9c-.5.9-1.2 1.6-2.2 1.7c-.9.1-1.7-.4-2.1-1.3")),
+            "x" to key("X", accent = listOf("M7 11.3c.6-.8 1.4-1.3 2.2-1.2c.9.1 1.4.8 1.6 1.7l1.5 6c.2.9.8 1.4 1.6 1.4c.7 0 1.3-.3 1.8-1", "M17.4 10.3c-.9 0-1.7.5-2.3 1.2l-4.8 7c-.6.7-1.4 1.2-2.3 1.2")),
             // Define a symbol (a := 5): the colon's dots in ink, the = in the accent color.
             "store in variable" to key("Define", inkFill = listOf(ring(5.5f, 9f, 1.6f), ring(5.5f, 15f, 1.6f)), accent = listOf("M10 9h9.5", "M10 15h9.5")),
             // Words (trigonometry, linear algebra, ln, mod, n!, Ans, Re, Im, Res) and the physical constants (their symbol in the accent

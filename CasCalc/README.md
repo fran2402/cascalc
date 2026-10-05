@@ -203,6 +203,17 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (5 October, history card, more single-hue colormaps)
+
+- **History card** reorganized: the question is now as large as the answer and in full ink,
+  on the top line at the left, with its folder and pin marks at the end of that line; the answer
+  follows at the right with = or ≈ in the accent color.
+- **New colormaps**: Yellows, Teals, Magentas and Pinks, single-hue sequential ramps (built in
+  OKLCH) for the hues matplotlib's maps don't cover. The Theme map uses them, so every UI color
+  gets a matching map.
+- The **x key**'s italic is cleaner (one hooked stroke and one smooth one).
+- **Rad / Deg** are words again, not pictures.
+
 ## Latest changes (5 October, italic letter keys, Rad/Deg icons, theme colormap)
 
 - **x, z and w keys** are drawn in math italic with curled ends, like the imaginary unit's i;

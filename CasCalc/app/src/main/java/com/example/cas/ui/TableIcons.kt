@@ -280,10 +280,6 @@ object TableIcons {
     /** A finger tapping: touch. */
     val Tap: ImageVector by lazy { tableIcon("Tap", stroke = listOf("M10 13V5.5a1.5 1.5 0 0 1 3 0V12l4.2.9a2 2 0 0 1 1.6 2.3l-.8 5.3H10.5L7 16.5a1.6 1.6 0 0 1 2.4-2.1z"), thin = listOf("M7.5 6a4 4 0 0 1 8 0"), accent = setOf("M7.5 6a4 4 0 0 1 8 0")) }
     // Gesture hands for the guides: hold (rings held around the fingertip), swipe (a sideways arrow), drag (a trail).
-    // Angle units. Radians: a circle with one radian of it marked, the arc (accent) as long as the radius.
-    val Radians: ImageVector by lazy { tableIcon("Radians", stroke = listOf("M16.59 4.85L12 12h8.5", "M20.5 12A8.5 8.5 0 0 0 16.59 4.85"), thin = listOf("M3.5 12a8.5 8.5 0 1 0 17 0a8.5 8.5 0 1 0 -17 0z"), accent = setOf("M20.5 12A8.5 8.5 0 0 0 16.59 4.85")) }
-    // Degrees: an angle with its small arc, and the degree ring (accent).
-    val Degrees: ImageVector by lazy { tableIcon("Degrees", stroke = listOf("M12.2 7.5L3.2 19.5h12", "M16.4 6.6a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0 -5.2 0z"), thin = listOf("M8.7 19.5a5.5 5.5 0 0 0-2.2-4.4"), accent = setOf("M16.4 6.6a2.6 2.6 0 1 0 5.2 0a2.6 2.6 0 1 0 -5.2 0z")) }
     val GestureHold: ImageVector by lazy { tableIcon("GestureHold", stroke = listOf("M10 13V5.5a1.5 1.5 0 0 1 3 0V12l4.2.9a2 2 0 0 1 1.6 2.3l-.8 5.3H10.5L7 16.5a1.6 1.6 0 0 1 2.4-2.1z", "M4.5 6a7 7 0 0 1 14 0"), thin = listOf("M7.5 6a4 4 0 0 1 8 0"), accent = setOf("M4.5 6a7 7 0 0 1 14 0", "M7.5 6a4 4 0 0 1 8 0")) }
     val GestureSwipe: ImageVector by lazy { tableIcon("GestureSwipe", stroke = listOf("M10 15V9.5a1.5 1.5 0 0 1 3 0V14l4.2.9a2 2 0 0 1 1.6 2.3l-.6 4H10.5L7 18.5a1.6 1.6 0 0 1 2.4-2.1z", "M4 4.5h15", "M6.3 2.3L4 4.5l2.3 2.2", "M16.7 2.3L19 4.5l-2.3 2.2"), accent = setOf("M4 4.5h15", "M6.3 2.3L4 4.5l2.3 2.2", "M16.7 2.3L19 4.5l-2.3 2.2")) }
     val GestureDrag: ImageVector by lazy { tableIcon("GestureDrag", stroke = listOf("M10 15V9.5a1.5 1.5 0 0 1 3 0V14l4.2.9a2 2 0 0 1 1.6 2.3l-.6 4H10.5L7 18.5a1.6 1.6 0 0 1 2.4-2.1z", "M5.2 7.6l2.9.2-.6 2.8"), thin = listOf("M3.5 21C3 15.5 4.2 11 8 8"), accent = setOf("M5.2 7.6l2.9.2-.6 2.8", "M3.5 21C3 15.5 4.2 11 8 8")) }
