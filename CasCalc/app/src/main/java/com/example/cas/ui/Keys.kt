@@ -86,7 +86,7 @@ enum class KeyRole { Digit, Operator, Function, Clear, Equals }
 enum class IconId {
     Simplify, Expand, Factor, Apart, Together, Answer, MoreConstants,
     // Tab icons (TabIcons.kt)
-    Roots, Triangle, Balance, Area, Nabla, Matrix, ComplexC, Atom, Abs, Stats, Letters, PolarGrid, SymbolBuilder,
+    Roots, Triangle, Balance, Area, Nabla, Matrix, ComplexC, Atom, Abs, Stats, Letters, PolarGrid, SymbolBuilder, Integers, Special,
 }
 
 sealed interface KeyLabel {
@@ -151,7 +151,13 @@ private fun letters(vararg parts: String) = MathRow(parts.map { Sym(it) }.toMuta
  * three for the wider trigonometry keys); [scrolls] marks the long groups (constants, symbols)
  * that scroll up and down inside their space.
  */
-class FunctionTab(val title: String, val icon: KeyLabel, val keys: List<List<KeySpec>>, val columns: Int = 5, val scrolls: Boolean = false)
+class FunctionTab(
+    val title: String, val icon: KeyLabel, val keys: List<List<KeySpec>>, val columns: Int = 5, val scrolls: Boolean = false,
+    /** Off until added in Settings › Calculator tabs (the extra tabs that widen what the keys reach). */
+    val optional: Boolean = false,
+    /** What's on it, in a few words, for the tabs page in Settings. */
+    val about: String = "",
+)
 
 /** The five function pages above the number pad, like the tabs of a CAS keyboard. */
 /**
@@ -270,7 +276,7 @@ val FunctionTabs: List<FunctionTab> = listOf(
                 KeySpec(KeyLabel.Text("Ans"), KeyAction.Type("ans"), KeyRole.Equals, "previous answer"),
             ),
         ),
-        columns = 5,
+        columns = 5, about = "Powers, roots, logs, factorial, |x|, mod",
     ),
     FunctionTab(
         "Trigonometry", KeyLabel.Icon(IconId.Triangle),
@@ -282,7 +288,7 @@ val FunctionTabs: List<FunctionTab> = listOf(
                 notation(letters("a${f}h"), KeyAction.Insert(0) { Func("a${f}h") }, "inverse hyperbolic $f"),
             )
         },
-        columns = 4,
+        columns = 4, about = "sin, cos, tan, their inverses and hyperbolic forms",
     ),
     FunctionTab(
         "Calculus", KeyLabel.Icon(IconId.Area),
@@ -310,7 +316,7 @@ val FunctionTabs: List<FunctionTab> = listOf(
                 notation(row(Func("hessian", listOf(row("f")))), KeyAction.Insert(0) { Func("hessian") }, "Hessian matrix"),
             ),
         ),
-        columns = 5,
+        columns = 5, about = "Derivatives, integrals, limits, sums, series, ∇ and differential equations",
     ),
     FunctionTab(
         "Linear algebra", KeyLabel.Icon(IconId.Matrix),
@@ -337,7 +343,7 @@ val FunctionTabs: List<FunctionTab> = listOf(
                 KeySpec(KeyLabel.Matrix(prefix = "rk"), KeyAction.Insert(0) { Func("rank") }, KeyRole.Function, "rank"),
             ),
         ),
-        columns = 5,
+        columns = 5, about = "Matrices: inverse, transpose, det, eigenvalues, products, rref",
     ),
     FunctionTab(
         "Statistics", KeyLabel.Icon(IconId.Stats),
@@ -364,7 +370,7 @@ val FunctionTabs: List<FunctionTab> = listOf(
                 text(",", KeyAction.Type(","), spoken = "comma for lists"),
             ),
         ),
-        columns = 5,
+        columns = 5, about = "Mean, spread, combinations, normal, binomial and Poisson",
     ),
     FunctionTab(
         "Complex numbers", KeyLabel.Icon(IconId.ComplexC),
@@ -396,11 +402,67 @@ val FunctionTabs: List<FunctionTab> = listOf(
                 type("w"),
             ),
         ),
-        columns = 5,
+        columns = 5, about = "i, Re, Im, conjugate, argument, Γ, ζ, Bessel, ∮ and residues",
     ),
-    FunctionTab("Physical constants", KeyLabel.Icon(IconId.Atom), ConstantKeys, columns = 5, scrolls = true),
-    FunctionTab("Symbols", KeyLabel.Icon(IconId.Letters), LetterKeys, columns = 6, scrolls = true),
+    FunctionTab("Physical constants", KeyLabel.Icon(IconId.Atom), ConstantKeys, columns = 5, scrolls = true, about = "c, h, k_B and every other constant, in SI or other systems"),
+    FunctionTab("Symbols", KeyLabel.Icon(IconId.Letters), LetterKeys, columns = 6, scrolls = true, about = "Latin and Greek letters, and symbols you build"),
+    // Extra tabs, off until added in Settings › Calculator tabs.
+    FunctionTab(
+        "Number theory", KeyLabel.Icon(IconId.Integers),
+        listOf(
+            listOf(
+                notation(row(Func("gcd", listOf(row("a"), row("b")))), KeyAction.Insert(0) { Func("gcd", 2) }, "greatest common divisor"),
+                notation(row(Func("lcm", listOf(row("a"), row("b")))), KeyAction.Insert(0) { Func("lcm", 2) }, "least common multiple"),
+                notation(letters("a", "mod", "b"), KeyAction.Type("mod"), "mod"),
+                text("n!", KeyAction.Type("!"), spoken = "factorial"),
+                math(row(Binom(row("n"), row("k"))), KeyAction.Insert(0) { Binom() }, "n choose k"),
+            ),
+            listOf(
+                notation(row(Func("floor", listOf(row("x")))), KeyAction.Insert(0) { Func("floor") }, "floor"),
+                notation(row(Func("ceil", listOf(row("x")))), KeyAction.Insert(0) { Func("ceil") }, "ceiling"),
+                notation(row(Func("round", listOf(row("x")))), KeyAction.Insert(0) { Func("round") }, "round"),
+                notation(row(Func("frac", listOf(row("x")))), KeyAction.Insert(0) { Func("frac") }, "fractional part"),
+                notation(row(Func("sgn", listOf(row("x")))), KeyAction.Insert(0) { Func("sgn") }, "sign"),
+            ),
+            listOf(
+                notation(row(Func("max", listOf(row("a"), row("b")))), KeyAction.Insert(0) { Func("max", 2) }, "maximum"),
+                notation(row(Func("min", listOf(row("a"), row("b")))), KeyAction.Insert(0) { Func("min", 2) }, "minimum"),
+                notation(row(Func("perm", listOf(row("n"), row("k")))), KeyAction.Insert(0) { Func("perm", 2) }, "permutations"),
+                math(row(Func("abs", listOf(row("x")))), KeyAction.Insert(0) { Func("abs") }, "absolute value"),
+                text(",", KeyAction.Type(","), spoken = "comma for lists"),
+            ),
+        ),
+        columns = 5, optional = true, about = "gcd, lcm, mod, floor and ceiling, rounding, sign, max and min",
+    ),
+    FunctionTab(
+        "Special functions", KeyLabel.Icon(IconId.Special),
+        listOf(
+            listOf(
+                notation(row(Func("erf", listOf(row("x")))), KeyAction.Insert(0) { Func("erf") }, "error function"),
+                notation(row(Func("erfi", listOf(row("x")))), KeyAction.Insert(0) { Func("erfi") }, "imaginary error function"),
+                notation(row(Func("gammainc", listOf(row("s"), row("x")))), KeyAction.Insert(0) { Func("gammainc", 2) }, "upper incomplete gamma function"),
+                notation(row(Func("digamma", listOf(row("x")))), KeyAction.Insert(0) { Func("digamma") }, "digamma function"),
+                notation(row(Func("hurwitz", listOf(row("s"), row("a")))), KeyAction.Insert(0) { Func("hurwitz", 2) }, "Hurwitz zeta function"),
+            ),
+            listOf(
+                notation(row(Func("si", listOf(row("x")))), KeyAction.Insert(0) { Func("si") }, "sine integral"),
+                notation(row(Func("ci", listOf(row("x")))), KeyAction.Insert(0) { Func("ci") }, "cosine integral"),
+                notation(row(Func("ei", listOf(row("x")))), KeyAction.Insert(0) { Func("ei") }, "exponential integral"),
+                notation(row(Func("li", listOf(row("x")))), KeyAction.Insert(0) { Func("li") }, "logarithmic integral"),
+                notation(row(Func("polylog", listOf(row("s"), row("z")))), KeyAction.Insert(0) { Func("polylog", 2) }, "polylogarithm"),
+            ),
+            listOf(
+                notation(row(Func("shi", listOf(row("x")))), KeyAction.Insert(0) { Func("shi") }, "hyperbolic sine integral"),
+                notation(row(Func("chi", listOf(row("x")))), KeyAction.Insert(0) { Func("chi") }, "hyperbolic cosine integral"),
+                notation(row(Func("fresnels", listOf(row("x")))), KeyAction.Insert(0) { Func("fresnels") }, "Fresnel sine integral"),
+                notation(row(Func("fresnelc", listOf(row("x")))), KeyAction.Insert(0) { Func("fresnelc") }, "Fresnel cosine integral"),
+                notation(row(Func("ellipticf", listOf(row("φ"), row("m")))), KeyAction.Insert(0) { Func("ellipticf", 2) }, "incomplete elliptic integral of the first kind"),
+            ),
+        ),
+        columns = 5, optional = true, about = "erf, the sine, cosine, exponential and logarithmic integrals, Fresnel, polylog, digamma, elliptic",
+    ),
 )
+
 
 private fun digit(d: String) = text(d, KeyAction.Type(d), KeyRole.Digit)
 private fun op(t: String, spoken: String, action: KeyAction = KeyAction.Type(t)) = text(t, action, KeyRole.Operator, spoken)

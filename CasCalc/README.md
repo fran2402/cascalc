@@ -203,6 +203,20 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (5 October, calculator tabs in Settings, two new tabs)
+
+- **Settings › Calculator › Calculator tabs**: choose which groups of keys sit above the keypad.
+  The tabs on the keypad are listed first, with a live preview of the tab bar: drag one to
+  reorder it, switch it off to put it away (one always stays). Below, **More tabs** lists the
+  rest, each with Add. Reset brings back the built-in set.
+- **Two new tabs** to add from there (off by default, marked New):
+  - **Number theory** (ℤ): gcd, lcm, mod, n!, nCk, floor, ceiling, round, fractional part, sign,
+    max, min, permutations, |x|.
+  - **Special functions** (an erf curve): erf, erfi, Γ(s, x), ψ, Hurwitz ζ, Si, Ci, Ei, li,
+    Li_s, Shi, Chi, Fresnel S and C, elliptic F.
+- The keypad's tab bar, the dots and swiping follow the chosen tabs and order; new tabs can be
+  added the same way later. Every key on the new tabs has its long-press explanation.
+
 ## Latest changes (5 October, ∂ key, geometry, steps and icons always on)
 
 - The **partial derivative key** shows a real ∂ (after Computer Modern's: the hook over the top

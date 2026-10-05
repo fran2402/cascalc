@@ -6,6 +6,16 @@ More options
 Unit converter	
 Settings	
 Acknowledgements	
+The groups of keys above the keypad. Drag a tab to reorder it, switch it off to put it away, and add more from below.	
+Show {0}	
+Every tab is on the keypad.	
+Add	
+Reset to the default tabs	
+Drag to reorder	
+New	
+The keypad's tabs	
+On the keypad	
+More tabs	
 Clear the history?	
 Clear	
 Cancel	
@@ -72,6 +82,7 @@ Continue from the answer
 An operator after = starts with Ans	
 Explanations on long-press	
 Formula, theory and how to use each key	
+Calculator tabs	
 History	
 History keeps	
 All	
@@ -147,7 +158,6 @@ Construct
 Step {0} of {1}	
 Take back the last pick	
 Show the geometry guide	
-Show {0}	
 , in use	
 Use {0}	
 Make	
@@ -198,7 +208,6 @@ Drag ⠿ to reorder · swipe a map away to remove it
 Search by name	
 No colormap by that name	
 Colormap	
-Drag to reorder	
 Saturation and brightness	
 Line thickness	
 Default	

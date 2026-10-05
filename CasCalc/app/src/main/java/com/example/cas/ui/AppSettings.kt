@@ -20,6 +20,21 @@ object AppSettings {
     private var guidesSeen by mutableStateOf("")
     fun geometryGuideSeen(space: Char) = space in guidesSeen
     fun markGeometryGuideSeen(space: Char) { if (space !in guidesSeen) { guidesSeen += space; save("geometryGuides", guidesSeen) } }
+    /** The calculator's tabs in the order chosen, by title (see [CalcTabs]); empty is the built-in order. */
+    var tabOrder by mutableStateOf<List<String>>(emptyList())
+        private set
+    /** The tabs chosen to show, by title; null until changed (every tab but the extra ones). */
+    var shownTabs by mutableStateOf<Set<String>?>(null)
+        private set
+    fun changeTabs(order: List<String>, shown: Set<String>) {
+        tabOrder = order; shownTabs = shown
+        save("tabOrder", order.joinToString("\n")); save("shownTabs", shown.joinToString("\n"))
+    }
+    /** Back to the built-in tabs, in their order. */
+    fun resetTabs() {
+        tabOrder = emptyList(); shownTabs = null
+        prefs?.edit()?.remove("tabOrder")?.remove("shownTabs")?.apply()
+    }
     /** 0 follow the system, 1 light, 2 dark. */
     var theme by mutableStateOf(0)
         private set
@@ -126,6 +141,8 @@ object AppSettings {
         I18n.load(context)
         language = p.getString("language", "") ?: ""
         guidesSeen = p.getString("geometryGuides", "") ?: ""
+        tabOrder = p.getString("tabOrder", null)?.split('\n')?.filter { it.isNotEmpty() } ?: emptyList()
+        shownTabs = p.getString("shownTabs", null)?.split('\n')?.filter { it.isNotEmpty() }?.toSet()
         SavedSymbols.init(context)
         PinnedKeys.init(context)
         FavoriteColormaps.init(context)
@@ -212,4 +229,26 @@ object AppSettings {
 
     /** The explicit and implicit grid sizes for 3D surfaces at the chosen detail. */
     val surfaceGrid: Pair<Int, Int> get() = when (surfaceDetail) { 0 -> 24 to 16; 2 -> 52 to 30; else -> 36 to 22 }
+}
+
+/**
+ * The calculator's tabs as set in Settings › Calculator tabs: their order, and which are shown.
+ * By position in [FunctionTabs]; the extra tabs start hidden. At least one tab always shows.
+ */
+object CalcTabs {
+    /** Every tab, in the order chosen (any tab the saved order doesn't know goes at the end). */
+    fun order(): List<Int> {
+        val byTitle = FunctionTabs.withIndex().associate { (i, t) -> t.title to i }
+        val saved = AppSettings.tabOrder.mapNotNull { byTitle[it] }
+        return saved + FunctionTabs.indices.filter { it !in saved }
+    }
+
+    /** Whether a tab shows: chosen in Settings, or by default every tab but the extra ones. */
+    fun isShown(i: Int): Boolean = AppSettings.shownTabs?.let { FunctionTabs[i].title in it } ?: !FunctionTabs[i].optional
+
+    /** The tabs shown above the keypad, in order. */
+    fun shown(): List<Int> = order().filter { isShown(it) }.ifEmpty { listOf(0) }
+
+    /** The tab to show for a selected one: itself if it's shown, else the first shown. */
+    fun current(selected: Int): Int = shown().let { s -> if (selected in s) selected else s.first() }
 }

@@ -674,8 +674,8 @@ private fun ControlRow(vm: KeypadHost) {
                 tint = colors.onSurfaceVariant,
             )
         }
-        val onConstants = FunctionTabs[vm.selectedTab].icon == KeyLabel.Icon(IconId.Atom)
-        val onNabla = FunctionTabs[vm.selectedTab].icon == KeyLabel.Icon(IconId.Area)
+        val onConstants = FunctionTabs[CalcTabs.current(vm.selectedTab)].icon == KeyLabel.Icon(IconId.Atom)
+        val onNabla = FunctionTabs[CalcTabs.current(vm.selectedTab)].icon == KeyLabel.Icon(IconId.Area)
         if (onNabla) {
             // On the ∇ tab the switch picks the coordinate system (shown by its letters), and ✎ renames them.
             var editing by remember { mutableStateOf(false) }
@@ -755,7 +755,9 @@ private fun ControlRow(vm: KeypadHost) {
 private fun FunctionPanel(vm: KeypadHost, rowHeight: Dp, onKey: (KeyAction) -> Unit) {
     val colors = MaterialTheme.colorScheme
     val glyphs = LocalGlyphFallback.current
-    val tab = FunctionTabs[vm.selectedTab]
+    // The tabs shown and their order come from Settings › Calculator tabs.
+    val shownTabs = CalcTabs.shown()
+    val current = CalcTabs.current(vm.selectedTab)
     Column {
         GroupBar(vm)
         // One rounded surface holds all of a group's keys, so they read as one block.
@@ -765,7 +767,7 @@ private fun FunctionPanel(vm: KeypadHost, rowHeight: Dp, onKey: (KeyAction) -> U
                 .padding(horizontal = 8.dp)
                 .clip(RoundedCornerShape(28.dp))
                 .background(colors.surfaceContainerLow)
-                .pointerInput(vm.selectedTab) {
+                .pointerInput(current, shownTabs) {
                     // Swiping sideways moves to the next or previous group, as the dots show.
                     var total = 0f
                     detectHorizontalDragGestures(
@@ -773,7 +775,8 @@ private fun FunctionPanel(vm: KeypadHost, rowHeight: Dp, onKey: (KeyAction) -> U
                         onHorizontalDrag = { change, delta ->
                             total += delta
                             if (kotlin.math.abs(total) > 80f) {
-                                vm.selectTab((vm.selectedTab + if (total < 0) 1 else -1).coerceIn(0, FunctionTabs.lastIndex))
+                                val at = shownTabs.indexOf(current)
+                                vm.selectTab(shownTabs[(at + if (total < 0) 1 else -1).coerceIn(0, shownTabs.lastIndex)])
                                 total = 0f
                             }
                             change.consume()
@@ -785,9 +788,9 @@ private fun FunctionPanel(vm: KeypadHost, rowHeight: Dp, onKey: (KeyAction) -> U
             // nothing shifts as they change; the long lists scroll inside it.
             val gridHeight = rowHeight * 3 + 7.dp * 2 + 16.dp
             AnimatedContent(
-                targetState = vm.selectedTab,
+                targetState = current,
                 transitionSpec = {
-                    val forward = targetState > initialState
+                    val forward = shownTabs.indexOf(targetState) > shownTabs.indexOf(initialState)
                     (slideInHorizontally { w -> if (forward) w else -w } + fadeIn()) togetherWith
                         (slideOutHorizontally { w -> if (forward) -w else w } + fadeOut())
                 },
@@ -839,14 +842,17 @@ private fun GroupBar(vm: KeypadHost) {
         Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        FunctionTabs.forEachIndexed { i, tab ->
-            val selected = vm.selectedTab == i
+        val shownTabs = CalcTabs.shown()
+        val current = CalcTabs.current(vm.selectedTab)
+        shownTabs.forEachIndexed { pos, i ->
+            val tab = FunctionTabs[i]
+            val selected = current == i
             val outer = 20.dp
             val inner = 8.dp
             val shape = when {
                 selected -> RoundedCornerShape(outer)
-                i == 0 -> RoundedCornerShape(topStart = outer, bottomStart = outer, topEnd = inner, bottomEnd = inner)
-                i == FunctionTabs.lastIndex -> RoundedCornerShape(topStart = inner, bottomStart = inner, topEnd = outer, bottomEnd = outer)
+                pos == 0 -> RoundedCornerShape(topStart = outer, bottomStart = outer, topEnd = inner, bottomEnd = inner)
+                pos == shownTabs.lastIndex -> RoundedCornerShape(topStart = inner, bottomStart = inner, topEnd = outer, bottomEnd = outer)
                 else -> RoundedCornerShape(inner)
             }
             Box(
@@ -874,8 +880,9 @@ private fun GroupDots(vm: KeypadHost) {
         horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        FunctionTabs.indices.forEach { i ->
-            val on = i == vm.selectedTab
+        val current = CalcTabs.current(vm.selectedTab)
+        CalcTabs.shown().forEach { i ->
+            val on = i == current
             Box(
                 Modifier
                     .height(5.dp)
@@ -1198,7 +1205,7 @@ fun ShowKeypadButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 
 /** A key or tab label: text, math notation (in Google Sans Flex), or an icon. */
 @Composable
-private fun LabelView(label: KeyLabel, fg: Color, fontSize: Float, iconSize: Dp) {
+internal fun LabelView(label: KeyLabel, fg: Color, fontSize: Float, iconSize: Dp) {
     val glyphs = LocalGlyphFallback.current
     when (label) {
         is KeyLabel.Text -> Text(
@@ -1241,6 +1248,8 @@ private fun iconFor(id: IconId): ImageVector = when (id) {
     IconId.Answer -> TableIcons.Replay
     IconId.MoreConstants -> KeyIcons.forKey("list of constants with names") ?: TableIcons.MoreHoriz
     IconId.Triangle -> TabIcons.Triangle
+    IconId.Integers -> TabIcons.Integers
+    IconId.Special -> TabIcons.Special
 }
 
 
@@ -1559,6 +1568,8 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
     val tablet = isTabletLayout()
     var howTo by remember { mutableStateOf(false) }
     if (howTo) DocsPage(onBack = { howTo = false })
+    var tabsPage by remember { mutableStateOf(false) }
+    if (tabsPage) CalcTabsPage(onBack = { tabsPage = false })
     // One scrolling page on a phone; on a tablet, the sections down the left and one at a time on the right.
     SectionedPage("Settings", onBack = onBack, sections = (if (I18n.languages.size < 2) emptyList<PageSection>() else listOf(
         // Only once a translation has been added (assets/i18n): the system's language, or one picked here.
@@ -1586,6 +1597,10 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsToggle("Live answer", "The result under what you're typing", AppSettings.livePreview, AppSettings::changeLivePreview)
             SettingsToggle("Continue from the answer", "An operator after = starts with Ans", AppSettings.continueFromAnswer, AppSettings::changeContinueFromAnswer)
             SettingsToggle("Explanations on long-press", "Formula, theory and how to use each key", AppSettings.keyHelp, AppSettings::changeKeyHelp)
+            SettingsLink(
+                "Calculator tabs", "${CalcTabs.shown().size} on the keypad. Reorder them, put some away, or add more: number theory, special functions",
+                "Choose the calculator's tabs",
+            ) { tabsPage = true }
         },
         PageSection("History", TableIcons.History) {
             SettingsChoice("History keeps", listOf("50", "100", "500", "All"), when (AppSettings.historyLimit) { 50 -> 0; 100 -> 1; 500 -> 2; else -> 3 }) {

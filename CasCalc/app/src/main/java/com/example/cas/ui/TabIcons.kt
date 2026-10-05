@@ -68,6 +68,12 @@ object TabIcons {
     /** The symbol builder: an x with a hat, a superscript box and a +. */
     val SymbolBuilder: ImageVector by lazy { icon("SymbolBuilder", stroke = listOf("M4 10.5l7 9.5", "M11 10.5l-7 9.5", "M4.5 7.5l3-3l3 3"), thin = listOf("M14 3.5h5v5h-5z", "M15 17.5h6", "M18 14.5v6")) }
 
+    /** ℤ, a double-struck Z: the number theory tab. */
+    val Integers: ImageVector by lazy { icon("Integers", stroke = listOf("M6 5h12L6 19h12"), thin = listOf("M14.6 5L6 15"), accent = setOf("M6 5h12L6 19h12")) }
+
+    /** The S-curve of erf crossing its axes: the special functions tab. */
+    val Special: ImageVector by lazy { icon("Special", stroke = listOf("M3 18.5C9 18.5 9.5 12 12 12S15 5.5 21 5.5"), thin = listOf("M3 12h18", "M12 3v18"), accent = setOf("M3 18.5C9 18.5 9.5 12 12 12S15 5.5 21 5.5")) }
+
     /** Aα: Latin and Greek letters. */
     val Letters: ImageVector by lazy { icon("Letters", stroke = listOf("M2.5 19L7 5l4.5 14", "M4.2 14h5.6", "M22 11.5c-.8 3-2.2 7.5-4.3 7.5c-1.9 0-3.2-1.6-3.2-3.8c0-2.2 1.4-3.9 3.3-3.9c2.6 0 3.2 5.1 4.7 7.7"), accent = setOf("M22 11.5c-.8 3-2.2 7.5-4.3 7.5c-1.9 0-3.2-1.6-3.2-3.8c0-2.2 1.4-3.9 3.3-3.9c2.6 0 3.2 5.1 4.7 7.7")) }
 }
