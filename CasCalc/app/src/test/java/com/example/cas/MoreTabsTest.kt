@@ -87,4 +87,56 @@ class MoreTabsTest {
         // A letter isn't a number yet: the call stays as it is.
         assertEquals("fib(n)", exact("fib", "n"))
     }
+
+    @Test fun mathConstants() {
+        fun c(id: String) = Evaluator().evaluate(MathRow(mutableListOf(com.example.cas.editor.Const(id))))
+        assertEquals(1.618033988749895, Numeric.real(c("m:phi")), 1e-12)
+        assertEquals(2.414213562373095, Numeric.real(c("m:silver")), 1e-12)
+        assertEquals(1.324717957244746, Numeric.real(c("m:plastic")), 1e-12)
+        assertEquals(1.2020569031595942, Numeric.real(c("m:apery")), 1e-9)
+        assertEquals(23.140692632779267, Numeric.real(c("m:gelfond")), 1e-9)
+        for (k in com.example.cas.engine.MathConstant.entries) try { Numeric.real(k.value) } catch (e: Exception) { throw AssertionError("${k.description}: ${e.message} ${Printer.plain(k.value)}") }
+    }
+
+    @Test fun distributions() {
+        near(0.5 * kotlin.math.exp(-1.0), "exppdf", "2", "0.5")
+        near(1 - kotlin.math.exp(-1.0), "expcdf", "2", "0.5")
+        assertEquals("1/4", exact("unifpdf", "3", "1", "5")); assertEquals("1/2", exact("unifcdf", "3", "1", "5"))
+        assertEquals("4/27", exact("geompdf", "1/3", "3")); assertEquals("19/27", exact("geomcdf", "1/3", "3"))
+        near(0.857123460498547, "poissoncdf", "2", "3")
+        near(0.24197072451914337, "chi2pdf", "1", "3")
+        near(0.1987480430987992, "chi2cdf", "1", "3")
+        near(0.3989422804014327, "lognpdf", "1", "0", "1")
+        near(0.5, "logncdf", "1", "0", "1")
+        near(1 / Math.PI, "cauchypdf", "0", "0", "1"); near(0.75, "cauchycdf", "1", "0", "1")
+        near(2 * kotlin.math.exp(-1.0), "weibpdf", "1", "2", "1"); near(1 - kotlin.math.exp(-1.0), "weibcdf", "1", "2", "1")
+    }
+
+    @Test fun combinatorics() {
+        assertEquals("175", exact("stirling1", "7", "5"))
+        assertEquals("25", exact("stirling2", "5", "3"))
+        assertEquals("52", exact("bell", "5"))
+        assertEquals("44", exact("subfactorial", "5"))
+        assertEquals("36", exact("lah", "4", "2"))
+        assertEquals("66", exact("eulerian", "5", "2"))
+        assertEquals("137/60", exact("harmonic", "5"))
+        assertEquals("55", exact("triangular", "10"))
+        assertEquals("51", exact("motzkin", "6"))
+        assertEquals("70", exact("pell", "6"))
+        assertEquals("210", exact("primorial", "10"))
+        assertEquals("34560", exact("superfactorial", "5"))
+        assertEquals("20", exact("narayana", "5", "3"))
+        assertEquals("24", exact("rising", "2", "3")); assertEquals("x(x^2+3x+2)", exact("rising", "x", "3").replace(" ", ""))
+        assertEquals("120", exact("falling", "6", "3"))
+    }
+
+    @Test fun moreStatistics() {
+        fun list(name: String) = Printer.plain(Evaluator().evaluate(MathRow(mutableListOf(Func(name, listOf(com.example.cas.editor.row("2,4,4,4,5,5,7,9")))))))
+        assertEquals("4", list("mode")); assertEquals("7", list("range")); assertEquals("8", list("count"))
+        assertEquals("4", list("q1")); assertEquals("6", list("q3")); assertEquals("2", list("iqr"))
+        assertEquals("232", list("sumsq")); assertEquals("201600", list("prodlist"))
+        assertEquals("√29", list("rms"))
+        assertEquals("3/2", list("mad"))
+        list("geomean"); list("harmean"); list("cv"); list("skew"); list("kurt")
+    }
 }

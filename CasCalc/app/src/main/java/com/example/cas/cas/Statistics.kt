@@ -86,6 +86,52 @@ object Statistics {
 
     fun total(xs: List<Expr>): Expr = Algebra.simplify(add(xs))
 
+    /** More statistics of a list, for the Statistics II tab, by name; null for a name it doesn't know. */
+    val MORE = setOf("mode", "range", "q1", "q3", "iqr", "geomean", "harmean", "rms", "mad", "skew", "kurt", "cv", "prodlist", "count", "sumsq")
+
+    fun more(name: String, xs: List<Expr>): Expr? {
+        if (xs.isEmpty()) throw MathError("The list is empty")
+        val n = Num(xs.size.toLong())
+        fun halves(): Pair<List<Expr>, List<Expr>> {
+            val s = sorted(xs)
+            if (s.size < 2) throw MathError("Quartiles need at least two values")
+            // The lower and upper halves, leaving out the median when there's an odd number.
+            return s.subList(0, s.size / 2) to s.subList((s.size + 1) / 2, s.size)
+        }
+        return Algebra.simplify(when (name) {
+            "count" -> n
+            "range" -> sorted(xs).let { sub(it.last(), it.first()) }
+            "q1" -> median(halves().first)
+            "q3" -> median(halves().second)
+            "iqr" -> halves().let { (lo, hi) -> sub(median(hi), median(lo)) }
+            "mode" -> {
+                // The most common value; with a tie, the smallest of them.
+                val s = sorted(xs).map { Algebra.simplify(it) }
+                val counts = LinkedHashMap<Expr, Int>()
+                s.forEach { counts[it] = (counts[it] ?: 0) + 1 }
+                val top = counts.values.max()
+                counts.entries.first { it.value == top }.key
+            }
+            "geomean" -> pow(mul(xs), div(ONE, n))
+            "harmean" -> div(n, add(xs.map { div(ONE, it) }))
+            "rms" -> sqrt(div(add(xs.map { pow(it, TWO) }), n))
+            "mad" -> mean(xs).let { m -> div(add(xs.map { fn("abs", sub(it, m)) }), n) }
+            "cv" -> div(sampleSd(xs), mean(xs))
+            "prodlist" -> mul(xs)
+            "sumsq" -> add(xs.map { pow(it, TWO) })
+            "skew", "kurt" -> {
+                // Population skewness m₃/m₂^(3/2) and excess kurtosis m₄/m₂² − 3, as decimals.
+                val v = sorted(xs).map { Numeric.real(it) }
+                val m = v.average()
+                fun moment(k: Int) = v.sumOf { Math.pow(it - m, k.toDouble()) } / v.size
+                val m2 = moment(2)
+                if (m2 == 0.0) throw MathError("All the values are the same")
+                Flt(if (name == "skew") moment(3) / Math.pow(m2, 1.5) else moment(4) / (m2 * m2) - 3)
+            }
+            else -> return null
+        })
+    }
+
     // ---- Numerics --------------------------------------------------------------------------
 
     /** erf by its Taylor series near 0 and a continued fraction for erfc further out (≈ 15 digits). */

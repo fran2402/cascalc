@@ -203,6 +203,25 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (5 October, four more tabs: constants, distributions, combinatorics, statistics II)
+
+- **Mathematical constants** (new MathConstant list, shown and typed like the physical constants):
+  φ, the silver ratio δ_S, the plastic ratio ρ (exact closed forms), Euler–Mascheroni γ, Catalan's
+  G, Apéry's ζ(3), Ω, Khinchin's K₀, Glaisher–Kinkelin A, Feigenbaum δ and α, the twin prime
+  constant C₂, Meissel–Mertens M, the lemniscate constant ϖ and Gelfond's e^π.
+- **Distributions**: exponential, uniform, χ², log-normal, Cauchy and Weibull densities and
+  distribution functions, geometric probabilities and the cumulative Poisson, written in e, ln,
+  erf, atan and Γ so they simplify and graph.
+- **Combinatorics**: Stirling numbers of both kinds, Bell, Lah, Eulerian and Narayana numbers,
+  derangements !n, rising and falling factorials (x may be a letter), superfactorials, harmonic,
+  triangular, Motzkin and Pell numbers and primorials, exact.
+- **Statistics II** on comma lists: mode, range, Q₁, Q₃, IQR, geometric, harmonic and RMS means,
+  mean absolute deviation, coefficient of variation, skewness, excess kurtosis, count, sum of
+  squares and product.
+- Each tab has 15 keys, each key its own two-tone icon (letters and symbols from the shared
+  alphabet; curves, bars and steps for the distributions) and its long-press explanation. Nine
+  extra tabs in all can now be added in Settings › Calculator tabs.
+
 ## Latest changes (5 October, three more tabs, icons for every extra key)
 
 - **Three more tabs** to add in Settings › Calculator tabs, 15 keys each:

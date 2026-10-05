@@ -12,6 +12,9 @@ object NumberTheory {
     val NAMES = setOf(
         "isprime", "nextprime", "prevprime", "prime", "primepi", "totient", "ndivisors", "sigma", "moebius",
         "fib", "lucas", "catalan", "bernoulli", "partitions", "dfact",
+        // Combinatorics.
+        "stirling1", "stirling2", "bell", "subfactorial", "lah", "eulerian", "harmonic", "triangular", "motzkin", "pell",
+        "primorial", "superfactorial", "narayana",
     )
 
     fun eval(name: String, args: List<Expr>): Expr? {
@@ -21,7 +24,48 @@ object NumberTheory {
             if (a is Flt || (a is Num && !a.q.isInteger)) throw MathError("$name takes a whole number")
             return null
         }
+        // The second whole number, for the two-number ones: S(n, k), L(n, k)…
+        fun k(): Int {
+            val b = (args.getOrNull(1) as? Num)?.q?.takeIf { it.isInteger }?.num ?: throw MathError("$name takes two whole numbers")
+            return b.toInt().also { if (b.bitLength() > 20) throw MathError("That's too large for $name") }
+        }
         return when (name) {
+            "stirling1" -> big(stirling1(small(n, 0, 400, "Stirling numbers"), k()))
+            "stirling2" -> big(stirling2(small(n, 0, 400, "Stirling numbers"), k()))
+            "bell" -> small(n, 0, 400, "Bell numbers").let { m -> big((0..m).fold(BigInteger.ZERO) { acc, j -> acc + stirling2(m, j) }) }
+            "subfactorial" -> small(n, 0, 2000, "!n").let { m ->
+                // !n = (n − 1)(!(n − 1) + !(n − 2)), !0 = 1, !1 = 0.
+                var a = BigInteger.ONE; var b = BigInteger.ZERO
+                if (m == 0) big(a) else { for (i in 2..m) { val c = BigInteger.valueOf(i - 1L) * (a + b); a = b; b = c }; big(b) }
+            }
+            "lah" -> small(n, 0, 400, "Lah numbers").let { m ->
+                val j = k()
+                if (j < 1 || j > m) big(if (m == 0 && j == 0) BigInteger.ONE else BigInteger.ZERO)
+                else big(binomial(m - 1, j - 1) * factorial(m) / factorial(j))
+            }
+            "eulerian" -> big(eulerian(small(n, 0, 300, "Eulerian numbers"), k()))
+            "harmonic" -> small(n, 0, 5000, "harmonic numbers").let { m -> Num((1..m).fold(Rational.of(0)) { acc, i -> acc + Rational.of(1, i.toLong()) }) }
+            "triangular" -> big(n * (n + BigInteger.ONE) / BigInteger.TWO)
+            "motzkin" -> small(n, 0, 5000, "Motzkin numbers").let { m ->
+                // M(n) = ((2n + 1) M(n − 1) + (3n − 3) M(n − 2)) / (n + 2).
+                val a = arrayOfNulls<BigInteger>(maxOf(2, m + 1)); a[0] = BigInteger.ONE; a[1] = BigInteger.ONE
+                for (i in 2..m) a[i] = (BigInteger.valueOf(2L * i + 1) * a[i - 1]!! + BigInteger.valueOf(3L * i - 3) * a[i - 2]!!) / BigInteger.valueOf(i + 2L)
+                big(a[m]!!)
+            }
+            "pell" -> small(n, 0, 50_000, "Pell numbers").let { m ->
+                var a = BigInteger.ZERO; var b = BigInteger.ONE
+                repeat(m) { val c = BigInteger.TWO * b + a; a = b; b = c }
+                big(a)
+            }
+            "primorial" -> small(n, 0, 100_000, "n#").let { m ->
+                val composite = sieve(maxOf(m, 2))
+                big((2..m).filter { !composite[it] }.fold(BigInteger.ONE) { acc, p -> acc * BigInteger.valueOf(p.toLong()) })
+            }
+            "superfactorial" -> small(n, 0, 300, "superfactorials").let { m -> big((1..m).fold(BigInteger.ONE) { acc, i -> acc * factorial(i) }) }
+            "narayana" -> small(n, 1, 1000, "Narayana numbers").let { m ->
+                val j = k()
+                if (j < 1 || j > m) big(BigInteger.ZERO) else big(binomial(m, j) * binomial(m, j - 1) / BigInteger.valueOf(m.toLong()))
+            }
             "isprime" -> Num(if (isPrime(n)) 1L else 0L)
             "nextprime" -> big(if (n < BigInteger.TWO) BigInteger.TWO else n.nextProbablePrime())
             "prevprime" -> big(prevPrime(n))
@@ -137,6 +181,36 @@ object NumberTheory {
             return if (k % 2 == 0) c to d else d to (c + d)
         }
         return pair(n).first
+    }
+
+    private fun factorial(n: Int): BigInteger = (2..n).fold(BigInteger.ONE) { acc, i -> acc * BigInteger.valueOf(i.toLong()) }
+
+    /** Unsigned Stirling numbers of the first kind: permutations of n with k cycles. */
+    private fun stirling1(n: Int, k: Int): BigInteger {
+        if (k < 0 || k > n) return BigInteger.ZERO
+        var row = arrayOf(BigInteger.ONE)
+        for (m in 1..n) row = Array(m + 1) { j -> (if (j > 0) row[j - 1] else BigInteger.ZERO) + (if (j < m) BigInteger.valueOf(m - 1L) * row[j] else BigInteger.ZERO) }
+        return row[k]
+    }
+
+    /** Stirling numbers of the second kind: ways to split n things into k non-empty groups. */
+    private fun stirling2(n: Int, k: Int): BigInteger {
+        if (k < 0 || k > n) return BigInteger.ZERO
+        var row = arrayOf(BigInteger.ONE)
+        for (m in 1..n) row = Array(m + 1) { j -> (if (j > 0) row[j - 1] else BigInteger.ZERO) + (if (j < m) BigInteger.valueOf(j.toLong()) * row[j] else BigInteger.ZERO) }
+        return row[k]
+    }
+
+    /** Eulerian numbers: permutations of n with k ascents. */
+    private fun eulerian(n: Int, k: Int): BigInteger {
+        if (k < 0 || (n > 0 && k >= n) || (n == 0 && k != 0)) return BigInteger.ZERO
+        var row = arrayOf(BigInteger.ONE)
+        // A(m, j) = (j + 1) A(m − 1, j) + (m − j) A(m − 1, j − 1).
+        for (m in 1..n) { val prev = row; row = Array(m) { j ->
+            (prev.getOrNull(j)?.let { BigInteger.valueOf(j + 1L) * it } ?: BigInteger.ZERO) +
+                (prev.getOrNull(j - 1)?.let { BigInteger.valueOf((m - j).toLong()) * it } ?: BigInteger.ZERO)
+        } }
+        return row[k]
     }
 
     private fun binomial(n: Int, k: Int): BigInteger {

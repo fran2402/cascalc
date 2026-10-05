@@ -83,6 +83,18 @@ object TabIcons {
     /** A sieve of the numbers 2 to 10, the primes picked out: primes and sequences. */
     val Primes: ImageVector by lazy { icon("Primes", stroke = emptyList(), fill = listOf("M17.9 5a1.1 1.1 0 1 0 2.2 0a1.1 1.1 0 1 0 -2.2 0z", "M10.9 12a1.1 1.1 0 1 0 2.2 0a1.1 1.1 0 1 0 -2.2 0z", "M3.9 19a1.1 1.1 0 1 0 2.2 0a1.1 1.1 0 1 0 -2.2 0z", "M10.9 19a1.1 1.1 0 1 0 2.2 0a1.1 1.1 0 1 0 -2.2 0z", "M17.9 19a1.1 1.1 0 1 0 2.2 0a1.1 1.1 0 1 0 -2.2 0z", "M3.3 5a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0 -3.4 0z", "M10.3 5a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0 -3.4 0z", "M3.3 12a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0 -3.4 0z", "M17.3 12a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0 -3.4 0z"), accent = setOf("M3.3 5a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0 -3.4 0z", "M10.3 5a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0 -3.4 0z", "M3.3 12a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0 -3.4 0z", "M17.3 12a1.7 1.7 0 1 0 3.4 0a1.7 1.7 0 1 0 -3.4 0z")) }
 
+    /** A golden rectangle with its spiral: mathematical constants. */
+    val MathConst: ImageVector by lazy { icon("MathConst", stroke = listOf("M3.5 17.5A11 11 0 0 1 14.5 6.5", "M14.5 6.5A6 6 0 0 1 20.5 12.5"), thin = listOf("M3.5 6.5h17v11h-17z", "M14.5 6.5v11"), accent = setOf("M3.5 17.5A11 11 0 0 1 14.5 6.5", "M14.5 6.5A6 6 0 0 1 20.5 12.5")) }
+
+    /** A density with its right tail shaded: probability distributions. */
+    val Distributions: ImageVector by lazy { icon("Distributions", stroke = listOf("M3 19.5h18", "M3 19c4 0 5.5-13 9-13s5 13 9 13"), shade = listOf("M15.3 19.5V12.3c1.4 3.6 3 6.7 5.7 6.7v.5z"), accent = setOf("M15.3 19.5V12.3c1.4 3.6 3 6.7 5.7 6.7v.5z")) }
+
+    /** Pascal's triangle as dots, its edges picked out: combinatorics. */
+    val Combinatorics: ImageVector by lazy { icon("Combinatorics", stroke = emptyList(), fill = listOf("M10.5 14.2a1.5 1.5 0 1 0 3.0 0a1.5 1.5 0 1 0 -3.0 0z", "M8.0 18.8a1.5 1.5 0 1 0 3.0 0a1.5 1.5 0 1 0 -3.0 0z", "M13.0 18.8a1.5 1.5 0 1 0 3.0 0a1.5 1.5 0 1 0 -3.0 0z", "M10.5 5.0a1.5 1.5 0 1 0 3.0 0a1.5 1.5 0 1 0 -3.0 0z", "M8.0 9.6a1.5 1.5 0 1 0 3.0 0a1.5 1.5 0 1 0 -3.0 0z", "M13.0 9.6a1.5 1.5 0 1 0 3.0 0a1.5 1.5 0 1 0 -3.0 0z", "M5.5 14.2a1.5 1.5 0 1 0 3.0 0a1.5 1.5 0 1 0 -3.0 0z", "M15.5 14.2a1.5 1.5 0 1 0 3.0 0a1.5 1.5 0 1 0 -3.0 0z", "M3.0 18.8a1.5 1.5 0 1 0 3.0 0a1.5 1.5 0 1 0 -3.0 0z", "M18.0 18.8a1.5 1.5 0 1 0 3.0 0a1.5 1.5 0 1 0 -3.0 0z"), accent = setOf("M10.5 5.0a1.5 1.5 0 1 0 3.0 0a1.5 1.5 0 1 0 -3.0 0z", "M8.0 9.6a1.5 1.5 0 1 0 3.0 0a1.5 1.5 0 1 0 -3.0 0z", "M13.0 9.6a1.5 1.5 0 1 0 3.0 0a1.5 1.5 0 1 0 -3.0 0z", "M5.5 14.2a1.5 1.5 0 1 0 3.0 0a1.5 1.5 0 1 0 -3.0 0z", "M15.5 14.2a1.5 1.5 0 1 0 3.0 0a1.5 1.5 0 1 0 -3.0 0z", "M3.0 18.8a1.5 1.5 0 1 0 3.0 0a1.5 1.5 0 1 0 -3.0 0z", "M18.0 18.8a1.5 1.5 0 1 0 3.0 0a1.5 1.5 0 1 0 -3.0 0z")) }
+
+    /** A box plot: quartiles, median and whiskers, more statistics. */
+    val StatsMore: ImageVector by lazy { icon("StatsMore", stroke = listOf("M7.5 7.5h9v9h-9z", "M12 7.5v9"), thin = listOf("M4 12h3.5", "M16.5 12H20", "M4 9.5v5", "M20 9.5v5"), accent = setOf("M12 7.5v9")) }
+
     /** Aα: Latin and Greek letters. */
     val Letters: ImageVector by lazy { icon("Letters", stroke = listOf("M2.5 19L7 5l4.5 14", "M4.2 14h5.6", "M22 11.5c-.8 3-2.2 7.5-4.3 7.5c-1.9 0-3.2-1.6-3.2-3.8c0-2.2 1.4-3.9 3.3-3.9c2.6 0 3.2 5.1 4.7 7.7"), accent = setOf("M22 11.5c-.8 3-2.2 7.5-4.3 7.5c-1.9 0-3.2-1.6-3.2-3.8c0-2.2 1.4-3.9 3.3-3.9c2.6 0 3.2 5.1 4.7 7.7")) }
 }

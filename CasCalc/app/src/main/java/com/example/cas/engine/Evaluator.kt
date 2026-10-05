@@ -263,7 +263,7 @@ class Evaluator(
             if (n is com.example.cas.editor.Sym) userCall(n.text)?.let { return it }
             return when (n) {
                 is com.example.cas.editor.Sym -> symbol(n.text)
-                is Const -> Constant.byId(n.id)?.value(units) ?: throw MathError("Unknown constant")
+                is Const -> Constant.byId(n.id)?.value(units) ?: com.example.cas.engine.MathConstant.byId(n.id)?.value ?: throw MathError("Unknown constant")
                 is Frac -> div(eval(n.num, env), eval(n.den, env))
                 is Sqrt -> pow(eval(n.arg, env), HALF)
                 // An empty index means a square root.
@@ -380,6 +380,9 @@ class Evaluator(
                         else -> com.example.cas.cas.Statistics.variance(xs)
                     }
                 }
+                // Statistics II: more of a list's statistics.
+                in com.example.cas.cas.Statistics.MORE -> return com.example.cas.cas.Statistics.more(f.name, listArgument(f.args[0]))
+                    ?: throw MathError("Unknown statistic")
                 "normpdf", "normcdf" -> {
                     val (x, mu, sigma) = f.args.map { eval(it, env) }
                     return if (f.name == "normpdf") com.example.cas.cas.Statistics.normalPdf(x, mu, sigma)
@@ -488,6 +491,14 @@ class Evaluator(
                 in MORE_TRIG -> moreTrig(f.name, args)
                 in SIGNALS -> signal(f.name, args)
                 in com.example.cas.cas.NumberTheory.NAMES -> com.example.cas.cas.NumberTheory.eval(f.name, args) ?: com.example.cas.cas.Fn(f.name, args)
+                in DISTRIBUTIONS -> distribution(f.name, args)
+                // Rising x(x + 1)…(x + n − 1) and falling x(x − 1)…(x − n + 1) factorials: x may be a letter.
+                "rising", "falling" -> {
+                    if (args.size != 2) throw MathError("${f.name} takes 2 values")
+                    val n = (args[1] as? Num)?.q?.takeIf { it.isInteger && it.signum >= 0 }?.num?.toInt()?.takeIf { it <= 200 }
+                        ?: throw MathError("The second value must be a whole number up to 200")
+                    (0 until n).fold(ONE as Expr) { acc, i -> Algebra.expand(mul(acc, add(x, num(if (f.name == "rising") i.toLong() else -i.toLong())))) }
+                }
                 else -> fn(f.name, *args.toTypedArray())
             }
         }
@@ -564,6 +575,46 @@ class Evaluator(
                 "pulse" -> { need(3); sub(heaviside(sub(x, a[1])), heaviside(sub(x, a[2]))) }
                 // x brought into [a, b) by whole periods b − a.
                 "wrap" -> { need(3); val w = sub(a[2], a[1]); sub(x, mul(w, fn("floor", div(sub(x, a[1]), w)))) }
+                else -> fn(name, *a.toTypedArray())
+            }
+        }
+
+        /**
+         * Probability distributions: densities and distribution functions, written in e, ln, erf,
+         * atan, Γ and the incomplete Γ, so they simplify, graph and integrate.
+         */
+        private fun distribution(name: String, a: List<Expr>): Expr {
+            fun need(n: Int) { if (a.size != n) throw MathError("$name takes $n values") }
+            val x = a[0]
+            val zero = com.example.cas.cas.ZERO
+            return when (name) {
+                // Exponential with rate λ.
+                "exppdf" -> { need(2); mul(a[1], pow(E, neg(mul(a[1], x)))) }
+                "expcdf" -> { need(2); sub(ONE, pow(E, neg(mul(a[1], x)))) }
+                // Uniform on [a, b].
+                "unifpdf" -> { need(3); div(sub(div(add(ONE, fn("sgn", sub(x, a[1]))), num(2)), div(add(ONE, fn("sgn", sub(x, a[2]))), num(2))), sub(a[2], a[1])) }
+                "unifcdf" -> { need(3); fn("min", fn("max", div(sub(x, a[1]), sub(a[2], a[1])), zero), ONE) }
+                // Geometric: the first success on trial k, each with probability p.
+                "geompdf" -> { need(2); mul(pow(sub(ONE, x), sub(a[1], ONE)), x) }
+                "geomcdf" -> { need(2); sub(ONE, pow(sub(ONE, x), a[1])) }
+                // Poisson: at most k events at rate λ.
+                "poissoncdf" -> {
+                    need(2)
+                    val k = (a[1] as? Num)?.q?.takeIf { it.isInteger && it.signum >= 0 }?.num?.toInt()?.takeIf { it <= 1000 } ?: throw MathError("k must be a whole number up to 1000")
+                    Algebra.simplify(mul(pow(E, neg(x)), add((0..k).map { i -> div(pow(x, num(i.toLong())), fn("fact", num(i.toLong()))) })))
+                }
+                // χ² with k degrees of freedom.
+                "chi2pdf" -> { need(2); val h = div(a[1], num(2)); div(mul(pow(x, sub(h, ONE)), pow(E, neg(div(x, num(2))))), mul(pow(num(2), h), fn("gamma", h))) }
+                "chi2cdf" -> { need(2); val h = div(a[1], num(2)); sub(ONE, div(fn("gammainc", h, div(x, num(2))), fn("gamma", h))) }
+                // Log-normal: ln X normal with mean μ and standard deviation σ.
+                "lognpdf" -> { need(3); div(pow(E, neg(div(pow(sub(fn("ln", x), a[1]), 2), mul(num(2), pow(a[2], 2))))), mul(x, a[2], pow(mul(num(2), PI), HALF))) }
+                "logncdf" -> { need(3); div(add(ONE, fn("erf", div(sub(fn("ln", x), a[1]), mul(a[2], pow(num(2), HALF))))), num(2)) }
+                // Cauchy with centre x₀ and scale γ.
+                "cauchypdf" -> { need(3); div(ONE, mul(PI, a[2], add(ONE, pow(div(sub(x, a[1]), a[2]), 2)))) }
+                "cauchycdf" -> { need(3); add(HALF, div(fn("atan", div(sub(x, a[1]), a[2])), PI)) }
+                // Weibull with shape k and scale λ.
+                "weibpdf" -> { need(3); val u = div(x, a[2]); mul(div(a[1], a[2]), pow(u, sub(a[1], ONE)), pow(E, neg(pow(u, a[1])))) }
+                "weibcdf" -> { need(3); sub(ONE, pow(E, neg(pow(div(x, a[2]), a[1])))) }
                 else -> fn(name, *a.toTypedArray())
             }
         }
@@ -676,6 +727,7 @@ class Evaluator(
         /** Function names that may appear as plain words in a reused answer, e.g. "ln" in ln|x|. */
         val FUNCTION_WORDS = setOf("ln", "sin", "cos", "tan")
         val MORE_TRIG = setOf("sec", "csc", "cot", "asec", "acsc", "acot", "sech", "csch", "coth", "asech", "acsch", "acoth", "sinc", "hypot", "atan2")
+        val DISTRIBUTIONS = setOf("exppdf", "expcdf", "unifpdf", "unifcdf", "geompdf", "geomcdf", "poissoncdf", "chi2pdf", "chi2cdf", "lognpdf", "logncdf", "cauchypdf", "cauchycdf", "weibpdf", "weibcdf")
         val SIGNALS = setOf("heaviside", "rect", "tri", "ramp", "sawtooth", "squarewave", "trianglewave", "clamp", "lerp", "smoothstep", "sigmoid", "softplus", "gauss", "wrap", "pulse")
         val RELATIONS = setOf("<", ">", "≤", "≥")
     }

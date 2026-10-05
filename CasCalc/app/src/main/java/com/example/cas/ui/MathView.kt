@@ -438,7 +438,7 @@ private fun NodeView(n: Node, row: MathRow, index: Int, level: Int) {
         is Pow -> {
             val before = row.items.getOrNull(index - 1)
             // Already drawn by the constant before it (c₀²); keep an empty spot so the cursor can still reach it.
-            val lastPiece = (before as? Const)?.let { Constant.byId(it.id)?.pieces?.last() }
+            val lastPiece = (before as? Const)?.let { com.example.cas.engine.constantPieces(it.id)?.last() }
             if (lastPiece != null && lastPiece.sub.isNotEmpty() && lastPiece.sup.isEmpty()) Box(Modifier.layoutId("pow")) else PowView(n, level)
         }
         is Sqrt -> RadicalView(level, index = null, body = { RowView(n.arg, level) })
@@ -541,7 +541,7 @@ private fun SymView(s: Sym, row: MathRow, index: Int, level: Int) {
 
 @Composable
 private fun ConstView(c: Const, level: Int, modifier: Modifier, power: Pow? = null) {
-    val pieces = Constant.byId(c.id)?.pieces ?: listOf(com.example.cas.engine.Piece(c.id))
+    val pieces = com.example.cas.engine.constantPieces(c.id) ?: listOf(com.example.cas.engine.Piece(c.id))
     val last = pieces.last()
     // A power right after a subscripted constant sits above the subscript, as in TeX (c₀², mₑ²).
     val stackPower = power != null && last.sub.isNotEmpty() && last.sup.isEmpty()

@@ -139,9 +139,9 @@ object Legend {
                 }
             }
             is Const -> {
-                val c = com.example.cas.engine.Constant.byId(n.id)
+                val c = com.example.cas.engine.constantPieces(n.id)
                 if (c == null) add(n.id, false, shift)
-                else c.pieces.forEach { p ->
+                else c.forEach { p ->
                     add(p.text, p.italic, shift)
                     if (p.sub.isNotEmpty()) add(p.sub, false, down)
                     if (p.sup.isNotEmpty()) add(p.sup, false, up)

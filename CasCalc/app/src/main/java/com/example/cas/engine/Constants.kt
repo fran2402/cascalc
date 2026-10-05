@@ -168,3 +168,43 @@ enum class Constant(
         val CATEGORIES = listOf("Universal", "Electromagnetic", "Atomic and nuclear", "Physicochemical", "Adopted values")
     }
 }
+
+/**
+ * Mathematical constants, for the Mathematical constants tab: exact where there is a closed form
+ * (φ, the silver and plastic ratios, ζ(3), e^π), else to double precision. They're Const nodes
+ * like the physical constants (the ids start with "m:"), with no units.
+ */
+enum class MathConstant(val id: String, val pieces: List<Piece>, val description: String, private val exact: () -> Expr) {
+    Golden("m:phi", listOf(Piece("φ")), "golden ratio", { com.example.cas.cas.div(com.example.cas.cas.add(com.example.cas.cas.ONE, com.example.cas.cas.pow(Num(5), com.example.cas.cas.HALF)), Num(2)) }),
+    Silver("m:silver", listOf(Piece("δ", sub = "S")), "silver ratio", { com.example.cas.cas.add(com.example.cas.cas.ONE, com.example.cas.cas.pow(Num(2), com.example.cas.cas.HALF)) }),
+    Plastic("m:plastic", listOf(Piece("ρ")), "plastic ratio", {
+        // ρ = ∛((9 + √69)/18) + ∛((9 − √69)/18), the real root of x³ = x + 1.
+        val r69 = com.example.cas.cas.pow(Num(69), com.example.cas.cas.HALF)
+        val third = Num(Rational.of(1, 3))
+        com.example.cas.cas.add(
+            com.example.cas.cas.pow(com.example.cas.cas.div(com.example.cas.cas.add(Num(9), r69), Num(18)), third),
+            com.example.cas.cas.pow(com.example.cas.cas.div(com.example.cas.cas.sub(Num(9), r69), Num(18)), third),
+        )
+    }),
+    EulerGamma("m:gamma", listOf(Piece("γ")), "Euler–Mascheroni constant", { Flt(0.5772156649015329) }),
+    Catalan("m:catalan", listOf(Piece("G")), "Catalan's constant", { Flt(0.915965594177219) }),
+    Apery("m:apery", listOf(Piece("ζ(3)")), "Apéry's constant", { com.example.cas.cas.fn("zeta", Num(3)) }),
+    Omega("m:omega", listOf(Piece("Ω")), "omega constant", { Flt(0.5671432904097838) }),
+    Khinchin("m:khinchin", listOf(Piece("K", sub = "0")), "Khinchin's constant", { Flt(2.6854520010653064) }),
+    Glaisher("m:glaisher", listOf(Piece("A")), "Glaisher–Kinkelin constant", { Flt(1.2824271291006226) }),
+    FeigenbaumDelta("m:fdelta", listOf(Piece("δ")), "Feigenbaum delta", { Flt(4.66920160910299) }),
+    FeigenbaumAlpha("m:falpha", listOf(Piece("α", sub = "F")), "Feigenbaum alpha", { Flt(2.5029078750958928) }),
+    TwinPrime("m:twinprime", listOf(Piece("C", sub = "2")), "twin prime constant", { Flt(0.6601618158468696) }),
+    Mertens("m:mertens", listOf(Piece("M")), "Meissel–Mertens constant", { Flt(0.2614972128476428) }),
+    Lemniscate("m:lemniscate", listOf(Piece("ϖ")), "lemniscate constant", { Flt(2.6220575542921198) }),
+    Gelfond("m:gelfond", listOf(Piece("e", sup = "π")), "Gelfond's constant", { com.example.cas.cas.pow(com.example.cas.cas.E, com.example.cas.cas.PI) });
+
+    val value: Expr get() = exact()
+
+    companion object {
+        fun byId(id: String) = entries.firstOrNull { it.id == id }
+    }
+}
+
+/** How a constant is written: a physical constant's symbol, or a mathematical one's. */
+fun constantPieces(id: String): List<Piece>? = Constant.byId(id)?.pieces ?: MathConstant.byId(id)?.pieces

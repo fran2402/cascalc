@@ -46,7 +46,7 @@ object Latex {
             n.text.length > 1 && n.text.all { it.isLetter() } -> "\\operatorname{${n.text}}"
             else -> n.text
         }
-        is Const -> Constant.byId(n.id)?.pieces?.joinToString("") { p ->
+        is Const -> constantPieces(n.id)?.joinToString("") { p ->
             val text = TEXT_SYMBOLS[p.text] ?: if (p.text.length > 1 && !p.text.all { it.isLetter() }) "\\mathrm{${p.text}}" else if (p.text.length > 1) "\\mathrm{${p.text}}" else p.text
             text + (if (p.sub.isNotEmpty()) "_{" + (TEXT_SYMBOLS[p.sub] ?: "\\mathrm{${p.sub}}") + "}" else "") +
                 (if (p.sup.isNotEmpty()) "^{" + p.sup.replace("−", "-") + "}" else "")

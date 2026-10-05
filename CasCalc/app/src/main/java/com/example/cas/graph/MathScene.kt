@@ -185,8 +185,8 @@ object MathScene {
         fun node(n: Node, size: Double): Box = when (n) {
             is Sym -> sym(n.text, size)
             is Const -> {
-                val c = com.example.cas.engine.Constant.byId(n.id)
-                if (c == null) text(n.id, false, size) else hbox(c.pieces.map { p ->
+                val c = com.example.cas.engine.constantPieces(n.id)
+                if (c == null) text(n.id, false, size) else hbox(c.map { p ->
                     scripts(text(p.text, p.italic, size), p.sup.takeIf { it.isNotEmpty() }?.let { text(it, false, size * 0.7) }, p.sub.takeIf { it.isNotEmpty() }?.let { text(it, false, size * 0.7) }, size)
                 })
             }
