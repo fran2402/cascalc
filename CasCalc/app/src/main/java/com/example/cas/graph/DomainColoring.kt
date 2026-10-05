@@ -375,19 +375,38 @@ object DomainColoring {
         shouldStop: () -> Boolean = { false },
         /** Log axes: the view is in log₁₀ of Re z or Im z there (see AxisScale). */
         scale: AxisScale = AxisScale(),
-    ): IntArray? {
-        val px = IntArray(width * height)
+    ): IntArray? = sample(f, params, view, width, height, shouldStop, scale)?.let { paint(it, o) }
+
+    /**
+     * f at the middle of each pixel, row by row from the top: re and im interleaved. Kept, so a
+     * change of colormap or shading is just [paint] again, at once.
+     */
+    fun sample(
+        f: ComplexFunction,
+        params: DoubleArray,
+        view: Viewport,
+        width: Int,
+        height: Int,
+        shouldStop: () -> Boolean = { false },
+        scale: AxisScale = AxisScale(),
+    ): DoubleArray? {
+        val out = DoubleArray(2 * width * height)
         for (j in 0 until height) {
             if (j % 16 == 0 && shouldStop()) return null
             val y = scale.realY(view.yMax - (j + 0.5) / height * view.height)
             for (i in 0 until width) {
                 val x = scale.realX(view.xMin + (i + 0.5) / width * view.width)
                 val w = try { f(CD(x, y), params) } catch (e: RuntimeException) { CD(Double.NaN) }
-                px[j * width + i] = color(w, o)
+                val k = 2 * (j * width + i)
+                out[k] = w.re; out[k + 1] = w.im
             }
         }
-        return px
+        return out
     }
+
+    /** The colors of [sample]d values. */
+    fun paint(values: DoubleArray, o: ColoringOptions): IntArray =
+        IntArray(values.size / 2) { k -> color(CD(values[2 * k], values[2 * k + 1]), o) }
 
     /**
      * ∮ f(z) dz along a closed path (the last point joins the first), by the

@@ -203,6 +203,19 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (5 October, instant style changes in graphs)
+
+- **Style changes are instant** in every graph mode. Color, thickness, line style, point size and
+  shape, fill opacity, arrows and colormaps no longer bump the graph's version, so nothing is
+  sampled or constructed again: the drawing reads them straight from the line on the next frame,
+  only the legends refresh, and saving waits until a slider settles.
+- **2D fields** keep their sampled values and recolor from them, so a new colormap shows at once
+  (before, it waited for the next pan).
+- **Complex plane**: the sampled values of f are kept, so a new colormap, the modulus bands, phase
+  lines, grid or a theme color repaint them at once, with no coarse pass.
+- **2D default colormap** for scalar and vector fields is now the Theme map (following the UI's
+  colors), instead of viridis.
+
 ## Latest changes (5 October, one-tone tertiary keys, ink x)
 
 - The **x key**'s italic x is drawn in ink (black in light mode, white in dark), like the digits.

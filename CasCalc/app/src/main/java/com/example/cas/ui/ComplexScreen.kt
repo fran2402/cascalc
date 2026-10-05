@@ -128,7 +128,7 @@ fun ComplexScreen(vm: ComplexViewModel, onUseValue: (CD) -> Unit = {}, modifier:
                 }
                 vm.complexArea?.let { ar -> ComplexAreaCard(ar, onClose = { vm.complexArea = null }, onUse = { v -> vm.complexArea = null; onUseValue(CD(v)) }) }
                 val version = vm.version
-                GraphLegend(remember(version, vm.plotted) {
+                GraphLegend(remember(version, vm.styleVersion, vm.plotted) {
                     complexLegendLines(vm).map { fn ->
                         when {
                             fn === vm.plotted -> ScreenLegendEntry(legendSource(fn), Color.White, line = false, strip = colormapStops(fn.colormap, 7, fn.colormapReversed))
@@ -210,13 +210,16 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
 
 
-    // Render coarse first so panning feels live, then sharper once the view settles.
-    // (The theme's primary color too: the Theme colormap follows the app's colors.)
+    // Render coarse first so panning feels live, then sharper once the view settles. The sampled
+    // values are kept: a new colormap, shading or theme color only paints them again, at once.
     val themePrimary = MaterialTheme.colorScheme.primary
-    LaunchedEffect(view, plotKey, size, vm.options, params, f, f?.colormap, f?.colormapReversed, AppSettings.complexQuality, sc, themePrimary) {
+    val coloring = vm.options.copy(colormap = f?.colormap ?: vm.options.colormap, reversed = f?.colormapReversed ?: false)
+    val coloringState = androidx.compose.runtime.rememberUpdatedState(coloring)
+    var sampled by remember { mutableStateOf<Triple<DoubleArray, Int, Int>?>(null) }
+    LaunchedEffect(view, plotKey, size, params, f, AppSettings.complexQuality, sc) {
         val v = view ?: return@LaunchedEffect
         val c = f?.complexCompiled
-        if (c == null || size.width == 0) { image = null; return@LaunchedEffect }
+        if (c == null || size.width == 0) { image = null; sampled = null; return@LaunchedEffect }
         val p = vm.parameterValues(f!!)
         try {
             // Medium quality stops at half resolution; high renders every pixel.
@@ -229,14 +232,20 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
                 val w = (size.width / divisor).coerceAtLeast(1)
                 val h = (size.height / divisor).coerceAtLeast(1)
                 val ctx = coroutineContext
-                val px = withContext(Dispatchers.Default) {
-                    DomainColoring.render(c, p, v, w, h, vm.options.copy(colormap = f.colormap, reversed = f.colormapReversed), { !ctx.isActive }, sc)
-                } ?: return@LaunchedEffect
+                val values = withContext(Dispatchers.Default) { DomainColoring.sample(c, p, v, w, h, { !ctx.isActive }, sc) } ?: return@LaunchedEffect
+                val px = withContext(Dispatchers.Default) { DomainColoring.paint(values, coloringState.value) }
+                sampled = Triple(values, w, h)
                 image = Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888).asImageBitmap()
             }
         } finally {
             refining = false
         }
+    }
+    // Colors only: paint the kept values again (no sampling, no coarse pass).
+    LaunchedEffect(coloring, themePrimary) {
+        val (values, w, h) = sampled ?: return@LaunchedEffect
+        val px = withContext(Dispatchers.Default) { DomainColoring.paint(values, coloring) }
+        image = Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888).asImageBitmap()
     }
 
     Box(

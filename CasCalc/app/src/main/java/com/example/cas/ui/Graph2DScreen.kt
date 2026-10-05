@@ -112,11 +112,10 @@ private class Plotted(
     val fill: List<Pair<Double, Double>>? = null,
     /** Error bars of a data table's points: (x, y, σx, σy), with NaN for a missing σ. */
     val errors: List<DoubleArray> = emptyList(),
-    /** A scalar field: its cells' colors (ARGB, row 0 at the top), their grid, the value range and the image to draw. */
-    val field: IntArray? = null,
+    /** A scalar field: its cells' values (row 0 at the top), their grid and the value range. */
+    val fieldValues: DoubleArray? = null,
     val fieldSize: IntSize = IntSize.Zero,
     val fieldRange: Pair<Double, Double>? = null,
-    val fieldImage: androidx.compose.ui.graphics.ImageBitmap? = null,
     /** A vector field's arrows and the range of |F| their colors span. */
     val arrows: List<com.example.cas.graph.VectorField.Arrow> = emptyList(),
     val arrowRange: Pair<Double, Double> = 0.0 to 1.0,
@@ -124,7 +123,26 @@ private class Plotted(
     val slopeMarks: Boolean = false,
     /** A construction's words on the graph: a point's name, an angle's size. */
     val labels: List<GeoLabel> = emptyList(),
-)
+) {
+    // The field's colors come from its values at drawing time, so a new colormap (or new theme
+    // colors, for the Theme map) shows at once, without sampling the field again.
+    private var paintKey: Any? = null
+    private var paintPx: IntArray? = null
+    private var paintImage: androidx.compose.ui.graphics.ImageBitmap? = null
+    private fun repaint() {
+        val values = fieldValues ?: return
+        val range = fieldRange ?: return
+        val key = listOf(f.colormap, f.colormapReversed, com.example.cas.graph.Colormap.themePrimary)
+        if (key == paintKey) return
+        val px = com.example.cas.graph.Field.colors(values, range.first, range.second, f.colormap, f.colormapReversed)
+        paintPx = px
+        paintImage = runCatching { android.graphics.Bitmap.createBitmap(px, fieldSize.width, fieldSize.height, android.graphics.Bitmap.Config.ARGB_8888).asImageBitmap() }.getOrNull()
+        paintKey = key
+    }
+    /** The field's cells' colors (ARGB, row 0 at the top) and the image to draw, in the line's colormap as it is now. */
+    val field: IntArray? get() { repaint(); return paintPx }
+    val fieldImage: androidx.compose.ui.graphics.ImageBitmap? get() { repaint(); return paintImage }
+}
 
 /** Text on the graph at (x, y): beside a point (its name), or centered there (an angle's value). */
 private class GeoLabel(val x: Double, val y: Double, val text: String, val centered: Boolean)
@@ -540,7 +558,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
         val railHere = vm.constructing && AppSettings.geometry && isTabletLayout() && AppSettings.keypadSide == 0
         Column(Modifier.align(Alignment.TopStart).padding(start = if (railHere) 138.dp else 10.dp, top = 10.dp, end = 10.dp, bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             GraphLegend(
-            remember(version, palette) {
+            remember(version, vm.styleVersion, palette) {
                 vm.functions.filter { it.visible && !it.isText && (it.plot != null || it.family.isNotEmpty()) && legendSource(it).isNotBlank() }
                     .map { screenLegendEntry2D(it, palette[it.colorIndex]) }
             },
@@ -856,9 +874,7 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
                 val h = vm.caller2(g, k.f); val ok = vm.allowedCaller(g)
                 val values = com.example.cas.graph.Field.sample(sc.function2 { x: Double, y: Double -> if (ok(x, y)) h(x, y) else Double.NaN }, view, fx, fy)
                 val range = com.example.cas.graph.Field.range(values)
-                val px = com.example.cas.graph.Field.colors(values, range.first, range.second, f.colormap, f.colormapReversed)
-                val image = runCatching { android.graphics.Bitmap.createBitmap(px, fx, fy, android.graphics.Bitmap.Config.ARGB_8888).asImageBitmap() }.getOrNull()
-                out += Plotted(f, emptyList(), emptyList(), field = px, fieldSize = IntSize(fx, fy), fieldRange = range, fieldImage = image)
+                out += Plotted(f, emptyList(), emptyList(), fieldValues = values, fieldSize = IntSize(fx, fy), fieldRange = range)
             }
             is Plot2DKind.Region -> {
                 val values = DoubleArray(k.parts.size)

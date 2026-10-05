@@ -110,7 +110,7 @@ fun Graph3DScreen(vm: Graph3DViewModel, onUseValue: (Double) -> Unit = {}, modif
                 RangeControl(vm)
                 val version = vm.version
                 val theme = (0 until GraphViewModel.PLOT_COLOR_COUNT).map { k -> plotColor(k) }
-                GraphLegend(remember(version, theme) { legend3D(vm, theme) })
+                GraphLegend(remember(version, vm.styleVersion, theme) { legend3D(vm, theme) })
             }
             var settings by remember { mutableStateOf(false) }
             if (settings) LimitsDialog(vm, onDismiss = { settings = false })

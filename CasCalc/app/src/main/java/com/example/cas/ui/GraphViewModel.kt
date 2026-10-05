@@ -257,6 +257,34 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     var version by mutableIntStateOf(0)
         private set
 
+    /**
+     * Bumped when only a line's look changes (color, thickness, style, point size, colormap…).
+     * The drawing reads those straight from the line, so it updates on the next frame; only what
+     * caches them (the legends) listens to this. Nothing is sampled or constructed again.
+     */
+    var styleVersion by mutableIntStateOf(0)
+        private set
+
+    private val saveHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var savePending = false
+    private val saveNow = Runnable { savePending = false; save() }
+
+    /** Saves shortly, once a burst of changes (a slider being dragged) settles. */
+    private fun saveSoon() {
+        saveHandler.removeCallbacks(saveNow)
+        savePending = true
+        saveHandler.postDelayed(saveNow, 400)
+    }
+
+    /** A look-only change: redrawn at once, saved once it settles. */
+    private fun restyled() { styleVersion++; saveSoon() }
+
+    override fun onCleared() {
+        // Whatever was waiting to be saved is saved now.
+        if (savePending) { saveHandler.removeCallbacks(saveNow); saveNow.run() }
+        super.onCleared()
+    }
+
     var angle by mutableStateOf(AngleUnit.valueOf(prefs.getString("angle", AngleUnit.Radians.name)!!))
         private set
     // In the complex plotter the function keys start open on the ℂ tab (ζ, Γ, Re, Im…);
@@ -835,8 +863,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             if (fieldParts != null) {
                 val params = (fieldParts.flatMap { it.freeVars() }.filter { it != "x" && it != "y" } + conditions.flatMap { it.freeVars() }.filter { it !in plotLetters }).distinct().sorted()
                 params.forEach { if (it !in parameters) parameters[it] = 1.0 }
-                // Colored by |F| from the start, on viridis.
-                if (f.colormap == com.example.cas.graph.Colormap.CLASSIC) f.colormap = com.example.cas.graph.Colormap.VIRIDIS
+                // Colored by |F| from the start, on the theme's colormap.
+                if (f.colormap == com.example.cas.graph.Colormap.CLASSIC) f.colormap = com.example.cas.graph.Colormap.THEME
                 f.plot = Plot2DKind.VectorField(Compiler.compile(fieldParts[0], listOf("x", "y") + params), Compiler.compile(fieldParts[1], listOf("x", "y") + params))
                 f.restrictions = conditions.map { rel -> rel.parts.map { Compiler.compile(it, listOf("x", "y", "t", "θ", "r") + params) } to rel.ops }
                 f.compiled = null; f.parameters = params; f.definition = null; f.error = null
@@ -867,8 +895,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
                 is com.example.cas.graph.PlotSpec.Implicit -> Plot2DKind.Implicit(Compiler.compile(spec.f, listOf("x", "y") + params))
                 is com.example.cas.graph.PlotSpec.Region -> Plot2DKind.Region(spec.rel.parts.map { Compiler.compile(it, listOf("x", "y") + params) }, spec.rel.ops)
                 is com.example.cas.graph.PlotSpec.Field -> {
-                    // A new field starts on viridis (the hue wheel is for phases, not values).
-                    if (f.colormap == com.example.cas.graph.Colormap.CLASSIC) f.colormap = com.example.cas.graph.Colormap.VIRIDIS
+                    // A new field starts on the theme's colormap (the hue wheel is for phases, not values).
+                    if (f.colormap == com.example.cas.graph.Colormap.CLASSIC) f.colormap = com.example.cas.graph.Colormap.THEME
                     Plot2DKind.Field(Compiler.compile(spec.f, listOf("x", "y") + params))
                 }
             }
@@ -2188,8 +2216,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     /** Line style ([com.example.cas.graph.LineStyle] by position) and thickness in dp. */
     fun setStyle(f: PlotFunction, style: Int, thickness: Float) {
         f.lineStyle = style; f.thickness = thickness
-        version++
-        save()
+        restyled()
     }
 
     /** A line's saved style: style:thickness:colormap:flags:opacity:point size:point shape. */
@@ -2206,8 +2233,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         f.closedShape = closed
         f.showLabel = label; f.connectPoints = connect; f.fillOpacity = opacity.coerceIn(0f, 1f)
         f.pointSize = size.coerceIn(1f, 16f); f.pointShape = shape
-        version++
-        save()
+        restyled()
     }
 
     /** A construction's own options: its point's name shown, and a point on a path moving by itself. */
@@ -2226,23 +2252,20 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     ) {
         f.arrowsByLength = byLength; f.arrowLength = length; f.arrowScale = scale.coerceIn(0.2f, 3f)
         f.arrowTip = tip; f.arrowTipSize = tipSize.coerceIn(0.4f, 3f); f.arrowDensity = density.coerceIn(6, 50)
-        version++
-        save()
+        restyled()
     }
 
     /** The colors for arg f on the complex plane. */
     fun setColormap(f: PlotFunction, map: com.example.cas.graph.Colormap, reversed: Boolean = false) {
         f.colormap = map
         f.colormapReversed = reversed
-        version++
-        save()
+        restyled()
     }
 
     /** Sets (or with null, resets) a function's color. */
     fun setColor(f: PlotFunction, argb: Int?) {
         f.customColor = argb
-        version++
-        save()
+        restyled()
     }
 
     // ---- Showing and hiding the keypad -------------------------------------------------
