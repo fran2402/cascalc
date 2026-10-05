@@ -203,6 +203,20 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (5 October, italic letter keys, Rad/Deg icons, theme colormap)
+
+- **x, z and w keys** are drawn in math italic with curled ends, like the imaginary unit's i;
+  the number pad's x (or z on the complex plane) gets its picture too.
+- **Loop integral**: the circle sits centred on the ∮, and the sign is centred in the key.
+- **Constants with b** (Wien's b, b′, b_entropy) all line up; a subscript with tails is raised
+  just enough to stay inside the key instead of moving the whole constant.
+- **Home screen shortcuts** use the app's current two-tone icons (converter, 2D, 3D, complex).
+- **Rad / Deg** are pictures: one radian marked on a circle, and an angle with its degree ring.
+- **Complex plane: Theme colormap.** A new map that picks matplotlib's sequential map matching
+  the UI's primary color (YlGn for the olive default, Blues, Greens, Purples, Reds, Oranges,
+  Greys…), and follows it when the colors change. It is first in the default favorites, so new
+  functions use it until the list is changed.
+
 ## Latest changes (4 October, formula bar above the keyboard)
 
 - **Data table on phones**: editing a cell no longer leaves the formula bar floating high above

@@ -211,7 +211,9 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
 
 
     // Render coarse first so panning feels live, then sharper once the view settles.
-    LaunchedEffect(view, plotKey, size, vm.options, params, f, f?.colormap, f?.colormapReversed, AppSettings.complexQuality, sc) {
+    // (The theme's primary color too: the Theme colormap follows the app's colors.)
+    val themePrimary = MaterialTheme.colorScheme.primary
+    LaunchedEffect(view, plotKey, size, vm.options, params, f, f?.colormap, f?.colormapReversed, AppSettings.complexQuality, sc, themePrimary) {
         val v = view ?: return@LaunchedEffect
         val c = f?.complexCompiled
         if (c == null || size.width == 0) { image = null; return@LaunchedEffect }

@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.ExperimentalTextApi
@@ -75,6 +76,8 @@ fun CasTheme(content: @Composable () -> Unit) {
     val colors: ColorScheme = remember(context, dark, com.example.cas.ui.AppSettings.dynamicColor, com.example.cas.ui.AppSettings.themeColor) {
         appColorScheme(context, dark)
     }
+    // The complex plane's Theme colormap follows the UI's primary color.
+    com.example.cas.graph.Colormap.themePrimary = colors.primary.toArgb()
     val glyphs = remember(context) { GlyphFallback(context.applicationContext) }
     val mathGlyphs = remember(context) { MathGlyphs(context.applicationContext) }
     CompositionLocalProvider(LocalGlyphFallback provides glyphs, LocalMathGlyphs provides mathGlyphs) {

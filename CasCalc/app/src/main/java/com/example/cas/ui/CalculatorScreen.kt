@@ -721,7 +721,8 @@ private fun ControlRow(vm: KeypadHost) {
                         onClick = { if (vm.angleUnit != unit) vm.toggleAngle() },
                         shape = SegmentedButtonDefaults.itemShape(i, 2),
                         icon = {},
-                        label = { Text(if (unit == AngleUnit.Radians) "Rad" else "Deg", style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp)) },
+                        // Pictures rather than words: a one-radian sector, and an angle with its degree ring.
+                        label = { AppIcon(if (unit == AngleUnit.Radians) TableIcons.Radians else TableIcons.Degrees, contentDescription = tr(if (unit == AngleUnit.Radians) "Radians" else "Degrees"), modifier = Modifier.size(22.dp)) },
                     )
                 }
             }

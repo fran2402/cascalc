@@ -25,6 +25,9 @@ class Colormap private constructor(
 
     /** The color (RGB, no alpha) at [t] from 0 to 1 (arg f from −π to π for the non-cyclic maps). */
     fun rgb(t: Double): Int {
+        // The theme's map: the sequential map matching the app's colors, from just past its
+        // near-white end (which would hide the phase under the modulus shading).
+        if (name == THEME_NAME) return themeMap().rgb(0.14 + 0.86 * t.coerceIn(0.0, 1.0))
         val s = samples ?: return hue(t)
         val n = s.size
         if (qualitative) return s[(t.coerceIn(0.0, 1.0) * n).toInt().coerceIn(0, n - 1)]
@@ -46,9 +49,48 @@ class Colormap private constructor(
         /** The usual domain-coloring wheel. */
         val CLASSIC = Colormap("classic", "Cyclic", cyclic = true, qualitative = false, samples = null)
 
+        private const val THEME_NAME = "theme"
+
+        /**
+         * The app's own colors: whichever of matplotlib's sequential maps matches the primary
+         * color of the UI (Greens for a green theme, Blues for a blue one…), following it when
+         * the colors change. It's the default until the list of favorites is changed.
+         */
+        val THEME = Colormap(THEME_NAME, "Theme", cyclic = false, qualitative = false, samples = null)
+
+        /** The UI's primary color (ARGB), set by the app's theme; the [THEME] map follows it. */
+        @Volatile var themePrimary: Int = 0xFF5B6133.toInt()
+
+        /** The sequential map for [themePrimary]: by its hue, or Greys for a near-grey theme. */
+        fun themeMap(): Colormap {
+            val r = ((themePrimary shr 16) and 0xFF) / 255.0
+            val g = ((themePrimary shr 8) and 0xFF) / 255.0
+            val b = (themePrimary and 0xFF) / 255.0
+            val max = maxOf(r, g, b); val min = minOf(r, g, b); val d = max - min
+            if (d < 0.08) return byName("Greys")
+            var h = when (max) {
+                r -> 60 * (((g - b) / d) % 6)
+                g -> 60 * ((b - r) / d + 2)
+                else -> 60 * ((r - g) / d + 4)
+            }
+            if (h < 0) h += 360
+            val name = when {
+                h < 18 || h >= 340 -> "Reds"
+                h < 40 -> "Oranges"
+                h < 58 -> "YlOrBr"
+                h < 95 -> "YlGn"
+                h < 155 -> "Greens"
+                h < 195 -> "BuGn"
+                h < 245 -> "Blues"
+                h < 290 -> "Purples"
+                else -> "RdPu"
+            }
+            return byName(name)
+        }
+
         /** Every map: the classic wheel, then matplotlib's in the order of its page. */
         val ALL: List<Colormap> by lazy {
-            listOf(CLASSIC) + COLORMAP_DATA.map { d ->
+            listOf(CLASSIC, THEME) + COLORMAP_DATA.map { d ->
                 Colormap(d.name, d.category, d.cyclic, d.qualitative, IntArray(d.hex.length / 6) { k -> d.hex.substring(6 * k, 6 * k + 6).toInt(16) })
             }
         }
@@ -63,11 +105,11 @@ class Colormap private constructor(
         private val LABELS = mapOf(
             "twilight_shifted" to "Dusk", "gist_yarg" to "Yarg", "gist_gray" to "Graphite", "gist_heat" to "Heat",
             "gist_earth" to "Earth", "gist_stern" to "Stern", "gist_rainbow" to "Spectrum", "gist_ncar" to "Ncar",
-            "nipy_spectral" to "Nipy", "CMRmap" to "CMRmap",
+            "nipy_spectral" to "Nipy", "CMRmap" to "CMRmap", "theme" to "Theme",
         )
 
         /** The maps offered first until the list is changed. */
-        val DEFAULT_FAVORITES = listOf("classic", "twilight", "twilight_shifted", "viridis", "plasma", "magma", "cividis", "turbo")
+        val DEFAULT_FAVORITES = listOf("theme", "classic", "twilight", "twilight_shifted", "viridis", "plasma", "magma", "cividis", "turbo")
 
         /**
          * A map by its saved name; older saves used upper-case names (VIRIDIS, TWILIGHT_SHIFTED),

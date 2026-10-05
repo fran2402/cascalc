@@ -198,6 +198,11 @@ def small(ch, x, sub):
         parse_path(d, TransformPen(pen, (SMALL * k, 0, 0, SMALL, x, ty)))
         out.append(pen.getCommands())
     return out[:len(ps)], out[len(ps):], L[ch][0] * k * SMALL
+from fontTools.pens.boundsPen import ControlBoundsPen
+def translate(d, dy):
+    pen = SVGPathPen(None, ntos=lambda v: ('%.2f' % v).rstrip('0').rstrip('.'))
+    parse_path(d, TransformPen(pen, (1, 0, 0, 1, 0, dy)))
+    return pen.getCommands()
 def constant(pieces):
     """pieces: [(text, sub, sup)] → Kotlin key arguments and width."""
     items = []  # (kind, ch) kind: main / sub / sup / sep
@@ -222,9 +227,19 @@ def constant(pieces):
                 for txt, is_sub in ((sub, True), (sup, False)):
                     # A clear gap after the letter (its stroke reaches 1 past its outline), then the small letters spaced.
                     xx = x - GAP + 4.0
+                    got_st, got_fl = [], []
                     for c in txt:
                         c = 'Ṁ' if c == 'M' else c
-                        st, fl, wc = small(c, xx, is_sub); o['inkThin'] += st; o['inkFill'] += fl; xx += wc + 1.9
+                        st, fl, wc = small(c, xx, is_sub); got_st += st; got_fl += fl; xx += wc + 1.9
+                    # A subscript with tails (p, y, g, μ) is raised just enough to keep them inside the
+                    # key, rather than moving the whole constant (so every b, h, k… stays aligned).
+                    if is_sub and got_st:
+                        b = ControlBoundsPen(None)
+                        for d in got_st + got_fl: parse_path(d, b)
+                        lift = min(0.0, 22.2 - b.bounds[3])
+                        if lift < 0:
+                            got_st = [translate(d, lift) for d in got_st]; got_fl = [translate(d, lift) for d in got_fl]
+                    o['inkThin'] += got_st; o['inkFill'] += got_fl
                     w = max(w, xx - 1.9 - (x - GAP + 4.0))
                 x += w + 4.0 + 1.6; continue
             if kind == 'supd':
@@ -243,7 +258,6 @@ def constant(pieces):
     o, _ = lay((W - total) / 2)
     # Vertically: a constant written in short letters (m, μ, e…) is centred on them, not on the
     # baseline, so m_p and m_μ keep their subscripts' tails inside the key; nothing may poke out.
-    from fontTools.pens.boundsPen import ControlBoundsPen
     def bounds(paths):
         b = ControlBoundsPen(None)
         for d in paths: parse_path(d, b)

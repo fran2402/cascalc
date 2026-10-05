@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The graph2d shortcut's symbol, a Material icon, in the middle of the adaptive icon. -->
+<!-- The 2D graphing shortcut's symbol: the app's own two-tone icon (TableIcons), in the middle of the adaptive icon. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
     <group android:translateX="30" android:translateY="30" android:scaleX="2" android:scaleY="2">
-        <path android:fillColor="#FF3E4F3C" android:pathData="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z" />
+        <path android:strokeColor="#FF3E4F3C" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M3.5 3.5v17h17" />
+        <path android:strokeColor="#FF6E7D2A" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M6 15c2.5 0 3.5-8 6.5-8s4 7 7.5 5" />
     </group>
 </vector>

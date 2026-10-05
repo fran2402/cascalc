@@ -50,9 +50,23 @@ class ColormapTest {
     }
 
     @Test fun everyMatplotlibMapIsThere() {
-        assertEquals(87, Colormap.ALL.size)
+        // matplotlib's 86, the classic wheel and the theme's own map.
+        assertEquals(88, Colormap.ALL.size)
         assertEquals(Colormap.ALL.size, Colormap.ALL.map { it.name }.toSet().size)
         for (n in listOf("RdBu", "coolwarm", "tab10", "cubehelix", "berlin", "gist_ncar")) assertEquals(n, Colormap.byName(n).name)
+    }
+
+    @Test fun themeMapFollowsTheUiColor() {
+        val before = Colormap.themePrimary
+        try {
+            Colormap.themePrimary = 0xFF3A6EA5.toInt(); assertEquals("Blues", Colormap.themeMap().name)
+            Colormap.themePrimary = 0xFF386A20.toInt(); assertEquals("Greens", Colormap.themeMap().name)
+            Colormap.themePrimary = 0xFF6750A4.toInt(); assertEquals("Purples", Colormap.themeMap().name)
+            Colormap.themePrimary = 0xFF707070.toInt(); assertEquals("Greys", Colormap.themeMap().name)
+            // The theme map is first among the default favorites, and draws from the matching map.
+            assertEquals("theme", Colormap.DEFAULT_FAVORITES.first())
+            assertTrue(close(Colormap.THEME.rgb(1.0), Colormap.byName("Greys").rgb(1.0)))
+        } finally { Colormap.themePrimary = before }
     }
 
     @Test fun reversedNamesRoundTrip() {
