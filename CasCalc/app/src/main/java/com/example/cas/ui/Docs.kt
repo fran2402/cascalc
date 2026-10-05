@@ -480,8 +480,8 @@ object Docs {
                 ),
                 section(
                     "Worked steps",
-                    para("With New calculator icons on (Settings › Calculator, beta), the function keys show their own math symbols, drawn with the app's round strokes: π, e, ln, ∫, Σ, lim, ∇, x̄, σ, Φ, ℜ, Γ and so on, the operator or constant in the accent color and the boxes and letters it works on in ink. Trigonometry is spelled out as on the keys (the a of an inverse and the h of a hyperbolic in the accent color), and the matrix keys show a bracketed matrix with what's done to it. Letters and constants keep their labels. Holding a key still explains it."),
-                    para("With Show steps on (Settings › Calculator, beta), cards for integrals, derivatives, limits, sums, series, algebra, complex numbers, matrices, differential equations, statistics and vector calculus get Steps: every step at once, with nested operations worked from the inside out."),
+                    para("The function keys show their own math symbols, drawn with the app's round strokes: π, e, ln, ∫, Σ, lim, ∇, x̄, σ, Φ, ℜ, Γ and so on, the operator or constant in the accent color and the boxes and letters it works on in ink. Trigonometry is spelled out as on the keys (the a of an inverse and the h of a hyperbolic in the accent color), and the matrix keys show a bracketed matrix with what's done to it. Letters and constants keep their labels. Holding a key still explains it."),
+                    para("Cards for integrals, derivatives, limits, sums, series, algebra, complex numbers, matrices, differential equations, statistics and vector calculus get Steps: every step at once, with nested operations worked from the inside out."),
                 ),
             ),
         ),
@@ -584,10 +584,10 @@ object Docs {
             ),
         ),
         Chapter(
-            "Geometry mode", "geometry", "Constructions in the 2D graph, in space in the 3D graph, and on the complex plane (alpha).", part = APP, sections = listOf(
+            "Geometry mode", "geometry", "Constructions in the 2D graph, in space in the 3D graph, and on the complex plane.", part = APP, sections = listOf(
                 section(
                     "Points and objects",
-                    para("Turn geometry mode on in Settings › Graphs. Each line of the 2D graph's list can then be a construction: name a point with a capital, like A = (1, 2), and build on it with commands, like Segment(A, B), c = Circle(A, B) or P = Intersect(c, l, 1). A line can use names from any other line. Lowercase letters stay sliders, so Circle(A, r) gets a slider r."),
+                    para("Each line of the 2D graph's list can be a construction: name a point with a capital, like A = (1, 2), and build on it with commands, like Segment(A, B), c = Circle(A, B) or P = Intersect(c, l, 1). A line can use names from any other line. Lowercase letters stay sliders, so Circle(A, r) gets a slider r."),
                     para("Drag a point written with plain numbers and everything built on it follows. A point on an object, P = Point(c, 0.25), slides along it when dragged. Numbers like d = Distance(A, B), Area(t) or Angle(A, B, C) show their value under the line and can be used in other lines."),
                     para("Arithmetic mixes in: Distance(A, B)/2, M = (A + B)/2, B = A + (2, 0) or v = B − A, 3A, and x(A) and y(A) for coordinates. Functions defined on the graph, like f(x) = x², can be used too: Intersect(f, l), Tangent(A, f) at x = x(A), Point(f, 2)."),
                 ),

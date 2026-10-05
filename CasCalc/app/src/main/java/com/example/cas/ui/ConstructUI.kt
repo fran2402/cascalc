@@ -107,7 +107,6 @@ internal fun ConstructButton(onClick: () -> Unit, modifier: Modifier) {
     ) {
         AppIcon(PlotIcons.Geometry, contentDescription = null, tint = colors.onSecondaryContainer, modifier = Modifier.size(20.dp))
         Text(tr("Construct"), color = colors.onSecondaryContainer, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp, fontWeight = FontWeight.Medium))
-        BetaBadge("Alpha")
     }
 }
 

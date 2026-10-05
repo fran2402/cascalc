@@ -203,6 +203,14 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (5 October, ∂ key, geometry, steps and icons always on)
+
+- The **partial derivative key** shows a real ∂ (after Computer Modern's: the hook over the top
+  into the round bowl) with the box it acts on, as the integral key does; before, it read as δ.
+- **Geometry** (Construct), **Show steps** and the **calculator icons** are no longer alpha or beta:
+  their settings are gone and they're always on. The Alpha and Beta badges are removed from the
+  Construct bar and the Steps sheet, and the docs no longer say to turn them on.
+
 ## Latest changes (5 October, instant style changes in graphs)
 
 - **Style changes are instant** in every graph mode. Color, thickness, line style, point size and

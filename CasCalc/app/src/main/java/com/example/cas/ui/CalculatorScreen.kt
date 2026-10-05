@@ -578,7 +578,7 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                     "Graph", when (g.dimensions) { 1 -> "Plot on the complex plane"; 2 -> "Graph this"; else -> "Graph this in 3D" }, tonal = true,
                 ) { onGraph(g) }
                 else action(TableIcons.Enter, "Use", "Use this answer", tonal = true) { vm.reuse(shown) }
-                // Beta: the working.
+                // The working.
                 if (AppSettings.showSteps && remember(item) { Steps.supports(item.expression) }) {
                     action(TableIcons.Bullets, "Steps", "Show the steps") { showingSteps = true }
                 }
@@ -992,7 +992,7 @@ private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, 
             .semantics { contentDescription = spec.spoken },
         contentAlignment = Alignment.Center,
     ) {
-        // Beta: a function key's picture instead of its label (Settings › Calculator).
+        // A function key's picture instead of its label.
         // On a tertiary key (=, Ans, :=, the constants list, a defined symbol) the picture is one color.
         val picture = if (AppSettings.keyIcons && (spec.role == KeyRole.Function || spec.spoken in KeyIcons.colouredKeys)) KeyIcons.forKey(spec.spoken) else null
         if (picture != null) DuoIcon(picture, fg, if (spec.role == KeyRole.Equals || defined) fg else colors.primary,
@@ -1586,14 +1586,6 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsToggle("Live answer", "The result under what you're typing", AppSettings.livePreview, AppSettings::changeLivePreview)
             SettingsToggle("Continue from the answer", "An operator after = starts with Ans", AppSettings.continueFromAnswer, AppSettings::changeContinueFromAnswer)
             SettingsToggle("Explanations on long-press", "Formula, theory and how to use each key", AppSettings.keyHelp, AppSettings::changeKeyHelp)
-            SettingsToggle(
-                "Show steps", "Worked steps for calculus (integrals, derivatives, limits, sums, series, \$\\oint\$), algebra and complex numbers, matrices (determinants, inverses, eigenvalues, rref), differential equations, statistics and vector calculus: Steps on a history card. Still in beta, so steps may skip some algebra",
-                AppSettings.showSteps, AppSettings::changeShowSteps, badge = "Beta",
-            )
-            SettingsToggle(
-                "New calculator icons", "The function keys drawn as their math symbols, two-tone: π, e, powers and logs, trigonometry, calculus, matrices, statistics and complex numbers. Hold a key for what it does",
-                AppSettings.keyIcons, AppSettings::changeKeyIcons, badge = "Beta",
-            )
         },
         PageSection("History", TableIcons.History) {
             SettingsChoice("History keeps", listOf("50", "100", "500", "All"), when (AppSettings.historyLimit) { 50 -> 0; 100 -> 1; 500 -> 2; else -> 3 }) {
@@ -1635,10 +1627,6 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsToggle("Grid lines", "The axes always show", AppSettings.showGrid, AppSettings::changeShowGrid)
             SettingsToggle("Legend", "Each line's name in the corner, and in exports. Hold a line to rename it", AppSettings.showLegend, AppSettings::changeShowLegend)
             SettingsToggle("Mark points on curves", "Zeros, extrema and crossings of the tapped curve", AppSettings.specialPoints, AppSettings::changeSpecialPoints)
-            SettingsToggle(
-                "Geometry mode", "Constructions in the 2D graph: name points (A = (1, 2)) and build with Segment, Circle, Intersect, Midpoint, Angle, Area and more, or tap with the Construct tools. Drag free points and everything built on them follows. In the 3D graph, geometry in space (planes, spheres, solids); on the complex plane, points as numbers. Early alpha: it will change a lot",
-                AppSettings.geometry, AppSettings::changeGeometry, badge = "Alpha",
-            )
             SettingsChoice("Starting view", listOf("\$\\pm 5\$", "\$\\pm 10\$", "\$\\pm 20\$"), when (AppSettings.viewHalfWidth) { 5 -> 0; 20 -> 2; else -> 1 }) {
                 AppSettings.changeViewHalfWidth(listOf(5, 10, 20)[it])
             }

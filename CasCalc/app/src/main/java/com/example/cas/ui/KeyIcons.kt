@@ -3,7 +3,7 @@ package com.example.cas.ui
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /*
- * Beta icons for the calculator's function keys (Settings › Calculator › New calculator icons):
+ * Icons for the calculator's function keys:
  * each key's own math symbol (π, e, ∫, Σ, x̄, σ, Φ, ℜ…) drawn with the app's round strokes,
  * two-tone like the data table's icons ([TableIcons]): the operator or constant in the accent
  * color, the boxes and letters it works on in ink. Drawn on a 24-unit-high grid (wider for the
@@ -51,7 +51,8 @@ object KeyIcons {
             "less than" to key("Less", accent = listOf("M17 5L7 12l10 7")),
             "greater than" to key("Greater", accent = listOf("M7 5l10 7L7 19")),
             "comma" to comma,
-            "partial derivative" to key("Partial", accent = listOf("M15.5 6.5c-1-2-2.8-2.9-4.6-2.4s-2.7 2.4-1.3 3.3c1.8 1.2 5.6 1.5 5.9 5.6c.4 3.8-2.2 6.5-5 6.5s-4.5-2-4-4.5s2.6-4 5.2-4s4 1 4 1")),
+            // ∂ after Computer Modern's: the hook over the top into the round bowl, then the box it acts on (as the integral's).
+            "partial derivative" to key("Partial", accent = listOf("M5.9 7.1C6.6 5.7 7.9 4.9 9.4 4.9C11.4 4.9 12.4 6.6 12.4 8.8C12.4 13.6 10.4 19.3 7.4 19.3C5.2 19.3 3.9 17.6 3.9 15.9C3.9 12.8 6.4 10.3 9 10.3C10.5 10.3 11.5 11 12 12.2"), inkThin = listOf(box(15f, 14f, 5f))),
             "integral" to key("Integral", accent = listOf("M14 4.2c-.7-.8-1.7-.9-2.5-.3c-1 .8-1 2.5-1.1 4.5l-.6 9c-.1 2-.2 3.5-1.2 4.3c-.8.6-1.8.5-2.5-.3"), inkThin = listOf(box(15.5f, 10f, 5f))),
             "limit" to key("Limit", ink = listOf("M3.5 4v10", "M7 8.5V14", "M10.5 14V8.5", "M10.5 10c.6-1 1.3-1.5 2-1.5c1 0 1.6.7 1.6 2V14", "M14.1 10.3c.6-1.2 1.3-1.8 2-1.8c1 0 1.7.7 1.7 2V14"), inkFill = listOf(ring(7f, 5.3f, 1.2f)),
                 accent = listOf("M4 19h13.5", "M15 16.5l2.5 2.5l-2.5 2.5")),

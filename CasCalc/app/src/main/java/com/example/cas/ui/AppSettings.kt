@@ -67,19 +67,16 @@ object AppSettings {
     /** The answer shown under the input while typing. */
     var livePreview by mutableStateOf(true)
         private set
-    /** Beta: worked steps for integrals, derivatives, limits, sums and ∮ loop integrals, from the history. */
-    var showSteps by mutableStateOf(false)
-        private set
-    /** Beta: pictures instead of labels on the function keys (π, e, ∫, Σ, the statistics and complex keys). */
-    var keyIcons by mutableStateOf(false)
-        private set
+    /** Worked steps for integrals, derivatives, limits, sums and ∮ loop integrals, from the history (always on). */
+    val showSteps get() = true
+    /** Pictures instead of labels on the function keys (π, e, ∫, Σ, the statistics and complex keys), always on. */
+    val keyIcons get() = true
     /** The unit converter in the ⋮ menu. */
     val unitConverter get() = true
     /** Excel-style formulas (=SUM(A:A), =B1*2…) in the data table. */
     val sheetFormulas get() = true
-    /** Alpha: geometry mode in the 2D graph (named points, Segment(A, B), Circle, Intersect…, and tools to build by tapping). */
-    var geometry by mutableStateOf(false)
-        private set
+    /** Geometry in the graphs (named points, Segment(A, B), Circle, Intersect…, and the Construct tools), always on. */
+    val geometry get() = true
     /** The converter's last value, from and to units, so it opens where it was left. */
     var converterState by mutableStateOf("1\nkm/s/Mpc\n1/s")
         private set
@@ -151,9 +148,6 @@ object AppSettings {
         sciDecimals = p.getInt("sciDecimals", 6).coerceIn(1, 12)
         polarComplex = p.getBoolean("polarComplex", false)
         livePreview = p.getBoolean("livePreview", true)
-        showSteps = p.getBoolean("showSteps", false)
-        keyIcons = p.getBoolean("keyIcons", false)
-        geometry = p.getBoolean("geometry", false)
         converterState = p.getString("converterState", null) ?: converterState
         historyLimit = p.getInt("historyLimit", 100)
         confirmClearHistory = p.getBoolean("confirmClearHistory", true)
@@ -201,9 +195,6 @@ object AppSettings {
     fun changeNumberFormat(v: Int) { numberFormat = v; com.example.cas.engine.Formatter.numberFormat = v; save("numberFormat", v) }
     fun changePolarComplex(v: Boolean) { polarComplex = v; com.example.cas.engine.Formatter.polarComplex = v; save("polarComplex", v) }
     fun changeLivePreview(v: Boolean) { livePreview = v; save("livePreview", v) }
-    fun changeShowSteps(v: Boolean) { showSteps = v; save("showSteps", v) }
-    fun changeKeyIcons(v: Boolean) { keyIcons = v; save("keyIcons", v) }
-    fun changeGeometry(v: Boolean) { geometry = v; save("geometry", v) }
     fun changeConverterState(value: String, from: String, to: String) { converterState = "$value\n$from\n$to"; save("converterState", converterState) }
     fun changeHistoryLimit(v: Int) { historyLimit = v; save("historyLimit", v) }
     fun changeConfirmClearHistory(v: Boolean) { confirmClearHistory = v; save("confirmClearHistory", v) }

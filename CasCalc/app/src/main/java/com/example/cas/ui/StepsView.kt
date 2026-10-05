@@ -73,7 +73,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The worked steps for a calculation in the history (beta), all shown at once; each is a
+ * The worked steps for a calculation in the history, all shown at once; each is a
  * numbered node on a line, with the rule, a sentence and
  * the math, and smaller steps inside it. A sheet on a phone; on a tablet a two-pane dialog with
  * the question, answer and an outline of the steps beside them.
@@ -168,7 +168,7 @@ private fun TabletSteps(expression: MathRow, solution: Steps.Solution?, ready: B
     }
 }
 
-/** "Steps", the Beta badge and the method as a chip. */
+/** "Steps" and the method as a chip. */
 @Composable
 private fun Header(solution: Steps.Solution?, question: MathRow) {
     val colors = MaterialTheme.colorScheme
@@ -176,8 +176,6 @@ private fun Header(solution: Steps.Solution?, question: MathRow) {
     @Suppress("DEPRECATION") val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(tr("Steps"), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.semantics { heading() })
-        Spacer(Modifier.width(10.dp))
-        BetaBadge()
         Spacer(Modifier.weight(1f))
         solution?.let { s ->
             // Copy the whole working as text.
