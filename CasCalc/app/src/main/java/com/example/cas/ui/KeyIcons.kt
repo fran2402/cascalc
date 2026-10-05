@@ -97,7 +97,8 @@ object KeyIcons {
             // Letters in math italic, like the imaginary unit's i: slanted, with curled ends for serifs.
             "z" to key("Z", accent = listOf("M9.2 11.2c.8-.9 1.8-1.2 2.9-.8c1.2.5 2 .7 3.2-.1c.3-.2.5-.3.7-.3L7.5 19.3c.3-.2.6-.3.9-.3c1 0 1.9.8 3.1.8c1.1 0 2-.4 2.7-1.2")),
             "w" to key("W", accent = listOf("M4.6 11.6c.6-1 1.4-1.6 2.2-1.6c1 0 1.4.8 1.2 1.9l-.8 3.7c-.4 2 .3 3.9 2 3.9c1.4 0 2.4-1.2 2.8-2.8", "M13.2 10.4l-1.2 6.3c-.3 1.6.4 2.8 1.9 2.8c2.6 0 4.6-4 4.6-7.4c0-1.1-.4-1.6-1-2")),
-            "x" to key("X", accent = listOf("M7 11.3c.6-.8 1.4-1.3 2.2-1.2c.9.1 1.4.8 1.6 1.7l1.5 6c.2.9.8 1.4 1.6 1.4c.7 0 1.3-.3 1.8-1", "M17.4 10.3c-.9 0-1.7.5-2.3 1.2l-4.8 7c-.6.7-1.4 1.2-2.3 1.2")),
+            // Traced from Computer Modern's italic x: a reversed c and a c back to back, their ends curled.
+            "x" to key("X", accent = listOf("M6.98 13.22C7.54 11.5 8.87 10.43 10.33 10.43C11.19 10.43 11.71 10.94 11.58 11.93L10.25 17.52C9.99 18.64 9.26 19.29 8.4 19.29C7.75 19.29 7.28 18.9 7.15 18.21", "M15.75 11.85C15.92 10.94 15.37 10.34 14.55 10.34C13.73 10.34 13.04 10.94 12.83 11.93L12.1 17.26C11.88 18.55 12.23 19.29 13.09 19.29C14.46 19.29 15.67 18.17 16.27 16.49")),
             // Define a symbol (a := 5): the colon's dots in ink, the = in the accent color.
             "store in variable" to key("Define", inkFill = listOf(ring(5.5f, 9f, 1.6f), ring(5.5f, 15f, 1.6f)), accent = listOf("M10 9h9.5", "M10 15h9.5")),
             // Words (trigonometry, linear algebra, ln, mod, n!, Ans, Re, Im, Res) and the physical constants (their symbol in the accent

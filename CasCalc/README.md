@@ -203,6 +203,13 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (5 October, Computer Modern x)
+
+- The **x key** is traced from Computer Modern's italic x: a reversed c and a c back to back,
+  their ends curled, like the italic i, z and w keys.
+- Mockup of the calculator and the full-screen history with the new history cards
+  (preview-render/round59.png).
+
 ## Latest changes (5 October, history card, more single-hue colormaps)
 
 - **History card** reorganized: the question is now as large as the answer and in full ink,
