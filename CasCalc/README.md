@@ -203,6 +203,12 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (5 October, one-tone tertiary keys, ink x)
+
+- The **x key**'s italic x is drawn in ink (black in light mode, white in dark), like the digits.
+- Keys on the tertiary color (=, Ans, := and the list of constants) draw their pictures in one
+  color instead of two.
+
 ## Latest changes (5 October, cleaner italic x)
 
 - The **x key** is redrawn after Computer Modern's italic x as two arcs, a ")" and a "(",

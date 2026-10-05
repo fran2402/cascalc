@@ -993,8 +993,9 @@ private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, 
         contentAlignment = Alignment.Center,
     ) {
         // Beta: a function key's picture instead of its label (Settings › Calculator).
+        // On a tertiary key (=, Ans, :=, the constants list, a defined symbol) the picture is one color.
         val picture = if (AppSettings.keyIcons && (spec.role == KeyRole.Function || spec.spoken in KeyIcons.colouredKeys)) KeyIcons.forKey(spec.spoken) else null
-        if (picture != null) DuoIcon(picture, fg, if (spec.role == KeyRole.Equals) colors.inversePrimary else if (defined) fg else colors.primary,
+        if (picture != null) DuoIcon(picture, fg, if (spec.role == KeyRole.Equals || defined) fg else colors.primary,
             // Words like asinh and rref are drawn wider than they're tall. As big as the key allows
             // (up to 34dp tall, with room around it), but never below the 26dp full height: nothing,
             // a matrix least of all, is shrunk to fit.

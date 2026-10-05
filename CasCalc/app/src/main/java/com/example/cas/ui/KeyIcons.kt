@@ -98,8 +98,8 @@ object KeyIcons {
             "z" to key("Z", accent = listOf("M9.2 11.2c.8-.9 1.8-1.2 2.9-.8c1.2.5 2 .7 3.2-.1c.3-.2.5-.3.7-.3L7.5 19.3c.3-.2.6-.3.9-.3c1 0 1.9.8 3.1.8c1.1 0 2-.4 2.7-1.2")),
             "w" to key("W", accent = listOf("M4.6 11.6c.6-1 1.4-1.6 2.2-1.6c1 0 1.4.8 1.2 1.9l-.8 3.7c-.4 2 .3 3.9 2 3.9c1.4 0 2.4-1.2 2.8-2.8", "M13.2 10.4l-1.2 6.3c-.3 1.6.4 2.8 1.9 2.8c2.6 0 4.6-4 4.6-7.4c0-1.1-.4-1.6-1-2")),
             // After Computer Modern's italic x: a ")" and a "(" touching once in the middle, slanted,
-            // the top-left and bottom-right ends flicked out.
-            "x" to key("X", accent = listOf("M6.75 12.5C7.67 10.9 8.93 10.1 10.33 10.1C12.23 10.1 12.93 12.1 12.2 14.75C11.47 17.4 9.77 19.4 7.97 19.4C7.07 19.4 6.35 19 6.01 18.2", "M18.39 11.3C18.05 10.5 17.33 10.1 16.23 10.1C14.23 10.1 12.63 12.1 12 14.75C11.37 17.4 12.07 19.4 13.97 19.4C15.37 19.4 16.55 18.5 17.35 17")),
+            // the top-left and bottom-right ends flicked out. In ink (black or white with the theme), like the keypad's digits.
+            "x" to key("X", ink = listOf("M6.75 12.5C7.67 10.9 8.93 10.1 10.33 10.1C12.23 10.1 12.93 12.1 12.2 14.75C11.47 17.4 9.77 19.4 7.97 19.4C7.07 19.4 6.35 19 6.01 18.2", "M18.39 11.3C18.05 10.5 17.33 10.1 16.23 10.1C14.23 10.1 12.63 12.1 12 14.75C11.37 17.4 12.07 19.4 13.97 19.4C15.37 19.4 16.55 18.5 17.35 17")),
             // Define a symbol (a := 5): the colon's dots in ink, the = in the accent color.
             "store in variable" to key("Define", inkFill = listOf(ring(5.5f, 9f, 1.6f), ring(5.5f, 15f, 1.6f)), accent = listOf("M10 9h9.5", "M10 15h9.5")),
             // Words (trigonometry, linear algebra, ln, mod, n!, Ans, Re, Im, Res) and the physical constants (their symbol in the accent
