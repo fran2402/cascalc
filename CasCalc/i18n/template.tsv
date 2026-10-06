@@ -12,7 +12,6 @@ Every tab is on the keypad.
 Add	
 Reset to the default tabs	
 Drag to reorder	
-New	
 The keypad's tabs	
 On the keypad	
 More tabs	
@@ -38,12 +37,15 @@ Share as image
 Share as LaTeX	
 Copy LaTeX	
 Choose the coordinate letters	
+Reciprocal functions	
+Distributions	
 Undefine	
 Remove symbol	
 How to use	
 Open the NIST page	
 NIST CODATA value and uncertainty	
 Dismiss	
+Signals	
 Hide the keyboard	
 Show the keyboard	
 Matrix size	
@@ -158,6 +160,7 @@ Construct
 Step {0} of {1}	
 Take back the last pick	
 Show the geometry guide	
+selected	
 , in use	
 Use {0}	
 Make	
@@ -636,6 +639,9 @@ Complex tools
 Multiply and divide points as numbers, take nth roots, or draw where a function f(z) from your list takes a point or a shape.	
 Options and names	
 Tap a line's color dot for its size, name and fill. Every construction is a line of text too: edit A = (1, 2), or type Circle(A, 3).	
+cosecant	
+secant	
+cotangent	
 Cursor left	
 Cursor right	
 Sort up	
@@ -684,7 +690,6 @@ Lookup
 Logical	
 Text	
 Financial	
-Distributions	
 Formula Auditing	
 Show formulas	
 Calculation	

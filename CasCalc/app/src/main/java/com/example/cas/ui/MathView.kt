@@ -777,6 +777,43 @@ private fun FuncView(f: Func, row: MathRow, index: Int, level: Int) {
             MathText(f.name, level, tap)
             FuncArguments(f, level)
         }
+        // Combinatorics and polynomials, as on their keys: L(n, k), Hₙ(x), Pₙᵐ(x), Φₙ(x)…
+        in com.example.cas.engine.FunctionNotation.specs.keys -> {
+            val spec = com.example.cas.engine.FunctionNotation.specs.getValue(f.name)
+            if (f.args.size != spec.arity) AxisRow(level) { MathText(f.name, level, tap); FuncArguments(f, level) }
+            else AxisRow(level) {
+                val base: @Composable () -> Unit = { MathText(spec.base, level, italic = spec.italic, upright = !spec.italic) }
+                if (spec.sub != null || spec.sup != null) Scripts(
+                    level, tap, base = base,
+                    sub = spec.sub?.let { k -> { RowView(f.args[k], level + 1) } },
+                    sup = spec.sup?.let { k -> { RowView(f.args[k], level + 1) } },
+                ) else MathText(spec.base, level, tap, italic = spec.italic, upright = !spec.italic)
+                if (spec.args.isNotEmpty()) Fenced(Delim.Paren, level) {
+                    AxisRow(level) {
+                        spec.args.forEachIndexed { j, k ->
+                            if (j > 0) MathText(", ", level)
+                            RowView(f.args[k], level)
+                        }
+                    }
+                }
+            }
+        }
+        // !n, n#, x⁽ⁿ⁾ and (x)ₙ.
+        "subfactorial", "primorial" -> if (f.args.size == 1) AxisRow(level) {
+            val a = f.args[0]
+            val simple = a.items.size <= 1
+            if (f.name == "subfactorial") MathText("!", level, tap)
+            if (simple) RowView(a, level) else Fenced(Delim.Paren, level) { RowView(a, level) }
+            if (f.name == "primorial") MathText("#", level, tap)
+        } else AxisRow(level) { MathText(f.name, level, tap); FuncArguments(f, level) }
+        "rising" -> if (f.args.size == 2) AxisRow(level) {
+            Scripts(level, tap, base = {
+                if (f.args[0].items.size <= 1) RowView(f.args[0], level) else Fenced(Delim.Paren, level) { RowView(f.args[0], level) }
+            }, sup = { AxisRow(level + 1) { MathText("(", level + 1); RowView(f.args[1], level + 1); MathText(")", level + 1) } })
+        } else AxisRow(level) { MathText(f.name, level, tap); FuncArguments(f, level) }
+        "falling" -> if (f.args.size == 2) AxisRow(level) {
+            Scripts(level, tap, base = { Fenced(Delim.Paren, level) { RowView(f.args[0], level) } }, sub = { RowView(f.args[1], level + 1) })
+        } else AxisRow(level) { MathText(f.name, level, tap); FuncArguments(f, level) }
         // ∮ with its circle underneath, then f dz.
         "contour" -> ContourView(f, level)
         // Res with the point underneath: Res_{z=a}(f).

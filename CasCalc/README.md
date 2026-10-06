@@ -203,6 +203,34 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (6 October, fewer tabs, second pages, synced keypad, steps and graphs for everything)
+
+- **Tabs trimmed**: vectors, statistics II, mathematical constants, primes and sequences, modular
+  & bits, finance and number theory are gone. The only extra tabs (off by default, no "New"
+  label) are special functions, combinatorics and polynomials.
+- **Trigonometry's second page**: a switch beside Rad/Deg brings up csc, sec, cot, their inverses
+  and hyperbolic forms, each where sin, cos, tan sits. sinc, atan2 and hypot left the keys.
+- **Statistics' second page**: the same switch brings up the distributions. Their keys now say
+  pdf or cdf beside the curve and its family letter.
+- **Signals** are a graphs-only button left of the quick letters above the keypad; it puts the
+  step, box, wave… keys where the function keys are.
+- **Written as on their keys**: Lah numbers show as L(□, □), associated Legendre as Pₙᵐ(x), Hₙ(x),
+  Φₙ(x), !n, n#, x⁽ⁿ⁾, (x)ₙ and so on, in the editor, the answers and LaTeX
+  (engine/FunctionNotation.kt).
+- **Everything graphs**: whole-number functions draw as steps (harmonic and triangular numbers,
+  rising and falling factorials as curves), and polynomials of a varying degree work too. A test
+  graphs every key on the extra tabs and second pages.
+- **Steps**: every extra function shows its definition and value; integrals, derivatives, sums
+  and limits work in symbols from the symbol builder like any letter. Whole-number functions and
+  polynomials are worked out once their arguments are numbers (Σ H(n) now adds up).
+- **One keypad for every mode**: the open tab, raised or lowered function keys, Rad/Deg, units,
+  ∇ coordinates and the second pages stay the same between the calculator and the graphs.
+- **Tab bar**: past the built-in eight, the tabs keep their size and the bar scrolls.
+- Settings › Calculator tabs: dragging to reorder no longer jumps around.
+- Sheets (constants, steps, the guides…) no longer slide away or jitter while you scroll them.
+- Geometry: the guide no longer opens by itself (the ? brings it up); on phones the tool groups are
+  a connected tab bar like the calculator's, with dots and swiping between groups.
+
 ## Latest changes (5 October, family letters, four more tabs: vectors, modular & bits, finance, polynomials)
 
 - **Distribution keys show their family**: a small E, U, P, G, χ, L, C or W sits in the free

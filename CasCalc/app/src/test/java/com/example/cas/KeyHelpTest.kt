@@ -13,7 +13,7 @@ import org.junit.Test
 
 /** Every key's long-press explanation: it parses, has nothing the renderer can't draw, and says what the key is. */
 class KeyHelpTest {
-    private val keys = (FunctionTabs.flatMap { t -> (if (t.title == "Symbols") letterRows(listOf("x_1")) else t.keys).flatten() } + MainKeys.flatten())
+    private val keys = (FunctionTabs.flatMap { t -> (if (t.title == "Symbols") letterRows(listOf("x_1")) else t.keys).flatten() } + MainKeys.flatten() + com.example.cas.ui.ExtraKeyPages.flatMap { it.flatten() })
         .filter { it.role != KeyRole.Digit }
 
     private fun emptySymbols(r: MathRow): Int = r.items.sumOf { n -> (if (n is Sym && n.text.isEmpty()) 1 else 0) + n.slots.sumOf { emptySymbols(it) } }

@@ -32,7 +32,7 @@ class LatexParserTest {
     @Test fun inlineMaths() = assertEquals(listOf(false to "Area ", true to "\\int f", false to " here."), LatexParser.inline("Area \\(\\int f\\) here."))
 
     @Test fun everyHelpFormulaParses() {
-        val keys = (com.example.cas.ui.FunctionTabs.flatMap { it.keys.flatten() } + com.example.cas.ui.MainKeys.flatten()).map { it.spoken }.distinct()
+        val keys = (com.example.cas.ui.FunctionTabs.flatMap { it.keys.flatten() } + com.example.cas.ui.MainKeys.flatten() + com.example.cas.ui.ExtraKeyPages.flatMap { it.flatten() }).map { it.spoken }.distinct()
         for (k in keys) {
             val h = com.example.cas.ui.KeyHelps.of(k)
             LatexParser.lines(h.formula)
@@ -98,7 +98,7 @@ class LatexParserTest {
         assertTrue(MathCodec.encode(lim.args[0]).startsWith("'(;'1;'+;frac"))
     }
     @Test fun everyHelpFormulaHasBalancedBrackets() {
-        val keys = (com.example.cas.ui.FunctionTabs.flatMap { it.keys.flatten() } + com.example.cas.ui.MainKeys.flatten()).map { it.spoken }.distinct()
+        val keys = (com.example.cas.ui.FunctionTabs.flatMap { it.keys.flatten() } + com.example.cas.ui.MainKeys.flatten() + com.example.cas.ui.ExtraKeyPages.flatMap { it.flatten() }).map { it.spoken }.distinct()
         for (k in keys) {
             val h = com.example.cas.ui.KeyHelps.of(k)
             LatexParser.lines(h.formula).forEach { assertTrue("$k: ${MathCodec.encode(it)}", balanced(it)) }

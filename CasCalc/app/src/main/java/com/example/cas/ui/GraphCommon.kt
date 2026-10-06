@@ -385,30 +385,37 @@ fun <T> ReorderableColumn(items: List<T>, key: (T) -> Any, onMove: (Int, Int) ->
     var offset by remember { mutableStateOf(0f) }
     val tap = rememberKeyTap()
     val gap = with(LocalDensity.current) { 4.dp.toPx() }
+    // While a row is dragged its order is kept here, moved at once with each step, so the next
+    // step (before the screen catches up) starts from the right place; the caller is told every move.
+    var local by remember { mutableStateOf(items) }
+    if (dragging == null && local != items) local = items
+    val move = androidx.compose.runtime.rememberUpdatedState(onMove)
     val latest = androidx.compose.runtime.rememberUpdatedState(items)
     fun dragBy(k: Any, dy: Float) {
         offset += dy
         while (true) {
-            val list = latest.value
+            val list = local
             val i = list.indexOfFirst { key(it) == k }
             if (i < 0) break
             val below = list.getOrNull(i + 1)?.let(key)
             val above = list.getOrNull(i - 1)?.let(key)
-            if (below != null && offset > (heights[below] ?: 0) / 2f + gap) {
-                offset -= (heights[below] ?: 0) + gap; onMove(i, i + 1); tap()
+            val j = if (below != null && offset > (heights[below] ?: 0) / 2f + gap) {
+                offset -= (heights[below] ?: 0) + gap; i + 1
             } else if (above != null && offset < -((heights[above] ?: 0) / 2f + gap)) {
-                offset += (heights[above] ?: 0) + gap; onMove(i, i - 1); tap()
+                offset += (heights[above] ?: 0) + gap; i - 1
             } else break
+            local = list.toMutableList().also { it.add(j, it.removeAt(i)) }
+            move.value(i, j); tap()
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        items.forEach { item ->
+        (if (dragging != null) local else items).forEach { item ->
             val k = key(item)
             key(k) {
                 val lifted = dragging == k
                 val handle = Modifier.pointerInput(k) {
                     detectDragGestures(
-                        onDragStart = { tap(); dragging = k; offset = 0f },
+                        onDragStart = { tap(); local = latest.value; dragging = k; offset = 0f },
                         onDragEnd = { dragging = null; offset = 0f },
                         onDragCancel = { dragging = null; offset = 0f },
                         onDrag = { change, amount -> change.consume(); dragBy(k, amount.y) },
@@ -4744,7 +4751,7 @@ internal fun TableCommandSheet(tab: TableTab, onTab: (TableTab) -> Unit, groups:
     var menu by remember { mutableStateOf<TableTool?>(null) }
     // Rebuilt with the table, so the open menu is looked up by its name each time.
     val open = menu?.let { m -> groups.flatMap { it.tools }.firstOrNull { it.label == m.label && it.menu != null } }
-    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerLow) {
+    StillSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerLow) {
         Column(Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
             if (open == null) {
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -5045,7 +5052,7 @@ internal class ColumnAction(val icon: androidx.compose.ui.graphics.vector.ImageV
 @Composable
 internal fun ColumnSheet(letter: String, name: String, summary: String, role: String?, onRole: (String?) -> Unit, actions: List<ColumnAction>, onDismiss: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerLow) {
+    StillSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerLow) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(colors.tertiaryContainer), contentAlignment = Alignment.Center) {
@@ -5163,7 +5170,7 @@ internal fun InsightsSheet(
     against: String, trend: com.example.cas.graph.SheetTools.Trend?, outliers: List<Int>, onMark: () -> Unit, onDismiss: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
-    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerLow) {
+    StillSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerLow) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(colors.tertiaryContainer), contentAlignment = Alignment.Center) {
@@ -5355,7 +5362,7 @@ internal fun InsertFunctionSheet(start: String, onDismiss: () -> Unit, onPick: (
     val colors = MaterialTheme.colorScheme
     var query by remember { mutableStateOf("") }
     var category by remember { mutableStateOf(start) }
-    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerLow) {
+    StillSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerLow) {
         Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(colors.tertiaryContainer), contentAlignment = Alignment.Center) {

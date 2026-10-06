@@ -408,33 +408,6 @@ val FunctionTabs: List<FunctionTab> = listOf(
     FunctionTab("Symbols", KeyLabel.Icon(IconId.Letters), LetterKeys, columns = 6, scrolls = true, about = "Latin and Greek letters, and symbols you build"),
     // Extra tabs, off until added in Settings › Calculator tabs.
     FunctionTab(
-        "Number theory", KeyLabel.Icon(IconId.Integers),
-        listOf(
-            listOf(
-                notation(row(Func("gcd", listOf(row("a"), row("b")))), KeyAction.Insert(0) { Func("gcd", 2) }, "greatest common divisor"),
-                notation(row(Func("lcm", listOf(row("a"), row("b")))), KeyAction.Insert(0) { Func("lcm", 2) }, "least common multiple"),
-                notation(letters("a", "mod", "b"), KeyAction.Type("mod"), "mod"),
-                text("n!", KeyAction.Type("!"), spoken = "factorial"),
-                math(row(Binom(row("n"), row("k"))), KeyAction.Insert(0) { Binom() }, "n choose k"),
-            ),
-            listOf(
-                notation(row(Func("floor", listOf(row("x")))), KeyAction.Insert(0) { Func("floor") }, "floor"),
-                notation(row(Func("ceil", listOf(row("x")))), KeyAction.Insert(0) { Func("ceil") }, "ceiling"),
-                notation(row(Func("round", listOf(row("x")))), KeyAction.Insert(0) { Func("round") }, "round"),
-                notation(row(Func("frac", listOf(row("x")))), KeyAction.Insert(0) { Func("frac") }, "fractional part"),
-                notation(row(Func("sgn", listOf(row("x")))), KeyAction.Insert(0) { Func("sgn") }, "sign"),
-            ),
-            listOf(
-                notation(row(Func("max", listOf(row("a"), row("b")))), KeyAction.Insert(0) { Func("max", 2) }, "maximum"),
-                notation(row(Func("min", listOf(row("a"), row("b")))), KeyAction.Insert(0) { Func("min", 2) }, "minimum"),
-                notation(row(Func("perm", listOf(row("n"), row("k")))), KeyAction.Insert(0) { Func("perm", 2) }, "permutations"),
-                math(row(Func("abs", listOf(row("x")))), KeyAction.Insert(0) { Func("abs") }, "absolute value"),
-                text(",", KeyAction.Type(","), spoken = "comma for lists"),
-            ),
-        ),
-        columns = 5, optional = true, about = "gcd, lcm, mod, floor and ceiling, rounding, sign, max and min",
-    ),
-    FunctionTab(
         "Special functions", KeyLabel.Icon(IconId.Special),
         listOf(
             listOf(
@@ -462,141 +435,6 @@ val FunctionTabs: List<FunctionTab> = listOf(
         columns = 5, optional = true, about = "erf, the sine, cosine, exponential and logarithmic integrals, Fresnel, polylog, digamma, elliptic",
     ),
     FunctionTab(
-        "More trigonometry", KeyLabel.Icon(IconId.TrigMore),
-        listOf(
-            listOf(
-                notation(row(Func("sec", listOf(row("x")))), KeyAction.Insert(0) { Func("sec", 1) }, "secant"),
-                notation(row(Func("csc", listOf(row("x")))), KeyAction.Insert(0) { Func("csc", 1) }, "cosecant"),
-                notation(row(Func("cot", listOf(row("x")))), KeyAction.Insert(0) { Func("cot", 1) }, "cotangent"),
-                notation(row(Func("hypot", listOf(row("x"), row("y")))), KeyAction.Insert(0) { Func("hypot", 2) }, "hypotenuse"),
-                notation(row(Func("atan2", listOf(row("y"), row("x")))), KeyAction.Insert(0) { Func("atan2", 2) }, "two-argument arctangent"),
-            ),
-            listOf(
-                notation(row(Func("asec", listOf(row("x")))), KeyAction.Insert(0) { Func("asec", 1) }, "inverse secant"),
-                notation(row(Func("acsc", listOf(row("x")))), KeyAction.Insert(0) { Func("acsc", 1) }, "inverse cosecant"),
-                notation(row(Func("acot", listOf(row("x")))), KeyAction.Insert(0) { Func("acot", 1) }, "inverse cotangent"),
-                notation(row(Func("sinc", listOf(row("x")))), KeyAction.Insert(0) { Func("sinc", 1) }, "sinc function"),
-                notation(row(Func("sech", listOf(row("x")))), KeyAction.Insert(0) { Func("sech", 1) }, "hyperbolic secant"),
-            ),
-            listOf(
-                notation(row(Func("csch", listOf(row("x")))), KeyAction.Insert(0) { Func("csch", 1) }, "hyperbolic cosecant"),
-                notation(row(Func("coth", listOf(row("x")))), KeyAction.Insert(0) { Func("coth", 1) }, "hyperbolic cotangent"),
-                notation(row(Func("asech", listOf(row("x")))), KeyAction.Insert(0) { Func("asech", 1) }, "inverse hyperbolic secant"),
-                notation(row(Func("acsch", listOf(row("x")))), KeyAction.Insert(0) { Func("acsch", 1) }, "inverse hyperbolic cosecant"),
-                notation(row(Func("acoth", listOf(row("x")))), KeyAction.Insert(0) { Func("acoth", 1) }, "inverse hyperbolic cotangent"),
-            ),
-        ),
-        columns = 5, optional = true, about = "sec, csc, cot and their inverses, the hyperbolic ones, atan2, hypot, sinc",
-    ),
-    FunctionTab(
-        "Signals", KeyLabel.Icon(IconId.Signals),
-        listOf(
-            listOf(
-                notation(row(Func("heaviside", listOf(row("x")))), KeyAction.Insert(0) { Func("heaviside", 1) }, "Heaviside step"),
-                notation(row(Func("rect", listOf(row("x")))), KeyAction.Insert(0) { Func("rect", 1) }, "rectangle function"),
-                notation(row(Func("tri", listOf(row("x")))), KeyAction.Insert(0) { Func("tri", 1) }, "triangle function"),
-                notation(row(Func("ramp", listOf(row("x")))), KeyAction.Insert(0) { Func("ramp", 1) }, "ramp function"),
-                notation(row(Func("pulse", listOf(row("x"), row("a"), row("b")))), KeyAction.Insert(0) { Func("pulse", 3) }, "pulse"),
-            ),
-            listOf(
-                notation(row(Func("sawtooth", listOf(row("x")))), KeyAction.Insert(0) { Func("sawtooth", 1) }, "sawtooth wave"),
-                notation(row(Func("squarewave", listOf(row("x")))), KeyAction.Insert(0) { Func("squarewave", 1) }, "square wave"),
-                notation(row(Func("trianglewave", listOf(row("x")))), KeyAction.Insert(0) { Func("trianglewave", 1) }, "triangle wave"),
-                notation(row(Func("sigmoid", listOf(row("x")))), KeyAction.Insert(0) { Func("sigmoid", 1) }, "logistic sigmoid"),
-                notation(row(Func("softplus", listOf(row("x")))), KeyAction.Insert(0) { Func("softplus", 1) }, "softplus"),
-            ),
-            listOf(
-                notation(row(Func("clamp", listOf(row("x"), row("a"), row("b")))), KeyAction.Insert(0) { Func("clamp", 3) }, "clamp"),
-                notation(row(Func("lerp", listOf(row("a"), row("b"), row("t")))), KeyAction.Insert(0) { Func("lerp", 3) }, "linear interpolation"),
-                notation(row(Func("smoothstep", listOf(row("x")))), KeyAction.Insert(0) { Func("smoothstep", 1) }, "smoothstep"),
-                notation(row(Func("gauss", listOf(row("x")))), KeyAction.Insert(0) { Func("gauss", 1) }, "Gaussian"),
-                notation(row(Func("wrap", listOf(row("x"), row("a"), row("b")))), KeyAction.Insert(0) { Func("wrap", 3) }, "wrap"),
-            ),
-        ),
-        columns = 5, optional = true, about = "Step, box, triangle and ramp, waves, pulse, clamp, lerp, smoothstep, sigmoid, softplus, Gaussian",
-    ),
-    FunctionTab(
-        "Primes and sequences", KeyLabel.Icon(IconId.Primes),
-        listOf(
-            listOf(
-                notation(row(Func("isprime", listOf(row("n")))), KeyAction.Insert(0) { Func("isprime", 1) }, "is prime"),
-                notation(row(Func("nextprime", listOf(row("n")))), KeyAction.Insert(0) { Func("nextprime", 1) }, "next prime"),
-                notation(row(Func("prevprime", listOf(row("n")))), KeyAction.Insert(0) { Func("prevprime", 1) }, "previous prime"),
-                notation(row(Func("prime", listOf(row("n")))), KeyAction.Insert(0) { Func("prime", 1) }, "n-th prime"),
-                notation(row(Func("primepi", listOf(row("n")))), KeyAction.Insert(0) { Func("primepi", 1) }, "prime counting function"),
-            ),
-            listOf(
-                notation(row(Func("totient", listOf(row("n")))), KeyAction.Insert(0) { Func("totient", 1) }, "Euler's totient"),
-                notation(row(Func("ndivisors", listOf(row("n")))), KeyAction.Insert(0) { Func("ndivisors", 1) }, "number of divisors"),
-                notation(row(Func("sigma", listOf(row("n")))), KeyAction.Insert(0) { Func("sigma", 1) }, "sum of divisors"),
-                notation(row(Func("moebius", listOf(row("n")))), KeyAction.Insert(0) { Func("moebius", 1) }, "Möbius function"),
-                notation(row(Func("dfact", listOf(row("n")))), KeyAction.Insert(0) { Func("dfact", 1) }, "double factorial"),
-            ),
-            listOf(
-                notation(row(Func("fib", listOf(row("n")))), KeyAction.Insert(0) { Func("fib", 1) }, "Fibonacci number"),
-                notation(row(Func("lucas", listOf(row("n")))), KeyAction.Insert(0) { Func("lucas", 1) }, "Lucas number"),
-                notation(row(Func("catalan", listOf(row("n")))), KeyAction.Insert(0) { Func("catalan", 1) }, "Catalan number"),
-                notation(row(Func("bernoulli", listOf(row("n")))), KeyAction.Insert(0) { Func("bernoulli", 1) }, "Bernoulli number"),
-                notation(row(Func("partitions", listOf(row("n")))), KeyAction.Insert(0) { Func("partitions", 1) }, "partition number"),
-            ),
-        ),
-        columns = 5, optional = true, about = "Prime tests and counts, φ, τ, σ, μ, Fibonacci, Lucas, Catalan, Bernoulli, partitions, n!!",
-    ),
-    FunctionTab(
-        "Mathematical constants", KeyLabel.Icon(IconId.MathConst),
-        listOf(
-            listOf(
-                constant("m:phi", "golden ratio"),
-                constant("m:silver", "silver ratio"),
-                constant("m:plastic", "plastic ratio"),
-                constant("m:gamma", "Euler–Mascheroni constant"),
-                constant("m:catalan", "Catalan's constant"),
-            ),
-            listOf(
-                constant("m:apery", "Apéry's constant"),
-                constant("m:omega", "omega constant"),
-                constant("m:khinchin", "Khinchin's constant"),
-                constant("m:glaisher", "Glaisher–Kinkelin constant"),
-                constant("m:fdelta", "Feigenbaum delta"),
-            ),
-            listOf(
-                constant("m:falpha", "Feigenbaum alpha"),
-                constant("m:twinprime", "twin prime constant"),
-                constant("m:mertens", "Meissel–Mertens constant"),
-                constant("m:lemniscate", "lemniscate constant"),
-                constant("m:gelfond", "Gelfond's constant"),
-            ),
-        ),
-        columns = 5, optional = true, about = "φ, the silver and plastic ratios, γ, Catalan's G, ζ(3), Ω, Khinchin, Glaisher, Feigenbaum, e^π…",
-    ),
-    FunctionTab(
-        "Distributions", KeyLabel.Icon(IconId.Distributions),
-        listOf(
-            listOf(
-                notation(row(Func("exppdf", listOf(row("x"), row("λ")))), KeyAction.Insert(0) { Func("exppdf", 2) }, "exponential density"),
-                notation(row(Func("expcdf", listOf(row("x"), row("λ")))), KeyAction.Insert(0) { Func("expcdf", 2) }, "exponential distribution function"),
-                notation(row(Func("unifpdf", listOf(row("x"), row("a"), row("b")))), KeyAction.Insert(0) { Func("unifpdf", 3) }, "uniform density"),
-                notation(row(Func("unifcdf", listOf(row("x"), row("a"), row("b")))), KeyAction.Insert(0) { Func("unifcdf", 3) }, "uniform distribution function"),
-                notation(row(Func("poissoncdf", listOf(row("λ"), row("k")))), KeyAction.Insert(0) { Func("poissoncdf", 2) }, "cumulative Poisson probability"),
-            ),
-            listOf(
-                notation(row(Func("geompdf", listOf(row("p"), row("k")))), KeyAction.Insert(0) { Func("geompdf", 2) }, "geometric probability"),
-                notation(row(Func("geomcdf", listOf(row("p"), row("k")))), KeyAction.Insert(0) { Func("geomcdf", 2) }, "cumulative geometric probability"),
-                notation(row(Func("chi2pdf", listOf(row("x"), row("k")))), KeyAction.Insert(0) { Func("chi2pdf", 2) }, "chi-squared density"),
-                notation(row(Func("chi2cdf", listOf(row("x"), row("k")))), KeyAction.Insert(0) { Func("chi2cdf", 2) }, "chi-squared distribution function"),
-                notation(row(Func("lognpdf", listOf(row("x"), row("μ"), row("σ")))), KeyAction.Insert(0) { Func("lognpdf", 3) }, "log-normal density"),
-            ),
-            listOf(
-                notation(row(Func("logncdf", listOf(row("x"), row("μ"), row("σ")))), KeyAction.Insert(0) { Func("logncdf", 3) }, "log-normal distribution function"),
-                notation(row(Func("cauchypdf", listOf(row("x"), row("x₀"), row("γ")))), KeyAction.Insert(0) { Func("cauchypdf", 3) }, "Cauchy density"),
-                notation(row(Func("cauchycdf", listOf(row("x"), row("x₀"), row("γ")))), KeyAction.Insert(0) { Func("cauchycdf", 3) }, "Cauchy distribution function"),
-                notation(row(Func("weibpdf", listOf(row("x"), row("k"), row("λ")))), KeyAction.Insert(0) { Func("weibpdf", 3) }, "Weibull density"),
-                notation(row(Func("weibcdf", listOf(row("x"), row("k"), row("λ")))), KeyAction.Insert(0) { Func("weibcdf", 3) }, "Weibull distribution function"),
-            ),
-        ),
-        columns = 5, optional = true, about = "Exponential, uniform, geometric, Poisson, χ², log-normal, Cauchy and Weibull densities and distribution functions",
-    ),
-    FunctionTab(
         "Combinatorics", KeyLabel.Icon(IconId.Combinatorics),
         listOf(
             listOf(
@@ -622,114 +460,6 @@ val FunctionTabs: List<FunctionTab> = listOf(
             ),
         ),
         columns = 5, optional = true, about = "Stirling, Bell, Lah, Eulerian, Narayana, derangements, rising and falling factorials, harmonic numbers…",
-    ),
-    FunctionTab(
-        "Statistics II", KeyLabel.Icon(IconId.StatsMore),
-        listOf(
-            listOf(
-                notation(row(Func("mode", listOf(row("x")))), KeyAction.Insert(0) { Func("mode", 1) }, "mode"),
-                notation(row(Func("range", listOf(row("x")))), KeyAction.Insert(0) { Func("range", 1) }, "range"),
-                notation(row(Func("q1", listOf(row("x")))), KeyAction.Insert(0) { Func("q1", 1) }, "first quartile"),
-                notation(row(Func("q3", listOf(row("x")))), KeyAction.Insert(0) { Func("q3", 1) }, "third quartile"),
-                notation(row(Func("iqr", listOf(row("x")))), KeyAction.Insert(0) { Func("iqr", 1) }, "interquartile range"),
-            ),
-            listOf(
-                notation(row(Func("geomean", listOf(row("x")))), KeyAction.Insert(0) { Func("geomean", 1) }, "geometric mean"),
-                notation(row(Func("harmean", listOf(row("x")))), KeyAction.Insert(0) { Func("harmean", 1) }, "harmonic mean"),
-                notation(row(Func("rms", listOf(row("x")))), KeyAction.Insert(0) { Func("rms", 1) }, "root mean square"),
-                notation(row(Func("mad", listOf(row("x")))), KeyAction.Insert(0) { Func("mad", 1) }, "mean absolute deviation"),
-                notation(row(Func("cv", listOf(row("x")))), KeyAction.Insert(0) { Func("cv", 1) }, "coefficient of variation"),
-            ),
-            listOf(
-                notation(row(Func("skew", listOf(row("x")))), KeyAction.Insert(0) { Func("skew", 1) }, "skewness"),
-                notation(row(Func("kurt", listOf(row("x")))), KeyAction.Insert(0) { Func("kurt", 1) }, "excess kurtosis"),
-                notation(row(Func("count", listOf(row("x")))), KeyAction.Insert(0) { Func("count", 1) }, "count"),
-                notation(row(Func("sumsq", listOf(row("x")))), KeyAction.Insert(0) { Func("sumsq", 1) }, "sum of squares"),
-                notation(row(Func("prodlist", listOf(row("x")))), KeyAction.Insert(0) { Func("prodlist", 1) }, "product of a list"),
-            ),
-        ),
-        columns = 5, optional = true, about = "Mode, range, quartiles, geometric, harmonic and RMS means, spread, skewness, kurtosis",
-    ),
-    FunctionTab(
-        "Vectors", KeyLabel.Icon(IconId.Vectors),
-        listOf(
-            listOf(
-                notation(row(Func("norm", listOf(row("v")))), KeyAction.Insert(0) { Func("norm", 1) }, "vector length"),
-                notation(row(Func("unit", listOf(row("v")))), KeyAction.Insert(0) { Func("unit", 1) }, "unit vector"),
-                notation(row(Func("vangle", listOf(row("u"), row("v")))), KeyAction.Insert(0) { Func("vangle", 2) }, "angle between vectors"),
-                notation(row(Func("proj", listOf(row("u"), row("v")))), KeyAction.Insert(0) { Func("proj", 2) }, "vector projection"),
-                notation(row(Func("reject", listOf(row("u"), row("v")))), KeyAction.Insert(0) { Func("reject", 2) }, "vector rejection"),
-            ),
-            listOf(
-                notation(row(Func("dist", listOf(row("P"), row("Q")))), KeyAction.Insert(0) { Func("dist", 2) }, "distance between points"),
-                notation(row(Func("midpoint", listOf(row("P"), row("Q")))), KeyAction.Insert(0) { Func("midpoint", 2) }, "midpoint"),
-                notation(row(Func("triple", listOf(row("a"), row("b"), row("c")))), KeyAction.Insert(0) { Func("triple", 3) }, "scalar triple product"),
-                notation(row(Func("triarea", listOf(row("A"), row("B"), row("C")))), KeyAction.Insert(0) { Func("triarea", 3) }, "triangle area"),
-                notation(row(Func("outer", listOf(row("u"), row("v")))), KeyAction.Insert(0) { Func("outer", 2) }, "outer product"),
-            ),
-            listOf(
-                notation(row(Func("cart2pol", listOf(row("P")))), KeyAction.Insert(0) { Func("cart2pol", 1) }, "Cartesian to polar"),
-                notation(row(Func("pol2cart", listOf(row("r"), row("θ")))), KeyAction.Insert(0) { Func("pol2cart", 2) }, "polar to Cartesian"),
-                notation(row(Func("cart2sph", listOf(row("P")))), KeyAction.Insert(0) { Func("cart2sph", 1) }, "Cartesian to spherical"),
-                notation(row(Func("sph2cart", listOf(row("ρ"), row("θ"), row("φ")))), KeyAction.Insert(0) { Func("sph2cart", 3) }, "spherical to Cartesian"),
-                notation(row(Func("cart2cyl", listOf(row("P")))), KeyAction.Insert(0) { Func("cart2cyl", 1) }, "Cartesian to cylindrical"),
-            ),
-        ),
-        columns = 5, optional = true, about = "Length, unit vector, angle, projection, distance, midpoint, triple product, triangle area, polar and spherical coordinates",
-    ),
-    FunctionTab(
-        "Modular & bits", KeyLabel.Icon(IconId.Modular),
-        listOf(
-            listOf(
-                notation(row(Func("powmod", listOf(row("a"), row("b"), row("m")))), KeyAction.Insert(0) { Func("powmod", 3) }, "modular power"),
-                notation(row(Func("modinv", listOf(row("a"), row("m")))), KeyAction.Insert(0) { Func("modinv", 2) }, "modular inverse"),
-                notation(row(Func("isqrt", listOf(row("n")))), KeyAction.Insert(0) { Func("isqrt", 1) }, "integer square root"),
-                notation(row(Func("iroot", listOf(row("n"), row("k")))), KeyAction.Insert(0) { Func("iroot", 2) }, "integer k-th root"),
-                notation(row(Func("digitsum", listOf(row("n")))), KeyAction.Insert(0) { Func("digitsum", 1) }, "digit sum"),
-            ),
-            listOf(
-                notation(row(Func("ndigits", listOf(row("n")))), KeyAction.Insert(0) { Func("ndigits", 1) }, "number of digits"),
-                notation(row(Func("revdigits", listOf(row("n")))), KeyAction.Insert(0) { Func("revdigits", 1) }, "reversed digits"),
-                notation(row(Func("popcount", listOf(row("n")))), KeyAction.Insert(0) { Func("popcount", 1) }, "population count"),
-                notation(row(Func("band", listOf(row("a"), row("b")))), KeyAction.Insert(0) { Func("band", 2) }, "bitwise and"),
-                notation(row(Func("bor", listOf(row("a"), row("b")))), KeyAction.Insert(0) { Func("bor", 2) }, "bitwise or"),
-            ),
-            listOf(
-                notation(row(Func("bxor", listOf(row("a"), row("b")))), KeyAction.Insert(0) { Func("bxor", 2) }, "bitwise exclusive or"),
-                notation(row(Func("shl", listOf(row("a"), row("k")))), KeyAction.Insert(0) { Func("shl", 2) }, "shift left"),
-                notation(row(Func("shr", listOf(row("a"), row("k")))), KeyAction.Insert(0) { Func("shr", 2) }, "shift right"),
-                notation(row(Func("jacobi", listOf(row("a"), row("n")))), KeyAction.Insert(0) { Func("jacobi", 2) }, "Jacobi symbol"),
-                notation(row(Func("issquare", listOf(row("n")))), KeyAction.Insert(0) { Func("issquare", 1) }, "is a perfect square"),
-            ),
-        ),
-        columns = 5, optional = true, about = "Modular powers and inverses, integer roots, digits, bitwise and, or, xor and shifts, the Jacobi symbol",
-    ),
-    FunctionTab(
-        "Finance", KeyLabel.Icon(IconId.Finance),
-        listOf(
-            listOf(
-                notation(row(Func("fv", listOf(row("P"), row("r"), row("n")))), KeyAction.Insert(0) { Func("fv", 3) }, "future value"),
-                notation(row(Func("pv", listOf(row("F"), row("r"), row("n")))), KeyAction.Insert(0) { Func("pv", 3) }, "present value"),
-                notation(row(Func("pmt", listOf(row("P"), row("r"), row("n")))), KeyAction.Insert(0) { Func("pmt", 3) }, "loan payment"),
-                notation(row(Func("nper", listOf(row("P"), row("A"), row("r")))), KeyAction.Insert(0) { Func("nper", 3) }, "number of periods"),
-                notation(row(Func("annuityfv", listOf(row("A"), row("r"), row("n")))), KeyAction.Insert(0) { Func("annuityfv", 3) }, "future value of an annuity"),
-            ),
-            listOf(
-                notation(row(Func("annuitypv", listOf(row("A"), row("r"), row("n")))), KeyAction.Insert(0) { Func("annuitypv", 3) }, "present value of an annuity"),
-                notation(row(Func("effrate", listOf(row("r"), row("m")))), KeyAction.Insert(0) { Func("effrate", 2) }, "effective annual rate"),
-                notation(row(Func("contcomp", listOf(row("P"), row("r"), row("t")))), KeyAction.Insert(0) { Func("contcomp", 3) }, "continuous compounding"),
-                notation(row(Func("simpleint", listOf(row("P"), row("r"), row("t")))), KeyAction.Insert(0) { Func("simpleint", 3) }, "simple interest"),
-                notation(row(Func("cagr", listOf(row("B"), row("E"), row("n")))), KeyAction.Insert(0) { Func("cagr", 3) }, "compound annual growth rate"),
-            ),
-            listOf(
-                notation(row(Func("doubling", listOf(row("r")))), KeyAction.Insert(0) { Func("doubling", 1) }, "doubling time"),
-                notation(row(Func("fisher", listOf(row("i"), row("π")))), KeyAction.Insert(0) { Func("fisher", 2) }, "real interest rate"),
-                notation(row(Func("npv", listOf(row("r"), row("c")))), KeyAction.Insert(0) { Func("npv", 2) }, "net present value"),
-                notation(row(Func("irr", listOf(row("c")))), KeyAction.Insert(0) { Func("irr", 1) }, "internal rate of return"),
-                notation(row(Func("sldep", listOf(row("C"), row("S"), row("n")))), KeyAction.Insert(0) { Func("sldep", 3) }, "straight-line depreciation"),
-            ),
-        ),
-        columns = 5, optional = true, about = "Compound interest, present and future value, loan payments, annuities, effective rates, NPV, IRR, depreciation",
     ),
     FunctionTab(
         "Polynomials", KeyLabel.Icon(IconId.Polynomials),
@@ -775,3 +505,74 @@ val MainKeys: List<List<KeySpec>> = listOf(
     // Enter (↵) works out the answer (or finishes a graph line); it isn't an equals sign.
     listOf(digit("0"), text(".", KeyAction.Type("."), KeyRole.Digit, "point"), KeySpec(KeyLabel.BackspaceIcon, KeyAction.Backspace, KeyRole.Digit, "backspace"), KeySpec(KeyLabel.EnterIcon, KeyAction.Enter, KeyRole.Equals, "enter")),
 )
+
+/**
+ * The trigonometry tab's second page (the switch beside Rad/Deg): the reciprocal functions, each
+ * where its reciprocal sits on the first page (csc for sin, sec for cos, cot for tan).
+ */
+val ReciprocalTrigKeys: List<List<KeySpec>> = listOf(
+    Triple("csc", "cosecant", "sin"), Triple("sec", "secant", "cos"), Triple("cot", "cotangent", "tan"),
+).map { (f, full, _) ->
+    listOf(
+        notation(letters(f), KeyAction.Insert(0) { Func(f) }, full),
+        notation(letters("a$f"), KeyAction.Insert(0) { Func("a$f") }, "inverse $full"),
+        notation(letters(f + "h"), KeyAction.Insert(0) { Func(f + "h") }, "hyperbolic $full"),
+        notation(letters("a${f}h"), KeyAction.Insert(0) { Func("a${f}h") }, "inverse hyperbolic $full"),
+    )
+}
+
+/** The statistics tab's second page (the switch beside Rad/Deg): densities and distribution functions. */
+val DistributionKeys: List<List<KeySpec>> = listOf(
+            listOf(
+                notation(row(Func("exppdf", listOf(row("x"), row("λ")))), KeyAction.Insert(0) { Func("exppdf", 2) }, "exponential density"),
+                notation(row(Func("expcdf", listOf(row("x"), row("λ")))), KeyAction.Insert(0) { Func("expcdf", 2) }, "exponential distribution function"),
+                notation(row(Func("unifpdf", listOf(row("x"), row("a"), row("b")))), KeyAction.Insert(0) { Func("unifpdf", 3) }, "uniform density"),
+                notation(row(Func("unifcdf", listOf(row("x"), row("a"), row("b")))), KeyAction.Insert(0) { Func("unifcdf", 3) }, "uniform distribution function"),
+                notation(row(Func("poissoncdf", listOf(row("λ"), row("k")))), KeyAction.Insert(0) { Func("poissoncdf", 2) }, "cumulative Poisson probability"),
+            ),
+            listOf(
+                notation(row(Func("geompdf", listOf(row("p"), row("k")))), KeyAction.Insert(0) { Func("geompdf", 2) }, "geometric probability"),
+                notation(row(Func("geomcdf", listOf(row("p"), row("k")))), KeyAction.Insert(0) { Func("geomcdf", 2) }, "cumulative geometric probability"),
+                notation(row(Func("chi2pdf", listOf(row("x"), row("k")))), KeyAction.Insert(0) { Func("chi2pdf", 2) }, "chi-squared density"),
+                notation(row(Func("chi2cdf", listOf(row("x"), row("k")))), KeyAction.Insert(0) { Func("chi2cdf", 2) }, "chi-squared distribution function"),
+                notation(row(Func("lognpdf", listOf(row("x"), row("μ"), row("σ")))), KeyAction.Insert(0) { Func("lognpdf", 3) }, "log-normal density"),
+            ),
+            listOf(
+                notation(row(Func("logncdf", listOf(row("x"), row("μ"), row("σ")))), KeyAction.Insert(0) { Func("logncdf", 3) }, "log-normal distribution function"),
+                notation(row(Func("cauchypdf", listOf(row("x"), row("x₀"), row("γ")))), KeyAction.Insert(0) { Func("cauchypdf", 3) }, "Cauchy density"),
+                notation(row(Func("cauchycdf", listOf(row("x"), row("x₀"), row("γ")))), KeyAction.Insert(0) { Func("cauchycdf", 3) }, "Cauchy distribution function"),
+                notation(row(Func("weibpdf", listOf(row("x"), row("k"), row("λ")))), KeyAction.Insert(0) { Func("weibpdf", 3) }, "Weibull density"),
+                notation(row(Func("weibcdf", listOf(row("x"), row("k"), row("λ")))), KeyAction.Insert(0) { Func("weibcdf", 3) }, "Weibull distribution function"),
+            ),
+)
+
+/** Signals and piecewise functions, for the graphs only: behind the button left of the letters above the keypad. */
+val SignalKeys: List<List<KeySpec>> = listOf(
+            listOf(
+                notation(row(Func("heaviside", listOf(row("x")))), KeyAction.Insert(0) { Func("heaviside", 1) }, "Heaviside step"),
+                notation(row(Func("rect", listOf(row("x")))), KeyAction.Insert(0) { Func("rect", 1) }, "rectangle function"),
+                notation(row(Func("tri", listOf(row("x")))), KeyAction.Insert(0) { Func("tri", 1) }, "triangle function"),
+                notation(row(Func("ramp", listOf(row("x")))), KeyAction.Insert(0) { Func("ramp", 1) }, "ramp function"),
+                notation(row(Func("pulse", listOf(row("x"), row("a"), row("b")))), KeyAction.Insert(0) { Func("pulse", 3) }, "pulse"),
+            ),
+            listOf(
+                notation(row(Func("sawtooth", listOf(row("x")))), KeyAction.Insert(0) { Func("sawtooth", 1) }, "sawtooth wave"),
+                notation(row(Func("squarewave", listOf(row("x")))), KeyAction.Insert(0) { Func("squarewave", 1) }, "square wave"),
+                notation(row(Func("trianglewave", listOf(row("x")))), KeyAction.Insert(0) { Func("trianglewave", 1) }, "triangle wave"),
+                notation(row(Func("sigmoid", listOf(row("x")))), KeyAction.Insert(0) { Func("sigmoid", 1) }, "logistic sigmoid"),
+                notation(row(Func("softplus", listOf(row("x")))), KeyAction.Insert(0) { Func("softplus", 1) }, "softplus"),
+            ),
+            listOf(
+                notation(row(Func("clamp", listOf(row("x"), row("a"), row("b")))), KeyAction.Insert(0) { Func("clamp", 3) }, "clamp"),
+                notation(row(Func("lerp", listOf(row("a"), row("b"), row("t")))), KeyAction.Insert(0) { Func("lerp", 3) }, "linear interpolation"),
+                notation(row(Func("smoothstep", listOf(row("x")))), KeyAction.Insert(0) { Func("smoothstep", 1) }, "smoothstep"),
+                notation(row(Func("gauss", listOf(row("x")))), KeyAction.Insert(0) { Func("gauss", 1) }, "Gaussian"),
+                notation(row(Func("wrap", listOf(row("x"), row("a"), row("b")))), KeyAction.Insert(0) { Func("wrap", 3) }, "wrap"),
+            ),
+)
+
+/** The signals keys as a group of their own (the graphs show it in place of a tab). */
+val SignalsTab = FunctionTab("Signals", KeyLabel.Icon(IconId.Signals), SignalKeys, columns = 5, about = "Step, box, triangle and ramp, waves, pulse, clamp, lerp, smoothstep, sigmoid, softplus, Gaussian")
+
+/** The keys that aren't on a tab of their own: the second pages and the graphs' signals. */
+val ExtraKeyPages: List<List<List<KeySpec>>> get() = listOf(ReciprocalTrigKeys, DistributionKeys, SignalKeys)

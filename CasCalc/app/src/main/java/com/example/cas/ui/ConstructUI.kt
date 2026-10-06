@@ -65,9 +65,11 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.text.withStyle
@@ -187,17 +189,30 @@ internal fun ConstructPalette(vm: GraphViewModel, modifier: Modifier) {
         modifier.fillMaxWidth().wrapContentWidth().widthIn(max = 520.dp).fillMaxWidth().shadow(4.dp, RoundedCornerShape(28.dp)).clip(RoundedCornerShape(28.dp))
             .background(colors.surfaceContainer).padding(10.dp),
     ) {
-        // The groups, as tabs.
-        Row(Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            GeometryTool.categories(vm.geometrySpace).forEach { c ->
+        // The groups, as the calculator's tabs: a connected button group, the chosen one filled and
+        // fully rounded. With more groups than fit, it scrolls sideways, and the dots and swiping
+        // the tools show there's more.
+        val categories = GeometryTool.categories(vm.geometrySpace)
+        val tabScroll = androidx.compose.foundation.rememberScrollState()
+        Row(Modifier.fillMaxWidth().horizontalScroll(tabScroll), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
+            categories.forEachIndexed { pos, c ->
                 val on = c == category
-                Text(
-                    c.label,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant,
-                    modifier = Modifier.clip(CircleShape).background(if (on) colors.secondaryContainer else Color.Transparent)
-                        .clickable(onClickLabel = tr("Show {0}", c.label)) { category = c }.padding(horizontal = 14.dp, vertical = 8.dp),
-                )
+                val outer = 20.dp; val inner = 8.dp
+                val shape = when {
+                    on -> RoundedCornerShape(outer)
+                    pos == 0 -> RoundedCornerShape(topStart = outer, bottomStart = outer, topEnd = inner, bottomEnd = inner)
+                    pos == categories.lastIndex -> RoundedCornerShape(topStart = inner, bottomStart = inner, topEnd = outer, bottomEnd = outer)
+                    else -> RoundedCornerShape(inner)
+                }
+                Box(
+                    Modifier.height(38.dp).widthIn(min = 64.dp).clip(shape).background(if (on) colors.primary else colors.surfaceContainerHigh)
+                        .clickable(onClickLabel = tr("Show {0}", c.label)) { category = c }
+                        .semantics { if (on) stateDescription = tr("selected") }
+                        .padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(c.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, color = if (on) colors.onPrimary else colors.onSurfaceVariant)
+                }
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -205,13 +220,46 @@ internal fun ConstructPalette(vm: GraphViewModel, modifier: Modifier) {
         // Two and a half rows show, so a group with more says it scrolls; all groups alike.
         val scroll = androidx.compose.foundation.rememberScrollState()
         androidx.compose.runtime.LaunchedEffect(category) { scroll.scrollTo(0) }
-        Column(Modifier.height(TILE_HEIGHT * 2.5f + 12.dp).verticalScroll(scroll)) {
-            tools.chunked(4).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-                    row.forEach { t -> Box(Modifier.weight(1f)) { ToolChip(vm, t, compact = false) } }
-                    repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+        Box(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(colors.surfaceContainerLow)
+                .pointerInput(category, categories) {
+                    // Swiping sideways moves to the next or previous group, as on the calculator's keys.
+                    var total = 0f
+                    detectHorizontalDragGestures(
+                        onDragEnd = { total = 0f },
+                        onHorizontalDrag = { change, delta ->
+                            total += delta
+                            if (kotlin.math.abs(total) > 80f) {
+                                val at = categories.indexOf(category)
+                                category = categories[(at + if (total < 0) 1 else -1).coerceIn(0, categories.lastIndex)]
+                                total = 0f
+                            }
+                            change.consume()
+                        },
+                    )
+                }
+                .padding(6.dp),
+        ) {
+            Column(Modifier.height(TILE_HEIGHT * 2.5f + 12.dp).verticalScroll(scroll)) {
+                tools.chunked(4).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+                        row.forEach { t -> Box(Modifier.weight(1f)) { ToolChip(vm, t, compact = false) } }
+                        repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
                 }
             }
+        }
+        // One dot per group, as under the calculator's keys.
+        Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+            categories.forEach { c ->
+                val on = c == category
+                Box(Modifier.height(5.dp).width(if (on) 16.dp else 5.dp).clip(CircleShape).background(if (on) colors.primary else colors.outlineVariant))
+            }
+        }
+        // The chosen group is kept in view in the scrolling tab row.
+        androidx.compose.runtime.LaunchedEffect(category) {
+            val at = categories.indexOf(category)
+            tabScroll.animateScrollTo((tabScroll.maxValue * at / maxOf(1, categories.lastIndex)))
         }
     }
 }
@@ -252,7 +300,7 @@ internal fun ConstructRail(vm: GraphViewModel, modifier: Modifier) {
 internal fun ToolChip(vm: GraphViewModel, tool: GeometryTool, compact: Boolean) {
     val colors = MaterialTheme.colorScheme
     val on = (vm.geometryTool ?: GeometryTool.Move) == tool
-    val bg = if (on) colors.primary else if (compact) colors.surfaceContainerHigh else colors.surfaceContainerLow
+    val bg = if (on) colors.primary else if (compact) colors.surfaceContainerHigh else colors.surfaceContainerHighest
     val ink = if (on) colors.onPrimary else colors.onSurface
     val accent = if (on) colors.onPrimary else colors.primary
     if (compact) {
@@ -456,17 +504,15 @@ private fun guideSteps(space: GeometrySpace, tablet: Boolean): List<GuideStep> =
 )
 
 /**
- * The geometry guide, a card over the bottom of the graph the first time Construct opens in
- * each graph (the ? on the status card opens it again). Each step says what to do and is
+ * The geometry guide, a card over the bottom of the graph, opened from the ? on the status card
+ * (it never opens by itself). Each step says what to do and is
  * ticked off when you've done it: pick a tool, build something, drag a point. The rest are read
  * and passed with Next. Skip or Done ends it for this graph.
  */
 @Composable
 internal fun GeometryGuide(vm: GraphViewModel, modifier: Modifier) {
     val space = vm.geometrySpace
-    androidx.compose.runtime.LaunchedEffect(vm.constructing) {
-        if (vm.constructing && !AppSettings.geometryGuideSeen(space.code)) { vm.guideStep = 0; vm.guideOpen = true }
-    }
+    // It opens only when asked for (the ? on the status card), never by itself.
     if (!vm.guideOpen || !vm.constructing) return
     val colors = MaterialTheme.colorScheme
     val steps = guideSteps(space, isTabletLayout())

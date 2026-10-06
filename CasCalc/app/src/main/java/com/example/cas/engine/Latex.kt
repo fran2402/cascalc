@@ -111,6 +111,7 @@ object Latex {
             "ellipticf" -> "F(" + a[0] + " \\mid " + a[1] + ")"
             "elliptice" -> "E(" + a[0] + " \\mid " + a[1] + ")"
             "polylog" -> "\\operatorname{Li}_{" + a[0] + "}" + paren(a[1])
+            in NOTATION_NAMES -> FunctionNotation.latex(f.name, a) ?: ("\\operatorname{${f.name}}" + paren(a.joinToString(", ")))
             "besselj" -> "J_{" + a[0] + "}" + paren(a[1])
             "bessely" -> "Y_{" + a[0] + "}" + paren(a[1])
             "log" -> "\\log_" + group(f.args[0]) + paren(a[1])
@@ -122,3 +123,6 @@ object Latex {
         }
     }
 }
+
+/** Functions written as on their keys (see [FunctionNotation]). */
+private val NOTATION_NAMES = FunctionNotation.specs.keys + setOf("subfactorial", "primorial", "rising", "falling")

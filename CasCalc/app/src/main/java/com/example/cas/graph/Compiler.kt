@@ -169,7 +169,39 @@ object Compiler {
             "arg" -> one { if (it < 0) PI else 0.0 }
             // atan2(y, x): the angle of (x, y), from −π to π (θ in cylindrical and spherical coordinates).
             "atan2" -> { val g = a[1]; RealFunction { v -> kotlin.math.atan2(f(v), g(v)) } }
+            // Whole-number functions with a natural curve between the whole numbers.
+            "harmonic" -> one { if (it > -1) com.example.cas.cas.Statistics.digamma(it + 1) + 0.5772156649015329 else Double.NaN }
+            "triangular" -> one { it * (it + 1) / 2 }
+            "rising" -> { val g = a[1]; RealFunction { v -> val x = f(v); val n = g(v); Numeric.gamma(x + n) / Numeric.gamma(x) } }
+            "falling" -> { val g = a[1]; RealFunction { v -> val x = f(v); val n = g(v); Numeric.gamma(x + 1) / Numeric.gamma(x - n + 1) } }
+            in com.example.cas.cas.NumberTheory.NAMES, in com.example.cas.cas.MoreMath.INTEGERS, in com.example.cas.cas.MoreMath.POLYNOMIALS -> steps(e.name, a)
             else -> throw MathError("${e.name} can't be graphed")
+        }
+    }
+
+    /**
+     * A function of whole numbers (Stirling numbers, primorials…), or a polynomial of a varying
+     * degree: drawn as steps, its value at each whole number held until the next (each argument
+     * rounded down). Values are remembered, as the same whole numbers come up again and again.
+     */
+    private fun steps(name: String, a: List<RealFunction>): RealFunction {
+        val polynomial = name in com.example.cas.cas.MoreMath.POLYNOMIALS
+        val memo = java.util.concurrent.ConcurrentHashMap<List<Double>, Double>()
+        return RealFunction { v ->
+            // A polynomial's degree is a whole number; its variable (the last argument) isn't.
+            val xs = a.mapIndexed { i, g -> g(v).let { if (polynomial && i == a.lastIndex) it else floor(it + 1e-9) } }
+            if (xs.any { !it.isFinite() || abs(it) > 3000 }) return@RealFunction Double.NaN
+            memo[xs] ?: run {
+                val args: List<Expr> = xs.mapIndexed { i, x -> if (polynomial && i == xs.lastIndex) Flt(x) else Num(com.example.cas.math.Rational.of(x.toLong())) }
+                val y = try {
+                    val r = if (polynomial) com.example.cas.cas.MoreMath.polynomial(name, args)
+                    else com.example.cas.cas.NumberTheory.eval(name, args) ?: com.example.cas.cas.MoreMath.integers(name, args)
+                    r?.let { Numeric.real(it) } ?: Double.NaN
+                } catch (e: Exception) { Double.NaN }
+                if (memo.size > 4096) memo.clear()
+                memo[xs] = y
+                y
+            }
         }
     }
 }

@@ -409,6 +409,11 @@ object Simplify {
             "dot" -> LinearAlgebra.dot(args[0], args[1])
             "cross" -> LinearAlgebra.cross(args[0], args[1])
             "transpose" -> Matrices.transpose(x)
+            // Whole-number functions and special polynomials: worked out once their arguments are
+            // numbers (after a substitution, in a sum's terms, at a point), else left as they are.
+            in NumberTheory.NAMES -> NumberTheory.eval(name, args) ?: Fn(name, args)
+            in MoreMath.INTEGERS -> MoreMath.integers(name, args) ?: Fn(name, args)
+            in MoreMath.POLYNOMIALS -> MoreMath.polynomial(name, args) ?: Fn(name, args)
             else -> Fn(name, args)
         }
     }

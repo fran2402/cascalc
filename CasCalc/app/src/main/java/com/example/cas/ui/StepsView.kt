@@ -97,7 +97,7 @@ private class StepsState(val shown: Int, val total: Int)
 @Composable
 private fun PhoneSteps(expression: MathRow, solution: Steps.Solution?, ready: Boolean, state: StepsState, onDismiss: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = colors.surfaceContainerLow) {
+    StillSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = colors.surfaceContainerLow) {
         val list = rememberLazyListState()
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.92f).navigationBarsPadding()) {
             Column(Modifier.padding(horizontal = 20.dp)) {

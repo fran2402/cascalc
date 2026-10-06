@@ -71,7 +71,12 @@ object Steps {
         return m.takeIf { pw.exp.items.joinToString("") { n -> (n as? SymNode)?.text ?: "?" } == "−1" }
     }
 
-    fun supports(row: MathRow): Boolean = target(row) != null || inverseOf(row) != null || isComplexArithmetic(row) || simplificationMoves(row, AngleUnit.Radians).isNotEmpty()
+    /** A letter, or a symbol built in the symbol builder (one symbol, whatever its scripts). */
+    private fun isVariable(name: String) = (name.length == 1 && name[0].isLetter()) || com.example.cas.cas.CustomSymbol.decode(name) != null
+    /** A letter that's a variable (not i, e or π). */
+    private fun isLetter(t: String) = isVariable(t) && t !in setOf("i", "e", "π")
+
+    fun supports(row: MathRow): Boolean = defined(row) != null || target(row) != null || inverseOf(row) != null || isComplexArithmetic(row) || simplificationMoves(row, AngleUnit.Radians).isNotEmpty()
 
     /** The rewrites that simplify a plain algebraic expression (empty if there are none, or it isn't one). */
     private fun simplificationMoves(row: MathRow, angle: AngleUnit): List<com.example.cas.cas.AutoSimplify.Move> {
@@ -107,13 +112,13 @@ object Steps {
             for (n in r.items) {
                 if (n is SymNode && n.text == "i") hasI = true
                 if (n is com.example.cas.editor.Frac || n is com.example.cas.editor.Pow || (n is SymNode && n.text in setOf("(", "×", "·"))) hasOp = true
-                if (n is SymNode && n.text.length == 1 && n.text[0].isLetter() && n.text !in setOf("i", "e", "π")) return
+                if (n is SymNode && isLetter(n.text)) return
                 n.slots.forEach { walk(it) }
             }
         }
         walk(row)
         return hasI && hasOp && row.items.none { it is Integral || it is com.example.cas.editor.Derivative || it is com.example.cas.editor.BigOp } &&
-            !row.items.any { n -> n is SymNode && n.text.length == 1 && n.text[0].isLetter() && n.text !in setOf("i", "e", "π") }
+            !row.items.any { n -> n is SymNode && isLetter(n.text) }
     }
 
     private fun target(row: MathRow): Node? =
@@ -143,9 +148,27 @@ object Steps {
                 "grad", "div", "curl", "jacobian", "hessian" -> vectorCalculus(n, angle)
                 else -> contour(n, angle)
             }
-            else -> if (isComplexArithmetic(row)) complex(row, angle) else simplification(row, angle)
+            else -> definition(row, angle) ?: if (isComplexArithmetic(row)) complex(row, angle) else simplification(row, angle)
         }
     }.getOrNull()
+
+    /** A lone call of one of the extra functions (csc, a density, a Stirling number, a polynomial…). */
+    private fun defined(row: MathRow): Func? =
+        (row.items.filter { !(it is SymNode && it.text.isBlank()) }.singleOrNull() as? Func)?.takeIf { it.name in Definitions.all }
+
+    /** Its definition, what it comes to written out, and the value. */
+    private fun definition(row: MathRow, angle: AngleUnit): Solution? {
+        val f = defined(row) ?: return null
+        val def = Definitions.all.getValue(f.name)
+        val question = com.example.cas.editor.MathCodec.copy(row)
+        val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
+        val raw = runCatching { Evaluator(angle).also { it.autoSimplify = false }.evaluate(com.example.cas.editor.MathCodec.copy(question)) }.getOrNull()
+        val steps = ArrayList<Step>()
+        steps += Step(def.title, "\$${def.formula}\$", raw?.takeIf { !same(it, value) && it !is Fn }?.let { eq(question, it) })
+        val answer = ans(question, value)
+        steps += Step("Result", null, answer, Kind.Result)
+        return Solution(def.title, steps, answer)
+    }
 
     // ---- Nested operations -------------------------------------------------------------------
 
@@ -322,7 +345,7 @@ object Steps {
 
     private fun single(n: Integral, angle: AngleUnit): Solution? {
         val name = n.variable.items.joinToString("") { (it as? SymNode)?.text ?: "" }
-        if (name.length != 1) return null
+        if (!isVariable(name)) return null
         val x = Sym(name)
         val ev = { r: MathRow -> Evaluator(angle).evaluate(r) }
         // The integrand as typed (not simplified first), so any simplifying shows up as a step.
@@ -1443,7 +1466,7 @@ object Steps {
 
     private fun derivative(n: com.example.cas.editor.Derivative, angle: AngleUnit): Solution? {
         val name = n.variable.items.joinToString("") { (it as? SymNode)?.text ?: "" }
-        if (name.length != 1) return null
+        if (!isVariable(name)) return null
         val x = Sym(name)
         val ev = { r: MathRow -> Evaluator(angle).evaluate(r) }
         val body = ev(n.body)
@@ -1670,7 +1693,7 @@ object Steps {
 
     private fun sum(n: com.example.cas.editor.BigOp, angle: AngleUnit): Solution? {
         val name = n.variable.items.joinToString("") { (it as? SymNode)?.text ?: "" }
-        if (name.length != 1) return null
+        if (!isVariable(name)) return null
         val k = Sym(name)
         val ev = { r: MathRow -> Evaluator(angle).evaluate(r) }
         val body = ev(n.body); val lo = ev(n.lower); val hi = ev(n.upper)
@@ -1766,7 +1789,7 @@ object Steps {
 
     private fun product(n: com.example.cas.editor.BigOp, angle: AngleUnit): Solution? {
         val name = n.variable.items.joinToString("") { (it as? SymNode)?.text ?: "" }
-        if (name.length != 1) return null
+        if (!isVariable(name)) return null
         val k = Sym(name)
         val ev = { r: MathRow -> Evaluator(angle).evaluate(r) }
         val body = ev(n.body); val lo = ev(n.lower); val hi = ev(n.upper)
@@ -1814,7 +1837,7 @@ object Steps {
     /** "z = a" as (z, a). */
     private fun point(r: MathRow, angle: AngleUnit): Pair<Sym, Expr>? {
         val name = (r.items.firstOrNull() as? SymNode)?.text ?: return null
-        if (name.length != 1 || r.items.size < 3 || (r.items[1] as? SymNode)?.text !in setOf("=", "→")) return null
+        if (!isVariable(name) || r.items.size < 3 || (r.items[1] as? SymNode)?.text !in setOf("=", "→")) return null
         return Sym(name) to Evaluator(angle).evaluate(MathRow(r.items.drop(2).toMutableList()))
     }
 

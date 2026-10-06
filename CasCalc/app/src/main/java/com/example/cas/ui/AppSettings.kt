@@ -252,3 +252,6 @@ object CalcTabs {
     /** The tab to show for a selected one: itself if it's shown, else the first shown. */
     fun current(selected: Int): Int = shown().let { s -> if (selected in s) selected else s.first() }
 }
+
+/** How many groups the tab bar fits across before it scrolls: the built-in ones. */
+val DEFAULT_TAB_COUNT: Int get() = FunctionTabs.count { !it.optional }

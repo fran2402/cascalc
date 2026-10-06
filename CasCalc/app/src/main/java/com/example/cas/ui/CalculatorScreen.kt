@@ -142,6 +142,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
@@ -728,6 +729,18 @@ private fun ControlRow(vm: KeypadHost) {
                     )
                 }
             }
+            // Second pages: the reciprocal functions on the trigonometry tab, the distributions on
+            // the statistics tab. The switch says what it brings up.
+            if (!KeypadState.signals) when (FunctionTabs[CalcTabs.current(vm.selectedTab)].title) {
+                "Trigonometry" -> PageSwitch(
+                    if (KeypadState.reciprocalTrig) "sin cos tan" else "csc sec cot", KeypadState.reciprocalTrig,
+                    tr("Reciprocal functions"), KeypadState::toggleReciprocalTrig,
+                )
+                "Statistics" -> PageSwitch(
+                    if (KeypadState.distributions) "x̄ σ" else "pdf cdf", KeypadState.distributions,
+                    tr("Distributions"), KeypadState::toggleDistributions,
+                )
+            }
         }
         Spacer(Modifier.weight(1f))
         Spacer(Modifier.weight(1f))
@@ -748,6 +761,26 @@ private fun ControlRow(vm: KeypadHost) {
                 AppIcon(icon, contentDescription = label, tint = colors.onSurface)
             }
         }
+    }
+}
+
+/** A switch to a tab's second page, labelled with what it brings up; filled while that page shows. */
+@Composable
+private fun PageSwitch(label: String, on: Boolean, description: String, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val tap = rememberKeyTap()
+    Box(
+        Modifier
+            .padding(start = 8.dp)
+            .height(36.dp)
+            .clip(CircleShape)
+            .background(if (on) colors.primary else colors.secondaryContainer)
+            .clickable(onClickLabel = description) { tap(); onClick() }
+            .semantics { contentDescription = description; stateDescription = if (on) "on" else "off" }
+            .padding(horizontal = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, maxLines = 1, color = if (on) colors.onPrimary else colors.onSecondaryContainer, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp))
     }
 }
 
@@ -787,21 +820,24 @@ private fun FunctionPanel(vm: KeypadHost, rowHeight: Dp, onKey: (KeyAction) -> U
             // Every group is the same height (three rows, as many as the fixed groups have), so
             // nothing shifts as they change; the long lists scroll inside it.
             val gridHeight = rowHeight * 3 + 7.dp * 2 + 16.dp
+            // The graphs' signals keys stand in for the tab while their button is on (shown as −1).
             AnimatedContent(
-                targetState = current,
+                targetState = if (KeypadState.signals && vm.padEquals) -1 else current,
                 transitionSpec = {
-                    val forward = shownTabs.indexOf(targetState) > shownTabs.indexOf(initialState)
+                    val forward = targetState < 0 || shownTabs.indexOf(targetState) > shownTabs.indexOf(initialState)
                     (slideInHorizontally { w -> if (forward) w else -w } + fadeIn()) togetherWith
                         (slideOutHorizontally { w -> if (forward) -w else w } + fadeOut())
                 },
                 label = "group",
             ) { index ->
-            val shown = FunctionTabs[index]
+            val shown = if (index < 0) SignalsTab else FunctionTabs[index]
             // The letters group starts with the symbol builder and the symbols built with it.
             // Pinned letters, symbols and constants come first (after the special keys).
             val rows = when (shown.title) {
                 "Symbols" -> letterRows(SavedSymbols.list, PinnedKeys.list)
                 "Physical constants" -> constantRows(PinnedKeys.list)
+                "Trigonometry" -> if (KeypadState.reciprocalTrig) ReciprocalTrigKeys else shown.keys
+                "Statistics" -> if (KeypadState.distributions) DistributionKeys else shown.keys
                 else -> shown.keys
             }
             if (!shown.scrolls) {
@@ -837,16 +873,32 @@ private fun FunctionPanel(vm: KeypadHost, rowHeight: Dp, onKey: (KeyAction) -> U
 private fun GroupBar(vm: KeypadHost) {
     val colors = MaterialTheme.colorScheme
     val tap = rememberKeyTap()
-    // Icons only, so all nine groups fit across the screen and nothing scrolls or shifts.
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
+    // Icons only. The built-in groups fit across the screen; with more added the bar keeps their
+    // size and scrolls sideways instead of squeezing them.
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 4.dp)) {
         val shownTabs = CalcTabs.shown()
         val current = CalcTabs.current(vm.selectedTab)
+        val fitting = DEFAULT_TAB_COUNT
+        val gap = 2.dp
+        val scrolls = shownTabs.size > fitting
+        val segment = if (scrolls) (maxWidth - gap * (fitting - 1)) / fitting else (maxWidth - gap * (shownTabs.size - 1)) / shownTabs.size
+        val scroll = rememberScrollState()
+        // The chosen group is brought into view.
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        LaunchedEffect(current, scrolls) {
+            if (scrolls) {
+                val at = shownTabs.indexOf(current).coerceAtLeast(0)
+                val px = with(density) { ((segment + gap) * at).roundToPx() - ((maxWidth - segment) / 2).roundToPx() }
+                scroll.animateScrollTo(px.coerceIn(0, scroll.maxValue))
+            }
+        }
+        Row(
+            (if (scrolls) Modifier.horizontalScroll(scroll) else Modifier.fillMaxWidth()),
+            horizontalArrangement = Arrangement.spacedBy(gap),
+        ) {
         shownTabs.forEachIndexed { pos, i ->
             val tab = FunctionTabs[i]
-            val selected = current == i
+            val selected = current == i && !(KeypadState.signals && vm.padEquals)
             val outer = 20.dp
             val inner = 8.dp
             val shape = when {
@@ -857,7 +909,7 @@ private fun GroupBar(vm: KeypadHost) {
             }
             Box(
                 Modifier
-                    .weight(1f)
+                    .width(segment)
                     .height(38.dp)
                     .clip(shape)
                     .background(if (selected) colors.primary else colors.surfaceContainerHigh)
@@ -867,6 +919,7 @@ private fun GroupBar(vm: KeypadHost) {
             ) {
                 LabelView(tab.icon, if (selected) colors.onPrimary else colors.onSurfaceVariant, fontSize = 16f, iconSize = 20.dp)
             }
+        }
         }
     }
 }
@@ -1120,6 +1173,24 @@ private fun QuickVariables(host: KeypadHost) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // The signals keys (step, box, waves…), for graphs only: they take the function keys' place.
+        val on = KeypadState.signals
+        Box(
+            Modifier
+                .height(36.dp)
+                .clip(CircleShape)
+                .background(if (on) colors.primary else colors.secondaryContainer)
+                .clickable(onClickLabel = tr("Signals")) {
+                    if (AppSettings.haptics) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    KeypadState.signals = !on
+                    if (!on && !host.panelOpen) host.togglePanel()
+                }
+                .semantics { contentDescription = tr("Signals"); stateDescription = if (on) "on" else "off" }
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            AppIcon(TabIcons.Signals, contentDescription = null, tint = if (on) colors.onPrimary else colors.onSecondaryContainer, modifier = Modifier.size(22.dp))
+        }
         host.quickVariables.forEach { v ->
             Box(
                 Modifier
@@ -1340,7 +1411,7 @@ private fun ConstantsSheet(units: UnitSystem, onPick: (String) -> Unit, onDismis
                 (q.isEmpty() || k.description.lowercase().contains(q) || k.id.lowercase() == q || symbolText(k).lowercase() == q)
         }.groupBy { it.category }
     }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerLow) {
+    StillSheet(onDismissRequest = onDismiss, containerColor = colors.surfaceContainerLow) {
         Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 20.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(tr("Physical constants"), style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.weight(1f))
             Text(
@@ -1609,7 +1680,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             SettingsToggle("Continue from the answer", "An operator after = starts with Ans", AppSettings.continueFromAnswer, AppSettings::changeContinueFromAnswer)
             SettingsToggle("Explanations on long-press", "Formula, theory and how to use each key", AppSettings.keyHelp, AppSettings::changeKeyHelp)
             SettingsLink(
-                "Calculator tabs", "${CalcTabs.shown().size} on the keypad. Reorder them, put some away, or add more: number theory, special functions",
+                "Calculator tabs", "${CalcTabs.shown().size} on the keypad. Reorder them, put some away, or add more: special functions, combinatorics, polynomials",
                 "Choose the calculator's tabs",
             ) { tabsPage = true }
         },

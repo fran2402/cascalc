@@ -476,9 +476,19 @@ def badge(text, cx, cy, scale):
     return out[:len(ps)], out[len(ps):]
 def dist(spoken, name, curve, letter, at, thin=('M3 19h18',), scale=0.54):
     st, fl = badge(letter, *at, scale)
-    o = {'accent': list(curve), 'inkThin': list(thin) + st, 'inkFill': fl}
+    # pdf or cdf written after the curve, in ink, so the two kinds can't be mixed up.
+    kind = 'cdf' if ('distribution function' in spoken or 'cumulative' in spoken) else 'pdf'
+    ws, wf = badge(kind, 0, 0, WORD)
+    b = ControlBoundsPen(None)
+    for d in ws: parse_path(d, b)
+    ww = b.bounds[2] - b.bounds[0]
+    W = math.ceil(24 + 1.5 + ww + 2)
+    ws, wf = badge(kind, 24 + 1.5 + ww / 2, 12.6, WORD)
+    o = {'accent': list(curve), 'inkThin': list(thin) + st + ws, 'inkFill': fl + wf}
     args = [f'{k} = listOf({", ".join(chr(34) + p + chr(34) for p in v)})' for k, v in o.items() if v]
-    return f'            "{spoken}" to key("{name}", {", ".join(args)}),'
+    return f'            "{spoken}" to key("{name}", width = {W}f, {", ".join(args)}),'
+WORD = 0.62
+import math
 TR, BR, TL = (17.6, 7.4), (17.6, 14), (6.2, 7)
 axes = ('M3 19h18', 'M4 4v15')
 lines += [

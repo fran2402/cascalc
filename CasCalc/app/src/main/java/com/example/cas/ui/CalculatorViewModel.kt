@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.drop
 import com.example.cas.cas.Expr
 import com.example.cas.cas.MathError
 import com.example.cas.editor.Editor
@@ -72,11 +73,16 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
     /** Values stored with :=, e.g. a := 5. */
     val variables = mutableStateMapOf<String, Expr>()
 
-    var angle by mutableStateOf(AngleUnit.valueOf(prefs.getString("angle", AngleUnit.Radians.name)!!))
-        private set
-    var tab by mutableIntStateOf(prefs.getInt("tab", 0).coerceIn(0, FunctionTabs.lastIndex))
-    var panelExpanded by mutableStateOf(prefs.getBoolean("panel", true))
-        private set
+    init {
+        KeypadState.init(prefs)
+        // Rad/Deg and the rest can change in another mode: the preview follows.
+        viewModelScope.launch {
+            androidx.compose.runtime.snapshotFlow { Triple(KeypadState.angle, KeypadState.unitSystem, KeypadState.coordinates) }
+                .drop(1).collect { schedulePreview() }
+        }
+    }
+    // Shared with the graphs: the keypad stays as it was when switching modes.
+    val angle get() = KeypadState.angle
     var historyMode by mutableStateOf(false)
     var preview by mutableStateOf<Answer?>(null)
         private set
@@ -200,30 +206,26 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
     fun insertNumber(v: Double) = reuse(Formatter.row(Flt(v)))
     fun insertComplex(v: com.example.cas.cas.CD) = reuse(Formatter.row(com.example.cas.cas.Numeric.fromCD(v)))
 
-    override var unitSystem by mutableStateOf(runCatching { com.example.cas.engine.UnitSystem.valueOf(prefs.getString("units", "SI")!!) }.getOrDefault(com.example.cas.engine.UnitSystem.SI))
-        private set
+    override val unitSystem get() = KeypadState.unitSystem
 
     override fun selectUnitSystem(units: com.example.cas.engine.UnitSystem) {
-        unitSystem = units
-        prefs.edit().putString("units", units.name).apply()
+        KeypadState.selectUnitSystem(units)
         schedulePreview()
     }
 
-    override var coordinates by mutableStateOf(loadCoordinates(prefs))
-        private set
+    override val coordinates get() = KeypadState.coordinates
 
     override fun selectCoordinates(c: com.example.cas.cas.Coordinates) {
-        coordinates = c
-        saveCoordinates(prefs, c)
+        KeypadState.selectCoordinates(c)
         schedulePreview()
     }
 
     /** Letters chosen earlier for a coordinate system (or its defaults). */
-    override fun coordinatesOf(kind: com.example.cas.cas.CoordinateKind) = coordinatesFor(prefs, kind)
+    override fun coordinatesOf(kind: com.example.cas.cas.CoordinateKind) = KeypadState.coordinatesOf(kind)
 
-    override val angleUnit get() = angle
-    override val panelOpen get() = panelExpanded
-    override val selectedTab get() = tab
+    override val angleUnit get() = KeypadState.angle
+    override val panelOpen get() = KeypadState.panelOpen
+    override val selectedTab get() = KeypadState.tab
 
     /** True right after "=", until the next key: an operator then continues from the answer. */
     private var justEvaluated = false
@@ -262,20 +264,13 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
     fun tapAt(row: MathRow, index: Int) = editor.setCursor(row, index)
 
     override fun toggleAngle() {
-        angle = if (angle == AngleUnit.Radians) AngleUnit.Degrees else AngleUnit.Radians
-        prefs.edit().putString("angle", angle.name).apply()
+        KeypadState.toggleAngle()
         schedulePreview()
     }
 
-    override fun togglePanel() {
-        panelExpanded = !panelExpanded
-        prefs.edit().putBoolean("panel", panelExpanded).apply()
-    }
+    override fun togglePanel() = KeypadState.togglePanel()
 
-    override fun selectTab(index: Int) {
-        tab = index
-        prefs.edit().putInt("tab", index).apply()
-    }
+    override fun selectTab(index: Int) = KeypadState.selectTab(index)
 
     /** Puts a copy of a past expression or result at the cursor. */
     fun reuse(content: MathRow) {

@@ -28,7 +28,7 @@ class EveryKeyTest {
     }
 
     @Test fun noKeyThrows() {
-        val keys = FunctionTabs.flatMap { t -> (if (t.title == "Symbols") letterRows(emptyList()) else t.keys).flatten() } + MainKeys.flatten()
+        val keys = FunctionTabs.flatMap { t -> (if (t.title == "Symbols") letterRows(emptyList()) else t.keys).flatten() } + MainKeys.flatten() + com.example.cas.ui.ExtraKeyPages.flatMap { it.flatten() }
         for (k in keys) {
             try {
                 val ed = Editor()

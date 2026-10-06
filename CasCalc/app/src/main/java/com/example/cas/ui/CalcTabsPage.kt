@@ -50,7 +50,9 @@ fun CalcTabsPage(onBack: () -> Unit) {
 
         SettingsSection("On the keypad")
         ReorderableColumn(shown, key = { it }, onMove = { from, to ->
-            val s = shown.toMutableList(); s.add(to, s.removeAt(from)); commit(s, hidden)
+            // Read afresh: several moves can come before the page is drawn again.
+            val now = CalcTabs.order()
+            val s = now.filter { CalcTabs.isShown(it) }.toMutableList(); s.add(to, s.removeAt(from)); commit(s, now.filter { !CalcTabs.isShown(it) })
         }) { i, handle ->
             TabRow(i, handle) {
                 // The last tab can't go: the keypad always has one.
@@ -99,14 +101,6 @@ private fun TabRow(i: Int, handle: Modifier?, end: @Composable () -> Unit) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(tr(tab.title), style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
-                // The extra tabs, until they're added the first time.
-                if (tab.optional && AppSettings.shownTabs == null) {
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        tr("New"), style = MaterialTheme.typography.labelSmall, color = colors.onTertiaryContainer,
-                        modifier = Modifier.clip(CircleShape).background(colors.tertiaryContainer).padding(horizontal = 8.dp, vertical = 2.dp),
-                    )
-                }
             }
             if (tab.about.isNotEmpty()) MathText(tr(tab.about), color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }

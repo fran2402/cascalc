@@ -10,6 +10,9 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 import com.example.cas.cas.Eq
 import com.example.cas.cas.Expr
 import com.example.cas.cas.MathError
@@ -285,17 +288,9 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         super.onCleared()
     }
 
-    var angle by mutableStateOf(AngleUnit.valueOf(prefs.getString("angle", AngleUnit.Radians.name)!!))
-        private set
-    // In the complex plotter the function keys start open on the ℂ tab (ζ, Γ, Re, Im…);
-    // real graphs start with just the number pad.
-    var tab by mutableIntStateOf(
-        prefs.getInt("${key}_tab", if (plotVars == listOf("z")) FunctionTabs.indexOfFirst { it.icon == KeyLabel.Icon(IconId.ComplexC) } else 0)
-            .coerceIn(0, FunctionTabs.lastIndex),
-    )
-        private set
-    var panelExpanded by mutableStateOf(prefs.getBoolean("${key}_panel", plotVars == listOf("z")))
-        private set
+    init { KeypadState.init(prefs) }
+    // Shared with the calculator and the other graphs: the keypad stays as it was between modes.
+    val angle get() = KeypadState.angle
 
     private var nextColor = 0
 
@@ -2287,17 +2282,12 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
 
     // ---- KeypadHost: keys edit the active function -------------------------------
 
-    override var coordinates by mutableStateOf(loadCoordinates(prefs))
-        private set
+    override val coordinates get() = KeypadState.coordinates
 
-    override fun selectCoordinates(c: com.example.cas.cas.Coordinates) {
-        coordinates = c
-        saveCoordinates(prefs, c)
-        functions.forEach { recompile(it) }
-    }
+    override fun selectCoordinates(c: com.example.cas.cas.Coordinates) = KeypadState.selectCoordinates(c)
 
     /** Letters chosen earlier for a coordinate system (or its defaults). */
-    override fun coordinatesOf(kind: com.example.cas.cas.CoordinateKind) = coordinatesFor(prefs, kind)
+    override fun coordinatesOf(kind: com.example.cas.cas.CoordinateKind) = KeypadState.coordinatesOf(kind)
 
     override val canUndo get() = active?.let { it.version; it.editor.canUndo } ?: false
     override val canRedo get() = active?.let { it.version; it.editor.canRedo } ?: false
@@ -2320,33 +2310,27 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         show(listOf(com.example.cas.engine.LatexParser.parse(latex)))
     }
 
-    override var unitSystem by mutableStateOf(runCatching { com.example.cas.engine.UnitSystem.valueOf(prefs.getString("units", "SI")!!) }.getOrDefault(com.example.cas.engine.UnitSystem.SI))
-        private set
+    override val unitSystem get() = KeypadState.unitSystem
 
-    override fun selectUnitSystem(units: com.example.cas.engine.UnitSystem) {
-        unitSystem = units
-        prefs.edit().putString("units", units.name).apply()
-        functions.forEach { recompile(it) }
-    }
+    override fun selectUnitSystem(units: com.example.cas.engine.UnitSystem) = KeypadState.selectUnitSystem(units)
 
-    override val angleUnit get() = angle
-    override val panelOpen get() = panelExpanded
-    override val selectedTab get() = tab
+    override val angleUnit get() = KeypadState.angle
+    override val panelOpen get() = KeypadState.panelOpen
+    override val selectedTab get() = KeypadState.tab
 
-    override fun toggleAngle() {
-        angle = if (angle == AngleUnit.Radians) AngleUnit.Degrees else AngleUnit.Radians
-        prefs.edit().putString("angle", angle.name).apply()
-        functions.forEach { recompile(it) }
-    }
+    override fun toggleAngle() = KeypadState.toggleAngle()
 
-    override fun togglePanel() {
-        panelExpanded = !panelExpanded
-        prefs.edit().putBoolean("${key}_panel", panelExpanded).apply()
-    }
+    override fun togglePanel() = KeypadState.togglePanel()
 
-    override fun selectTab(index: Int) {
-        tab = index
-        prefs.edit().putInt("${key}_tab", index).apply()
+    override fun selectTab(index: Int) = KeypadState.selectTab(index)
+
+    init {
+        // Rad/Deg, the constants' units and the ∇ coordinates are shared with every mode: when any
+        // of them changes (here or elsewhere), the lines are worked out again.
+        viewModelScope.launch {
+            androidx.compose.runtime.snapshotFlow { Triple(KeypadState.angle, KeypadState.unitSystem, KeypadState.coordinates) }
+                .drop(1).collect { functions.forEach { recompile(it) } }
+        }
     }
 
     override fun moveLeft() { active?.editor?.moveLeft() }

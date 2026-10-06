@@ -105,8 +105,8 @@ internal fun tipIcon(key: String): ImageVector = when (key) {
 @Composable
 private fun PhoneGuide(mode: Mode, onMode: (Mode) -> Unit, onTry: (Mode, MathRow) -> Unit, onDismiss: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    val state = rememberModalBottomSheetState(skipPartiallyExpanded = false)
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = state, containerColor = colors.surfaceContainerLow) {
+    val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    StillSheet(onDismissRequest = onDismiss, sheetState = state, containerColor = colors.surfaceContainerLow) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
             ModeChips(mode, onMode)
             Spacer(Modifier.height(16.dp))
