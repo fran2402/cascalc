@@ -782,7 +782,8 @@ private fun FuncView(f: Func, row: MathRow, index: Int, level: Int) {
             val spec = com.example.cas.engine.FunctionNotation.specs.getValue(f.name)
             if (f.args.size != spec.arity) AxisRow(level) { MathText(f.name, level, tap); FuncArguments(f, level) }
             else AxisRow(level) {
-                val base: @Composable () -> Unit = { MathText(spec.base, level, italic = spec.italic, upright = !spec.italic) }
+                // A thin space after P and C when both scripts are there, so they don't touch it.
+                val base: @Composable () -> Unit = { MathText(spec.base + if (spec.spaced) "\u2009" else "", level, italic = spec.italic, upright = !spec.italic) }
                 if (spec.sub != null || spec.sup != null) Scripts(
                     level, tap, base = base,
                     sub = spec.sub?.let { k -> { RowView(f.args[k], level + 1) } },

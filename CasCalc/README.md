@@ -203,6 +203,19 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (6 October, "How to use" for every key, Pₙᵐ and Cₙᵅ spacing)
+
+- **Every key's long-press card has a How to use section**: where its boxes go and a worked
+  example (\(\binom{5}{2} = 10\), \(L(4, 2) = 36\), \(T_3(x) = 4x^3 - 3x\), the first six on the
+  third roll…). Keys on the second pages say how to reach them (the 1/△ switch for the
+  reciprocal functions, the pdf/cdf switch for the distributions, the signals button in the
+  graphs), and combinatorics and polynomial keys show how they're written (\(L(\square, \square)\),
+  \(P_{\square}^{\square}(\square)\)). New ui/KeyHowTo.kt; a test checks every key has one.
+- Formulas follow the new notation: Bell \(B(n)\), Eulerian \(A(n, k)\) written out, the
+  generalized Laguerre and Gegenbauer recurrences with \(\alpha\) as a superscript.
+- **Pₙᵐ and Cₙᵅ in the math** (editor, answers, LaTeX), not just on the keys: a thin space after
+  the P or C so the superscript doesn't touch it.
+
 ## Latest changes (6 October, page-switch icons, narrower Rad/Deg, 2D view fix)
 
 - The trigonometry and statistics second pages are switched by drawn icons: 1 over a right

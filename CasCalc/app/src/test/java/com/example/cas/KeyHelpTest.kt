@@ -37,4 +37,17 @@ class KeyHelpTest {
             if (k.spoken !in noFormula) assertTrue("${k.spoken} has no formula", h.formula.isNotBlank())
         }
     }
+
+    @Test fun everyKeyHasHowToUse() {
+        val missing = keys.filter { KeyHelps.of(it.spoken).usage.isBlank() }.map { it.spoken }.distinct()
+        assertTrue("No how-to for: $missing", missing.isEmpty())
+    }
+
+    @Test fun everyHowToParses() {
+        for (k in keys) {
+            val h = KeyHelps.of(k.spoken)
+            for ((isMath, piece) in LatexParser.inline(h.usage)) if (isMath)
+                assertTrue("${k.spoken}: unknown LaTeX in ${h.usage}: ${LatexParser.unknownCommands(piece)}", LatexParser.unknownCommands(piece).isEmpty())
+        }
+    }
 }

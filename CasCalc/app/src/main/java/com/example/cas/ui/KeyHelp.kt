@@ -11,7 +11,10 @@ data class KeyHelp(val title: String, val formula: String = "", val about: Strin
 object KeyHelps {
     private fun h(title: String, formula: String, about: String, usage: String) = KeyHelp(title, formula, about, usage)
 
-    private val all: Map<String, KeyHelp> = mapOf(
+    // Every key's "How to use" comes from [KeyHowTo] where it has one.
+    private val all: Map<String, KeyHelp> get() = written
+    private val written: Map<String, KeyHelp> by lazy { base.mapValues { (k, v) -> KeyHowTo.usage[k]?.let { v.copy(usage = it) } ?: v } }
+    private val base: Map<String, KeyHelp> = mapOf(
         // ---- Powers, roots, logs
         "pi" to h("π", """\pi = 3.14159\,26535\ldots""", """The ratio of a circle's circumference to its diameter.""", """Kept exact: \(\sin\frac{\pi}{6} = \frac{1}{2}\). Tap ≈ on an answer for the decimal."""),
         "e" to h("Euler's number", """e = \lim_{n\to\infty} \left(1 + \frac{1}{n}\right)^n = 2.71828\ldots""", """The base of natural logarithms: \(\frac{d}{dx} e^x = e^x\).""", """Kept exact: \(\ln e = 1\)."""),
@@ -241,11 +244,11 @@ F' = f""", """The area under \(f\). Leave the limits empty for an antiderivative
         "Weibull distribution function" to h("Weibull distribution", """F(x) = 1 - e^{-(x/\lambda)^k}""", """The chance of failing by time \(x\).""", """weibcdf(x, k, λ)."""),
         "Stirling number of the first kind" to h("Stirling numbers, first kind", """s(n, k):\quad s(4, 2) = 11""", """Permutations of \(n\) things with exactly \(k\) cycles.""", """stirling1(n, k)."""),
         "Stirling number of the second kind" to h("Stirling numbers, second kind", """S(n, k):\quad S(4, 2) = 7""", """Ways to split \(n\) things into \(k\) non-empty groups.""", """stirling2(n, k)."""),
-        "Bell number" to h("Bell numbers", """B_n = \sum_{k=0}^{n} S(n, k)""", """All the ways to split \(n\) things into groups: 1, 1, 2, 5, 15, 52, …""", """"""),
+        "Bell number" to h("Bell numbers", """B(n) = \sum_{k=0}^{n} S(n, k)""", """All the ways to split \(n\) things into groups: 1, 1, 2, 5, 15, 52, …""", """"""),
         "derangements" to h("Derangements", """!n = n! \sum_{k=0}^{n} \frac{(-1)^k}{k!}""", """Orderings with nothing in its own place; about \(\frac{n!}{e}\).""", """"""),
         "Narayana number" to h("Narayana numbers", """N(n, k) = \frac{1}{n}\binom{n}{k}\binom{n}{k - 1}""", """Split the Catalan numbers by peaks.""", """"""),
         "Lah number" to h("Lah numbers", """L(n, k) = \binom{n - 1}{k - 1}\frac{n!}{k!}""", """Ways to split \(n\) things into \(k\) ordered lists.""", """"""),
-        "Eulerian number" to h("Eulerian numbers", """A(n, k)""", """Permutations of \(n\) with exactly \(k\) ascents.""", """"""),
+        "Eulerian number" to h("Eulerian numbers", """A(n, k) = \sum_{j=0}^{k} (-1)^j \binom{n + 1}{j} (k + 1 - j)^n""", """Permutations of \(n\) with exactly \(k\) ascents.""", """"""),
         "rising factorial" to h("Rising factorial", """x^{(n)} = x(x + 1)\cdots(x + n - 1)""", """\(n\) factors climbing from \(x\); \(x\) may be a letter.""", """rising(x, n)."""),
         "falling factorial" to h("Falling factorial", """(x)_n = x(x - 1)\cdots(x - n + 1)""", """\(n\) ordered choices from \(x\); \(x\) may be a letter.""", """falling(x, n)."""),
         "superfactorial" to h("Superfactorial", """\operatorname{sf}(n) = 1!\,2!\cdots n!""", """The product of the first \(n\) factorials.""", """"""),
@@ -317,10 +320,10 @@ F' = f""", """The area under \(f\). Leave the limits empty for an antiderivative
         "Hermite polynomial" to h("Hermite polynomial", """H_{n+1} = 2x H_n - 2n H_{n-1}""", """The physicists' Hermite polynomials; orthogonal with weight \(e^{-x^2}\).""", """hermite(n, x)."""),
         "probabilists' Hermite polynomial" to h("Probabilists' Hermite polynomial", """He_{n+1} = x He_n - n He_{n-1}""", """Orthogonal with weight \(e^{-x^2/2}\).""", """hermitehe(n, x)."""),
         "Laguerre polynomial" to h("Laguerre polynomial", """(n + 1) L_{n+1} = (2n + 1 - x) L_n - n L_{n-1}""", """Orthogonal for \(x \ge 0\) with weight \(e^{-x}\).""", """laguerre(n, x)."""),
-        "generalized Laguerre polynomial" to h("Generalized Laguerre polynomial", """L_n^{(\alpha)}(x)""", """Weight \(x^{\alpha} e^{-x}\); the hydrogen atom's radial functions.""", """genlaguerre(n, α, x)."""),
+        "generalized Laguerre polynomial" to h("Generalized Laguerre polynomial", """(n + 1) L_{n+1}^{\alpha}(x) = (2n + 1 + \alpha - x) L_n^{\alpha}(x) - (n + \alpha) L_{n-1}^{\alpha}(x)""", """Weight \(x^{\alpha} e^{-x}\); the hydrogen atom's radial functions.""", """genlaguerre(n, α, x)."""),
         "Chebyshev polynomial of the first kind" to h("Chebyshev T", """T_n(\cos\theta) = \cos n\theta""", """\(T_{n+1} = 2x T_n - T_{n-1}\).""", """chebyshevt(n, x)."""),
         "Chebyshev polynomial of the second kind" to h("Chebyshev U", """U_n(\cos\theta) = \frac{\sin (n + 1)\theta}{\sin\theta}""", """\(U_{n+1} = 2x U_n - U_{n-1}\).""", """chebyshevu(n, x)."""),
-        "Gegenbauer polynomial" to h("Gegenbauer polynomial", """C_n^{(\alpha)}(x)""", """Weight \((1 - x^2)^{\alpha - 1/2}\); \(\alpha = \frac{1}{2}\) gives Legendre.""", """gegenbauer(n, α, x)."""),
+        "Gegenbauer polynomial" to h("Gegenbauer polynomial", """(n + 1) C_{n+1}^{\alpha}(x) = 2(n + \alpha) x C_n^{\alpha}(x) - (n + 2\alpha - 1) C_{n-1}^{\alpha}(x)""", """Weight \((1 - x^2)^{\alpha - 1/2}\); \(\alpha = \frac{1}{2}\) gives Legendre.""", """gegenbauer(n, α, x)."""),
         "associated Legendre function" to h("Associated Legendre function", """P_n^m(x) = (-1)^m (1 - x^2)^{m/2} \frac{d^m}{dx^m} P_n(x)""", """In the spherical harmonics.""", """assoclegendre(n, m, x)."""),
         "Bernoulli polynomial" to h("Bernoulli polynomial", """B_n(x) = \sum_{k=0}^{n} \binom{n}{k} B_k x^{n-k}""", """\(B_n(0)\) is the Bernoulli number \(B_n\).""", """bernoullipoly(n, x)."""),
         "Fibonacci polynomial" to h("Fibonacci polynomial", """F_{n+1} = x F_n + F_{n-1}""", """\(F_0 = 0\), \(F_1 = 1\); at \(x = 1\) the Fibonacci numbers.""", """fibpoly(n, x)."""),

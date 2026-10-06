@@ -13,6 +13,11 @@ object FunctionNotation {
      */
     class Spec(val base: String, val italic: Boolean, val sub: Int? = null, val sup: Int? = null, val args: List<Int>, val latex: String = base) {
         val arity get() = listOfNotNull(sub, sup).size + args.size
+        /**
+         * P and C reach out at the top right (P's bowl, C's arm): with both scripts they stand a
+         * thin space off, so the superscript doesn't touch the letter (Pₙᵐ, Cₙᵅ).
+         */
+        val spaced get() = sub != null && sup != null && base in setOf("P", "C")
     }
 
     private fun call(base: String, n: Int, latex: String = base) = Spec(base, true, args = (0 until n).toList(), latex = latex)
@@ -47,7 +52,7 @@ object FunctionNotation {
         val sub = s.sub?.let { "_{" + a[it] + "}" } ?: ""
         val sup = s.sup?.let { "^{" + a[it] + "}" } ?: ""
         val args = if (s.args.isEmpty()) "" else "\\left(" + s.args.joinToString(", ") { a[it] } + "\\right)"
-        return s.latex + sub + sup + args
+        return (if (s.spaced) "{" + s.latex + "\\,}" else s.latex) + sub + sup + args
     }
 
     /** A single letter or number goes as it is; anything longer in brackets. */
