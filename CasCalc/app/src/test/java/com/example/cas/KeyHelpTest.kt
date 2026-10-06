@@ -21,10 +21,10 @@ class KeyHelpTest {
     @Test fun everyExplanationDraws() {
         for (k in keys) {
             val h = KeyHelps.of(k.spoken)
-            val rows = LatexParser.lines(h.formula) + listOf(h.about, h.usage).flatMap { t -> LatexParser.inline(t).filter { it.first }.map { LatexParser.parse(it.second) } }
+            val rows = LatexParser.lines(h.formula) + (listOf(h.about) + h.steps + h.examples.map { it.note }).flatMap { t -> LatexParser.inline(t).filter { it.first }.map { LatexParser.parse(it.second) } }
             // An empty symbol crashed the renderer (a doubled backslash in the help text made one).
             rows.forEach { assertTrue("${k.spoken}: empty symbol in ${h.formula} / ${h.about}", emptySymbols(it) == 0) }
-            listOf(h.formula, h.about, h.usage).forEach { assertTrue("${k.spoken}: doubled backslash in $it", !it.contains("\\\\(") && !it.contains("\\\\frac")) }
+            (listOf(h.formula, h.about) + h.steps + h.examples.map { it.note }).forEach { assertTrue("${k.spoken}: doubled backslash in $it", !it.contains("\\\\(") && !it.contains("\\\\frac")) }
         }
     }
 
@@ -38,16 +38,34 @@ class KeyHelpTest {
         }
     }
 
-    @Test fun everyKeyHasHowToUse() {
-        val missing = keys.filter { KeyHelps.of(it.spoken).usage.isBlank() }.map { it.spoken }.distinct()
-        assertTrue("No how-to for: $missing", missing.isEmpty())
+    @Test fun everyKeyHasAGuide() {
+        // Editing keys and constants need no example.
+        val noExample = setOf("all clear", "backspace", "previous answer", "symbol builder", "saved symbol", "list of constants with names") +
+            com.example.cas.engine.Constant.entries.map { it.description.substringBefore(" (") }
+        val missing = keys.filter { k -> KeyHelps.of(k.spoken).let { it.about.isBlank() || it.steps.isEmpty() || (it.examples.isEmpty() && k.spoken !in noExample) } }.map { it.spoken }.distinct()
+        assertTrue("No guide for: $missing", missing.isEmpty())
     }
 
-    @Test fun everyHowToParses() {
+    @Test fun everyGuideTextParses() {
         for (k in keys) {
             val h = KeyHelps.of(k.spoken)
-            for ((isMath, piece) in LatexParser.inline(h.usage)) if (isMath)
-                assertTrue("${k.spoken}: unknown LaTeX in ${h.usage}: ${LatexParser.unknownCommands(piece)}", LatexParser.unknownCommands(piece).isEmpty())
+            for (t in listOf(h.about) + h.steps + h.examples.map { it.note })
+                for ((isMath, piece) in LatexParser.inline(t)) if (isMath)
+                    assertTrue("${k.spoken}: unknown LaTeX in $t: ${LatexParser.unknownCommands(piece)}", LatexParser.unknownCommands(piece).isEmpty())
         }
+    }
+
+    /** Every example works out (the card shows its answer); the answers are written out for checking. */
+    @Test fun everyExampleWorksOut() {
+        val failures = ArrayList<String>()
+        val out = StringBuilder()
+        for (k in keys.distinctBy { it.spoken }) for (e in KeyHelps.of(k.spoken).examples) {
+            try {
+                val (a, approx) = com.example.cas.ui.KeyGuides.answer(e) ?: throw IllegalStateException("works out to itself")
+                out.append(k.spoken).append(": ").append(com.example.cas.engine.Latex.of(e.row)).append(if (approx) "  ≈  " else "  =  ").append(com.example.cas.engine.Latex.of(a)).append('\n')
+            } catch (ex: Exception) { failures += "${k.spoken}: ${com.example.cas.engine.Latex.of(e.row)}: ${ex.message}" }
+        }
+        System.getenv("KEY_EXAMPLES")?.let { java.io.File(it).writeText(out.toString()) }
+        assertTrue(failures.joinToString("\n"), failures.isEmpty())
     }
 }

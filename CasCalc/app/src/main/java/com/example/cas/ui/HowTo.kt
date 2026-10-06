@@ -128,7 +128,7 @@ private fun docsSearch(query: String): List<Pair<Int, Int>> {
         is Docs.Block.Bullets -> items.joinToString(" ")
         is Docs.Block.Table -> rows.joinToString(" ") { it.first + " " + it.second }
         is Docs.Block.Examples -> examples.joinToString(" ") { it.note + " " + com.example.cas.engine.Formatter.plain(it.row) }
-        is Docs.Block.Keys -> groups.flatMap { g -> KeyHelps.groups.firstOrNull { it.first == g }?.second.orEmpty() }.joinToString(" ") { k -> KeyHelps.of(k).let { it.title + " " + it.about + " " + it.usage } }
+        is Docs.Block.Keys -> groups.flatMap { g -> KeyHelps.groups.firstOrNull { it.first == g }?.second.orEmpty() }.joinToString(" ") { k -> KeyHelps.of(k).let { it.title + " " + it.about + " " + it.steps.joinToString(" ") } }
         else -> ""
     }
     return Docs.chapters.flatMapIndexed { c, ch ->
@@ -367,7 +367,7 @@ private fun DocsBlock(b: Docs.Block) {
                         }
                     }
                     if (help.about.isNotEmpty()) MathText(help.about, style = MaterialTheme.typography.bodyMedium, color = colors.onSurface)
-                    if (help.usage.isNotEmpty()) MathText(help.usage, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                    help.steps.forEachIndexed { k, step -> MathText("${k + 1}. $step", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant) }
                 }
             }
         }

@@ -2434,7 +2434,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     override fun press(action: KeyAction) {
         // With no line open (the tablet's keyboard is always there), typing starts a new one.
         if (active == null && (action is KeyAction.Type || action is KeyAction.Insert || action is KeyAction.Power ||
-                action == KeyAction.Fraction || action == KeyAction.Paren || action == KeyAction.ListBrackets || action is KeyAction.Sequence)) add()
+                action == KeyAction.Fraction || action == KeyAction.Paren || action == KeyAction.ListBrackets || action is KeyAction.Sequence || action is KeyAction.Paste)) add()
         val ed = active?.editor ?: return
         when (action) {
             is KeyAction.Type -> ed.type(action.text)
@@ -2459,6 +2459,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             // Enter (bottom right) finishes the line, as Back does.
             KeyAction.Enter -> edit(null)
             is KeyAction.Sequence -> action.steps.forEach { press(it) }
+            is KeyAction.Paste -> ed.insertRow(action.row)
             KeyAction.PickMatrix, KeyAction.MoreConstants, KeyAction.OpenSymbolBuilder -> Unit
         }
     }

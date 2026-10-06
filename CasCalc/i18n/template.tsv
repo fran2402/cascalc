@@ -41,10 +41,6 @@ Reciprocal functions
 Distributions	
 Undefine	
 Remove symbol	
-How to use	
-Open the NIST page	
-NIST CODATA value and uncertainty	
-Dismiss	
 Signals	
 Hide the keyboard	
 Show the keyboard	
@@ -393,6 +389,11 @@ You type
 Answer	
 Start a cell with =. Cells are A1, B2…; ranges A1:A10 or whole columns A:A; $A$1 stays put when filled down. Operators + − * / ^ % & and comparisons = <> < > <= >=. Text goes in "quotes".	
 Search, e.g. lookup, NORM, date	
+In degrees.	
+Type this example	
+Try it	
+Open the NIST page	
+NIST CODATA value and uncertainty	
 Guide	
 Show the guide to {0}	
 Try	
@@ -610,6 +611,8 @@ Minimum
 Zero	
 Finish	
 Next	
+Unpin	
+Pin	
 Data table	
 Data	
 Change the filter…	

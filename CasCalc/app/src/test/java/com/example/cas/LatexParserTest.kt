@@ -36,10 +36,10 @@ class LatexParserTest {
         for (k in keys) {
             val h = com.example.cas.ui.KeyHelps.of(k)
             LatexParser.lines(h.formula)
-            (LatexParser.inline(h.about) + LatexParser.inline(h.usage)).filter { it.first }.forEach { LatexParser.parse(it.second) }
+            (LatexParser.inline(h.about) + h.steps.flatMap { LatexParser.inline(it) }).filter { it.first }.forEach { LatexParser.parse(it.second) }
             // Every command used is one the parser knows.
             val unknown = h.formula.split('\n').flatMap { LatexParser.unknownCommands(it) } +
-                (LatexParser.inline(h.about) + LatexParser.inline(h.usage)).filter { it.first }.flatMap { LatexParser.unknownCommands(it.second) }
+                (LatexParser.inline(h.about) + h.steps.flatMap { LatexParser.inline(it) }).filter { it.first }.flatMap { LatexParser.unknownCommands(it.second) }
             assertTrue("$k uses unsupported LaTeX: $unknown", unknown.isEmpty())
         }
     }
@@ -102,7 +102,7 @@ class LatexParserTest {
         for (k in keys) {
             val h = com.example.cas.ui.KeyHelps.of(k)
             LatexParser.lines(h.formula).forEach { assertTrue("$k: ${MathCodec.encode(it)}", balanced(it)) }
-            (LatexParser.inline(h.about) + LatexParser.inline(h.usage)).filter { it.first }.forEach { (_, m) -> assertTrue("$k: $m", balanced(LatexParser.parse(m))) }
+            (LatexParser.inline(h.about) + h.steps.flatMap { LatexParser.inline(it) }).filter { it.first }.forEach { (_, m) -> assertTrue("$k: $m", balanced(LatexParser.parse(m))) }
         }
     }
 }

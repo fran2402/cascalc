@@ -253,6 +253,7 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
             KeyAction.Clear -> editor.clear()
             KeyAction.Enter -> enter()
             is KeyAction.Sequence -> action.steps.forEach { press(it) }
+            is KeyAction.Paste -> editor.insertRow(action.row)
             KeyAction.PickMatrix, KeyAction.MoreConstants, KeyAction.OpenSymbolBuilder, KeyAction.ListBrackets -> Unit // handled by the screen (dialogs)
         }
     }

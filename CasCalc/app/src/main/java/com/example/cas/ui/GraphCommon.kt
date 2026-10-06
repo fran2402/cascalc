@@ -699,15 +699,14 @@ private fun ColorTrack(label: String, fraction: Float, track: Brush, onChange: (
 fun plotColor(index: Int): Color = plotColors(MaterialTheme.colorScheme)[index % GraphViewModel.PLOT_COLOR_COUNT]
 
 /**
- * The graph colors in a color scheme, in the order lines take them when no color has been
- * picked: the theme's primary, secondary, tertiary and error colors, then its surface's own
- * ink (the inverse surface, so it shows on the plot); then four more from the theme for
- * variety: the deep (light in dark mode) tones of the primary, tertiary, secondary and error
- * containers' ink, which still stand out on the plot; and round again.
+ * The graph colors in a color scheme, in the order lines take them when no color has been picked:
+ * nine hues spaced evenly round the color wheel, starting at the theme's primary color (so the
+ * first line is the theme's own), all equally strong and clearly apart; then round again.
  */
-fun plotColors(c: androidx.compose.material3.ColorScheme): List<Color> =
-    listOf(c.primary, c.secondary, c.tertiary, c.error, c.inverseSurface,
-        c.onPrimaryContainer, c.onTertiaryContainer, c.onSecondaryContainer, c.onErrorContainer)
+fun plotColors(c: androidx.compose.material3.ColorScheme): List<Color> {
+    val dark = c.surface.luminance() < 0.5f
+    return com.example.cas.graph.Colormap.themeWheel(c.primary.toArgb(), dark, GraphViewModel.PLOT_COLOR_COUNT).map { Color(0xFF000000.toInt() or it) }
+}
 
 /** A line's name as written (text with $math$): the one it was given, or its default. */
 fun legendSource(f: PlotFunction): String =

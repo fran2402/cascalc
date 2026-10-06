@@ -71,6 +71,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -965,17 +966,23 @@ private fun KeyGrid(rows: List<List<KeySpec>>, rowHeight: Dp, onKey: (KeyAction)
     if (open != null) {
         val typed = (open.action as? KeyAction.Type)?.text
         val defined = typed != null && open.pinnable && host != null && typed in host.definedSymbols
-        KeyHelpDialog(
-            open.spoken,
+        // A letter, symbol or constant keeps its own buttons on the card: pin, undefine, remove.
+        val removable = typed?.takeIf { open.spoken == "saved symbol" }
+        val pinned = if (open.pinnable) PinnedKeys.isPinned(open.pinId) else null
+        val symbolActions: (@Composable RowScope.() -> Unit)? = if (pinned == null && !defined && removable == null) null else ({
+            if (pinned != null) FilledTonalButton(onClick = { PinnedKeys.toggle(open.pinId) }) { Text(tr(if (pinned) "Unpin" else "Pin")) }
+            if (defined && typed != null) FilledTonalButton(onClick = { host?.undefine(typed); helpFor = null }) {
+                Text(tr("Undefine") + (com.example.cas.cas.CustomSymbol.decode(typed)?.let { "" } ?: " $typed"))
+            }
+            if (removable != null) OutlinedButton(onClick = { SavedSymbols.remove(removable); if (PinnedKeys.isPinned(removable)) PinnedKeys.toggle(removable); helpFor = null }) {
+                Text(tr("Remove symbol"), color = MaterialTheme.colorScheme.error)
+            }
+        })
+        KeyHelpCard(
+            open,
             onDismiss = { helpFor = null },
-            // A symbol you built can be removed from its card.
-            onRemove = typed?.takeIf { open.spoken == "saved symbol" }?.let { t ->
-                { SavedSymbols.remove(t); if (PinnedKeys.isPinned(t)) PinnedKeys.toggle(t); helpFor = null }
-            },
-            pinned = if (open.pinnable) PinnedKeys.isPinned(open.pinId) else null,
-            onPin = { PinnedKeys.toggle(open.pinId) },
-            onUndefine = if (defined && typed != null) ({ host?.undefine(typed); helpFor = null }) else null,
-            symbol = typed?.takeIf { open.pinnable },
+            onTry = { row -> helpFor = null; onKey(KeyAction.Paste(row)) },
+            actions = symbolActions,
         )
     } else if (helpFor != null) helpFor = null
 }
@@ -1070,93 +1077,6 @@ private fun CalcKey(spec: KeySpec, fontSize: Float, onKey: (KeyAction) -> Unit, 
  * with inline math, and how to use it. It stays until Dismiss (or Back).
  */
 @OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun KeyHelpDialog(
-    spoken: String,
-    onDismiss: () -> Unit,
-    onRemove: (() -> Unit)? = null,
-    /** Null when the key can't be pinned. */
-    pinned: Boolean? = null,
-    onPin: () -> Unit = {},
-    onUndefine: (() -> Unit)? = null,
-    symbol: String? = null,
-) {
-    val colors = MaterialTheme.colorScheme
-    val help = KeyHelps.of(spoken)
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(dismissOnClickOutside = false),
-        title = { Text(help.title) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                if (help.formula.isNotEmpty()) {
-                    val lines = remember(help.formula) { LatexParser.lines(help.formula) }
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(colors.surfaceContainerHighest)
-                            .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        // All on one line, scrolling sideways, rather than stacked.
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                            lines.forEach { MathView(it, 22.sp, colors.onSurface) }
-                        }
-                    }
-                }
-                if (help.about.isNotEmpty()) MathText(help.about, style = MaterialTheme.typography.bodyLarge, color = colors.onSurface)
-                // Pin, undefine and remove, as buttons on the card.
-                if (pinned != null || onUndefine != null || onRemove != null) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (pinned != null) FilledTonalButton(onClick = onPin) {
-                            AppIcon(if (pinned) TableIcons.Unpin else TableIcons.Pin, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(if (pinned) "Unpin" else "Pin")
-                        }
-                        if (onUndefine != null) FilledTonalButton(onClick = onUndefine) {
-                            AppIcon(TableIcons.Close, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(tr("Undefine") + (symbol?.let { s -> com.example.cas.cas.CustomSymbol.decode(s)?.let { "" } ?: " $s" } ?: ""))
-                        }
-                        if (onRemove != null) OutlinedButton(onClick = onRemove) {
-                            AppIcon(TableIcons.Delete, contentDescription = null, modifier = Modifier.size(18.dp), tint = colors.error)
-                            Spacer(Modifier.width(8.dp))
-                            Text(tr("Remove symbol"), color = colors.error)
-                        }
-                    }
-                }
-                if (help.usage.isNotEmpty()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(tr("How to use"), style = MaterialTheme.typography.labelLarge, color = colors.primary)
-                        MathText(help.usage, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
-                    }
-                }
-                help.link?.let { url ->
-                    // The source: for constants, NIST's CODATA page.
-                    val uri = androidx.compose.ui.platform.LocalUriHandler.current
-                    Row(
-                        Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable(onClickLabel = tr("Open the NIST page")) { runCatching { uri.openUri(url) } }
-                            .padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        AppIcon(TableIcons.External, contentDescription = null, tint = colors.primary, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(tr("NIST CODATA value and uncertainty"),
-                            style = MaterialTheme.typography.bodyMedium.copy(textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline),
-                            color = colors.primary,
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(tr("Dismiss")) } },
-    )
-}
-
 @Composable
 private fun QuickVariables(host: KeypadHost) {
     val colors = MaterialTheme.colorScheme

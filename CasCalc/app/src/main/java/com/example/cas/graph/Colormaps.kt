@@ -108,6 +108,16 @@ class Colormap private constructor(
             return maps[name]
         }
 
+        /**
+         * The graphs' line colors: [n] hues spaced evenly round the OKLCH wheel, starting at the
+         * theme's primary color's hue, all at one lightness and chroma (darker on a light theme,
+         * lighter on a dark one) so no line outshines another and each is easy to tell apart.
+         */
+        fun themeWheel(primaryArgb: Int, dark: Boolean, n: Int = 9): IntArray {
+            val h0 = hueOf(primaryArgb)
+            return IntArray(n) { k -> lch(if (dark) 0.80 else 0.52, 0.13, h0 + 360.0 * k / n) }
+        }
+
         /** An ARGB color's OKLCH hue, in degrees. */
         private fun hueOf(argb: Int): Double {
             fun lin(c: Int): Double { val v = c / 255.0; return if (v <= 0.04045) v / 12.92 else Math.pow((v + 0.055) / 1.055, 2.4) }

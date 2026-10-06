@@ -771,7 +771,10 @@ object Simplify {
     }
 
     private fun complexPart(name: String, x: Expr): Expr {
-        val (re, im) = splitComplex(x)
+        // A constant like e^(iπ/3): its exact a + bi first; if that can't be found, Re stays as is.
+        val exact = if (x.isConstant && x !is Mat && !x.contains { it is Flt }) runCatching { ComplexArith.split(x) }.getOrNull() else null
+        val (re, im) = exact ?: splitComplex(x)
+        if (exact == null && (re.contains { it == I } || im.contains { it == I })) return Fn(name, listOf(x))
         return when (name) {
             "Re" -> re
             "Im" -> im

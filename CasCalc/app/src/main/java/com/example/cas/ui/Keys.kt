@@ -78,6 +78,8 @@ sealed interface KeyAction {
     data object PickMatrix : KeyAction
     data object MoreConstants : KeyAction
     class Sequence(vararg val steps: KeyAction) : KeyAction
+    /** Types a whole row at the cursor (an example's Try it). */
+    class Paste(val row: MathRow) : KeyAction
 }
 
 enum class KeyRole { Digit, Operator, Function, Clear, Equals }

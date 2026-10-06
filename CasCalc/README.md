@@ -203,6 +203,20 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (6 October, new key cards, evenly spaced graph colors)
+
+- **New key cards**: long-press any key for a card with the formula, what it is, numbered
+  steps for using it, and worked examples. Each example shows the calculator's own answer and has
+  a Try it button that types it into the line. On phones it is a sheet; on tablets, a two-column
+  dialog. Formulas in the text are typeset too, not only the main formula.
+- **All key help rewritten**: every key on every keypad has a new guide. Help for keys no longer
+  on any keypad is gone. Copy LaTeX and Pin are no longer on the cards; letter, symbol and
+  constant cards keep Pin, Undefine and Remove symbol.
+- **Graph colors spread evenly**: nine hues evenly spaced round the color wheel, starting at the
+  theme's primary color, all at the same lightness, so neighbouring lines are easy to tell apart.
+- **Fix**: Re, Im and conj of a constant like e^(i pi/3) now give the right part (1/2), not the
+  whole number.
+
 ## Latest changes (6 October, empty lines go away, more graph colors, key card mockup)
 
 - **Empty graph lines disappear**: Enter on an empty line (or moving to another line) removes it
