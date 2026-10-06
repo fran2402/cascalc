@@ -50,9 +50,9 @@ class ColormapTest {
     }
 
     @Test fun everyMatplotlibMapIsThere() {
-        // matplotlib's 86, the classic wheel, the theme's own map, the four made from the theme's
-        // colors and four more single hues.
-        assertEquals(96, Colormap.ALL.size)
+        // matplotlib's 86, the classic wheel, the theme's own map, the three more made from the
+        // theme's colors and four more single hues.
+        assertEquals(95, Colormap.ALL.size)
         assertEquals(Colormap.ALL.size, Colormap.ALL.map { it.name }.toSet().size)
         for (n in listOf("RdBu", "coolwarm", "tab10", "cubehelix", "berlin", "gist_ncar")) assertEquals(n, Colormap.byName(n).name)
     }
@@ -60,17 +60,19 @@ class ColormapTest {
     @Test fun themeMapFollowsTheUiColor() {
         val before = Colormap.themePrimary
         try {
-            Colormap.themePrimary = 0xFF3A6EA5.toInt(); assertEquals("Blues", Colormap.themeMap().name)
-            Colormap.themePrimary = 0xFF386A20.toInt(); assertEquals("Greens", Colormap.themeMap().name)
-            Colormap.themePrimary = 0xFF6750A4.toInt(); assertEquals("Purples", Colormap.themeMap().name)
-            Colormap.themePrimary = 0xFF707070.toInt(); assertEquals("Greys", Colormap.themeMap().name)
-            // Hues matplotlib has no single-hue map for get the generated ones.
-            Colormap.themePrimary = 0xFF006A6A.toInt(); assertEquals("Teals", Colormap.themeMap().name)
-            Colormap.themePrimary = 0xFF9A25AE.toInt(); assertEquals("Magentas", Colormap.themeMap().name)
-            Colormap.themePrimary = 0xFF6D5E0F.toInt(); assertEquals("Yellows", Colormap.themeMap().name)
-            // The theme map is first among the default favorites, and draws from the matching map.
+            // The theme map is a ramp in the primary color's own hue: its deep end has that hue.
+            fun hue(c: Int): Float { val hsv = FloatArray(3); val r = (c shr 16) and 0xFF; val g = (c shr 8) and 0xFF; val b = c and 0xFF
+                val max = maxOf(r, g, b); val min = minOf(r, g, b); val d = (max - min).toFloat(); if (d == 0f) return 0f
+                val h = when (max) { r -> 60 * (((g - b) / d) % 6); g -> 60 * ((b - r) / d + 2); else -> 60 * ((r - g) / d + 4) }
+                return if (h < 0) h + 360 else h }
+            for (c in listOf(0xFF3A6EA5.toInt(), 0xFF386A20.toInt(), 0xFF6750A4.toInt(), 0xFF8E4957.toInt())) {
+                Colormap.themePrimary = c
+                val d = kotlin.math.abs(hue(Colormap.THEME.rgb(0.8)) - hue(c and 0xFFFFFF))
+                assertTrue("hue of ${Integer.toHexString(c)}", minOf(d, 360 - d) < 25)
+            }
+            // The theme map is first among the default favorites; the old Tonal name reads as it.
             assertEquals("theme", Colormap.DEFAULT_FAVORITES.first())
-            assertTrue(close(Colormap.THEME.rgb(1.0), Colormap.themeMap().rgb(1.0)))
+            assertEquals(Colormap.THEME, Colormap.byName("theme_tonal"))
         } finally { Colormap.themePrimary = before }
     }
 
@@ -117,7 +119,7 @@ class ColormapTest {
     }
 
     @Test fun themeMapsFollowTheTheme() {
-        val tonal = Colormap.byName("theme_tonal")
+        val tonal = Colormap.THEME
         Colormap.themePrimary = 0xFF1E5BB8.toInt(); Colormap.themeTertiary = 0xFFB8341E.toInt()
         val blue = tonal.rgb(0.8)
         Colormap.themePrimary = 0xFF2E7D32.toInt()

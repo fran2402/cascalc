@@ -27,7 +27,7 @@ class Colormap private constructor(
     fun rgb(t: Double): Int {
         // The theme's map: the sequential map matching the app's colors, from just past its
         // near-white end (which would hide the phase under the modulus shading).
-        if (name == THEME_NAME) return themeMap().rgb(0.14 + 0.86 * t.coerceIn(0.0, 1.0))
+        if (name == THEME_NAME) return themeSamples(TONAL)!!.let { r -> r[((0.14 + 0.86 * t.coerceIn(0.0, 1.0)) * (r.size - 1)).roundToInt()] }
         val s = samples ?: themeSamples(name) ?: return hue(t)
         val n = s.size
         if (qualitative) return s[(t.coerceIn(0.0, 1.0) * n).toInt().coerceIn(0, n - 1)]
@@ -52,9 +52,9 @@ class Colormap private constructor(
         private const val THEME_NAME = "theme"
 
         /**
-         * The app's own colors: whichever of matplotlib's sequential maps matches the primary
-         * color of the UI (Greens for a green theme, Blues for a blue one…), following it when
-         * the colors change. It's the default until the list of favorites is changed.
+         * The app's own colors: a ramp in exactly the hue of the UI's primary color, from light to
+         * deep, following it when the colors change. It's the default until the list of favorites
+         * is changed.
          */
         val THEME = Colormap(THEME_NAME, "Theme", cyclic = false, qualitative = false, samples = null)
 
@@ -66,12 +66,13 @@ class Colormap private constructor(
         /**
          * Maps made from the theme's own colors rather than matched to matplotlib's: name, label
          * and whether it's cyclic. They follow the colors when the theme changes.
-         *  - Tonal: one ramp at exactly the primary color's hue, light to deep.
          *  - Duo: from deep primary to light tertiary, the hue turning between them.
          *  - Diverging: deep primary, through near-white, to deep tertiary (for signs, ± values).
          *  - Loop: cyclic, light, deep primary, light, deep tertiary and back (for arg f, angles).
          */
-        private val THEME_MAPS = listOf(Triple("theme_tonal", "Tonal", false), Triple("theme_duo", "Duo", false),
+        /** The [THEME] map's ramp, worked out with the others (not listed: it's [THEME] itself, saved as "theme"). */
+        private const val TONAL = "theme_tonal"
+        private val THEME_MAPS = listOf(Triple("theme_duo", "Duo", false),
             Triple("theme_diverging", "Split", false), Triple("theme_loop", "Loop", true))
 
         @Volatile private var themeCache: Triple<Int, Int, Map<String, IntArray>>? = null
@@ -180,34 +181,6 @@ class Colormap private constructor(
             )
         }
 
-        /** The sequential map for [themePrimary]: by its hue, or Greys for a near-grey theme. */
-        fun themeMap(): Colormap {
-            val r = ((themePrimary shr 16) and 0xFF) / 255.0
-            val g = ((themePrimary shr 8) and 0xFF) / 255.0
-            val b = (themePrimary and 0xFF) / 255.0
-            val max = maxOf(r, g, b); val min = minOf(r, g, b); val d = max - min
-            if (d < 0.08) return byName("Greys")
-            var h = when (max) {
-                r -> 60 * (((g - b) / d) % 6)
-                g -> 60 * ((b - r) / d + 2)
-                else -> 60 * ((r - g) / d + 4)
-            }
-            if (h < 0) h += 360
-            val name = when {
-                h < 15 || h >= 345 -> "Reds"
-                h < 40 -> "Oranges"
-                h < 66 -> "Yellows"
-                h < 95 -> "YlGn"
-                h < 155 -> "Greens"
-                h < 195 -> "Teals"
-                h < 245 -> "Blues"
-                h < 290 -> "Purples"
-                h < 325 -> "Magentas"
-                else -> "Pinks"
-            }
-            return byName(name)
-        }
-
         /** Every map: the classic wheel, then matplotlib's in the order of its page. */
         val ALL: List<Colormap> by lazy {
             listOf(CLASSIC, THEME) + THEME_MAPS.map { (n, _, cyc) -> Colormap(n, "Theme", cyclic = cyc, qualitative = false, samples = null) } + COLORMAP_DATA.map { d ->
@@ -226,11 +199,11 @@ class Colormap private constructor(
             "twilight_shifted" to "Dusk", "gist_yarg" to "Yarg", "gist_gray" to "Graphite", "gist_heat" to "Heat",
             "gist_earth" to "Earth", "gist_stern" to "Stern", "gist_rainbow" to "Spectrum", "gist_ncar" to "Ncar",
             "nipy_spectral" to "Nipy", "CMRmap" to "CMRmap", "theme" to "Theme",
-            "theme_tonal" to "Tonal", "theme_duo" to "Duo", "theme_diverging" to "Split", "theme_loop" to "Loop",
+            "theme_duo" to "Duo", "theme_diverging" to "Split", "theme_loop" to "Loop",
         )
 
         /** The maps offered first until the list is changed. */
-        val DEFAULT_FAVORITES = listOf("theme", "theme_tonal", "theme_duo", "theme_diverging", "theme_loop", "classic", "twilight", "twilight_shifted", "viridis", "plasma", "magma", "cividis", "turbo")
+        val DEFAULT_FAVORITES = listOf("theme", "theme_duo", "theme_diverging", "theme_loop", "classic", "twilight", "twilight_shifted", "viridis", "plasma", "magma", "cividis", "turbo")
 
         /**
          * A map by its saved name; older saves used upper-case names (VIRIDIS, TWILIGHT_SHIFTED),
@@ -238,6 +211,8 @@ class Colormap private constructor(
          */
         fun byName(name: String?): Colormap {
             if (name == null) return CLASSIC
+            // "Tonal" was its own map for a while; it's the theme map now.
+            if (name == TONAL) return THEME
             return ALL.firstOrNull { it.name == name } ?: ALL.firstOrNull { it.name.equals(name, ignoreCase = true) } ?: CLASSIC
         }
 

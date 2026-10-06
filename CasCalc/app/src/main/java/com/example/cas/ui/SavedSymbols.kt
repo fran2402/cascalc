@@ -68,9 +68,15 @@ object FavoriteColormaps {
         list.clear()
         val saved = p.getString("colormaps", null)
         list.addAll(saved?.split('\n')?.filter { it.isNotEmpty() } ?: com.example.cas.graph.Colormap.DEFAULT_FAVORITES)
+        // Tonal became the theme map itself: one Theme entry in its place.
+        if ("theme_tonal" in list) {
+            val at = list.indexOf("theme_tonal"); list.remove("theme_tonal")
+            if ("theme" !in list) list.add(at.coerceAtMost(list.size), "theme")
+            save()
+        }
         // The maps made from the theme's own colors came later: offered once, after Theme.
         if (saved != null && !p.getBoolean("themeMapsOffered", false)) {
-            val extra = listOf("theme_tonal", "theme_duo", "theme_diverging", "theme_loop").filter { it !in list }
+            val extra = listOf("theme_duo", "theme_diverging", "theme_loop").filter { it !in list }
             list.addAll((list.indexOf("theme") + 1).coerceIn(0, list.size), extra)
             p.edit().putBoolean("themeMapsOffered", true).apply(); save()
         } else if (saved == null) p.edit().putBoolean("themeMapsOffered", true).apply()

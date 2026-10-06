@@ -203,6 +203,13 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (6 October, the Theme colormap is the tonal ramp)
+
+- **Theme colormap** is now the ramp in exactly the primary color's hue (what was briefly
+  "Tonal"), instead of the nearest matplotlib map: an olive theme gets olive, not matplotlib's
+  greens. Tonal is folded into it (saved favorites with Tonal now show Theme once). Duo, Split and
+  Loop stay alongside.
+
 ## Latest changes (6 October, launch animation, letter definitions, theme colormaps, converter pins)
 
 - **Launch animation**: on a cold start the app icon draws itself (ui/LaunchAnimation.kt, from
