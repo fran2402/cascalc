@@ -701,10 +701,13 @@ fun plotColor(index: Int): Color = plotColors(MaterialTheme.colorScheme)[index %
 /**
  * The graph colors in a color scheme, in the order lines take them when no color has been
  * picked: the theme's primary, secondary, tertiary and error colors, then its surface's own
- * ink (the inverse surface, so it shows on the plot), and round again.
+ * ink (the inverse surface, so it shows on the plot); then four more from the theme for
+ * variety: the deep (light in dark mode) tones of the primary, tertiary, secondary and error
+ * containers' ink, which still stand out on the plot; and round again.
  */
 fun plotColors(c: androidx.compose.material3.ColorScheme): List<Color> =
-    listOf(c.primary, c.secondary, c.tertiary, c.error, c.inverseSurface)
+    listOf(c.primary, c.secondary, c.tertiary, c.error, c.inverseSurface,
+        c.onPrimaryContainer, c.onTertiaryContainer, c.onSecondaryContainer, c.onErrorContainer)
 
 /** A line's name as written (text with $math$): the one it was given, or its default. */
 fun legendSource(f: PlotFunction): String =
@@ -868,7 +871,7 @@ fun FunctionList(vm: GraphViewModel, outputLabel: String, modifier: Modifier = M
                 FunctionRow(vm, f, outputLabel, handle)
             }
         }
-        vm.tableFor?.let { f -> PointTableDialog(vm, f, onDismiss = { vm.tableFor = null }) }
+        vm.tableFor?.let { f -> PointTableDialog(vm, f, onDismiss = { vm.closeTable() }) }
         // "Ask before deleting" (settings) covers graph lines too.
         vm.pendingRemoval?.let { f ->
             AlertDialog(

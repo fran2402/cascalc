@@ -203,6 +203,17 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (6 October, empty lines go away, more graph colors, key card mockup)
+
+- **Empty graph lines disappear**: Enter on an empty line (or moving to another line) removes it
+  instead of leaving a blank box; a new data table closed with × while still empty leaves no line.
+- **Nine graph colors instead of five**, all from the theme: primary, secondary, tertiary, error and
+  the inverse surface, then the ink of the primary, tertiary, secondary and error containers
+  (deep in light mode, light in dark mode), before the cycle repeats.
+- Mockup (round69) of a redesigned long-press card: the key, its formula, what it is, numbered
+  how-to steps and worked examples with Try it; a sheet on phones, a two-column dialog with a
+  small graph and related keys on tablets. Not built yet.
+
 ## Latest changes (6 October, the Theme colormap is the tonal ramp)
 
 - **Theme colormap** is now the ramp in exactly the primary color's hue (what was briefly

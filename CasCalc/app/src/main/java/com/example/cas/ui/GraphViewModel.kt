@@ -678,8 +678,21 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
 
     fun edit(f: PlotFunction?) {
         if (f != null && isDataLine(f)) return
+        val was = active
         active = f
         if (f != null) keypadHidden = false else typingFocus = false
+        // A line left empty (Enter on it, or another line picked) goes away rather than staying as a blank box.
+        if (was != null && was !== f && isBlank(was)) remove(was)
+    }
+
+    /** A line with nothing in it: no math, not a note or folder, no table. */
+    private fun isBlank(g: PlotFunction) = g in functions && g.editor.isEmpty && !g.isText && !g.isFolder && g.table == null
+
+    /** Closes the table being edited; a new table closed while still empty (×) leaves no line behind. */
+    fun closeTable() {
+        val f = tableFor
+        tableFor = null
+        if (f != null && isBlank(f)) remove(f)
     }
 
     fun toggleVisible(f: PlotFunction) {
@@ -2462,7 +2475,7 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
 
     companion object {
         /** Primary, secondary, tertiary, error and surface: the theme colors lines take in turn. */
-        const val PLOT_COLOR_COUNT = 5
+        const val PLOT_COLOR_COUNT = 9
     }
 
     // Kotlin runs initializers top to bottom, so saved functions are compiled here, last:
