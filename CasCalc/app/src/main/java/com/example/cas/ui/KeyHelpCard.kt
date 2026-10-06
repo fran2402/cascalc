@@ -109,7 +109,7 @@ private fun Header(spec: KeySpec, help: KeyHelp, where: String) {
     Row(Modifier.fillMaxWidth().padding(bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
         // The key itself, as it looks on the keypad.
         Box(
-            Modifier.heightIn(min = 52.dp).widthIn(min = 64.dp).clip(RoundedCornerShape(26.dp)).background(colors.surfaceContainerHighest).padding(horizontal = 12.dp, vertical = 8.dp),
+            Modifier.size(width = 76.dp, height = 56.dp).clip(RoundedCornerShape(26.dp)).background(colors.surfaceContainerHighest).padding(horizontal = 12.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center,
         ) { LabelView(spec.label, colors.onSurface, fontSize = 20f, iconSize = 30.dp) }
         Spacer(Modifier.width(14.dp))

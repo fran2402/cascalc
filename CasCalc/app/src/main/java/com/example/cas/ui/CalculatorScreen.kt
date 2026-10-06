@@ -1294,8 +1294,10 @@ private fun MatrixPickerDialog(onPick: (Int, Int) -> Unit, onDismiss: () -> Unit
 internal fun FitInside(content: @Composable () -> Unit) {
     androidx.compose.ui.layout.Layout(content) { ms, c ->
         val p = ms.first().measure(androidx.compose.ui.unit.Constraints())
-        val scale = minOf(1f, c.maxWidth.toFloat() / p.width.coerceAtLeast(1), c.maxHeight.toFloat() / p.height.coerceAtLeast(1))
-        val w = c.maxWidth; val h = c.maxHeight
+        // Unbounded space (a scrolling column, a wrap-content row): the content's own size.
+        val w = if (c.hasBoundedWidth) c.maxWidth else p.width.coerceAtLeast(c.minWidth)
+        val h = if (c.hasBoundedHeight) c.maxHeight else p.height.coerceAtLeast(c.minHeight)
+        val scale = minOf(1f, w.toFloat() / p.width.coerceAtLeast(1), h.toFloat() / p.height.coerceAtLeast(1))
         layout(w, h) {
             p.placeWithLayer((w - p.width) / 2, (h - p.height) / 2) {
                 scaleX = scale; scaleY = scale

@@ -203,6 +203,12 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (7 October, key card crash fix)
+
+- **Fix**: long-pressing a key whose label is a formula (sin, fractions, roots and so on) crashed
+  the app on phones. The key at the top of the new card now has a fixed size, and the
+  label-fitting code copes with unlimited space instead of failing.
+
 ## Latest changes (6 October, new key cards, evenly spaced graph colors)
 
 - **New key cards**: long-press any key for a card with the formula, what it is, numbered
