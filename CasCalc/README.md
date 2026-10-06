@@ -203,6 +203,16 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (7 October, key cards: icons and rewritten definitions)
+
+- **Key cards show the key's own icon**: the two-tone picture from the keypad now heads the card
+  in place of the key's name. Digits, letters and constants, which have no picture, keep their
+  label and name.
+- **Every "What it is" section rewritten** as a precise mathematical definition: domains and
+  ranges, defining formulas, orthogonality weights, distribution functions and so on.
+- **No more solve()**: the examples for =, <, >, x and z no longer use solve. Equations and
+  inequalities now show what they draw in the graphs, with no result line.
+
 ## Latest changes (7 October, key card crash fix)
 
 - **Fix**: long-pressing a key whose label is a formula (sin, fractions, roots and so on) crashed

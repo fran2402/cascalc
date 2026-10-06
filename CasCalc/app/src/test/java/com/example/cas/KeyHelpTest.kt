@@ -61,6 +61,7 @@ class KeyHelpTest {
         val out = StringBuilder()
         for (k in keys.distinctBy { it.spoken }) for (e in KeyHelps.of(k.spoken).examples) {
             try {
+                if (!e.answer) { com.example.cas.editor.MathCodec.copy(e.row); continue }
                 val (a, approx) = com.example.cas.ui.KeyGuides.answer(e) ?: throw IllegalStateException("works out to itself")
                 out.append(k.spoken).append(": ").append(com.example.cas.engine.Latex.of(e.row)).append(if (approx) "  ≈  " else "  =  ").append(com.example.cas.engine.Latex.of(a)).append('\n')
             } catch (ex: Exception) { failures += "${k.spoken}: ${com.example.cas.engine.Latex.of(e.row)}: ${ex.message}" }

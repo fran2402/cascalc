@@ -106,16 +106,31 @@ private fun placeOf(spec: KeySpec): String {
 @Composable
 private fun Header(spec: KeySpec, help: KeyHelp, where: String) {
     val colors = MaterialTheme.colorScheme
+    // The key's own two-tone picture, as on the keypad, stands for its name.
+    val picture = KeyIcons.forKey(spec.spoken)
     Row(Modifier.fillMaxWidth().padding(bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-        // The key itself, as it looks on the keypad.
-        Box(
-            Modifier.size(width = 76.dp, height = 56.dp).clip(RoundedCornerShape(26.dp)).background(colors.surfaceContainerHighest).padding(horizontal = 12.dp, vertical = 8.dp),
-            contentAlignment = Alignment.Center,
-        ) { LabelView(spec.label, colors.onSurface, fontSize = 20f, iconSize = 30.dp) }
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(help.title, style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.semantics { heading() })
-            if (where.isNotEmpty()) Text(where, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        if (picture != null) {
+            val aspect = picture.viewportWidth / picture.viewportHeight
+            Box(
+                Modifier.height(72.dp).widthIn(min = 72.dp).clip(RoundedCornerShape(28.dp)).background(colors.surfaceContainerHighest)
+                    .padding(horizontal = 16.dp).semantics { contentDescription = help.title; heading() },
+                contentAlignment = Alignment.Center,
+            ) { DuoIcon(picture, colors.onSurface, colors.primary, Modifier.size(width = (44 * aspect).dp, height = 44.dp)) }
+            if (where.isNotEmpty()) {
+                Spacer(Modifier.width(14.dp))
+                Text(where, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.weight(1f))
+            }
+        } else {
+            // Keys without a picture (digits, letters, constants): the label and the name.
+            Box(
+                Modifier.size(width = 76.dp, height = 56.dp).clip(RoundedCornerShape(26.dp)).background(colors.surfaceContainerHighest).padding(horizontal = 12.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) { LabelView(spec.label, colors.onSurface, fontSize = 20f, iconSize = 30.dp) }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(help.title, style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.semantics { heading() })
+                if (where.isNotEmpty()) Text(where, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+            }
         }
     }
 }
