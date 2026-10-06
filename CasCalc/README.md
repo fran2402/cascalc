@@ -203,6 +203,19 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (6 October, page-switch icons, narrower Rad/Deg, 2D view fix)
+
+- The trigonometry and statistics second pages are switched by drawn icons: 1 over a right
+  triangle for the reciprocal functions, a density with its distribution function for the
+  distributions (filled while that page shows).
+- Rad/Deg is narrower.
+- The graphs' signals button is gray, like the number keys, until it's on.
+- Associated Legendre Pₙᵐ and Gegenbauer Cₙᵅ key icons: the letter stands further from its
+  scripts, so the superscript no longer touches it.
+- Fixed: editing a 2D line with the keyboard up, going to another mode and back, then pulling
+  the keyboard down stretched the y-axis to about ±10000. The 2D view now remembers the size it
+  was fitted to and ignores the graph being squashed nearly flat.
+
 ## Latest changes (6 October, fewer tabs, second pages, synced keypad, steps and graphs for everything)
 
 - **Tabs trimmed**: vectors, statistics II, mathematical constants, primes and sequences, modular

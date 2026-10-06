@@ -165,7 +165,10 @@ fun Graph2DScreen(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, modifier: 
 }
 
 fun Graph2DViewModel.resetView(size: IntSize) {
-    if (size.width > 0) view = com.example.cas.graph.AxisScale.standard(Viewport.standard(size.height.toDouble() / size.width, halfWidth = AppSettings.viewHalfWidth.toDouble()), scale)
+    if (size.width > 0) {
+        view = com.example.cas.graph.AxisScale.standard(Viewport.standard(size.height.toDouble() / size.width, halfWidth = AppSettings.viewHalfWidth.toDouble()), scale)
+        viewHeight = size.height; viewWidth = size.width
+    }
 }
 
 @Composable
@@ -173,6 +176,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
     val colors = MaterialTheme.colorScheme
     val measurer = rememberTextMeasurer()
     var size by remember { mutableStateOf(IntSize.Zero) }
+    val minHeight = with(androidx.compose.ui.platform.LocalDensity.current) { 96.dp.roundToPx() }
     var trace by remember { mutableStateOf<Special?>(null) }
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
     // A free point's drag has moved it (the first move is the undo step).
@@ -215,10 +219,16 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
         Modifier.weight(1f).fillMaxWidth()
             .clipToBounds()
             .onSizeChanged { new ->
-                val old = size
                 size = new
-                // A height change (the tool palette opening, say) keeps the scale, about the middle.
-                if (vm.view == null) vm.resetView(new) else if (old.height > 0 && new.height > 0 && old.width == new.width && old.height != new.height) vm.keepScale(old.height, new.height)
+                // A height change (the tool palette opening, say) keeps the scale, about the middle,
+                // measured from the size the view was fitted to. A graph squashed nearly flat (the
+                // keyboard over it) is left alone, so its view isn't stretched by the squeeze.
+                if (new.height < minHeight || new.width == 0) return@onSizeChanged
+                when {
+                    vm.view == null -> vm.resetView(new)
+                    vm.viewWidth != new.width || vm.viewHeight <= 0 -> { vm.viewWidth = new.width; vm.viewHeight = new.height }
+                    vm.viewHeight != new.height -> { vm.keepScale(vm.viewHeight, new.height); vm.viewHeight = new.height }
+                }
             }
             .pointerInput(Unit) {
                 // Drag to move; pinch to zoom around your fingers. A sideways pinch stretches only x,

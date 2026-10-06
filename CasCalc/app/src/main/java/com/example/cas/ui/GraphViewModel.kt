@@ -2397,6 +2397,13 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
 
 class Graph2DViewModel(app: Application) : GraphViewModel(app, "g2", listOf("x"), defaults = emptyList()) {
     /** Null until the screen knows its size. */
+    /**
+     * The graph's size (px) the [view] was last fitted to. Kept here, not in the screen, so a
+     * squashed moment (the keyboard up while another mode was open) can't be mistaken for the
+     * size the view belongs to when the screen comes back.
+     */
+    var viewHeight = 0
+    var viewWidth = 0
     var view by mutableStateOf<Viewport?>(null)
 
     /** Draw a polar grid (circles and rays) instead of the square grid, and read points as (r, θ). */

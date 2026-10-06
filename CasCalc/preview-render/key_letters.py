@@ -271,9 +271,12 @@ def constant(pieces):
                     o['inkThin'] += st
                     w = L['⁻¹'][0] - 4.0 + 3.0
                     sup = ''
+                # P and C reach out at the top right (P's bowl, C's arm): with both scripts, they
+                # stand further off so the superscript doesn't touch the letter.
+                extra = 1.6 if (prev in ('P', 'C') and sub and sup) else 0.0
                 for txt, is_sub in ((sub, True), (sup, False)):
                     # A clear gap after the letter (its stroke reaches 1 past its outline), then the small letters spaced.
-                    xx = x - GAP + 4.0
+                    xx = x - GAP + 4.0 + extra
                     got_st, got_fl = [], []
                     for c in txt:
                         c = 'Ṁ' if c == 'M' else c
@@ -288,7 +291,7 @@ def constant(pieces):
                             got_st = [translate(d, lift) for d in got_st]; got_fl = [translate(d, lift) for d in got_fl]
                     o['inkThin'] += got_st; o['inkFill'] += got_fl
                     w = max(w, xx - 1.9 - (x - GAP + 4.0))
-                x += w + 4.0 + 1.6; continue
+                x += w + 4.0 + 1.6; prev = None; continue
             if kind == 'supd':
                 st, fl, wc = small(ch, x - GAP + 3.0, False); o["inkThin"] += st; x += wc - GAP + 3.0 + 2.4; continue
             c = 'Ṁ' if ch == 'M' else ch
@@ -297,6 +300,7 @@ def constant(pieces):
             st = [stretch(d, x, k) for d in st]
             role = 'ink' if kind == 'sep' else 'accent'
             o[role] += st; o[role + 'Fill'] += fl
+            prev = c
             x += L[c][0] * k + GAP
         return o, x - GAP - x0
     _, total = lay(0)

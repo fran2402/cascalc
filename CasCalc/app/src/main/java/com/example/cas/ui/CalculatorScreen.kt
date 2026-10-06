@@ -718,28 +718,22 @@ private fun ControlRow(vm: KeypadHost) {
                 }
             }
         } else {
-            SingleChoiceSegmentedButtonRow(Modifier.height(36.dp)) {
+            SingleChoiceSegmentedButtonRow(Modifier.height(36.dp).width(104.dp)) {
                 AngleUnit.entries.forEachIndexed { i, unit ->
                     SegmentedButton(
                         selected = vm.angleUnit == unit,
                         onClick = { if (vm.angleUnit != unit) vm.toggleAngle() },
                         shape = SegmentedButtonDefaults.itemShape(i, 2),
                         icon = {},
-                        label = { Text(if (unit == AngleUnit.Radians) "Rad" else "Deg", style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp)) },
+                        label = { Text(if (unit == AngleUnit.Radians) "Rad" else "Deg", maxLines = 1, softWrap = false, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp)) },
                     )
                 }
             }
             // Second pages: the reciprocal functions on the trigonometry tab, the distributions on
             // the statistics tab. The switch says what it brings up.
             if (!KeypadState.signals) when (FunctionTabs[CalcTabs.current(vm.selectedTab)].title) {
-                "Trigonometry" -> PageSwitch(
-                    if (KeypadState.reciprocalTrig) "sin cos tan" else "csc sec cot", KeypadState.reciprocalTrig,
-                    tr("Reciprocal functions"), KeypadState::toggleReciprocalTrig,
-                )
-                "Statistics" -> PageSwitch(
-                    if (KeypadState.distributions) "x̄ σ" else "pdf cdf", KeypadState.distributions,
-                    tr("Distributions"), KeypadState::toggleDistributions,
-                )
+                "Trigonometry" -> PageSwitch(TabIcons.ReciprocalTrig, KeypadState.reciprocalTrig, tr("Reciprocal functions"), KeypadState::toggleReciprocalTrig)
+                "Statistics" -> PageSwitch(TabIcons.DistributionPage, KeypadState.distributions, tr("Distributions"), KeypadState::toggleDistributions)
             }
         }
         Spacer(Modifier.weight(1f))
@@ -764,23 +758,23 @@ private fun ControlRow(vm: KeypadHost) {
     }
 }
 
-/** A switch to a tab's second page, labelled with what it brings up; filled while that page shows. */
+/** A switch to a tab's second page, drawn as what it brings up; filled while that page shows. */
 @Composable
-private fun PageSwitch(label: String, on: Boolean, description: String, onClick: () -> Unit) {
+private fun PageSwitch(picture: androidx.compose.ui.graphics.vector.ImageVector, on: Boolean, description: String, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val tap = rememberKeyTap()
     Box(
         Modifier
             .padding(start = 8.dp)
             .height(36.dp)
+            .width(52.dp)
             .clip(CircleShape)
-            .background(if (on) colors.primary else colors.secondaryContainer)
+            .background(if (on) colors.primary else colors.surfaceContainerHigh)
             .clickable(onClickLabel = description) { tap(); onClick() }
-            .semantics { contentDescription = description; stateDescription = if (on) "on" else "off" }
-            .padding(horizontal = 14.dp),
+            .semantics { contentDescription = description; stateDescription = if (on) "on" else "off" },
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, maxLines = 1, color = if (on) colors.onPrimary else colors.onSecondaryContainer, style = TextStyle(fontFamily = CasFonts.Ui, fontSize = 14.sp))
+        AppIcon(picture, contentDescription = null, tint = if (on) colors.onPrimary else colors.onSurface, modifier = Modifier.size(24.dp))
     }
 }
 
@@ -1179,7 +1173,7 @@ private fun QuickVariables(host: KeypadHost) {
             Modifier
                 .height(36.dp)
                 .clip(CircleShape)
-                .background(if (on) colors.primary else colors.secondaryContainer)
+                .background(if (on) colors.primary else colors.surfaceContainerHigh)
                 .clickable(onClickLabel = tr("Signals")) {
                     if (AppSettings.haptics) view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                     KeypadState.signals = !on
@@ -1189,7 +1183,7 @@ private fun QuickVariables(host: KeypadHost) {
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
-            AppIcon(TabIcons.Signals, contentDescription = null, tint = if (on) colors.onPrimary else colors.onSecondaryContainer, modifier = Modifier.size(22.dp))
+            AppIcon(TabIcons.Signals, contentDescription = null, tint = if (on) colors.onPrimary else colors.onSurface, modifier = Modifier.size(22.dp))
         }
         host.quickVariables.forEach { v ->
             Box(

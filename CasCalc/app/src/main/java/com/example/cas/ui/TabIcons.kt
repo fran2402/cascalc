@@ -107,6 +107,12 @@ object TabIcons {
     /** A cubic over its axes: special polynomials. */
     val Polynomials: ImageVector by lazy { icon("Polynomials", stroke = listOf("M3.5 20c2.5-13 5.5-13 8.5-8s6 5 8.5-8"), thin = listOf("M3 12h18", "M12 3.5v17"), accent = setOf("M3.5 20c2.5-13 5.5-13 8.5-8s6 5 8.5-8")) }
 
+    /** 1 over a right triangle: the reciprocal trigonometric functions (the trigonometry tab's second page). */
+    val ReciprocalTrig: ImageVector by lazy { icon("ReciprocalTrig", stroke = listOf("M10.8 3.9l1.6-1.4v5.4", "M5 10.2h14", "M6 21h12.5v-8.3z"), accent = setOf("M10.8 3.9l1.6-1.4v5.4", "M5 10.2h14")) }
+
+    /** A density and its distribution function, together: the statistics tab's distributions page. */
+    val DistributionPage: ImageVector by lazy { icon("DistributionPage", stroke = listOf("M3 19c4 0 5.5-12 9-12s5 12 9 12", "M3 18c7 0 6.5-13 18-13"), thin = listOf("M3 20.5h18"), accent = setOf("M3 18c7 0 6.5-13 18-13")) }
+
     /** Aα: Latin and Greek letters. */
     val Letters: ImageVector by lazy { icon("Letters", stroke = listOf("M2.5 19L7 5l4.5 14", "M4.2 14h5.6", "M22 11.5c-.8 3-2.2 7.5-4.3 7.5c-1.9 0-3.2-1.6-3.2-3.8c0-2.2 1.4-3.9 3.3-3.9c2.6 0 3.2 5.1 4.7 7.7"), accent = setOf("M22 11.5c-.8 3-2.2 7.5-4.3 7.5c-1.9 0-3.2-1.6-3.2-3.8c0-2.2 1.4-3.9 3.3-3.9c2.6 0 3.2 5.1 4.7 7.7")) }
 }
