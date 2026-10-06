@@ -2567,7 +2567,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                     // Top bar: close, the title, Done.
                     Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 12.dp, top = 6.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = onDismiss) { AppIcon(TableIcons.Close, contentDescription = tr("Close without saving")) }
-                        Column(Modifier.weight(1f).padding(start = 4.dp)) {
+                        Column((if (wide) Modifier.widthIn(max = 220.dp) else Modifier.weight(1f)).padding(start = 4.dp)) {
                             // Short on a phone, where the top bar is crowded.
                             Text(tr(if (wide) "Data table" else "Data"), style = MaterialTheme.typography.titleLarge, maxLines = 1)
                             // What's plotted, and anything wrong, in a line under the title.
@@ -2575,6 +2575,8 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                 (if (bad > 0) " · $bad not number${if (bad == 1) "" else "s"}" else "")
                             Text(counts, style = MaterialTheme.typography.bodySmall, color = if (roleY == null || bad > 0) colors.error else colors.onSurfaceVariant, maxLines = 1)
                         }
+                        // On a tablet the ribbon's tabs share the top bar, so the ribbon takes one row less.
+                        if (wide) RibbonTabs(tab, { tab = it }, ribbonFolded, { ribbonFolded = it }, Modifier.weight(1f).padding(horizontal = 12.dp))
                         IconButton(onClick = { undo() }, enabled = undoStack.isNotEmpty()) { AppIcon(TableIcons.Undo, contentDescription = tr("Undo")) }
                         IconButton(onClick = { redo() }, enabled = redoStack.isNotEmpty()) { AppIcon(TableIcons.Redo, contentDescription = tr("Redo")) }
                         // More: the table as CSV (shared or copied), and tidying up.
@@ -2841,7 +2843,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                             )
                         }
                         // On a phone the commands go to the bar along the bottom instead, as in Excel and Sheets there.
-                        if (wide) TableRibbon(tab, { tab = it }, groups, wide, ribbonFolded, { ribbonFolded = it }, Modifier.padding(horizontal = 8.dp))
+                        if (wide) TableRibbon(tab, { tab = it }, groups, wide, ribbonFolded, { ribbonFolded = it }, Modifier.padding(horizontal = 8.dp), showTabs = false)
                         else phoneGroups = groups
                     }
                     if (finding) FindBar(
@@ -4446,47 +4448,55 @@ internal enum class TableTab(val label: String) { Home("Home"), Insert("Insert")
  * Left | Center | Right) form connected button groups. A ▾ turns over while its menu is open;
  * the round button at the end folds the ribbon down to its tabs.
  */
+/** The ribbon's tabs (Home, Insert, Formulas…): a pill behind the chosen one slides to the next; the chevron folds the ribbon. */
 @Composable
-internal fun TableRibbon(tab: TableTab, onTab: (TableTab) -> Unit, groups: List<ToolGroup>, wide: Boolean, collapsed: Boolean, onCollapse: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+internal fun RibbonTabs(tab: TableTab, onTab: (TableTab) -> Unit, collapsed: Boolean, onCollapse: (Boolean) -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     val tap = rememberKeyTap()
     val density = LocalDensity.current
+    val tabX = remember { mutableStateMapOf<TableTab, Pair<Float, Float>>() }
+    val target = tabX[tab]
+    val pillX by androidx.compose.animation.core.animateFloatAsState(target?.first ?: 0f, androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 500f), label = "tab pill x")
+    val pillW by androidx.compose.animation.core.animateFloatAsState(target?.second ?: 0f, androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 500f), label = "tab pill width")
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(vertical = 4.dp)) {
+            if (target != null) Box(
+                Modifier.offset { androidx.compose.ui.unit.IntOffset(pillX.toInt(), 0) }
+                    .width(with(density) { pillW.toDp() }).height(40.dp).clip(CircleShape).background(colors.secondaryContainer),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                TableTab.entries.forEach { t ->
+                    val on = t == tab
+                    Box(
+                        Modifier.height(40.dp).clip(CircleShape)
+                            .selectable(selected = on, role = androidx.compose.ui.semantics.Role.Tab) { tap(); onTab(t); if (collapsed) onCollapse(false) }
+                            .onGloballyPositioned { tabX[t] = it.positionInParent().x to it.size.width.toFloat() }
+                            .padding(horizontal = 18.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(tr(t.label), style = MaterialTheme.typography.titleSmall, color = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant, maxLines = 1)
+                    }
+                }
+            }
+        }
+        val turn by androidx.compose.animation.core.animateFloatAsState(if (collapsed) 180f else 0f, label = "fold turn")
+        androidx.compose.material3.FilledTonalIconButton(onClick = { tap(); onCollapse(!collapsed) }) {
+            AppIcon(TableIcons.ChevronUp, contentDescription = tr(if (collapsed) "Show the ribbon" else "Fold the ribbon away"),
+                modifier = Modifier.graphicsLayer { rotationZ = turn })
+        }
+    }
+}
+
+@Composable
+internal fun TableRibbon(tab: TableTab, onTab: (TableTab) -> Unit, groups: List<ToolGroup>, wide: Boolean, collapsed: Boolean, onCollapse: (Boolean) -> Unit, modifier: Modifier = Modifier, showTabs: Boolean = true) {
+    val colors = MaterialTheme.colorScheme
+    val tap = rememberKeyTap()
     val perColumn = if (wide) 3 else 2
     val smallHeight = if (wide) 30.dp else 32.dp
     val bodyHeight = smallHeight * perColumn + 4.dp * (perColumn - 1)
     Column(modifier.fillMaxWidth()) {
-        // The tabs: a pill behind the chosen one slides and stretches to the next.
-        val tabX = remember { mutableStateMapOf<TableTab, Pair<Float, Float>>() }
-        val target = tabX[tab]
-        val pillX by androidx.compose.animation.core.animateFloatAsState(target?.first ?: 0f, androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 500f), label = "tab pill x")
-        val pillW by androidx.compose.animation.core.animateFloatAsState(target?.second ?: 0f, androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 500f), label = "tab pill width")
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(vertical = 4.dp)) {
-                if (target != null) Box(
-                    Modifier.offset { androidx.compose.ui.unit.IntOffset(pillX.toInt(), 0) }
-                        .width(with(density) { pillW.toDp() }).height(40.dp).clip(CircleShape).background(colors.secondaryContainer),
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    TableTab.entries.forEach { t ->
-                        val on = t == tab
-                        Box(
-                            Modifier.height(40.dp).clip(CircleShape)
-                                .selectable(selected = on, role = androidx.compose.ui.semantics.Role.Tab) { tap(); onTab(t); if (collapsed) onCollapse(false) }
-                                .onGloballyPositioned { tabX[t] = it.positionInParent().x to it.size.width.toFloat() }
-                                .padding(horizontal = 18.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(tr(t.label), style = MaterialTheme.typography.titleSmall, color = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant, maxLines = 1)
-                        }
-                    }
-                }
-            }
-            val turn by androidx.compose.animation.core.animateFloatAsState(if (collapsed) 180f else 0f, label = "fold turn")
-            androidx.compose.material3.FilledTonalIconButton(onClick = { tap(); onCollapse(!collapsed) }) {
-                AppIcon(TableIcons.ChevronUp, contentDescription = tr(if (collapsed) "Show the ribbon" else "Fold the ribbon away"),
-                    modifier = Modifier.graphicsLayer { rotationZ = turn })
-            }
-        }
+        // On a tablet the tabs sit in the top bar instead (see [RibbonTabs]), saving a row.
+        if (showTabs) RibbonTabs(tab, onTab, collapsed, onCollapse, Modifier.fillMaxWidth())
         androidx.compose.animation.AnimatedVisibility(!collapsed, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(start = 4.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),

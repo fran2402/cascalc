@@ -68,6 +68,12 @@ object FavoriteColormaps {
         list.clear()
         val saved = p.getString("colormaps", null)
         list.addAll(saved?.split('\n')?.filter { it.isNotEmpty() } ?: com.example.cas.graph.Colormap.DEFAULT_FAVORITES)
+        // The maps made from the theme's own colors came later: offered once, after Theme.
+        if (saved != null && !p.getBoolean("themeMapsOffered", false)) {
+            val extra = listOf("theme_tonal", "theme_duo", "theme_diverging", "theme_loop").filter { it !in list }
+            list.addAll((list.indexOf("theme") + 1).coerceIn(0, list.size), extra)
+            p.edit().putBoolean("themeMapsOffered", true).apply(); save()
+        } else if (saved == null) p.edit().putBoolean("themeMapsOffered", true).apply()
     }
 
     fun add(name: String) { if (name !in list) { list.add(name); save() } }
@@ -81,4 +87,23 @@ object FavoriteColormaps {
     }
 
     private fun save() { prefs?.edit()?.putString("colormaps", list.joinToString("\n"))?.apply() }
+}
+
+/** Units pinned in the unit picker: shown first, under Pinned, for quick access. Kept by symbol. */
+object PinnedUnits {
+    private var prefs: SharedPreferences? = null
+    val list = mutableStateListOf<String>()
+
+    fun init(context: Context) {
+        val p = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        prefs = p
+        list.clear()
+        list.addAll(p.getString("pinnedUnits", "").orEmpty().split('\n').filter { it.isNotEmpty() })
+    }
+
+    fun isPinned(symbol: String) = symbol in list
+    fun toggle(symbol: String) {
+        if (!list.remove(symbol)) list.add(symbol)
+        prefs?.edit()?.putString("pinnedUnits", list.joinToString("\n"))?.apply()
+    }
 }

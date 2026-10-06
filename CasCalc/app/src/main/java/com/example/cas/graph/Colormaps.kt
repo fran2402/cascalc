@@ -28,7 +28,7 @@ class Colormap private constructor(
         // The theme's map: the sequential map matching the app's colors, from just past its
         // near-white end (which would hide the phase under the modulus shading).
         if (name == THEME_NAME) return themeMap().rgb(0.14 + 0.86 * t.coerceIn(0.0, 1.0))
-        val s = samples ?: return hue(t)
+        val s = samples ?: themeSamples(name) ?: return hue(t)
         val n = s.size
         if (qualitative) return s[(t.coerceIn(0.0, 1.0) * n).toInt().coerceIn(0, n - 1)]
         if (cyclic) {
@@ -60,6 +60,82 @@ class Colormap private constructor(
 
         /** The UI's primary color (ARGB), set by the app's theme; the [THEME] map follows it. */
         @Volatile var themePrimary: Int = 0xFF5B6133.toInt()
+        /** The UI's tertiary color (ARGB): the second hue of the two-color theme maps. */
+        @Volatile var themeTertiary: Int = 0xFF3A665A.toInt()
+
+        /**
+         * Maps made from the theme's own colors rather than matched to matplotlib's: name, label
+         * and whether it's cyclic. They follow the colors when the theme changes.
+         *  - Tonal: one ramp at exactly the primary color's hue, light to deep.
+         *  - Duo: from deep primary to light tertiary, the hue turning between them.
+         *  - Diverging: deep primary, through near-white, to deep tertiary (for signs, ± values).
+         *  - Loop: cyclic, light, deep primary, light, deep tertiary and back (for arg f, angles).
+         */
+        private val THEME_MAPS = listOf(Triple("theme_tonal", "Tonal", false), Triple("theme_duo", "Duo", false),
+            Triple("theme_diverging", "Split", false), Triple("theme_loop", "Loop", true))
+
+        @Volatile private var themeCache: Triple<Int, Int, Map<String, IntArray>>? = null
+
+        /** The samples of a theme map for the current theme colors (worked out once per theme). */
+        private fun themeSamples(name: String): IntArray? {
+            if (!name.startsWith("theme_")) return null
+            val p = themePrimary; val q = themeTertiary
+            themeCache?.let { (a, b, m) -> if (a == p && b == q) return m[name] }
+            val hp = hueOf(p); val hq = hueOf(q)
+            val n = 256
+            val tonalP = ramp(hp, n); val tonalQ = ramp(hq, n)
+            fun deep(r: IntArray, d: Double) = r[(d.coerceIn(0.0, 1.0) * (n - 1)).roundToInt()]
+            val maps = mapOf(
+                "theme_tonal" to tonalP,
+                "theme_duo" to IntArray(n) { k ->
+                    val t = k / (n - 1.0)
+                    // The hue turns the short way round from primary to tertiary.
+                    var dh = hq - hp; if (dh > 180) dh -= 360; if (dh < -180) dh += 360
+                    lch(0.35 + 0.55 * t, 0.13 - 0.04 * t, hp + dh * t)
+                },
+                "theme_diverging" to IntArray(n) { k ->
+                    val t = k / (n - 1.0)
+                    if (t < 0.5) deep(tonalP, 0.9 * (1 - 2 * t)) else deep(tonalQ, 0.9 * (2 * t - 1))
+                },
+                "theme_loop" to IntArray(n) { k ->
+                    val t = k / n.toDouble()
+                    val d = kotlin.math.sin(Math.PI * ((2 * t) % 1.0)) * 0.85
+                    if (t < 0.5) deep(tonalP, 0.08 + d) else deep(tonalQ, 0.08 + d)
+                },
+            )
+            themeCache = Triple(p, q, maps)
+            return maps[name]
+        }
+
+        /** An ARGB color's OKLCH hue, in degrees. */
+        private fun hueOf(argb: Int): Double {
+            fun lin(c: Int): Double { val v = c / 255.0; return if (v <= 0.04045) v / 12.92 else Math.pow((v + 0.055) / 1.055, 2.4) }
+            val r = lin((argb shr 16) and 0xFF); val g = lin((argb shr 8) and 0xFF); val b = lin(argb and 0xFF)
+            val l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+            val m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+            val s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+            val a = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s
+            val bb = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s
+            return (Math.toDegrees(kotlin.math.atan2(bb, a)) + 360) % 360
+        }
+
+        /** An OKLCH color in sRGB (RGB, no alpha), its chroma lowered until it fits. */
+        private fun lch(l: Double, c0: Double, hue: Double): Int {
+            var c = c0
+            val hr = Math.toRadians(hue)
+            var rgb: DoubleArray
+            while (true) {
+                rgb = oklab(l, c * kotlin.math.cos(hr), c * kotlin.math.sin(hr))
+                if (rgb.all { it in -0.0005..1.0005 } || c <= 0.0) break
+                c -= 0.004
+            }
+            fun enc(v: Double): Int {
+                val x = v.coerceIn(0.0, 1.0)
+                val e = if (x <= 0.0031308) 12.92 * x else 1.055 * Math.pow(x, 1 / 2.4) - 0.055
+                return (e * 255).roundToInt().coerceIn(0, 255)
+            }
+            return (enc(rgb[0]) shl 16) or (enc(rgb[1]) shl 8) or enc(rgb[2])
+        }
 
         /**
          * Single-hue sequential maps for the hues matplotlib's set has none of (a clean yellow,
@@ -134,7 +210,7 @@ class Colormap private constructor(
 
         /** Every map: the classic wheel, then matplotlib's in the order of its page. */
         val ALL: List<Colormap> by lazy {
-            listOf(CLASSIC, THEME) + COLORMAP_DATA.map { d ->
+            listOf(CLASSIC, THEME) + THEME_MAPS.map { (n, _, cyc) -> Colormap(n, "Theme", cyclic = cyc, qualitative = false, samples = null) } + COLORMAP_DATA.map { d ->
                 Colormap(d.name, d.category, d.cyclic, d.qualitative, IntArray(d.hex.length / 6) { k -> d.hex.substring(6 * k, 6 * k + 6).toInt(16) })
             } + EXTRA_HUES.map { (n, h) -> Colormap(n, "Sequential (more hues)", cyclic = false, qualitative = false, samples = ramp(h)) }
         }
@@ -150,10 +226,11 @@ class Colormap private constructor(
             "twilight_shifted" to "Dusk", "gist_yarg" to "Yarg", "gist_gray" to "Graphite", "gist_heat" to "Heat",
             "gist_earth" to "Earth", "gist_stern" to "Stern", "gist_rainbow" to "Spectrum", "gist_ncar" to "Ncar",
             "nipy_spectral" to "Nipy", "CMRmap" to "CMRmap", "theme" to "Theme",
+            "theme_tonal" to "Tonal", "theme_duo" to "Duo", "theme_diverging" to "Split", "theme_loop" to "Loop",
         )
 
         /** The maps offered first until the list is changed. */
-        val DEFAULT_FAVORITES = listOf("theme", "classic", "twilight", "twilight_shifted", "viridis", "plasma", "magma", "cividis", "turbo")
+        val DEFAULT_FAVORITES = listOf("theme", "theme_tonal", "theme_duo", "theme_diverging", "theme_loop", "classic", "twilight", "twilight_shifted", "viridis", "plasma", "magma", "cividis", "turbo")
 
         /**
          * A map by its saved name; older saves used upper-case names (VIRIDIS, TWILIGHT_SHIFTED),

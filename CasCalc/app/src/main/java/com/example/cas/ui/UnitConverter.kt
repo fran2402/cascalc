@@ -643,8 +643,8 @@ private fun ToggleChip(math: String, name: String, on: Boolean, onChange: (Boole
     }
 }
 
-/** No prefix first (the one used most), then every SI prefix: the common kilo to giga up front. */
-private val PICKER_PREFIXES = listOf("", "k", "M", "G", "T", "P", "E", "Z", "Y", "R", "Q", "h", "da", "d", "c", "m", "µ", "n", "p", "f", "a", "z", "y", "r", "q")
+/** No prefix first (the one used most), then every SI prefix in order, from quetta down to quecto. */
+private val PICKER_PREFIXES = listOf("", "Q", "R", "Y", "Z", "E", "P", "T", "G", "M", "k", "h", "da", "d", "c", "m", "µ", "n", "p", "f", "a", "z", "y", "r", "q")
 
 /**
  * The unit picker, in the style of the constants sheet: the unit being built at the top (in
@@ -686,12 +686,16 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
         val m = Regex("""[^\s/()·]+$""").find(t)
         expr = if (m != null) t.substring(0, m.range.first).trimEnd() else t.dropLast(1).trimEnd()
     }
-    val shown = remember(query, category) {
+    val pins = PinnedUnits.list.toList()
+    val shown = remember(query, category, pins) {
         val q = query.trim().lowercase()
-        Units.ALL.filter { u ->
+        val matching = Units.ALL.filter { u ->
             (category == null || u.category == category) &&
                 (q.isEmpty() || u.name.lowercase().contains(q) || u.symbol.lowercase().startsWith(q) || u.aliases.any { it.lowercase().startsWith(q) })
-        }.groupBy { it.category }
+        }
+        // Pinned units first, in the order they were pinned; they stay in their own group too.
+        val pinned = pins.mapNotNull { s -> matching.firstOrNull { it.symbol == s } }
+        (if (pinned.isEmpty()) emptyMap() else mapOf(PINNED to pinned)) + matching.groupBy { it.category }
     }
 
     StillSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = colors.surfaceContainerLow) {
@@ -759,7 +763,7 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
                     Modifier.weight(1.2f).height(44.dp).clip(RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 22.dp, bottomEnd = 22.dp)).background(colors.tertiary)
                         .clickable(onClickLabel = tr("Delete the last unit")) { backspace() },
                     contentAlignment = Alignment.Center,
-                ) { Text(tr("⌫"), style = MaterialTheme.typography.titleMedium, color = colors.onTertiary) }
+                ) { AppIcon(TableIcons.Backspace, contentDescription = null, tint = colors.onTertiary, modifier = Modifier.size(22.dp)) }
             }
             // Prefixes: the chosen one goes on the next unit tapped (if it takes prefixes).
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -810,9 +814,10 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
             }
             shown.forEach { (section, list) ->
                 item(key = "h$section") {
-                    Text(section, style = MaterialTheme.typography.labelLarge, color = colors.primary, modifier = Modifier.padding(start = 12.dp, top = 14.dp, bottom = 6.dp))
+                    Text(if (section == PINNED) tr("Pinned") else section, style = MaterialTheme.typography.labelLarge, color = colors.primary, modifier = Modifier.padding(start = 12.dp, top = 14.dp, bottom = 6.dp))
                 }
-                items(list, key = { it.symbol }) { u ->
+                // A pinned unit shows twice (under Pinned and in its group), so its keys differ.
+                items(list, key = { (if (section == PINNED) "p:" else "") + it.symbol }) { u ->
                     val i = list.indexOf(u)
                     // One rounded group per category: big corners at its ends, small between rows.
                     val big = 20.dp; val small = 6.dp
@@ -854,6 +859,14 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
                                 Text((if (size != null) "  " else "") + (listOf(u.symbol) + u.aliases).filter { t -> t.all { it.code < 128 } || t == u.symbol && '_' !in t }.distinct().take(2).joinToString(" · "), color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                             }
                         }
+                        val pinned = PinnedUnits.isPinned(u.symbol)
+                        IconButton(onClick = { tap(); PinnedUnits.toggle(u.symbol) }) {
+                            AppIcon(
+                                if (pinned) TableIcons.Pin else TableIcons.PinOutline,
+                                contentDescription = if (pinned) tr("Unpin {0}", u.name) else tr("Pin {0} to the top", u.name),
+                                tint = if (pinned) colors.primary else colors.onSurfaceVariant,
+                            )
+                        }
                         IconButton(onClick = { add(p + symbol) }) {
                             AppIcon(TableIcons.Add, contentDescription = "Add ${u.name}", tint = colors.primary)
                         }
@@ -863,6 +876,9 @@ private fun UnitPicker(initial: String, title: String, onDone: (String) -> Unit,
         }
     }
 }
+
+/** The group of pinned units at the top of the picker. */
+private const val PINNED = "\u0000pinned"
 
 private fun prefixName(p: String) = mapOf(
     "Q" to "quetta", "R" to "ronna", "Y" to "yotta", "Z" to "zetta", "E" to "exa", "P" to "peta", "T" to "tera", "G" to "giga", "M" to "mega", "k" to "kilo",

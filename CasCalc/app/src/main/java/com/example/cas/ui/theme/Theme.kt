@@ -78,6 +78,7 @@ fun CasTheme(content: @Composable () -> Unit) {
     }
     // The complex plane's Theme colormap follows the UI's primary color.
     com.example.cas.graph.Colormap.themePrimary = colors.primary.toArgb()
+    com.example.cas.graph.Colormap.themeTertiary = colors.tertiary.toArgb()
     val glyphs = remember(context) { GlyphFallback(context.applicationContext) }
     val mathGlyphs = remember(context) { MathGlyphs(context.applicationContext) }
     CompositionLocalProvider(LocalGlyphFallback provides glyphs, LocalMathGlyphs provides mathGlyphs) {

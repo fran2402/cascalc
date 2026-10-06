@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import com.example.cas.ui.AppScreen
 import com.example.cas.ui.theme.CasTheme
 
@@ -15,8 +17,11 @@ class MainActivity : ComponentActivity() {
         com.example.cas.ui.AppSettings.init(this)
         com.example.cas.ui.SceneExport.installMetrics(this)
         openedFile(intent)
+        // The icon draws itself on a cold start (not when the screen turns or the theme changes).
+        val coldStart = savedInstanceState == null
         setContent {
             CasTheme {
+                var launching by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(coldStart) }
                 // Keep the screen on while the app is open, if chosen in settings.
                 val view = androidx.compose.ui.platform.LocalView.current
                 val keepOn = com.example.cas.ui.AppSettings.keepScreenOn
@@ -24,6 +29,7 @@ class MainActivity : ComponentActivity() {
                 AppScreen()
                 // The last crash's stack trace, if the app closed unexpectedly.
                 com.example.cas.ui.CrashReportDialog()
+                if (launching) com.example.cas.ui.LaunchAnimation(onDone = { launching = false })
             }
         }
     }

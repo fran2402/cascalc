@@ -50,8 +50,9 @@ class ColormapTest {
     }
 
     @Test fun everyMatplotlibMapIsThere() {
-        // matplotlib's 86, the classic wheel, the theme's own map and four more single hues.
-        assertEquals(92, Colormap.ALL.size)
+        // matplotlib's 86, the classic wheel, the theme's own map, the four made from the theme's
+        // colors and four more single hues.
+        assertEquals(96, Colormap.ALL.size)
         assertEquals(Colormap.ALL.size, Colormap.ALL.map { it.name }.toSet().size)
         for (n in listOf("RdBu", "coolwarm", "tab10", "cubehelix", "berlin", "gist_ncar")) assertEquals(n, Colormap.byName(n).name)
     }
@@ -113,5 +114,23 @@ class ColormapTest {
         assertEquals(Colormap.MAGMA, Colormap.byName("MAGMA"))
         assertEquals(Colormap.CLASSIC, Colormap.byName("nonsense"))
         assertEquals(Colormap.CLASSIC, Colormap.byName(null))
+    }
+
+    @Test fun themeMapsFollowTheTheme() {
+        val tonal = Colormap.byName("theme_tonal")
+        Colormap.themePrimary = 0xFF1E5BB8.toInt(); Colormap.themeTertiary = 0xFFB8341E.toInt()
+        val blue = tonal.rgb(0.8)
+        Colormap.themePrimary = 0xFF2E7D32.toInt()
+        val green = tonal.rgb(0.8)
+        assertTrue(blue != green)
+        // Split: primary at one end, tertiary at the other, near white in the middle.
+        val split = Colormap.byName("theme_diverging")
+        val mid = split.rgb(0.5)
+        assertTrue(((mid shr 16) and 0xFF) > 200 && ((mid shr 8) and 0xFF) > 200 && (mid and 0xFF) > 200)
+        // Loop joins up.
+        val loop = Colormap.byName("theme_loop")
+        assertTrue(loop.cyclic)
+        assertTrue(close(loop.rgb(0.0), loop.rgb(1.0)))
+        Colormap.themePrimary = 0xFF5B6133.toInt(); Colormap.themeTertiary = 0xFF3A665A.toInt()
     }
 }

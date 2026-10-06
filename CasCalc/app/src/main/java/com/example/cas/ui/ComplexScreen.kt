@@ -213,6 +213,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
     // Render coarse first so panning feels live, then sharper once the view settles. The sampled
     // values are kept: a new colormap, shading or theme color only paints them again, at once.
     val themePrimary = MaterialTheme.colorScheme.primary
+    val themeTertiary = MaterialTheme.colorScheme.tertiary
     val coloring = vm.options.copy(colormap = f?.colormap ?: vm.options.colormap, reversed = f?.colormapReversed ?: false)
     val coloringState = androidx.compose.runtime.rememberUpdatedState(coloring)
     var sampled by remember { mutableStateOf<Triple<DoubleArray, Int, Int>?>(null) }
@@ -242,7 +243,7 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
         }
     }
     // Colors only: paint the kept values again (no sampling, no coarse pass).
-    LaunchedEffect(coloring, themePrimary) {
+    LaunchedEffect(coloring, themePrimary, themeTertiary) {
         val (values, w, h) = sampled ?: return@LaunchedEffect
         val px = withContext(Dispatchers.Default) { DomainColoring.paint(values, coloring) }
         image = Bitmap.createBitmap(px, w, h, Bitmap.Config.ARGB_8888).asImageBitmap()

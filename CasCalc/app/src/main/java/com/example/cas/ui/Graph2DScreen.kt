@@ -132,7 +132,7 @@ private class Plotted(
     private fun repaint() {
         val values = fieldValues ?: return
         val range = fieldRange ?: return
-        val key = listOf(f.colormap, f.colormapReversed, com.example.cas.graph.Colormap.themePrimary)
+        val key = listOf(f.colormap, f.colormapReversed, com.example.cas.graph.Colormap.themePrimary, com.example.cas.graph.Colormap.themeTertiary)
         if (key == paintKey) return
         val px = com.example.cas.graph.Field.colors(values, range.first, range.second, f.colormap, f.colormapReversed)
         paintPx = px
@@ -1501,10 +1501,6 @@ private fun GraphSettingsDialog(vm: Graph2DViewModel, view: Viewport, onDismiss:
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(tr("Numbers on the axes"), modifier = Modifier.weight(1f))
                     androidx.compose.material3.Switch(checked = AppSettings.axisNumbers, onCheckedChange = AppSettings::changeAxisNumbers)
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(tr("Degrees"), modifier = Modifier.weight(1f))
-                    androidx.compose.material3.Switch(checked = vm.angle == com.example.cas.engine.AngleUnit.Degrees, onCheckedChange = { vm.toggleAngle() })
                 }
                 Text(tr("Field quality"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 androidx.compose.material3.SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {

@@ -203,6 +203,24 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (6 October, launch animation, letter definitions, theme colormaps, converter pins)
+
+- **Launch animation**: on a cold start the app icon draws itself (ui/LaunchAnimation.kt, from
+  icon.svg's paths): the three axes grow from the middle, the hexagon is traced, the curve is
+  written in one stroke, then the icon swells and the screen fades into the app. A tap skips it.
+  On Android 12+ the system splash is just the icon's background color, so nothing shows twice.
+- **Letters defined by a line**: y = kx gives a slider for k; add k = 5x sin x and k is that
+  expression on every other line, its slider gone; k = Z swaps k's slider for one for Z. The
+  defining line isn't drawn; deleting it brings the slider back. Works in 2D, 3D and complex.
+- **Vector and slope fields redraw at once** when the arrows' number, length, scale or tips change.
+- **Colormaps from the theme's own colors**: Tonal (exactly the primary color's hue), Duo
+  (primary to tertiary), Split (diverging, primary through white to tertiary) and Loop (cyclic),
+  following the theme when it changes; added to the favorites once.
+- 2D graph settings: the Degrees switch is gone (Rad/Deg is on the keypad).
+- Unit converter: the delete key uses the app's backspace icon; prefixes run in order (none,
+  then quetta down to quecto); pin units to a Pinned group at the top of the list.
+- Data table on tablets: the ribbon's tabs (Home, Insert, Formulas…) sit in the top bar.
+
 ## Latest changes (6 October, "How to use" for every key, Pₙᵐ and Cₙᵅ spacing)
 
 - **Every key's long-press card has a How to use section**: where its boxes go and a worked

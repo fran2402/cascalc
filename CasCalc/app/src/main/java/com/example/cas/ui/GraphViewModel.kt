@@ -63,9 +63,11 @@ class PlotFunction(initial: MathRow, val colorIndex: Int) {
     /** Conditions after commas (y = x², 0 < x < 2): each compared chain's parts in (x, y, t, θ, r) + sliders. */
     var restrictions: List<Pair<List<RealFunction>, List<String>>> = emptyList()
         internal set
-    /** f(t) = … with a variable that isn't plotted: this line only defines f. */
+    /** f(t) = … with a variable that isn't plotted (or k = 5x sin x): this line only defines f (or k). */
     var definesFunction: String? = null
         internal set
+    /** Whether this line defined something when last edited (so the others follow when that changes). */
+    internal var wasDefinition = false
     /** In 3D: a point (a, b, c) or a space curve (x(t), y(t), z(t)), its three coordinates compiled. */
     var space: List<RealFunction>? = null
         internal set
@@ -527,7 +529,9 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             f.version++
             val wasConstruction = f.geometry != null
             // Lines can use functions defined on other lines, so a list with definitions recompiles whole.
-            if (functions.any { com.example.cas.engine.UserFunction.definition(it.editor.root.items) != null || it.geometry != null } || f.geometry != null) {
+            val defines = isDefinitionLine(f)
+            if (functions.any { isDefinitionLine(it) || it.geometry != null } || f.geometry != null || defines != f.wasDefinition) {
+                f.wasDefinition = defines
                 geometryCache = null
                 recompile(f)
                 // A construction that's still one (a point dragged, a command edited) can only change
@@ -650,6 +654,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         normalizeFolders()
         // Constructions built on a deleted one are worked out again (and say what's missing).
         if (f.geometry != null) { geometryCache = null; functions.filter { it.geometry != null }.forEach { recompile(it) } }
+        // A deleted k = … gives k its slider back on the lines that use it.
+        if (isDefinitionLine(f)) functions.forEach { recompile(it) }
         if (functions.none { !it.isFolder }) { active = null; typingFocus = false }
         version++
         save()
@@ -662,7 +668,9 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
      * moving a point redraws only the constructions.
      */
     val plotKey: List<Any?> get() = functions.filter { it.geometry == null }.map {
-        listOf(it, it.version, it.visible, it.colorIndex, it.compiled, it.implicit3D, it.complexCompiled, it.complexCurve, it.complexPath, it.complexPoints, it.plot, it.family)
+        listOf(it, it.version, it.visible, it.colorIndex, it.compiled, it.implicit3D, it.complexCompiled, it.complexCurve, it.complexPath, it.complexPoints, it.plot, it.family,
+            // A field's arrows are laid out with these, so changing one redraws the field at once.
+            it.arrowDensity, it.arrowLength, it.arrowScale, it.arrowTip, it.arrowTipSize, it.arrowsByLength)
     }
 
     /** A list of points in the 2D graph: edited in its table, never typed into. */
@@ -715,6 +723,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         version++
         if (f.isText) { f.compiled = null; f.complexCompiled = null; f.plot = null; f.family = emptyList(); f.parameters = emptyList(); f.error = null; return }
         if (f.editor.isEmpty) { f.compiled = null; f.complexCompiled = null; f.plot = null; f.error = null; return }
+        f.definesFunction = null
+        if (compileLetterDefinition(f)) return
         if (plotVars == listOf("x")) { recompile2D(f); return }
         if (plotVars.size == 2) { recompile3D(f); return }
         if (isComplex) { recompileComplex(f); return }
@@ -1385,7 +1395,79 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         return out
     }
 
-    private fun evaluatorFor(f: PlotFunction) = Evaluator(angle, null, storedVariables(), unitSystem, coordinates, userFunctions(except = f))
+    private fun evaluatorFor(f: PlotFunction) = Evaluator(angle, null, storedVariables() + letterValues(except = f), unitSystem, coordinates, userFunctions(except = f))
+
+    /**
+     * A line like k = 5x sin x or k = Z: a letter (not a coordinate) set to an expression that
+     * isn't just a number. The letter and the nodes after "=". (k = 3 is a slider's value instead.)
+     */
+    private fun letterDefinition(g: PlotFunction): Pair<String, List<com.example.cas.editor.Node>>? {
+        if (g.isText || g.geometry != null) return null
+        val items = g.editor.root.items.filter { !(it is com.example.cas.editor.Sym && it.text.isBlank()) }
+        if (items.size < 3) return null
+        val name = (items[0] as? com.example.cas.editor.Sym)?.text ?: return null
+        if ((items[1] as? com.example.cas.editor.Sym)?.text != "=") return null
+        val isLetter = (name.length == 1 && name[0].isLetter()) || com.example.cas.cas.CustomSymbol.isCustom(name) || com.example.cas.editor.MathAlphabets.isMathLetter(name)
+        if (!isLetter || name in plotLetters || name in setOf("e", "i", "π")) return null
+        val rhs = items.drop(2)
+        if (rhs.any { it is com.example.cas.editor.Sym && it.text in setOf("=", "<", ">", "≤", "≥", ",") }) return null
+        // Only an expression with letters in it (a number stays a slider's value, as before).
+        fun letters(nodes: List<com.example.cas.editor.Node>): Boolean = nodes.any { n ->
+            (n is com.example.cas.editor.Sym && n.text.length == 1 && n.text[0].isLetter() && n.text !in setOf("e", "i", "π")) ||
+                (n is com.example.cas.editor.Sym && com.example.cas.cas.CustomSymbol.isCustom(n.text)) || n.slots.any { letters(it.items) }
+        }
+        if (!letters(rhs)) return null
+        return name to rhs
+    }
+
+    /**
+     * The letters set on lines like k = 5x sin x, worked out, for every other line to use (so k
+     * gets no slider, and the letters in its expression do). Two passes, so one may use another
+     * written below it; [except] leaves a line out (its own definition can't use itself).
+     */
+    private fun letterValues(except: PlotFunction?): Map<String, Expr> {
+        val defs = functions.filter { it !== except }.mapNotNull { g -> letterDefinition(g)?.let { g to it } }
+        if (defs.isEmpty()) return emptyMap()
+        val out = LinkedHashMap<String, Expr>()
+        repeat(2) {
+            for ((_, d) in defs) {
+                val (name, rhs) = d
+                runCatching {
+                    val e = Evaluator(angle, null, storedVariables() + out.filterKeys { it != name }, unitSystem, coordinates, userFunctions())
+                        .evaluate(MathCodec.copyOf(rhs))
+                    if (name !in e.freeVars()) out[name] = e
+                }
+            }
+        }
+        return out
+    }
+
+    /** Whether a line defines something the other lines use (f(x) = …, or k = 5x sin x). */
+    private fun isDefinitionLine(g: PlotFunction) = com.example.cas.engine.UserFunction.definition(g.editor.root.items) != null || letterDefinition(g) != null
+
+    /**
+     * A line like k = 5x sin x: it isn't drawn; it defines k for the other lines. Its own sliders
+     * are the letters in its expression (k = Z gives a slider for Z).
+     */
+    private fun compileLetterDefinition(f: PlotFunction): Boolean {
+        val (name, rhs) = letterDefinition(f) ?: return false
+        f.compiled = null; f.complexCompiled = null; f.plot = null; f.implicit3D = null; f.complexCurve = null; f.contour = null
+        f.definition = null; f.restrictions = emptyList(); f.family = emptyList(); f.space = null
+        try {
+            val e = Evaluator(angle, null, storedVariables() + letterValues(except = f), unitSystem, coordinates, userFunctions()).evaluate(MathCodec.copyOf(rhs))
+            if (name in e.freeVars()) throw MathError("$name can't be defined by itself")
+            val params = (e.freeVars() - plotLetters - plotVars.toSet()).sorted()
+            params.forEach { if (it !in parameters) parameters[it] = 1.0 }
+            f.parameters = params
+            f.definesFunction = name
+            f.error = null
+        } catch (ex: MathError) {
+            f.parameters = emptyList(); f.error = ex.message
+        } catch (ex: RuntimeException) {
+            f.parameters = emptyList(); f.error = "Can't work this out"
+        }
+        return true
+    }
 
     /** Whether a point passes every condition written after commas on its line. */
     fun allowed(f: PlotFunction, x: Double, y: Double, t: Double = Double.NaN, theta: Double = Double.NaN, r: Double = Double.NaN): Boolean {

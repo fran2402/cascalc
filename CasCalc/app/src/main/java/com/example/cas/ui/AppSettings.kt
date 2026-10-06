@@ -146,6 +146,7 @@ object AppSettings {
         SavedSymbols.init(context)
         PinnedKeys.init(context)
         FavoriteColormaps.init(context)
+        PinnedUnits.init(context)
         theme = p.getInt("theme", 0)
         dynamicColor = p.getBoolean("dynamicColor", true)
         themeColor = p.getInt("themeColor", 0)

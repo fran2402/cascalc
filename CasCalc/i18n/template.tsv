@@ -180,7 +180,6 @@ Square zoom: equal scales
 Import sheets	
 Each sheet becomes its own line.	
 Numbers on the axes	
-Degrees	
 Field quality	
 Area	
 Area from here	
@@ -439,6 +438,8 @@ Delete the last unit
 Prefix	
 Search units	
 prefixes	
+Unpin {0}	
+Pin {0} to the top	
 Points	
 Lines	
 Circles & shapes	
