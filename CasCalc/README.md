@@ -203,6 +203,14 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (7 October, differential equations with the derivative button)
+
+- **The derivative button works in differential equations**: d/dx(y) = 2y, or d²/dx²(y) + y = 0
+  typed with the derivative key, is solved on Enter just like y' = 2y. Conditions go after commas
+  (y(0) = 1), and d/dt(y) solves in t. Button derivatives and primes can be mixed in one
+  equation. A derivative of an expression, such as d/dx(x²) = 4, is still an ordinary equation
+  (x = 2).
+
 ## Latest changes (7 October, equations are solved on Enter)
 
 - **Enter solves equations**: type an equation with = in the calculator and Enter solves it for

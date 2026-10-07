@@ -74,4 +74,14 @@ class SolveOnEnterTest {
     @Test fun stepsFollowTheChoice() = assertEquals(true, com.example.cas.engine.Steps.of(r("y=2x+1"), solveFor = listOf("x"))!!.answer.items.any { (it as? Sym)?.text == "x" })
     @Test fun stepsDifferential() = assertEquals(true, com.example.cas.engine.Steps.of(r("y′=2y,y(0)=1")) != null)
     @Test fun solvedForReadsTheAnswer() = assertEquals(listOf("x", "y"), com.example.cas.engine.Steps.solvedFor(Evaluator(solveEquations = true).evaluate(r("x+y=3,x−y=1"))))
+
+    // The derivative button (d/dx of y) works like the y′ keys.
+    private fun dd(y: String, v: String = "x", order: String = "") = com.example.cas.editor.Derivative(r(v), r(y), MathRow(), if (order.isEmpty()) MathRow() else r(order))
+    @Test fun derivativeButton() = assertEquals("y=C1e^(2x)", solve(r(dd("y"), "=2y")).replace(" ", "").replace("_", ""))
+    @Test fun derivativeButtonWithCondition() = assertEquals("y=e^(2x)", solve(r(dd("y"), "=2y,y(0)=1")).replace(" ", ""))
+    @Test fun secondDerivativeButton() = assertEquals(true, solve(r(dd("y", order = "2"), "+y=0")).let { "cos" in it && "sin" in it })
+    @Test fun mixedButtonAndPrime() = assertEquals(true, solve(r(dd("y", order = "2"), "−3y′+2y=0")).let { "e^x" in it.replace(" ", "") && "e^(2x)" in it.replace(" ", "") })
+    @Test fun derivativeInT() = assertEquals("y=3e^(-t)", solve(r(dd("y", "t"), "=−y,y(0)=3")).replace(" ", ""))
+    @Test fun derivativeOfAnExpressionIsNotAnOde() = assertEquals("x=2", solve(r(com.example.cas.editor.Derivative(r("x"), r("x²")), "=4")))
+    @Test fun derivativeButtonSteps() = assertEquals(true, com.example.cas.engine.Steps.of(r(dd("y"), "=2y,y(0)=1")) != null)
 }

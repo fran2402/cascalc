@@ -173,7 +173,7 @@ object Steps {
     private fun equation(row: MathRow, angle: AngleUnit, solveFor: List<String>?): Solution? {
         val ev = Evaluator(angle, solveEquations = true).also { it.solveFor = solveFor }
         val eqs = ev.equations(com.example.cas.editor.MathCodec.copy(row)) ?: return null
-        if (eqs.differential) return ode(Func("dsolve", listOf(com.example.cas.editor.MathCodec.copy(row))), angle)
+        if (eqs.differential) return ode(Func("dsolve", listOf(ev.withPrimes(com.example.cas.editor.MathCodec.copy(row)))), angle)
         if (eqs.unknowns.isEmpty()) return null
         val question = com.example.cas.editor.MathCodec.copy(row)
         val value = runCatching { ev.evaluate(com.example.cas.editor.MathCodec.copy(row)) }.getOrNull() ?: return null

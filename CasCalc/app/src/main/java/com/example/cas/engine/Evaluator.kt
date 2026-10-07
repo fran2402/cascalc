@@ -105,7 +105,7 @@ class Evaluator(
             assigned = name to value
             return Eq(Sym(name), value)
         }
-        if (solveEquations) solved(items)?.let { return it }
+        if (solveEquations) solved(withPrimes(items))?.let { return it }
         // Constants with i in them come out as a + bi: (1 + 2i)(3 − i) = 5 + 5i; anything with letters
         // in its simplest form: (x² − 1)/(x − 1) = x + 1.
         val parsed = RowParser(items, emptyMap()).parse()
@@ -119,7 +119,38 @@ class Evaluator(
      * or ≥ in it (a matrix equation becomes one equation per entry), with the letters they leave
      * unknown, or null when the line isn't equations (a list, an expression, a definition).
      */
-    fun equations(row: MathRow): Equations? = equations(clean(row))
+    fun equations(row: MathRow): Equations? = equations(withPrimes(clean(row)))
+
+    /** The variable a differential equation typed with the d/dt button differentiates by (null: x, or t if it uses t). */
+    private var odeVariable: String? = null
+
+    /**
+     * Derivatives of a lone letter typed with the derivative button, d/dx(y) or d²/dt²(y), in an
+     * equation: written as y′ and y″ (the variable kept), so they make a differential equation
+     * just as the y′ keys do. Anything else is left alone.
+     */
+    private fun withPrimes(items: List<Node>): List<Node> {
+        fun text(n: Node) = (n as? com.example.cas.editor.Sym)?.text
+        if (items.none { text(it) == "=" }) return items
+        var changed = false
+        val out = ArrayList<Node>()
+        for (n in items) {
+            val d = n as? com.example.cas.editor.Derivative
+            val y = d?.takeIf { !it.partial && it.at.isEmpty }?.body?.items?.filter { text(it) != Formatter.THIN_SPACE }?.singleOrNull()?.let(::text)
+            val v = d?.variable?.items?.singleOrNull()?.let(::text) ?: "x"
+            val order = d?.order?.items?.joinToString("") { text(it) ?: "?" }?.ifEmpty { "1" }?.toIntOrNull()
+            if (d != null && y != null && y.length == 1 && y[0].isLetter() && y != v && y !in CONSTANT_NAMES && y !in variables && order != null && order in 1..4) {
+                out += com.example.cas.editor.Sym(y)
+                repeat(order) { out += com.example.cas.editor.Sym("′") }
+                if (v != "x") odeVariable = v
+                changed = true
+            } else out += n
+        }
+        return if (changed) out else items
+    }
+
+    /** The row with button derivatives written as primes (for the steps of a differential equation). */
+    fun withPrimes(row: MathRow): MathRow = MathRow(withPrimes(clean(row)).toMutableList())
 
     /** Equations to solve and the letters left unknown in them (constants and stored values aside). */
     class Equations(val list: List<Expr>, val unknowns: List<String>, val differential: Boolean)
@@ -773,8 +804,8 @@ class Evaluator(
                 if (a != null && a.length == 1 && a[0].isLetter() && b == "′") Sym(a) else null
             } ?: throw MathError("Write the equation with \$y'\$, e.g. \$y' = 2y\$")
             val bound = env + (y.name to y) + (1..4).associate { y.name + "′".repeat(it) to com.example.cas.cas.Ode.derivativeSymbol(y, it) }
-            val eq = RowParser(first, bound + ("x" to Sym("x")) + ("t" to Sym("t"))).parse()
-            val x = if (!eq.freeOf(Sym("t")) && eq.freeOf(Sym("x"))) Sym("t") else Sym("x")
+            val eq = RowParser(first, bound + ("x" to Sym("x")) + ("t" to Sym("t")) + (odeVariable?.let { mapOf(it to Sym(it)) } ?: emptyMap())).parse()
+            val x = odeVariable?.let { Sym(it) } ?: if (!eq.freeOf(Sym("t")) && eq.freeOf(Sym("x"))) Sym("t") else Sym("x")
             return Triple(eq, y, x)
         }
 
@@ -790,8 +821,8 @@ class Evaluator(
                 if (a != null && a.length == 1 && a[0].isLetter() && b == "′") Sym(a) else null
             } ?: throw MathError("Write the equation with \$y'\$, e.g. \$y' = 2y\$")
             val bound = env + (y.name to y) + (1..4).associate { y.name + "′".repeat(it) to com.example.cas.cas.Ode.derivativeSymbol(y, it) }
-            val eq = RowParser(first, bound + ("x" to Sym("x")) + ("t" to Sym("t"))).parse()
-            val x = if (!eq.freeOf(Sym("t")) && eq.freeOf(Sym("x"))) Sym("t") else Sym("x")
+            val eq = RowParser(first, bound + ("x" to Sym("x")) + ("t" to Sym("t")) + (odeVariable?.let { mapOf(it to Sym(it)) } ?: emptyMap())).parse()
+            val x = odeVariable?.let { Sym(it) } ?: if (!eq.freeOf(Sym("t")) && eq.freeOf(Sym("x"))) Sym("t") else Sym("x")
             val conditions = parts.drop(1).map { cond ->
                 // y(a) = b  or  y′(a) = b
                 var k = 0
