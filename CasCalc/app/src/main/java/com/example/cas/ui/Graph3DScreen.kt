@@ -419,7 +419,8 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier, onUseValue: 
             }
             if (android.os.Build.VERSION.SDK_INT >= 29) {
                 // Android 10 and later: every face and mesh line as triangles in one draw call.
-                val t = Surface3D.triangles(faces, 0.6.dp.toPx(), { k, shade -> fillOf(k, shade).toArgb() }) { fill ->
+                // Outlines feathered over about a pixel, so the surface's edges are antialiased.
+                val t = Surface3D.triangles(faces, 0.6.dp.toPx(), { k, shade -> fillOf(k, shade).toArgb() }, feather = 1.25f) { fill ->
                     wire.compositeOver(Color(fill)).copy(alpha = Color(fill).alpha).toArgb()
                 }
                 if (t.count > 0) drawContext.canvas.let { canvas ->

@@ -61,6 +61,12 @@ class Mesh(polys: List<Polygon>, b: Bounds) {
     val mx = FloatArray(count); val my = FloatArray(count); val mz = FloatArray(count)
     /** The middle in data coordinates (what a tap reads). */
     val center = DoubleArray(3 * count)
+    /**
+     * Across each side (side s of polygon k is entry start[k] + s, from corner s to the next): the
+     * polygon sharing it, or −1 on an open edge. An open edge, or one where the surface folds
+     * over (one side faces the viewer, the other away), is an outline that gets a soft edge.
+     */
+    val neighbor: IntArray
 
     init {
         var total = 0
@@ -88,6 +94,25 @@ class Mesh(polys: List<Polygon>, b: Bounds) {
             val len = max(1e-12f, sqrt(cx * cx + cy * cy + cz * cz))
             nx[k] = cx / len; ny[k] = cy / len; nz[k] = cz / len
         }
+        // Sides matched by their two corners (positions rounded, either order): shared sides meet.
+        neighbor = IntArray(total) { -1 }
+        fun q(v: Float) = Math.round((v.coerceIn(-3.9f, 3.9f) + 4f) * 262_144f).toLong()
+        fun point(v: Int) = (q(vx[v]) shl 42) or (q(vy[v]) shl 21) or q(vz[v])
+        val open = HashMap<Pair<Long, Long>, Int>(total)
+        for (k in 0 until count) for (v in start[k] until start[k + 1]) {
+            val w = if (v + 1 == start[k + 1]) start[k] else v + 1
+            val a = point(v); val b = point(w)
+            val key = if (a <= b) a to b else b to a
+            val other = open.remove(key)
+            if (other == null) open[key] = v else { neighbor[v] = other.polygonOf(); neighbor[other] = k }
+        }
+    }
+
+    /** Which polygon a corner (by its index) belongs to. */
+    private fun Int.polygonOf(): Int {
+        var lo = 0; var hi = count - 1
+        while (lo < hi) { val mid = (lo + hi + 1) / 2; if (start[mid] <= this) lo = mid else hi = mid - 1 }
+        return lo
     }
 }
 
@@ -302,13 +327,25 @@ object Surface3D {
     /**
      * Every polygon as triangles colored [fill] (ARGB, from the polygon and its shade), each mesh
      * line as a thin quad [line] px wide colored [wire] (from the fill under it), in painting order.
+     * Outlines (open edges, and folds where the surface turns from facing the viewer to facing
+     * away) get a [feather] px strip fading from the face's color to clear, drawn with the face so
+     * nearer faces still cover it: antialiased edges, without drawing anything twice.
      */
-    fun triangles(p: Projected, line: Float, fill: (k: Int, shade: Float) -> Int, wire: (fill: Int) -> Int): Triangles {
+    fun triangles(p: Projected, line: Float, fill: (k: Int, shade: Float) -> Int, feather: Float = 0f, wire: (fill: Int) -> Int): Triangles {
         val m = p.mesh
+        // Which way each polygon winds on screen (facing the viewer or away).
+        val facing = BooleanArray(m.count) { k ->
+            var area = 0f
+            val a = m.start[k]; val e = m.start[k + 1]
+            for (i in a until e) { val j = if (i + 1 == e) a else i + 1; area += p.px[i] * p.py[j] - p.px[j] * p.py[i] }
+            area > 0f
+        }
+        fun outline(k: Int, side: Int): Boolean { val n = m.neighbor[side]; return n < 0 || facing[n] != facing[k] }
         var tris = 0
         for (k in 0 until m.count) {
             tris += m.start[k + 1] - m.start[k] - 2
             tris += 2 * Integer.bitCount(m.edges[k])
+            if (feather > 0f) for (v in m.start[k] until m.start[k + 1]) if (outline(k, v)) tris += 2
         }
         val verts = FloatArray(tris * 6)
         val colors = IntArray(tris * 3)
@@ -319,6 +356,25 @@ object Surface3D {
             val a = m.start[k]; val e = m.start[k + 1]
             val c = fill(k, p.shade[k])
             for (i in a + 1 until e - 1) { put(p.px[a], p.py[a], c); put(p.px[i], p.py[i], c); put(p.px[i + 1], p.py[i + 1], c) }
+            if (feather > 0f) {
+                // The middle on screen, to tell which way is out of the face.
+                var cx = 0f; var cy = 0f
+                for (i in a until e) { cx += p.px[i]; cy += p.py[i] }
+                cx /= (e - a); cy /= (e - a)
+                val clear = c and 0x00FFFFFF
+                for (i in a until e) {
+                    if (!outline(k, i)) continue
+                    val j = if (i + 1 == e) a else i + 1
+                    val dx = p.px[j] - p.px[i]; val dy = p.py[j] - p.py[i]
+                    val len = sqrt(dx * dx + dy * dy)
+                    if (len == 0f) { repeat(6) { put(p.px[i], p.py[i], clear) }; continue }
+                    var ox = -dy / len * feather; var oy = dx / len * feather
+                    // Outwards: away from the middle.
+                    if ((p.px[i] - cx) * ox + (p.py[i] - cy) * oy < 0f) { ox = -ox; oy = -oy }
+                    put(p.px[i], p.py[i], c); put(p.px[j], p.py[j], c); put(p.px[j] + ox, p.py[j] + oy, clear)
+                    put(p.px[i], p.py[i], c); put(p.px[j] + ox, p.py[j] + oy, clear); put(p.px[i] + ox, p.py[i] + oy, clear)
+                }
+            }
             val edges = m.edges[k]
             if (edges == 0) continue
             val lc = wire(c)
@@ -334,7 +390,6 @@ object Surface3D {
         }
         return Triangles(verts, colors, vi)
     }
-
 
     // ---- Projection -------------------------------------------------------------------
 

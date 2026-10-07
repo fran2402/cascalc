@@ -97,4 +97,32 @@ class FastPlotTest {
         // 48 cells across: mesh lines on every 2nd grid line, so 25 lines each way, not 49.
         assertTrue(lines < polys.size * 4 / 2 + 200)
     }
+
+    @Test fun neighborsOfAGrid() {
+        // A 10 × 10 grid: every inner side is shared, the 40 sides round the border are open.
+        val m = Mesh(Surface3D.explicit({ x, y -> x * y / 8 }, box, 10), box)
+        assertEquals(40, m.neighbor.count { it < 0 })
+        for (k in 0 until m.count) for (v in m.start[k] until m.start[k + 1]) {
+            val n = m.neighbor[v]
+            if (n >= 0) assertTrue((m.start[n] until m.start[n + 1]).any { m.neighbor[it] == k })
+        }
+    }
+
+    @Test fun onlyOutlinesAreFeathered() {
+        val polys = Surface3D.explicit({ x, y -> x * y / 4 }, box, 24)
+        val p = Surface3D.project(Mesh(polys, box), Camera(), 400f, 400f)
+        val plain = Surface3D.triangles(p, 1.5f, { _, _ -> 0xFF112233.toInt() }) { it }
+        val soft = Surface3D.triangles(p, 1.5f, { _, _ -> 0xFF112233.toInt() }, feather = 1.25f) { it }
+        // Seen from above, nothing folds over: just the 96 border sides get a strip.
+        assertEquals(plain.count + 96 * 2 * 6, soft.count)
+        // Each strip fades from the face's color to clear.
+        assertTrue(soft.colors.any { it == 0x00112233 })
+        System.getenv("FEATHER_DUMP")?.let { path ->
+            fun dump(t: com.example.cas.graph.Triangles) = (0 until t.count / 2).joinToString("\n") { v -> "${t.vertices[2 * v]} ${t.vertices[2 * v + 1]} ${t.colors[v]}" }
+            val sharp = Surface3D.project(Mesh(Surface3D.explicit({ x, y -> kotlin.math.sin(x) * kotlin.math.cos(y) }, box, 40), box), Camera(yaw = 0.5, pitch = 0.25), 400f, 400f)
+            fun c(k: Int, s: Float) = (0xFF shl 24) or ((60 * s).toInt() shl 16) or ((120 * s).toInt() shl 8) or (210 * s).toInt()
+            java.io.File("$path.plain").writeText(dump(Surface3D.triangles(sharp, 0f, ::c) { it }))
+            java.io.File("$path.soft").writeText(dump(Surface3D.triangles(sharp, 0f, ::c, feather = 1.25f) { it }))
+        }
+    }
 }
