@@ -63,7 +63,15 @@ class Evaluator(
     private val coordinates: com.example.cas.cas.Coordinates = com.example.cas.cas.Coordinates(),
     /** Functions defined like f(x) = x², usable as f(2), f(x + 1) and f′(x). */
     private val functions: Map<String, UserFunction> = emptyMap(),
+    /**
+     * The calculator's Enter: an equation (or inequality, or several split by commas, or a matrix
+     * equation, or a differential equation) is solved rather than shown back.
+     */
+    private val solveEquations: Boolean = false,
 ) {
+    /** What to solve for, when the user picked it (the letters, as many as there are equations). */
+    var solveFor: List<String>? = null
+
     /** Set when the input was an assignment like a := 5. */
     var assigned: Pair<String, Expr>? = null
         private set
@@ -97,12 +105,88 @@ class Evaluator(
             assigned = name to value
             return Eq(Sym(name), value)
         }
+        if (solveEquations) solved(items)?.let { return it }
         // Constants with i in them come out as a + bi: (1 + 2i)(3 − i) = 5 + 5i; anything with letters
         // in its simplest form: (x² − 1)/(x − 1) = x + 1.
         val parsed = RowParser(items, emptyMap()).parse()
         // (With automatic simplification off, for the steps, complex numbers stay as typed too.)
         val value = if (autoSimplify) com.example.cas.cas.ComplexArith.normalize(parsed) else parsed
         return if (autoSimplify && !asksForAForm(items)) com.example.cas.cas.AutoSimplify.simplify(value) else value
+    }
+
+    /**
+     * The equations typed, ready to solve: each part between top-level commas that has =, <, >, ≤
+     * or ≥ in it (a matrix equation becomes one equation per entry), with the letters they leave
+     * unknown, or null when the line isn't equations (a list, an expression, a definition).
+     */
+    fun equations(row: MathRow): Equations? = equations(clean(row))
+
+    /** Equations to solve and the letters left unknown in them (constants and stored values aside). */
+    class Equations(val list: List<Expr>, val unknowns: List<String>, val differential: Boolean)
+
+    private fun equations(items: List<Node>): Equations? {
+        fun text(n: Node) = (n as? com.example.cas.editor.Sym)?.text
+        if (items.none { text(it) == "=" || text(it) in RELATIONS }) return null
+        // y′ = 2y (with conditions after commas): a differential equation.
+        // (A prime on a function defined with :=, f′(x) = 0, is that function's derivative instead.)
+        val primed = items.indices.any { k -> text(items[k]) == "′" && k > 0 && text(items[k - 1])?.let { it.length == 1 && it[0].isLetter() && it !in functions } == true }
+        if (primed && items.any { text(it) == "=" }) return Equations(emptyList(), emptyList(), true)
+        val parts = splitTopCommas(items).filter { it.isNotEmpty() }
+        if (parts.any { p -> p.none { text(it) == "=" || text(it) in RELATIONS } }) return null
+        val parsed = parts.map { RowParser(it, emptyMap()).parse() }
+        val list = parsed.flatMap { e ->
+            if (e is Eq) {
+                val l = com.example.cas.cas.AutoSimplify.simplify(e.lhs); val r = com.example.cas.cas.AutoSimplify.simplify(e.rhs)
+                when {
+                    // A matrix equation, entry by entry: [[1, 1], [1, −1]]·[[x], [y]] = [[3], [1]].
+                    l is com.example.cas.cas.Mat && r is com.example.cas.cas.Mat -> {
+                        if (l.rows != r.rows || l.cols != r.cols) throw MathError("The two sides are matrices of different sizes")
+                        l.cells.indices.map { k -> Eq(l.cells[k], r.cells[k]) }
+                    }
+                    l is com.example.cas.cas.Mat || r is com.example.cas.cas.Mat -> throw MathError("Both sides need to be matrices of the same size")
+                    else -> listOf(e)
+                }
+            } else listOf(e)
+        }
+        val unknowns = list.flatMap { it.freeVars() }.distinct().filter { it !in CONSTANT_NAMES }
+            .sortedWith(compareBy({ v -> PREFERRED.indexOf(v).let { if (it < 0) PREFERRED.size else it } }, { it }))
+        return Equations(list, unknowns, false)
+    }
+
+    /**
+     * The calculator's Enter on equations: solved for their unknown (or unknowns). Throws
+     * [ChooseUnknowns] when that isn't clear (x + y = 3: x or y?) and [solveFor] isn't set.
+     */
+    private fun solved(items: List<Node>): Expr? {
+        val eqs = equations(items) ?: return null
+        if (eqs.differential) return RowParser(items, emptyMap()).solveDifferential(items)
+        if (eqs.unknowns.isEmpty()) return null
+        val n = eqs.list.size
+        val chosen = solveFor?.takeIf { it.isNotEmpty() && it.all { v -> v in eqs.unknowns } } ?: when {
+            eqs.unknowns.size == 1 -> eqs.unknowns
+            // As many unknowns as equations (or fewer): all of them.
+            n > 1 && eqs.unknowns.size <= n -> eqs.unknowns
+            else -> throw ChooseUnknowns(eqs.unknowns, minOf(n, eqs.unknowns.size))
+        }
+        val vars = chosen.map { Sym(it) }
+        val only = eqs.list.singleOrNull()
+        return when {
+            only is com.example.cas.cas.Rel && vars.size == 1 -> com.example.cas.cas.Systems.solveInequality(only, vars[0])
+            eqs.list.any { it is com.example.cas.cas.Rel } -> throw MathError("Inequalities are solved one at a time")
+            only != null && vars.size == 1 -> fewerRoots(Algebra.solve(only, vars[0]))
+            else -> com.example.cas.cas.Systems.solve(eqs.list, vars)
+        }
+    }
+
+    /**
+     * A periodic equation solved numerically (sin x = cos x) has roots all along the line: more
+     * than eight are cut to those within one turn either side of 0 (−2π to 2π), in order.
+     */
+    private fun fewerRoots(e: Expr): Expr {
+        val items = (e as? com.example.cas.cas.Seq)?.items ?: return e
+        if (items.size <= 8) return e
+        val near = items.filter { item -> (item as? Eq)?.rhs?.let { runCatching { kotlin.math.abs(com.example.cas.cas.Numeric.real(it)) <= 2 * Math.PI + 1e-9 }.getOrDefault(true) } ?: true }
+        return if (near.isEmpty() || near.size == items.size) e else com.example.cas.cas.Seq(near, e.joiner)
     }
 
     /** factor, expand, apart…: the form was asked for, so it's kept as it is. */
@@ -694,6 +778,9 @@ class Evaluator(
             return Triple(eq, y, x)
         }
 
+        /** A differential equation typed on its own (y′ = 2y, y(0) = 1), as dsolve would solve it. */
+        fun solveDifferential(items: List<Node>): Expr = dsolve(items)
+
         private fun dsolve(items: List<Node>): Expr {
             val parts = splitCommas(items)
             val first = parts.first()
@@ -733,6 +820,11 @@ class Evaluator(
     }
 
     companion object {
+        /** Letters that are numbers, never unknowns. */
+        private val CONSTANT_NAMES = setOf("π", "e", "i", "∞")
+        /** The usual unknowns first when listing them: x, y, z, t. */
+        private val PREFERRED = listOf("x", "y", "z", "t")
+
         /** Function names that may appear as plain words in a reused answer, e.g. "ln" in ln|x|. */
         val FUNCTION_WORDS = setOf("ln", "sin", "cos", "tan")
         val MORE_TRIG = setOf("sec", "csc", "cot", "asec", "acsc", "acot", "sech", "csch", "coth", "asech", "acsch", "acoth", "sinc", "hypot", "atan2")
@@ -775,3 +867,9 @@ data class UserFunction(val variables: List<String>, val body: Expr) {
         }
     }
 }
+
+/**
+ * An equation with more unknowns than it can be solved for: the calculator asks which ([count] of
+ * [candidates]) and enters it again with [Evaluator.solveFor] set.
+ */
+class ChooseUnknowns(val candidates: List<String>, val count: Int) : RuntimeException("Choose what to solve for")

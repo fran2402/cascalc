@@ -79,10 +79,10 @@ import kotlinx.coroutines.withContext
  * the question, answer and an outline of the steps beside them.
  */
 @Composable
-fun StepsView(expression: MathRow, angle: AngleUnit, onDismiss: () -> Unit) {
+fun StepsView(expression: MathRow, angle: AngleUnit, onDismiss: () -> Unit, solveFor: List<String>? = null) {
     // Worked out off the main thread: an integral can take a moment.
     val solution by produceState<Result<Steps.Solution?>?>(null, expression) {
-        value = Result.success(withContext(Dispatchers.Default) { Steps.of(expression, angle) })
+        value = Result.success(withContext(Dispatchers.Default) { Steps.of(expression, angle, solveFor) })
     }
     val total = solution?.getOrNull()?.steps?.size ?: 0
     // Every step at once (no revealing them one by one).

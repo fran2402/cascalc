@@ -95,15 +95,16 @@ object KeyGuides {
         "i, the imaginary unit" to g("""The imaginary unit, defined by \(i^2 = -1\). Every complex number has the form \(a + bi\) with \(a, b \in \mathbb{R}\), or the polar form \(r e^{i\theta}\).""",
             s("""Tap it like any number; next to a number it multiplies: \(2i\)."""),
             ex("i", p("2")), ex("(2+i)(3−i)"), ex(fr("1", "1+i"))),
-        "equals sign" to g("""The equality relation. It forms an equation \(A = B\); in the graphing modes, \(y = f(x)\) or an implicit equation \(F(x, y) = 0\) defines a curve.""",
-            s("Type the left side.", "Tap =, then type the right side.", "In a graphing mode, the equation is drawn as a curve."),
-            graph("y=x", p("2"), note = "A parabola, in the graphs."), graph("y=2x+1", note = "A line, in the graphs."), graph("x", p("2"), "+y", p("2"), "=4", note = "A circle of radius 2, in the graphs.")),
+        "equals sign" to g("""The equality relation \(A = B\). On Enter an equation is solved for its unknown; equations separated by commas, or an equation between matrices, are solved as a system. In the graphing modes, \(y = f(x)\) or \(F(x, y) = 0\) defines a curve.""",
+            s("Type the left side, tap =, then type the right side.", "Tap Enter: it is solved for its unknown.", "With several letters, choose which to solve for.", "Separate several equations with commas to solve them together."),
+            ex("x", p("3"), "+1=3"), ex("x", p("2"), "=9"), ex("x+y=3,x−y=1", note = "A system: one equation per unknown."),
+            ex(mat(2, 2, "1", "1", "1", "−1"), "×", mat(2, 1, "x", "y"), "=", mat(2, 1, "3", "1"), note = "The same system as a matrix equation.")),
         "less than" to g("""The strict order relation \(a < b\); with = it gives \(a \le b\). In the graphing modes an inequality in \(x\) and \(y\) defines a shaded region.""",
-            s("Type the left side, tap <, type the right side.", """Tap > then = for \(\ge\) (or < then = for \(\le\))."""),
-            graph("x", p("2"), "+y", p("2"), "<4", note = "The inside of the circle of radius 2, in the graphs."), graph("y<x", p("2"), note = "The region below the parabola, in the graphs.")),
+            s("Type the left side, tap <, type the right side.", """Tap > then = for \(\ge\) (or < then = for \(\le\)).""", "Tap Enter: it is solved for its unknown."),
+            ex("2x+1<7"), ex("x", p("2"), "<4"), graph("y<x", p("2"), note = "The region below the parabola, in the graphs.")),
         "greater than" to g("""The strict order relation \(a > b\); with = it gives \(a \ge b\). In the graphing modes an inequality in \(x\) and \(y\) defines a shaded region.""",
-            s("Type the left side, tap >, type the right side."),
-            graph("y>x", note = "The half-plane above the line y = x, in the graphs."), graph("x", p("2"), "+y", p("2"), ">1", note = "The outside of the unit circle, in the graphs.")),
+            s("Type the left side, tap >, type the right side.", "Tap Enter: it is solved for its unknown."),
+            ex("x", p("2"), ">4"), ex("3x−5>1"), graph("x", p("2"), "+y", p("2"), ">1", note = "The outside of the unit circle, in the graphs.")),
         "comma" to g("""The separator between the elements of a list and between the arguments of a function of several variables, as in \(\gcd(12, 18)\).""",
             s("Tap it between values."),
             ex(f("mean", "2,4,9")), ex(f("max", "3", "8"))),
@@ -204,13 +205,13 @@ object KeyGuides {
             s("Type the function.", "Set the point after the arrow and the order."),
             ex(f("taylor", m("e", p("x")), "x→0", "3")), ex(f("taylor", f("sin", "x"), "x→0", "5"))),
         "y prime" to g("""The first derivative \(y' = \frac{dy}{dx}\) of the unknown function \(y(x)\) in a differential equation.""",
-            s("Type it inside dsolve, as part of the differential equation."),
-            ex(f("dsolve", m("y", "′", "=y"))), ex(f("dsolve", m("y", "′", "=2x")))),
+            s("""Type the differential equation with it, such as \(y' = 2y\).""", """Add conditions after commas, like \(y(0) = 1\), then tap Enter: it is solved for \(y\)."""),
+            ex("y", "′", "=y"), ex("y", "′", "=2y,y(0)=1")),
         "y double prime" to g("""The second derivative \(y'' = \frac{d^2 y}{dx^2}\) of the unknown function \(y(x)\) in a differential equation.""",
-            s("Type it inside dsolve, as part of the differential equation."),
-            ex(f("dsolve", m("y", "′", "′", "+y=0")))),
+            s("""Type the differential equation with it, such as \(y'' + y = 0\), then tap Enter."""),
+            ex("y", "′", "′", "+y=0"), ex("y", "′", "′", "−3y", "′", "+2y=0")),
         "solve differential equation" to g("""Finds the general or particular solution \(y(x)\) of an ordinary differential equation: first-order linear and separable equations, and second-order linear equations with constant coefficients. Arbitrary constants appear as \(C_1, C_2\).""",
-            s("Type the equation in the box.", """Add conditions after commas, like \(y(0) = 1\)."""),
+            s("Type the equation in the box.", """Add conditions after commas, like \(y(0) = 1\).""", """The equation typed on its own, \(y' = 2y\), is solved the same way on Enter."""),
             ex(f("dsolve", m("y", "′", "=2y,y(0)=1"))), ex(f("dsolve", m("y", "′", "′", "+y=0")))),
         "infinity" to g("""The symbol \(\infty\), used as a limit point or as a bound of sums and integrals.""",
             s("Tap it in a limit or bound."),
@@ -407,7 +408,7 @@ object KeyGuides {
             ex(f("residue", fr(m("e", p("z")), m("z", p("2"))), "z=0"))),
         "z" to g("""The complex variable \(z = x + iy\), the default variable of the complex-plane mode.""",
             s("Tap it wherever the variable goes."),
-            ex("2z+3z"), ex(d(m("z", p("3")), "z"))),
+            ex("z", p("2"), "+1=0", note = "Solved on Enter, complex roots included."), ex(d(m("z", p("3")), "z"))),
         "w" to g("""A second complex variable, used for an image \(w = f(z)\) or as a parameter.""",
             s("Tap it like any letter."),
             ex("2w+3w")),
@@ -629,12 +630,12 @@ object KeyGuides {
             s("Tap it inside a number."),
             ex("0.1+0.2")),
         "backspace" to g("""Deletes the element before the cursor; a long press clears the line.""", s("Tap to delete, long-press to clear.")),
-        "enter" to g("""Evaluates the input and appends the result to the history. A long press shows the worked steps, where available.""",
+        "enter" to g("""Evaluates the input and appends the result to the history; an equation is solved for its unknown. A long press shows the worked steps, where available.""",
             s("Tap it when the line is done.", "Long-press it for the steps."),
-            ex("2+3"), ex(d(m("x", p("3"))))),
+            ex("2+3"), ex(d(m("x", p("3")))), ex("2x+3=11")),
         "x" to g("""The real variable \(x\), the default independent variable.""",
             s("Tap it wherever the variable goes."),
-            ex("2x+3x"), ex(d(m("x", p("3"))))),
+            ex("2x+3x"), ex("x", p("2"), "−5x+6=0")),
     )
 
     /**
@@ -644,7 +645,7 @@ object KeyGuides {
     fun answer(e: Example): Pair<MathRow, Boolean>? {
         if (!e.answer) return null
         val angle = if (e.degrees) com.example.cas.engine.AngleUnit.Degrees else com.example.cas.engine.AngleUnit.Radians
-        val a = com.example.cas.engine.Formatter.answer(com.example.cas.engine.Evaluator(angle).evaluate(MathCodec.copy(e.row)))
+        val a = com.example.cas.engine.Formatter.answer(com.example.cas.engine.Evaluator(angle, solveEquations = true).evaluate(MathCodec.copy(e.row)))
         val same = com.example.cas.engine.Latex.of(a.exact) == com.example.cas.engine.Latex.of(e.row)
         return when {
             !same -> a.exact to a.isApproximate

@@ -203,6 +203,30 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (7 October, equations are solved on Enter)
+
+- **Enter solves equations**: type an equation with = in the calculator and Enter solves it for
+  its unknown, e.g. x^3 + 1 = 3 gives x = cube root of 2 (with the complex roots). Inequalities
+  are solved too (x^2 < 4 gives -2 < x < 2).
+- **Several letters**: if an equation has more than one letter (y = 2x + 1), a "Solve for" popup
+  shows the equation and a tile per letter; tap the one to solve for.
+- **Systems**: equations separated by commas are solved together (x + y = 3, x - y = 1). With more
+  unknowns than equations, the popup asks you to pick as many letters as there are equations.
+- **Matrix equations**: an equation between matrices, such as A times [x; y] = b, is solved entry
+  by entry as a coupled system.
+- **Differential equations**: an equation with y' (and conditions after commas, like y(0) = 1) is
+  solved as dsolve would solve it, without typing dsolve.
+- **Works with almost every key**: trig and inverse trig, hyperbolic, roots, logs, absolute
+  value, factorials, binomials, gamma, erf, Lambert W, the polynomial families, distributions,
+  integrals, derivatives, sums, determinants and eigenvalue equations. Exact where possible,
+  numerical otherwise. A periodic equation solved numerically lists the roots between -2 pi and 2 pi.
+- **Steps**: long-press for the working. One side is made zero, then the matching rule is applied:
+  linear, the quadratic formula with the discriminant, factoring, or isolating with inverse
+  functions. Systems are solved by elimination or substitution, inequalities by their boundary
+  points.
+- **Key cards**: =, <, >, x, z, y' and y'' have worked examples again; an answer that is itself an
+  equation shows with an arrow instead of =.
+
 ## Latest changes (7 October, smooth 3D surface edges)
 
 - **Antialiased 3D edges**: the surface's outline is smooth again with the fast single-call

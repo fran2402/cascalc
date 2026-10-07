@@ -165,6 +165,8 @@ import com.example.cas.ui.theme.equalsKey
 @Composable
 fun CalculatorScreen(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, modifier: Modifier = Modifier) {
     BackHandler(enabled = vm.historyMode) { vm.historyMode = false }
+    // An equation with several letters: which to solve for.
+    vm.solveChoice?.let { c -> SolveForDialog(c, onSolve = vm::solveFor, onDismiss = vm::dismissSolveChoice) }
     if (isTabletLayout()) {
         // Tablets: the keyboard in a column on one side (Settings chooses), history and input on the other.
         val colors = MaterialTheme.colorScheme
@@ -484,7 +486,8 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
     var showingSteps by remember { mutableStateOf(false) }
     var movingToFolder by remember { mutableStateOf(false) }
     if (movingToFolder) MoveToFolderDialog(item.folder, vm.historyFolders, onPick = { vm.moveToFolder(item, it); movingToFolder = false }, onDismiss = { movingToFolder = false })
-    if (showingSteps) StepsView(item.expression, vm.angleUnit, onDismiss = { showingSteps = false })
+    // An equation's steps follow what it was solved for (the letters on the left of its answer).
+    if (showingSteps) StepsView(item.expression, vm.angleUnit, onDismiss = { showingSteps = false }, solveFor = Steps.solvedFor(item.answer.value))
     val latex = { Latex.of(item.expression) + (if (item.answer.isStatement) "\\quad " else " = ") + Latex.of(shown) }
     val copy = { text: String, what: String ->
         clipboard.setText(AnnotatedString(text))

@@ -128,8 +128,10 @@ object Steps {
         }
 
     /** The working for [row], or null if there is none (or it couldn't be found). */
-    fun of(row: MathRow, angle: AngleUnit = AngleUnit.Radians): Solution? = runCatching {
+    fun of(row: MathRow, angle: AngleUnit = AngleUnit.Radians, solveFor: List<String>? = null): Solution? = runCatching {
         inverseOf(row)?.let { return@runCatching inverse(row, angle) }
+        // An equation, as Enter solves it.
+        equation(row, angle, solveFor)?.let { return@runCatching it }
         // An operation inside another (∮ inside a limit, a derivative inside an integral): the inside first.
         nested(row, angle)?.let { return@runCatching it }
         when (val n = target(row)) {
@@ -151,6 +153,79 @@ object Steps {
             else -> definition(row, angle) ?: if (isComplexArithmetic(row)) complex(row, angle) else simplification(row, angle)
         }
     }.getOrNull()
+
+    /** The letters an answer was solved for: x in x = 2, x and y in x = 2, y = 1 (null if it isn't one). */
+    fun solvedFor(value: Expr): List<String>? {
+        fun lhs(e: Expr): List<String> = when (e) {
+            is Eq -> listOfNotNull((e.lhs as? Sym)?.name)
+            is com.example.cas.cas.Seq -> e.items.flatMap { lhs(it) }
+            is com.example.cas.cas.Rel -> e.parts.mapNotNull { (it as? Sym)?.name }
+            else -> emptyList()
+        }
+        return lhs(value).distinct().ifEmpty { null }
+    }
+
+    /**
+     * An equation (or several, an inequality, a differential equation) worked through as Enter
+     * solves it: one side made zero, then the rule that fits (linear, the quadratic formula,
+     * factoring), elimination for a system, the boundary points for an inequality.
+     */
+    private fun equation(row: MathRow, angle: AngleUnit, solveFor: List<String>?): Solution? {
+        val ev = Evaluator(angle, solveEquations = true).also { it.solveFor = solveFor }
+        val eqs = ev.equations(com.example.cas.editor.MathCodec.copy(row)) ?: return null
+        if (eqs.differential) return ode(Func("dsolve", listOf(com.example.cas.editor.MathCodec.copy(row))), angle)
+        if (eqs.unknowns.isEmpty()) return null
+        val question = com.example.cas.editor.MathCodec.copy(row)
+        val value = runCatching { ev.evaluate(com.example.cas.editor.MathCodec.copy(row)) }.getOrNull() ?: return null
+        val vars = (solveFor ?: solvedFor(value))?.map { Sym(it) } ?: return null
+        val answer = ans(question, value)
+        val steps = ArrayList<Step>()
+        val only = eqs.list.singleOrNull()
+        val method: String
+        if (only is com.example.cas.cas.Rel) {
+            method = "Inequality"
+            val x = vars[0]
+            val boundary = runCatching { Algebra.solve(Eq(only.parts.first(), only.parts.last()), x) }.getOrNull()
+            steps += Step("Boundary points", "Where the two sides are equal, solve as an equation: the sign can only change there (or where a side is undefined).", boundary?.let { ex(it) })
+            steps += Step("Test each interval", "Try a value between neighbouring boundary points; keep the intervals where the inequality holds.", null)
+        } else if (only is Eq) {
+            val x = vars[0]
+            val f = Algebra.simplify(Algebra.expand(sub(only.lhs, only.rhs)))
+            steps += Step("One side zero", "Subtract the right side from both sides.", ex(Eq(f, ZERO)))
+            val cs = runCatching { Algebra.coefficients(f, x) }.getOrNull()?.takeIf { c -> c.all { it.freeOf(x) } }
+            method = when {
+                cs != null && cs.size == 2 -> {
+                    steps += Step("Linear", "\$a${x.name} + b = 0\$ gives \$${x.name} = -\\frac{b}{a}\$, with \$a = ${lx(cs[1])}\$ and \$b = ${lx(cs[0])}\$.", null)
+                    "Linear equation"
+                }
+                cs != null && cs.size == 3 -> {
+                    val (c, b, a2) = cs
+                    val disc = Algebra.simplify(sub(mul(b, b), mul(Num(4), a2, c)))
+                    steps += Step("Quadratic formula", "\$a${x.name}^2 + b${x.name} + c = 0\$ with \$a = ${lx(a2)}\$, \$b = ${lx(b)}\$, \$c = ${lx(c)}\$: \$${x.name} = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}\$.", null)
+                    steps += Step("Discriminant", "\$b^2 - 4ac\$: positive gives two real roots, zero one, negative two complex ones.", line("b²", "−", "4ac", "=", disc))
+                    "Quadratic equation"
+                }
+                cs != null && cs.size > 3 -> {
+                    val factored = runCatching { Algebra.factor(f) }.getOrNull()
+                    if (factored != null && !same(factored, f)) steps += Step("Factor", "A product is zero when one of its factors is; solve each factor.", ex(Eq(factored, ZERO)))
+                    else steps += Step("Roots", "No factors with simple roots: the roots come from the cubic or quartic formula, or numerically.", null)
+                    "Polynomial equation"
+                }
+                else -> {
+                    steps += Step("Isolate ${x.name}", "Undo what's done to \$${x.name}\$ one step at a time, with the inverse function on both sides (\$\\ln\$ for \$e^{\\square}\$, \$\\arcsin\$ for \$\\sin\$…); where no inverse gives it exactly, the roots are found numerically.", null)
+                    "Equation"
+                }
+            }
+        } else {
+            method = "System of equations"
+            steps += Step("The equations", "${eqs.list.size} equations in ${vars.joinToString(", ") { it.name }}.", line(*eqs.list.flatMapIndexed { k, e -> (if (k > 0) listOf<Any>(",", "  ") else emptyList()) + listOf<Any>(e) }.toTypedArray()))
+            val linear = eqs.list.all { e -> val f = Algebra.expand(sub((e as Eq).lhs, e.rhs)); vars.all { v -> Algebra.coefficients(f, v)?.let { c -> c.size <= 2 && c.all { k -> vars.all { k.freeOf(it) } } } ?: f.freeOf(v) } }
+            steps += if (linear) Step("Elimination", "The equations are linear: subtract multiples of one from the others to remove one unknown at a time (row-reducing the augmented matrix), then substitute back.", null)
+                else Step("Substitution", "Solve one equation for one unknown and put that into the others, until one unknown is left; then work back.", null)
+        }
+        steps += Step("Result", null, answer, Kind.Result)
+        return Solution(method, steps, answer)
+    }
 
     /** A lone call of one of the extra functions (csc, a density, a Stirling number, a polynomial…). */
     private fun defined(row: MathRow): Func? =

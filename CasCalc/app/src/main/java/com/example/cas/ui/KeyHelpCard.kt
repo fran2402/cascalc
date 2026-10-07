@@ -261,7 +261,9 @@ private fun Examples(help: KeyHelp, onTry: (MathRow) -> Unit) {
                     Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
                         MathView(e.row, 20.sp, colors.onSecondaryContainer)
                         answer?.let { (a, approx) ->
-                            Text(if (approx) "  ≈  " else "  =  ", style = TextStyle(fontFamily = com.example.cas.ui.theme.CasFonts.CmRoman, fontSize = 20.sp), color = colors.onSecondaryContainer)
+                            // An answer that is itself an equation or inequality (x = 3): ⇒, as in the history.
+                            val statement = a.items.any { (it as? com.example.cas.editor.Sym)?.text in setOf("=", "<", ">", "≤", "≥") }
+                            Text(if (statement) "  ⇒  " else if (approx) "  ≈  " else "  =  ", style = TextStyle(fontFamily = com.example.cas.ui.theme.CasFonts.CmRoman, fontSize = 20.sp), color = colors.onSecondaryContainer)
                             MathView(a, 20.sp, colors.primary)
                         }
                     }

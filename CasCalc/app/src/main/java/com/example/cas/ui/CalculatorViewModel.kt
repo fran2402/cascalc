@@ -325,7 +325,17 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
      */
     private fun ansValue(): Expr? = history.lastOrNull()?.answer?.value ?: lastValue
 
-    private fun evaluator() = Evaluator(angle, ansValue(), variables.toMap(), unitSystem, coordinates, userFunctions.toMap())
+    // Equations are solved on Enter (and in the preview, when it's clear what for).
+    private fun evaluator() = Evaluator(angle, ansValue(), variables.toMap(), unitSystem, coordinates, userFunctions.toMap(), solveEquations = true)
+
+    /** An equation with several letters waiting for the user to say what to solve for. */
+    class SolveChoice(val row: MathRow, val candidates: List<String>, val count: Int)
+    var solveChoice by mutableStateOf<SolveChoice?>(null)
+        private set
+
+    /** Solve the waiting equation for [vars] (as many as it asked for). */
+    fun solveFor(vars: List<String>) { solveChoice = null; enter(vars) }
+    fun dismissSolveChoice() { solveChoice = null }
 
     private fun schedulePreview() {
         previewJob?.cancel()
@@ -343,11 +353,11 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
         }
     }
 
-    private fun enter() {
+    private fun enter(solveFor: List<String>? = null) {
         if (editor.isEmpty || busy) return
         // Growable matrices keep only the rows and columns in use.
         val snapshot = com.example.cas.editor.trimMatrices(editor.root)
-        val evaluator = evaluator()
+        val evaluator = evaluator().also { it.solveFor = solveFor }
         busy = true
         viewModelScope.launch {
             // Evaluate and format off the main thread; nothing that goes wrong may crash the app.
@@ -355,6 +365,8 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
                 try {
                     val v = evaluator.evaluate(snapshot)
                     Result.success(v to Formatter.answer(v))
+                } catch (e: com.example.cas.engine.ChooseUnknowns) {
+                    Result.failure(e)
                 } catch (e: MathError) {
                     Result.failure(e)
                 } catch (e: ArithmeticException) {
@@ -380,7 +392,11 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
                 save()
                 editor.clear()
                 preview = null
-            }.onFailure { error = it.message }
+            }.onFailure {
+                // Several letters: ask which to solve for, then enter again.
+                if (it is com.example.cas.engine.ChooseUnknowns) solveChoice = SolveChoice(MathCodec.copy(snapshot), it.candidates, it.count)
+                else error = it.message
+            }
         }
     }
 
