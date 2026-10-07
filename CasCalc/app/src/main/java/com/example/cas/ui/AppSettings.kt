@@ -118,6 +118,8 @@ object AppSettings {
         private set
     /** Zeros, extrema and crossings marked on the tapped curve. */
     var specialPoints by mutableStateOf(true)
+    /** A faded little graph beside answers that are functions of one letter. */
+    var answerPreviews by mutableStateOf(true)
         private set
     /** Half the width of the 2D graph's starting view: 5, 10 or 20. */
     var viewHalfWidth by mutableStateOf(10)
@@ -176,6 +178,7 @@ object AppSettings {
         keepScreenOn = p.getBoolean("keepScreenOn", false)
         keySounds = p.getBoolean("keySounds", false)
         specialPoints = p.getBoolean("specialPoints", true)
+        answerPreviews = p.getBoolean("answerPreviews", true)
         viewHalfWidth = p.getInt("viewHalfWidth", 10)
         complexQuality = p.getInt("complexQuality", 2)
         surfaceDetail = p.getInt("surfaceDetail", 0)
@@ -223,6 +226,7 @@ object AppSettings {
     fun changeKeepScreenOn(v: Boolean) { keepScreenOn = v; save("keepScreenOn", v) }
     fun changeKeySounds(v: Boolean) { keySounds = v; save("keySounds", v) }
     fun changeSpecialPoints(v: Boolean) { specialPoints = v; save("specialPoints", v) }
+    fun changeAnswerPreviews(v: Boolean) { answerPreviews = v; save("answerPreviews", v) }
     fun changeViewHalfWidth(v: Int) { viewHalfWidth = v; save("viewHalfWidth", v) }
     fun changeComplexQuality(v: Int) { complexQuality = v; save("complexQuality", v) }
     fun changeFieldQuality(v: Int) { fieldQuality = v; save("fieldQuality", v) }

@@ -540,8 +540,15 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
             }
         }
         Spacer(Modifier.height(8.dp))
+        val sketch = rememberSketch(item.answer.value, AppSettings.answerPreviews && item.answer.approx == null && !item.answer.isStatement)
         // The answer, large, to the right; on the left, when there's a decimal too, the chip that swaps them.
         // The chip stays at the left edge; the answer takes the rest of the row, right-aligned.
+        Box(Modifier.fillMaxWidth().then(if (sketch != null) Modifier.heightIn(min = 48.dp) else Modifier), contentAlignment = Alignment.CenterStart) {
+        // A function of one letter: a faded sketch of its curve behind the left of the line (tap it to graph).
+        if (sketch != null) AnswerSketch(
+            sketch, colors.primary, Modifier.fillMaxWidth(0.56f).height(48.dp),
+            onClick = { item.graph?.takeIf { it.dimensions == 2 }?.let(onGraph) },
+        )
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             if (item.answer.approx != null) {
                 ApproxChip(item.showApprox) { tap(); item.showApprox = !item.showApprox }
@@ -565,6 +572,7 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                 )
             }
             }
+        }
         }
         // Actions, on the newest card or a tapped one: the main ones as buttons (Graph or Use,
         // and Steps), copy and pin as icons, and the rest in the ⋮ menu.
@@ -1646,6 +1654,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 description = "Significant digits",
             ) { vm.changeDigits(it) }
             SettingsToggle("Group digits", "1 000 000 rather than 1000000", AppSettings.groupDigits, AppSettings::changeGroupDigits)
+            SettingsToggle("Graph previews", "A faded sketch of the curve beside answers that are functions of one letter", AppSettings.answerPreviews, AppSettings::changeAnswerPreviews)
             SettingsChoice("Complex decimals", listOf("a + bi", "Polar"), if (AppSettings.polarComplex) 1 else 0) { AppSettings.changePolarComplex(it == 1) }
         },
         PageSection("Graphs", TableIcons.Mode2D) {

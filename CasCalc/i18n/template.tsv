@@ -2,6 +2,7 @@
 # Copy this file to app/src/main/assets/i18n/<code>.tsv (fy, sr, de…, the language code Android uses),
 # write each translation after the tab, and the app offers it in Settings › Language.
 # Lines left empty stay English. {0}, {1}… are filled in by the app; keep them. \n is a new line.
+Graph this	
 More options	
 Unit converter	
 Settings	
@@ -100,6 +101,8 @@ decimal
 decimals	
 Group digits	
 1 000 000 rather than 1000000	
+Graph previews	
+A faded sketch of the curve beside answers that are functions of one letter	
 Complex decimals	
 a + bi	
 Polar	

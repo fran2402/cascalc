@@ -203,6 +203,14 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (7 October, graph previews beside answers)
+
+- **Graph previews**: when an answer is a function of one letter (x^2 - 4, e^(-x/5) sin x, a
+  Fourier transform), a faded sketch of its curve sits behind the left of the answer line: no
+  axes, labels or grid, over a stretch picked to show its zeros, peaks and dips (or where it is
+  defined, for ln x), fading out before the answer. It is worked out in the background and eases
+  in. Tap it to open the graph. Turn it off in Settings, Calculator, Graph previews.
+
 ## Latest changes (7 October, faster launch, steps for solving, choosing what to use)
 
 - **3D rotation follows the finger**: dragging turns the surface the way the finger moves.
