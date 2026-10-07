@@ -205,8 +205,8 @@ signed with a throwaway debug key, so they install alongside nothing from the Pl
 
 ## Latest changes (7 October, cleaner card graphs)
 
-- **Card graphs show only the curves**: the frame and the range labels underneath are gone. Only
-  the curves, the two axes and the legend remain, on phones and tablets alike.
+- **Card graphs show only the curves**: the frame, the axes and the range labels underneath are
+  gone. Only the curves and the legend remain, on phones and tablets alike.
 
 ## Latest changes (7 October, graphs on the key cards)
 

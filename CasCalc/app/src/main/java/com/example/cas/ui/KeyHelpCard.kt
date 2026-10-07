@@ -165,7 +165,7 @@ private fun About(help: KeyHelp) {
 
 /**
  * A small graph of the key's function (or a family of them): just the curves, in the theme's graph
- * colors, over the axes where they're in view, with a legend in LaTeX.
+ * colors, with a legend in LaTeX.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -187,14 +187,11 @@ private fun Graph(help: KeyHelp) {
             val pad = ((hi - lo) * 0.1).coerceAtLeast(0.5)
             (lo - pad)..(hi + pad)
         }
-        val axis = colors.outline
         androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(170.dp).semantics { contentDescription = "Graph" }) {
             val x0 = plot.x.start; val x1 = plot.x.endInclusive
             val y0 = yRange.start; val y1 = yRange.endInclusive
             fun px(x: Double) = ((x - x0) / (x1 - x0) * size.width).toFloat()
             fun py(y: Double) = ((y1 - y) / (y1 - y0) * size.height).toFloat()
-            if (x0 < 0 && x1 > 0) drawLine(axis, androidx.compose.ui.geometry.Offset(px(0.0), 0f), androidx.compose.ui.geometry.Offset(px(0.0), size.height), 1.5f)
-            if (y0 < 0 && y1 > 0) drawLine(axis, androidx.compose.ui.geometry.Offset(0f, py(0.0)), androidx.compose.ui.geometry.Offset(size.width, py(0.0)), 1.5f)
             clipRect {
                 // The first curve last, so it's drawn on top, as in the graphs.
                 ys.indices.reversed().forEach { k ->
