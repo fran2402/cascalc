@@ -116,6 +116,18 @@ object Formatter {
         it is Num && !it.q.isInteger && (it.q.num.abs().toString().length > sciAfter || it.q.den.toString().length > sciAfter)
     }
 
+    /**
+     * The separate values in an answer with several (x = −2, x = 2; eigenvalues; a system's
+     * solutions), each as (what it is, the value to use): x = 2 gives (x = 2, 2). Empty when
+     * there is only one.
+     */
+    fun choices(e: Expr): List<Pair<Expr, Expr>> {
+        fun flat(x: Expr): List<Expr> = if (x is Seq) x.items.flatMap { flat(it) } else listOf(x)
+        if (e !is Seq) return emptyList()
+        val all = flat(e).map { x -> x to (if (x is Eq && x.lhs is Sym) x.rhs else x) }
+        return if (all.size >= 2) all.distinctBy { Printer.plain(it.first) } else emptyList()
+    }
+
     /** The row an answer shows: its decimal when that's preferred (or asked for), else the exact form. */
     fun shown(a: Answer, decimalFirst: Boolean): MathRow = if ((decimalFirst || a.preferApprox) && a.approx != null) a.approx else a.exact
 

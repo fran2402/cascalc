@@ -127,11 +127,14 @@ object SceneExport {
      * Computer Modern fonts, so what's exported sits exactly as laid out.
      */
     fun installMetrics(context: Context) {
-        val f = font(context)
-        val roman = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = f.roman }
-        val italic = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = f.italic }
+        // The fonts load on the first measurement (an export), not at launch.
+        val app = context.applicationContext
+        val paints by lazy {
+            val f = font(app)
+            Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = f.roman } to Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = f.italic }
+        }
         com.example.cas.graph.MathScene.metrics = com.example.cas.graph.MathScene.Metrics { text, ital, size ->
-            val p = if (ital) italic else roman
+            val p = if (ital) paints.second else paints.first
             synchronized(p) { p.textSize = 100f; p.measureText(text) * size / 100.0 }
         }
     }

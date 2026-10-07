@@ -12,16 +12,19 @@ object I18n {
     /** A language offered in settings: its code, and its name in itself. */
     class Language(val code: String, val name: String)
 
-    @Volatile private var tables: Map<String, Translations> = emptyMap()
+    /** Each translation, parsed on first use: at launch only the language in use is read. */
+    @Volatile private var tables: Map<String, Lazy<Translations>> = emptyMap()
 
     /** English, then each translation found. */
-    val languages: List<Language> get() = listOf(Language("en", "English")) + tables.map { (code, t) -> Language(code, t.name ?: code) }
+    val languages: List<Language> get() = listOf(Language("en", "English")) +
+        tables.filterValues { it.value.entries.isNotEmpty() }.map { (code, t) -> Language(code, t.value.name ?: code) }
 
     fun load(context: Context) {
-        val files = runCatching { context.assets.list("i18n")?.toList() }.getOrNull().orEmpty().filter { it.endsWith(".tsv") }
+        val assets = context.applicationContext.assets
+        val files = runCatching { assets.list("i18n")?.toList() }.getOrNull().orEmpty().filter { it.endsWith(".tsv") }
         tables = files.associate { file ->
-            file.removeSuffix(".tsv") to runCatching { context.assets.open("i18n/$file").bufferedReader().use { Translations.parse(it.readText()) } }.getOrDefault(Translations.EMPTY)
-        }.filterValues { it.entries.isNotEmpty() }
+            file.removeSuffix(".tsv") to lazy { runCatching { assets.open("i18n/$file").bufferedReader().use { Translations.parse(it.readText()) } }.getOrDefault(Translations.EMPTY) }
+        }
     }
 
     /** The system's language, if there's a translation for it. */
@@ -33,7 +36,7 @@ object I18n {
     fun translate(english: String): String {
         val c = code
         if (c == "en") return english
-        return tables[c]?.lookup(english) ?: english
+        return tables[c]?.value?.lookup(english) ?: english
     }
 }
 

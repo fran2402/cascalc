@@ -152,7 +152,7 @@ class Evaluator(
             val y = d?.takeIf { it.at.isEmpty }?.body?.items?.filter { text(it) != Formatter.THIN_SPACE }?.singleOrNull()?.let(::text)
             val v = d?.variable?.items?.singleOrNull()?.let(::text) ?: "x"
             val order = d?.order?.items?.joinToString("") { text(it) ?: "?" }?.ifEmpty { "1" }?.toIntOrNull()
-            if (d != null && y != null && y.length == 1 && y[0].isLetter() && y != v && y !in CONSTANT_NAMES && y !in variables && order != null && order in 1..4) {
+            if (d != null && y != null && isLetterName(y) && y != v && y !in CONSTANT_NAMES && y !in variables && order != null && order in 1..4) {
                 out += com.example.cas.editor.Sym(y)
                 repeat(order) { out += com.example.cas.editor.Sym("′") }
                 if (v != "x") odeVariable = v
@@ -161,6 +161,9 @@ class Evaluator(
         }
         return if (changed) out else items
     }
+
+    /** ℒ{…} or ℱ{…} worked out term by term, with the rules used (for the steps). */
+    fun transformWork(f: com.example.cas.editor.Func): TransformWork = RowParser(emptyList(), emptyMap()).transformWork(f)
 
     /** The row with button derivatives written as primes (for the steps of a differential equation). */
     fun withPrimes(row: MathRow): MathRow = MathRow(withPrimes(clean(row)).toMutableList())
@@ -173,7 +176,7 @@ class Evaluator(
         if (items.none { text(it) == "=" || text(it) in RELATIONS }) return null
         // y′ = 2y (with conditions after commas): a differential equation.
         // (A prime on a function defined with :=, f′(x) = 0, is that function's derivative instead.)
-        val primed = items.indices.any { k -> text(items[k]) == "′" && k > 0 && text(items[k - 1])?.let { it.length == 1 && it[0].isLetter() && it !in functions } == true }
+        val primed = items.indices.any { k -> text(items[k]) == "′" && k > 0 && text(items[k - 1])?.let { isLetterName(it) && it !in functions } == true }
         if (primed && items.any { text(it) == "=" }) return Equations(emptyList(), emptyList(), true)
         val parts = splitTopCommas(items).filter { it.isNotEmpty() }
         if (parts.any { p -> p.none { text(it) == "=" || text(it) in RELATIONS } }) return null
@@ -438,13 +441,13 @@ class Evaluator(
             t.length > 1 && t[0].isLetter() && t.drop(1).all { it == '′' } -> Sym(t)
             t == "ans" -> ans ?: throw MathError("There's no previous answer yet")
             t in FUNCTION_WORDS -> fn(t, postfix())
-            (t.length == 1 && t[0].isLetter()) || com.example.cas.editor.MathAlphabets.isMathLetter(t) || com.example.cas.cas.CustomSymbol.isCustom(t) -> env[t] ?: variables[t] ?: Sym(t)
+            isLetterName(t) -> env[t] ?: variables[t] ?: Sym(t)
             else -> throw MathError("Unexpected $t")
         }
 
         private fun variable(row: MathRow): Sym {
             val t = row.plainText()
-            if (!((t.length == 1 && t[0].isLetter()) || com.example.cas.editor.MathAlphabets.isMathLetter(t) || com.example.cas.cas.CustomSymbol.isCustom(t)) || t == "e" || t == "i") throw MathError("Use a single letter as the variable")
+            if (!(isLetterName(t)) || t == "e" || t == "i") throw MathError("Use a single letter as the variable")
             return Sym(t)
         }
 
@@ -687,7 +690,13 @@ class Evaluator(
          * variable is t (or x, or the expression's one letter); the output is s, ω or t unless
          * [transformVariable] says otherwise.
          */
-        private fun transform(f: Func): Expr {
+        private fun transform(f: Func): Expr = transformWork(f).value
+
+        /**
+         * A transform worked out term by term, for the steps: the body (in [TransformWork.input]),
+         * each term with its transform and the rules it used, and the whole answer.
+         */
+        fun transformWork(f: Func): TransformWork {
             if (f.args.size != 2) throw MathError("Write the function in the braces")
             val inverse = when (val k = f.args[0].items.filter { (it as? com.example.cas.editor.Sym)?.text != Formatter.THIN_SPACE }.joinToString("") { (it as? com.example.cas.editor.Sym)?.text ?: "?" }) {
                 "" -> false
@@ -704,13 +713,20 @@ class Evaluator(
             val from = Sym(input)
             // A placeholder for the output while the input letter may still be in use.
             val to = Sym("$output·")
-            val r = when {
-                laplace && !inverse -> com.example.cas.cas.Transforms.laplace(body, from, to)
-                laplace -> com.example.cas.cas.Transforms.inverseLaplace(body, from, to)
-                !inverse -> com.example.cas.cas.Transforms.fourier(body, from, to)
-                else -> com.example.cas.cas.Transforms.inverseFourier(body, from, to)
+            fun of(e: Expr): Expr = when {
+                laplace && !inverse -> com.example.cas.cas.Transforms.laplace(e, from, to)
+                laplace -> com.example.cas.cas.Transforms.inverseLaplace(e, from, to)
+                !inverse -> com.example.cas.cas.Transforms.fourier(e, from, to)
+                else -> com.example.cas.cas.Transforms.inverseFourier(e, from, to)
             }
-            return Algebra.simplify(signalsOut(r.subst(to, Sym(output))))
+            fun out(e: Expr) = Algebra.simplify(signalsOut(e.subst(to, Sym(output))))
+            val (whole, rules) = com.example.cas.cas.Transforms.traced { of(body) }
+            // Term by term (linearity); for an inverse Laplace transform, the partial fractions.
+            val split = if (laplace && inverse) runCatching { Algebra.apart(body, from) }.getOrDefault(body) else Algebra.expand(body)
+            val terms = (split as? com.example.cas.cas.Add)?.terms?.takeIf { it.size in 2..8 }.orEmpty()
+            val parts = terms.mapNotNull { term -> runCatching { com.example.cas.cas.Transforms.traced { of(term) } }.getOrNull()?.let { (v, r) -> TransformWork.Term(term, out(v), r) } }
+                .takeIf { it.size == terms.size }.orEmpty()
+            return TransformWork(laplace, inverse, body, from, Sym(output), split.takeIf { laplace && inverse && com.example.cas.cas.Printer.plain(it) != com.example.cas.cas.Printer.plain(body) }, parts, rules, out(whole))
         }
 
         /** rect and tri written as the rest of the app writes them; the step H and the impulse δ stay by name. */
@@ -855,7 +871,7 @@ class Evaluator(
             val y = first.indices.firstNotNullOfOrNull { k ->
                 val a = (first[k] as? com.example.cas.editor.Sym)?.text
                 val b = (first.getOrNull(k + 1) as? com.example.cas.editor.Sym)?.text
-                if (a != null && a.length == 1 && a[0].isLetter() && b == "′") Sym(a) else null
+                if (a != null && isLetterName(a) && a !in CONSTANT_NAMES && b == "′") Sym(a) else null
             } ?: throw MathError("Write the equation with \$y'\$, e.g. \$y' = 2y\$")
             val bound = env + (y.name to y) + (1..4).associate { y.name + "′".repeat(it) to com.example.cas.cas.Ode.derivativeSymbol(y, it) }
             val eq = RowParser(first, bound + ("x" to Sym("x")) + ("t" to Sym("t")) + (odeVariable?.let { mapOf(it to Sym(it)) } ?: emptyMap())).parse()
@@ -872,7 +888,7 @@ class Evaluator(
             val y = first.indices.firstNotNullOfOrNull { k ->
                 val a = (first[k] as? com.example.cas.editor.Sym)?.text
                 val b = (first.getOrNull(k + 1) as? com.example.cas.editor.Sym)?.text
-                if (a != null && a.length == 1 && a[0].isLetter() && b == "′") Sym(a) else null
+                if (a != null && isLetterName(a) && a !in CONSTANT_NAMES && b == "′") Sym(a) else null
             } ?: throw MathError("Write the equation with \$y'\$, e.g. \$y' = 2y\$")
             val bound = env + (y.name to y) + (1..4).associate { y.name + "′".repeat(it) to com.example.cas.cas.Ode.derivativeSymbol(y, it) }
             val eq = RowParser(first, bound + ("x" to Sym("x")) + ("t" to Sym("t")) + (odeVariable?.let { mapOf(it to Sym(it)) } ?: emptyMap())).parse()
@@ -957,4 +973,16 @@ data class UserFunction(val variables: List<String>, val body: Expr) {
  * An equation with more unknowns than it can be solved for: the calculator asks which ([count] of
  * [candidates]) and enters it again with [Evaluator.solveFor] set.
  */
+/** A name that stands for one quantity: a letter (Latin, Greek, Hebrew…), a math-alphabet letter (𝒜, 𝔤, ℝ) or a built symbol (x₁, v̂). */
+fun isLetterName(t: String): Boolean =
+    (t.length == 1 && t[0].isLetter()) || com.example.cas.editor.MathAlphabets.isMathLetter(t) || com.example.cas.cas.CustomSymbol.isCustom(t)
+
+/** A transform's working: see [Evaluator.transformWork]. [fractions] is the partial-fraction form, when it differs. */
+class TransformWork(
+    val laplace: Boolean, val inverse: Boolean, val body: Expr, val input: Sym, val output: Sym,
+    val fractions: Expr?, val terms: List<Term>, val rules: List<String>, val value: Expr,
+) {
+    class Term(val term: Expr, val value: Expr, val rules: List<String>)
+}
+
 class ChooseUnknowns(val candidates: List<String>, val count: Int) : RuntimeException("Choose what to solve for")

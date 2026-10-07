@@ -125,4 +125,15 @@ class FastPlotTest {
             java.io.File("$path.soft").writeText(dump(Surface3D.triangles(sharp, 0f, ::c, feather = 1.25f) { it }))
         }
     }
+
+    // Dragging follows the finger: the change the 3D screen applies for a drag right/up moves the near side right/up.
+    @Test fun dragFollowsTheFinger() {
+        val near = doubleArrayOf(0.0, -1.0, 0.0)
+        fun screen(c: Camera) = Surface3D.project(0.0, -2.0, 0.0, box, c, 400f, 400f)
+        val c0 = Camera()
+        val right = screen(c0.rotateBy(30 * 0.008, 0.0)).first - screen(c0).first
+        val up = screen(c0.rotateBy(0.0, -30 * 0.008)).second - screen(c0).second
+        assertTrue("near side moves right with a drag right", right > 0)
+        assertTrue("near side moves up with a drag up", up < 0)
+    }
 }

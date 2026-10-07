@@ -203,6 +203,32 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (7 October, faster launch, steps for solving, choosing what to use)
+
+- **3D rotation follows the finger**: dragging turns the surface the way the finger moves.
+- **Faster launch**: the launch animation is shorter, the three graph screens are only set up
+  when first opened, the history is read in the background, and fonts and translations load
+  when first needed.
+- **Zero crossings**: values within rounding noise of 0 count as 0, so a curve that is 0 up to
+  rounding (around a delta, or a cancelled difference) no longer shows a row of zeros; a flat
+  stretch gives no points, and points a sample apart are merged. Extrema ignore the same noise.
+- **Solve with any symbol**: Greek letters, script letters and built symbols (x_1, v with a hat)
+  can be the unknowns of equations, systems and differential equations.
+- **Steps for solving**: linear equations move the constant and divide; quadratics show the
+  discriminant and the formula with the numbers in; polynomials are factored and each factor
+  solved; other equations are undone step by step (subtract, divide, roots, logarithms, inverse
+  functions); inequalities find the boundary points and test each interval; linear systems and
+  matrix equations are row-reduced on the augmented matrix, other systems solved by
+  substitution.
+- **Steps for transforms**: Laplace and Fourier transforms (and their inverses) show the
+  definition, linearity, the partial fractions, and for each term the table entry or theorem
+  used (shifts, sifting, modulation, duality).
+- **Use with several answers**: on an answer with several values (roots, eigenvalues, a
+  system's solutions) Use asks which value to put in the next line, or all of them.
+- **Fourier transforms in the graphs**: a complex result is drawn as its real part, solid, and
+  its imaginary part, dashed, with impulses of imaginary weight dashed too; removable gaps such
+  as sin(w/2)/(w/2) at 0 are filled.
+
 ## Latest changes (7 October, Laplace and Fourier transforms, the Dirac delta)
 
 - **New Calculus keys**: Laplace transform, Fourier transform and Dirac delta replace y', y'' and

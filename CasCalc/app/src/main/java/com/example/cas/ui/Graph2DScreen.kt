@@ -116,6 +116,8 @@ private class Plotted(
     val fieldValues: DoubleArray? = null,
     val fieldSize: IntSize = IntSize.Zero,
     val fieldRange: Pair<Double, Double>? = null,
+    /** The line's style in place of the function's own (the dashed imaginary part of a complex value). */
+    val lineStyle: Int? = null,
     /** A vector field's arrows and the range of |F| their colors span. */
     val arrows: List<com.example.cas.graph.VectorField.Arrow> = emptyList(),
     val arrowRange: Pair<Double, Double> = 0.0 to 1.0,
@@ -862,14 +864,25 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
                     if (y0.isFinite() && view.xMin < 0 && view.xMax > 0) points += Special(0.0, y0, "y-intercept", f.colorIndex)
                 }
                 // Impulses c·δ(x − a): arrows of height c at x = a, standing on the rest of the curve.
-                val arrows = k.impulses.mapNotNull { (at, height) ->
-                    val a = vm.call(g, at, 0.0); val h = vm.call(g, height, 0.0)
-                    if (!a.isFinite() || !h.isFinite() || h == 0.0) null else {
-                        val base = vm.call(g, k.f, a).takeIf { it.isFinite() } ?: 0.0
+                fun arrows(curve: com.example.cas.graph.RealFunction?, height: (Plot2DKind.Impulse) -> com.example.cas.graph.RealFunction?) = k.impulses.mapNotNull { imp ->
+                    val hf = height(imp) ?: return@mapNotNull null
+                    val a = vm.call(g, imp.at, 0.0); val h = vm.call(g, hf, 0.0)
+                    if (!a.isFinite() || !h.isFinite() || kotlin.math.abs(h) < 1e-12) null else {
+                        val base = curve?.let { vm.call(g, it, a) }?.takeIf { it.isFinite() } ?: 0.0
                         com.example.cas.graph.VectorField.Arrow(a, base, a, base + h, kotlin.math.abs(h))
                     }
                 }
-                out += Plotted(f, Plot2D.sample(fx, view, samples), points, arrows = arrows)
+                out += Plotted(f, Plot2D.sample(fx, view, samples), points, arrows = arrows(k.f) { it.height })
+                // A complex value: its imaginary part dashed, beside the real part (when it isn't 0 throughout).
+                k.imag?.let { im ->
+                    val fi = sc.function { x: Double -> vm.call(g, im, x).let { y -> if (vm.allowed(g, x, y)) y else Double.NaN } }
+                    val lines = Plot2D.sample(fi, view, samples)
+                    val imArrows = arrows(im) { it.imag }
+                    val visible = lines.any { l -> l.any { kotlin.math.abs(it.second) > view.height * 1e-6 } } || imArrows.isNotEmpty()
+                    if (visible) out += Plotted(f, lines, emptyList(), arrows = imArrows, lineStyle = com.example.cas.graph.LineStyle.Dashed.ordinal)
+                } ?: k.impulses.takeIf { it.any { i -> i.imag != null } }?.let {
+                    out += Plotted(f, emptyList(), emptyList(), arrows = arrows(null) { it.imag }, lineStyle = com.example.cas.graph.LineStyle.Dashed.ordinal)
+                }
             }
             is Plot2DKind.Polar -> {
                 val r = { t: Double -> vm.call(g, k.r, t).let { rr -> if (vm.allowed(g, rr * kotlin.math.cos(t), rr * kotlin.math.sin(t), theta = t, r = rr)) rr else Double.NaN } }
@@ -1114,6 +1127,7 @@ private fun DrawScope.drawArrows(v: Viewport, p: Plotted, color: Color) {
     val w = (f.thickness * 0.5f).dp.toPx().coerceAtLeast(1f)
     val tip = com.example.cas.graph.VectorField.Tip.entries[f.arrowTip]
     val headSize = (4.5f + f.thickness).dp.toPx() * f.arrowTipSize
+    val shaftDash = p.lineStyle?.let { com.example.cas.graph.LineStyle.of(it).pattern((w * 2).toDouble()) }?.let { d -> PathEffect.dashPathEffect(FloatArray(d.size) { d[it].toFloat() }) }
     for (a in p.arrows) {
         val c = if (f.arrowsByLength) Color(0xFF000000.toInt() or f.colormap.rgb(com.example.cas.graph.VectorField.position(a.magnitude, p.arrowRange).let { if (f.colormapReversed) 1 - it else it })) else color
         val from = toScreen(v, a.x0, a.y0); val to = toScreen(v, a.x1, a.y1)
@@ -1121,7 +1135,7 @@ private fun DrawScope.drawArrows(v: Viewport, p: Plotted, color: Color) {
         if (len < 0.5f) { drawCircle(c, w, to); continue }
         val ux = (to.x - from.x) / len; val uy = (to.y - from.y) / len
         val h = com.example.cas.graph.VectorField.head(tip, to.x.toDouble(), to.y.toDouble(), ux.toDouble(), uy.toDouble(), minOf(headSize, len * 0.6f).toDouble())
-        drawLine(c, from, Offset(h.shaftEndX.toFloat(), h.shaftEndY.toFloat()), w, cap = StrokeCap.Round)
+        drawLine(c, from, Offset(h.shaftEndX.toFloat(), h.shaftEndY.toFloat()), w, cap = StrokeCap.Round, pathEffect = shaftDash)
         h.fills.forEach { pts ->
             val path = Path()
             path.moveTo(pts[0].toFloat(), pts[1].toFloat())
@@ -1139,7 +1153,7 @@ private fun DrawScope.drawCurve(v: Viewport, p: Plotted, color: Color) {
     if (p.arrows.isNotEmpty()) drawArrows(v, p, color)
     // The function's own thickness and style (long-press its dot): solid, dashed, dotted…
     val w = p.f.thickness.dp.toPx()
-    val style = com.example.cas.graph.LineStyle.of(p.f.lineStyle).pattern(w.toDouble())?.let { d -> PathEffect.dashPathEffect(FloatArray(d.size) { d[it].toFloat() }) }
+    val style = com.example.cas.graph.LineStyle.of(p.lineStyle ?: p.f.lineStyle).pattern(w.toDouble())?.let { d -> PathEffect.dashPathEffect(FloatArray(d.size) { d[it].toFloat() }) }
     val stroke = Stroke(w, cap = StrokeCap.Round, join = StrokeJoin.Round, pathEffect = style)
     // Shaded region: runs of inside cells along each row.
     p.mask?.let { mask ->
@@ -1249,7 +1263,7 @@ internal fun graph2DScene(vm: Graph2DViewModel, view: Viewport, size: Double, da
         val color = colorOf(p.f)
         // pgfplots' "thick" for the usual 3 dp line, scaled with the line's own thickness.
         val lw = p.f.thickness * 0.5
-        val dash = com.example.cas.graph.LineStyle.of(p.f.lineStyle).pattern(lw)
+        val dash = com.example.cas.graph.LineStyle.of(p.lineStyle ?: p.f.lineStyle).pattern(lw)
         p.mask?.let { mask ->
             val mx = p.maskSize.width; val my = p.maskSize.height
             val cw = frame.width / mx; val ch = frame.height / my
@@ -1310,7 +1324,7 @@ internal fun graph2DScene(vm: Graph2DViewModel, view: Viewport, size: Double, da
                 h.fills.forEach { fills.getOrPut(c) { ArrayList() } += it }
                 h.dot?.let { d -> fills.getOrPut(c) { ArrayList() } += DoubleArray(2 * 16) { k -> val t = (k / 2) * 2 * PI / 16; if (k % 2 == 0) d[0] + d[2] * kotlin.math.cos(t) else d[1] + d[2] * kotlin.math.sin(t) } }
             }
-            shafts.forEach { (c, list) -> scene.add(Scene.Stroke(list, c, shaft)) }
+            shafts.forEach { (c, list) -> scene.add(Scene.Stroke(list, c, shaft, p.lineStyle?.let { com.example.cas.graph.LineStyle.of(it).pattern(shaft * 2) })) }
             strokes.forEach { (c, list) -> scene.add(Scene.Stroke(list, c, shaft)) }
             fills.forEach { (c, list) -> scene.add(Scene.Fill(list, c)) }
         }

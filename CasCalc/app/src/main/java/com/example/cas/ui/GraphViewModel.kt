@@ -17,6 +17,7 @@ import com.example.cas.cas.Eq
 import com.example.cas.cas.Expr
 import com.example.cas.cas.MathError
 import com.example.cas.cas.Sym
+import com.example.cas.cas.contains
 import com.example.cas.cas.freeVars
 import com.example.cas.cas.isConstant
 import com.example.cas.cas.freeOf
@@ -162,8 +163,15 @@ sealed class Plot2DKind {
     /** The label shown before the typed expression, when the expression doesn't include its own "=". */
     abstract val label: String?
 
-    /** y = f(x); [impulses]: each δ term's position and height (over x and the sliders, x unused), drawn as arrows. */
-    class Explicit(val f: RealFunction, override val label: String?, val impulses: List<Pair<RealFunction, RealFunction>> = emptyList()) : Plot2DKind()
+    /**
+     * y = f(x); [impulses]: each δ term's position and height (over x and the sliders, x unused),
+     * drawn as arrows. A complex-valued f (a Fourier transform, 1/(1 + iω)) is drawn as its real
+     * part [f], solid, and its imaginary part [imag], dashed; an impulse's height likewise.
+     */
+    class Explicit(val f: RealFunction, override val label: String?, val impulses: List<Impulse> = emptyList(), val imag: RealFunction? = null) : Plot2DKind()
+
+    /** An impulse c·δ(x − a): where it is, and the real and imaginary parts of its weight. */
+    class Impulse(val at: RealFunction, val height: RealFunction, val imag: RealFunction? = null)
     class Polar(val r: RealFunction, override val label: String?) : Plot2DKind()
     class Parametric(val x: RealFunction, val y: RealFunction) : Plot2DKind() { override val label = "(x, y) =" }
     class Implicit(val f: RealFunction) : Plot2DKind() { override val label: String? = null }
@@ -908,10 +916,17 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             val typedEquals = items.any { (it as? com.example.cas.editor.Sym)?.text in setOf("=", "<", ">", "≤", "≥") }
             f.plot = when (spec) {
                 null -> Plot2DKind.Point(Compiler.compile(parts[0], params), Compiler.compile(parts[1], params))
-                is com.example.cas.graph.PlotSpec.Explicit -> Plot2DKind.Explicit(
-                    Compiler.compile(spec.f, listOf("x") + params), if (typedEquals) null else "y =",
-                    runCatching { com.example.cas.graph.Impulses.of(spec.f, Sym("x")).map { Compiler.compile(it.at, listOf("x") + params) to Compiler.compile(it.height, listOf("x") + params) } }.getOrDefault(emptyList()),
-                )
+                is com.example.cas.graph.PlotSpec.Explicit -> {
+                    val vars = listOf("x") + params
+                    val (re, im) = realAndImaginary(spec.f, vars)
+                    val impulses = runCatching {
+                        com.example.cas.graph.Impulses.of(spec.f, Sym("x")).map { imp ->
+                            val (h, hi) = realAndImaginary(imp.height, vars)
+                            Plot2DKind.Impulse(Compiler.compile(imp.at, vars), h, hi)
+                        }
+                    }.getOrDefault(emptyList())
+                    Plot2DKind.Explicit(re, if (typedEquals) null else "y =", impulses, im)
+                }
                 is com.example.cas.graph.PlotSpec.Polar -> Plot2DKind.Polar(Compiler.compile(spec.r, listOf("θ") + params), if (typedEquals) null else "r =")
                 is com.example.cas.graph.PlotSpec.Parametric -> Plot2DKind.Parametric(Compiler.compile(spec.x, listOf("t") + params), Compiler.compile(spec.y, listOf("t") + params))
                 is com.example.cas.graph.PlotSpec.Implicit -> Plot2DKind.Implicit(Compiler.compile(spec.f, listOf("x", "y") + params))
@@ -1413,6 +1428,22 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
     }
 
     // Transforms (ℒ, ℱ) come out in the graph's own variable, so ℒ{sin t} draws over x.
+    /**
+     * [e] compiled over [vars]: as it is when real, or as its real and imaginary parts when it has
+     * i in it (each part from one complex evaluation, so they stay in step).
+     */
+    private fun realAndImaginary(e: com.example.cas.cas.Expr, vars: List<String>): Pair<RealFunction, RealFunction?> {
+        if (!e.contains { it is Sym && it.name == "i" }) return Compiler.compile(e, vars) to null
+        val cf = com.example.cas.graph.ComplexCompiler.compile(e, vars)
+        fun part(take: (com.example.cas.cas.CD) -> Double) = RealFunction { v ->
+            val z = cf(com.example.cas.cas.CD(v[0]), if (v.size > 1) v.copyOfRange(1, v.size) else EMPTY)
+            take(z)
+        }
+        return part { it.re } to part { it.im }
+    }
+
+    private val EMPTY = DoubleArray(0)
+
     private fun evaluatorFor(f: PlotFunction) = Evaluator(angle, null, storedVariables() + letterValues(except = f), unitSystem, coordinates, userFunctions(except = f), transformVariable = plotVars.first())
 
     /**

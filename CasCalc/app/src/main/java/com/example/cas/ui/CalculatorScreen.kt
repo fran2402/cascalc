@@ -484,6 +484,15 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
     var shareMenu by remember { mutableStateOf(false) }
     var confirm by remember { mutableStateOf(false) }
     var showingSteps by remember { mutableStateOf(false) }
+    // Use on an answer with several values: which one (null when not asking).
+    var useChoices by remember { mutableStateOf<List<Pair<com.example.cas.cas.Expr, com.example.cas.cas.Expr>>?>(null) }
+    fun use() {
+        val c = Formatter.choices(item.answer.value)
+        if (c.size >= 2) useChoices = c else vm.reuse(shown)
+    }
+    useChoices?.let { c ->
+        UseChoiceDialog(c, decimal = item.showApprox, onUse = { useChoices = null; vm.reuse(it) }, onUseAll = { useChoices = null; vm.reuse(shown) }, onDismiss = { useChoices = null })
+    }
     var movingToFolder by remember { mutableStateOf(false) }
     if (movingToFolder) MoveToFolderDialog(item.folder, vm.historyFolders, onPick = { vm.moveToFolder(item, it); movingToFolder = false }, onDismiss = { movingToFolder = false })
     // An equation's steps follow what it was solved for (the letters on the left of its answer).
@@ -551,7 +560,7 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                     modifier = Modifier.combinedClickable(
                         onClickLabel = tr("Use this answer"),
                         onLongClick = { copy(Formatter.plain(shown), "Answer") },
-                        onClick = { vm.reuse(shown) },
+                        onClick = { use() },
                     ),
                 )
             }
@@ -582,7 +591,7 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                     if (g.dimensions == 1) TabIcons.Complex else TableIcons.Mode2D,
                     "Graph", when (g.dimensions) { 1 -> "Plot on the complex plane"; 2 -> "Graph this"; else -> "Graph this in 3D" }, tonal = true,
                 ) { onGraph(g) }
-                else action(TableIcons.Enter, "Use", "Use this answer", tonal = true) { vm.reuse(shown) }
+                else action(TableIcons.Enter, "Use", "Use this answer", tonal = true) { use() }
                 // The working.
                 if (AppSettings.showSteps && remember(item) { Steps.supports(item.expression) }) {
                     action(TableIcons.Bullets, "Steps", "Show the steps") { showingSteps = true }
@@ -610,7 +619,7 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                     DropdownMenu(expanded = shareMenu, onDismissRequest = { shareMenu = false }, shape = RoundedCornerShape(16.dp)) {
                         if (g != null) DropdownMenuItem(
                             text = { Text(tr("Use the answer")) }, leadingIcon = { AppIcon(TableIcons.UseAnswer, null) },
-                            onClick = { shareMenu = false; vm.reuse(shown) },
+                            onClick = { shareMenu = false; use() },
                         )
                         DropdownMenuItem(
                             text = { Text(item.folder?.let { "Folder: $it" } ?: "Move to a folder") }, leadingIcon = { AppIcon(TableIcons.Folder, null) },

@@ -59,8 +59,14 @@ object Steps {
     /** Whether there are steps for [row]: a lone integral or ∮ (steps are worked out only when asked for). */
     private val FUNCS = setOf(
         "contour", "lim", "residue", "taylor", "det", "eigvals", "eigvecs", "charpoly", "rref", "dsolve",
-        "mean", "median", "sd", "psd", "var", "grad", "div", "curl", "jacobian", "hessian",
+        "mean", "median", "sd", "psd", "var", "grad", "div", "curl", "jacobian", "hessian", "laplace", "fourier",
     )
+
+    /** An equation, inequality or system typed to be solved (not a definition with :=). */
+    private fun isEquation(row: MathRow): Boolean {
+        val texts = row.items.mapNotNull { (it as? SymNode)?.text }
+        return texts.any { it == "=" || it in setOf("<", ">", "≤", "≥") } && texts.none { it == ":=" || it == ":" }
+    }
 
     /** A matrix raised to −1. */
     private fun inverseOf(row: MathRow): com.example.cas.editor.Matrix? {
@@ -72,11 +78,11 @@ object Steps {
     }
 
     /** A letter, or a symbol built in the symbol builder (one symbol, whatever its scripts). */
-    private fun isVariable(name: String) = (name.length == 1 && name[0].isLetter()) || com.example.cas.cas.CustomSymbol.decode(name) != null
+    private fun isVariable(name: String) = isLetterName(name)
     /** A letter that's a variable (not i, e or π). */
     private fun isLetter(t: String) = isVariable(t) && t !in setOf("i", "e", "π")
 
-    fun supports(row: MathRow): Boolean = defined(row) != null || target(row) != null || inverseOf(row) != null || isComplexArithmetic(row) || simplificationMoves(row, AngleUnit.Radians).isNotEmpty()
+    fun supports(row: MathRow): Boolean = isEquation(row) || defined(row) != null || target(row) != null || inverseOf(row) != null || isComplexArithmetic(row) || simplificationMoves(row, AngleUnit.Radians).isNotEmpty()
 
     /** The rewrites that simplify a plain algebraic expression (empty if there are none, or it isn't one). */
     private fun simplificationMoves(row: MathRow, angle: AngleUnit): List<com.example.cas.cas.AutoSimplify.Move> {
@@ -146,6 +152,7 @@ object Steps {
                 "eigvals", "eigvecs", "charpoly" -> eigen(n, angle)
                 "rref" -> rrefSteps(n, angle)
                 "dsolve" -> ode(n, angle)
+                "laplace", "fourier" -> transform(n, angle)
                 "mean", "median", "sd", "psd", "var" -> statistics(n, angle)
                 "grad", "div", "curl", "jacobian", "hessian" -> vectorCalculus(n, angle)
                 else -> contour(n, angle)
@@ -182,48 +189,267 @@ object Steps {
         val steps = ArrayList<Step>()
         val only = eqs.list.singleOrNull()
         val method: String
+        val matrixForm = row.items.any { it is com.example.cas.editor.Matrix }
         if (only is com.example.cas.cas.Rel) {
             method = "Inequality"
-            val x = vars[0]
-            val boundary = runCatching { Algebra.solve(Eq(only.parts.first(), only.parts.last()), x) }.getOrNull()
-            steps += Step("Boundary points", "Where the two sides are equal, solve as an equation: the sign can only change there (or where a side is undefined).", boundary?.let { ex(it) })
-            steps += Step("Test each interval", "Try a value between neighbouring boundary points; keep the intervals where the inequality holds.", null)
+            steps += inequalitySteps(only, vars[0])
         } else if (only is Eq) {
             val x = vars[0]
             val f = Algebra.simplify(Algebra.expand(sub(only.lhs, only.rhs)))
-            steps += Step("One side zero", "Subtract the right side from both sides.", ex(Eq(f, ZERO)))
             val cs = runCatching { Algebra.coefficients(f, x) }.getOrNull()?.takeIf { c -> c.all { it.freeOf(x) } }
+            if (cs != null && cs.size >= 2) steps += Step("One side zero", "Subtract the right side from both sides and collect powers of \$${x.name}\$.", ex(Eq(f, ZERO)))
             method = when {
                 cs != null && cs.size == 2 -> {
-                    steps += Step("Linear", "\$a${x.name} + b = 0\$ gives \$${x.name} = -\\frac{b}{a}\$, with \$a = ${lx(cs[1])}\$ and \$b = ${lx(cs[0])}\$.", null)
+                    val (b0, a1) = cs
+                    steps += Step("Linear", "Of the form \$a${x.name} + b = 0\$, with \$a = ${lx(a1)}\$ and \$b = ${lx(b0)}\$.", null)
+                    steps += Step("Move the constant", "Subtract \$b\$ from both sides.", ex(Eq(Algebra.simplify(mul(a1, x)), Algebra.simplify(neg(b0)))))
+                    if (a1 != com.example.cas.cas.ONE) steps += Step("Divide by \$${lx(a1)}\$", null, ex(Eq(x, Algebra.simplify(div(neg(b0), a1)))))
                     "Linear equation"
                 }
                 cs != null && cs.size == 3 -> {
                     val (c, b, a2) = cs
                     val disc = Algebra.simplify(sub(mul(b, b), mul(Num(4), a2, c)))
-                    steps += Step("Quadratic formula", "\$a${x.name}^2 + b${x.name} + c = 0\$ with \$a = ${lx(a2)}\$, \$b = ${lx(b)}\$, \$c = ${lx(c)}\$: \$${x.name} = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}\$.", null)
-                    steps += Step("Discriminant", "\$b^2 - 4ac\$: positive gives two real roots, zero one, negative two complex ones.", line("b²", "−", "4ac", "=", disc))
+                    steps += Step("Quadratic formula", "\$a${x.name}^2 + b${x.name} + c = 0\$ with \$a = ${lx(a2)}\$, \$b = ${lx(b)}\$, \$c = ${lx(c)}\$ has \$${x.name} = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}\$.", null)
+                    val sign = runCatching { Numeric.eval(disc) }.getOrNull()?.takeIf { kotlin.math.abs(it.im) < 1e-12 }?.re
+                    steps += Step("Discriminant", when {
+                        sign == null -> "\$\\Delta = b^2 - 4ac\$."
+                        sign > 1e-12 -> "\$\\Delta = b^2 - 4ac > 0\$: two real roots."
+                        sign < -1e-12 -> "\$\\Delta = b^2 - 4ac < 0\$: two complex roots, a conjugate pair."
+                        else -> "\$\\Delta = b^2 - 4ac = 0\$: one repeated root."
+                    }, line("Δ", "=", paren(b), Pow2, "−", "4", "·", paren(a2), "·", paren(c), "=", disc))
+                    steps += Step("Substitute", "\$${x.name} = \\frac{${if (b == ZERO) "" else "-" + lxp(b)} \\pm \\sqrt{${lx(disc)}}}{${if (a2 == com.example.cas.cas.ONE) "2" else "2 \\cdot " + lxp(a2)}}\$", ex(value))
                     "Quadratic equation"
                 }
                 cs != null && cs.size > 3 -> {
                     val factored = runCatching { Algebra.factor(f) }.getOrNull()
-                    if (factored != null && !same(factored, f)) steps += Step("Factor", "A product is zero when one of its factors is; solve each factor.", ex(Eq(factored, ZERO)))
-                    else steps += Step("Roots", "No factors with simple roots: the roots come from the cubic or quartic formula, or numerically.", null)
+                    if (factored != null && !same(factored, f)) {
+                        steps += Step("Factor", "A product is \$0\$ exactly when one of its factors is.", ex(Eq(factored, ZERO)))
+                        val factors = (if (factored is Mul) factored.factors else listOf(factored)).map { if (it is Pow && it.exp is Num) it.base else it }.filter { !it.freeOf(x) }.distinctBy { Printer.plain(it) }
+                        if (factors.size > 1) steps += Step("Each factor", null, null, substeps = factors.mapNotNull { g ->
+                            runCatching { Algebra.solve(Eq(g, ZERO), x) }.getOrNull()?.let { Step("\$${lx(g)} = 0\$", null, line(Eq(g, ZERO), "  ", "⇒", "  ", it)) }
+                        })
+                    } else steps += Step("Roots", "No factors with simple roots: the roots come from the cubic or quartic formula, or numerically.", null)
                     "Polynomial equation"
                 }
                 else -> {
-                    steps += Step("Isolate ${x.name}", "Undo what's done to \$${x.name}\$ one step at a time, with the inverse function on both sides (\$\\ln\$ for \$e^{\\square}\$, \$\\arcsin\$ for \$\\sin\$…); where no inverse gives it exactly, the roots are found numerically.", null)
+                    steps += isolate(only, x)
                     "Equation"
                 }
             }
         } else {
-            method = "System of equations"
-            steps += Step("The equations", "${eqs.list.size} equations in ${vars.joinToString(", ") { it.name }}.", line(*eqs.list.flatMapIndexed { k, e -> (if (k > 0) listOf<Any>(",", "  ") else emptyList()) + listOf<Any>(e) }.toTypedArray()))
-            val linear = eqs.list.all { e -> val f = Algebra.expand(sub((e as Eq).lhs, e.rhs)); vars.all { v -> Algebra.coefficients(f, v)?.let { c -> c.size <= 2 && c.all { k -> vars.all { k.freeOf(it) } } } ?: f.freeOf(v) } }
-            steps += if (linear) Step("Elimination", "The equations are linear: subtract multiples of one from the others to remove one unknown at a time (row-reducing the augmented matrix), then substitute back.", null)
-                else Step("Substitution", "Solve one equation for one unknown and put that into the others, until one unknown is left; then work back.", null)
+            method = if (matrixForm) "Matrix equation" else "System of equations"
+            if (matrixForm) steps += Step("Entry by entry", "Two matrices are equal when every entry is: one equation per entry.", line(*eqs.list.flatMapIndexed { k, e -> (if (k > 0) listOf<Any>(",", "  ") else emptyList()) + listOf<Any>(e) }.toTypedArray()))
+            else steps += Step("The equations", "${eqs.list.size} equations in \$${vars.joinToString(", ") { lx(it) }}\$.", line(*eqs.list.flatMapIndexed { k, e -> (if (k > 0) listOf<Any>(",", "  ") else emptyList()) + listOf<Any>(e) }.toTypedArray()))
+            steps += systemSteps(eqs.list.map { it as Eq }, vars)
         }
         steps += Step("Result", null, answer, Kind.Result)
+        return Solution(method, steps, answer)
+    }
+
+
+    private val Pow2 = com.example.cas.editor.Pow(MathRow(mutableListOf(SymNode("2"))))
+
+    /**
+     * One equation in [x] solved by undoing what is done to [x], outside in: subtract the terms
+     * without it, divide by constant factors, take roots, logarithms and inverse functions, one
+     * line per move. Where that can't go on, the roots are found numerically.
+     */
+    private fun isolate(eq: Eq, x: Sym): List<Step> {
+        val out = ArrayList<Step>()
+        var l = Algebra.simplify(eq.lhs); var r = Algebra.simplify(eq.rhs)
+        if (l.freeOf(x) && !r.freeOf(x)) { val t = l; l = r; r = t }
+        if (!r.freeOf(x)) {
+            l = Algebra.simplify(sub(l, r)); r = ZERO
+            out += Step("One side zero", "Subtract the right side from both sides.", ex(Eq(l, r)))
+        }
+        val inverses = mapOf("ln" to "exp", "sin" to "asin", "cos" to "acos", "tan" to "atan", "asin" to "sin", "acos" to "cos", "atan" to "tan",
+            "sinh" to "asinh", "tanh" to "atanh", "asinh" to "sinh", "acosh" to "cosh", "atanh" to "tanh", "cbrt" to "cube", "sqrt" to "square")
+        fun stuck(): List<Step> = out + Step("Solve", if (out.isEmpty()) "\$${x.name}\$ appears in more than one place, so it can't be undone step by step: the roots are found exactly where a rule applies, otherwise numerically." else "\$${x.name}\$ appears in more than one place now: the rest is solved exactly where a rule applies, otherwise numerically.", null)
+        repeat(16) {
+            if (l == x) return out
+            when {
+                l is Add -> {
+                    val (with, without) = l.terms.partition { !it.freeOf(x) }
+                    if (with.size != 1 || without.isEmpty()) return stuck()
+                    val c = add(without)
+                    l = with[0]; r = Algebra.simplify(sub(r, c))
+                    out += Step("Subtract \$${lx(c)}\$", "from both sides.", ex(Eq(l, r)))
+                }
+                l is Mul -> {
+                    val (with, without) = l.factors.partition { !it.freeOf(x) }
+                    if (without.isEmpty()) {
+                        if (r == ZERO) return out + Step("Zero product", "A product is \$0\$ exactly when one of its factors is: solve each factor.", line(*with.flatMapIndexed { k, g -> (if (k > 0) listOf<Any>(",", "  ") else emptyList()) + listOf<Any>(Eq(g, ZERO)) }.toTypedArray()))
+                        return stuck()
+                    }
+                    val c = mul(without)
+                    l = mul(with); r = Algebra.simplify(div(r, c))
+                    out += Step("Divide by \$${lx(c)}\$", "on both sides.", ex(Eq(l, r)))
+                }
+                l is Pow && l.exp.freeOf(x) -> {
+                    val p = l.exp
+                    val even = (p as? Num)?.q?.let { it.isInteger && it.num.toInt() % 2 == 0 } == true
+                    val half = p == com.example.cas.cas.HALF
+                    val root = Algebra.simplify(com.example.cas.cas.pow(r, div(com.example.cas.cas.ONE, p)))
+                    when {
+                        p == MINUS_ONE -> { l = l.base; r = root; out += Step("Reciprocals", "Take \$1/\\square\$ of both sides.", ex(Eq(l, r))) }
+                        half -> { l = l.base; r = root; out += Step("Square", "both sides (a square root is never negative, so check the answer).", ex(Eq(l, r))) }
+                        even -> {
+                            out += Step("Take the ${ordinal(p)} root", "of both sides; an even power hides the sign, so both signs count.", line(l.base, "=", "±", root))
+                            if (l.base != x) out += Step("Each sign", "Solve \$${lx(l.base)} = ${lx(root)}\$ and \$${lx(l.base)} = -${lxp(root)}\$ the same way.", null)
+                            return out
+                        }
+                        else -> { l = l.base; r = root; out += Step("Raise to the power \$${lx(Algebra.simplify(div(com.example.cas.cas.ONE, p)))}\$", "on both sides.", ex(Eq(l, r))) }
+                    }
+                }
+                l is Pow && l.base.freeOf(x) -> {
+                    val base = l.base
+                    l = l.exp
+                    r = Algebra.simplify(if (base == E) com.example.cas.cas.fn("ln", r) else div(com.example.cas.cas.fn("ln", r), com.example.cas.cas.fn("ln", base)))
+                    out += Step("Take logarithms", if (base == E) "\$\\ln\$ undoes \$e^{\\square}\$." else "\$\\ln\$ of both sides, then divide by \$\\ln ${lxp(base)}\$.", ex(Eq(l, r)))
+                }
+                l is Fn && l.args.size == 1 && l.name in inverses -> {
+                    val inv = inverses.getValue(l.name)
+                    val arg = l.args[0]
+                    val nr: Expr = when (inv) {
+                        "exp" -> com.example.cas.cas.pow(E, r)
+                        "cube" -> com.example.cas.cas.pow(r, Num(3))
+                        "square" -> com.example.cas.cas.pow(r, Num(2))
+                        else -> com.example.cas.cas.fn(inv, r)
+                    }
+                    l = arg; r = Algebra.simplify(nr)
+                    out += Step(when (inv) { "exp" -> "Exponentiate"; "square" -> "Square"; "cube" -> "Cube"; else -> "Apply \$" + (mapOf("asin" to "\\arcsin", "acos" to "\\arccos", "atan" to "\\arctan", "asinh" to "\\operatorname{arsinh}", "atanh" to "\\operatorname{artanh}")[inv] ?: "\\$inv") + "\$" },
+                        when (inv) {
+                            "exp" -> "\$e^{\\square}\$ undoes \$\\ln\$."
+                            "asin", "acos", "atan" -> "on both sides. This gives the principal value; the function repeats, so the other solutions differ by whole turns."
+                            else -> "on both sides."
+                        }, ex(Eq(l, r)))
+                }
+                else -> return stuck()
+            }
+        }
+        return out
+    }
+
+    private fun ordinal(p: Expr): String = when (Printer.plain(p)) { "2" -> "square"; "4" -> "fourth"; "6" -> "sixth"; else -> Printer.plain(p) + "th" }
+
+    /**
+     * An inequality: the boundary points (where the two sides are equal, or a side is undefined),
+     * then one test value in each interval between them, kept where the inequality holds.
+     */
+    private fun inequalitySteps(rel: com.example.cas.cas.Rel, x: Sym): List<Step> {
+        val out = ArrayList<Step>()
+        if (rel.parts.size != 2) {
+            out += Step("One part at a time", "Solve each inequality in the chain and keep the values that satisfy all of them.", null)
+            return out
+        }
+        val (a, b) = rel.parts
+        val op = rel.ops[0]
+        val f = Algebra.simplify(sub(a, b))
+        val (num, den) = Algebra.together(f)
+        fun realRoots(p: Expr): List<Expr> {
+            if (p.freeOf(x)) return emptyList()
+            val s = runCatching { Algebra.solve(Eq(p, ZERO), x) }.getOrNull() ?: return emptyList()
+            val all = if (s is Seq) s.items else listOf(s)
+            return all.mapNotNull { (it as? Eq)?.rhs }.filter { it.isConstant && runCatching { Numeric.eval(it).let { v -> kotlin.math.abs(v.im) < 1e-12 } }.getOrDefault(false) }
+        }
+        val zeros = realRoots(num); val poles = realRoots(den)
+        val critical = (zeros + poles).distinctBy { Math.round(Numeric.real(it) * 1e9) }.sortedBy { Numeric.real(it) }
+        out += Step("Boundary points", "The sign of \$${lx(f)}\$ can only change where it is \$0\$" + (if (poles.isNotEmpty()) " or undefined" else "") + ".",
+            if (critical.isEmpty()) null else line(*critical.flatMapIndexed { k, c -> (if (k > 0) listOf<Any>(",", "  ") else emptyList()) + listOf<Any>(x.name, "=", c) }.toTypedArray()))
+        val pts = critical.map { Numeric.real(it) }
+        val tests = ArrayList<Step>()
+        for (i in 0..critical.size) {
+            val lo = critical.getOrNull(i - 1); val hi = critical.getOrNull(i)
+            val t = when {
+                lo == null && hi == null -> 0.0
+                lo == null -> kotlin.math.floor(pts[i]) - 1.0
+                hi == null -> kotlin.math.ceil(pts[i - 1]) + 1.0
+                else -> (pts[i - 1] + pts[i]) / 2
+            }
+            val av = runCatching { Numeric.real(a, mapOf(x.name to t)) }.getOrNull() ?: continue
+            val bv = runCatching { Numeric.real(b, mapOf(x.name to t)) }.getOrNull() ?: continue
+            val holds = when (op) { "<" -> av < bv; ">" -> av > bv; "≤" -> av <= bv; else -> av >= bv }
+            val interval = "\\left(" + (lo?.let { lx(it) } ?: "-\\infty") + ", " + (hi?.let { lx(it) } ?: "\\infty") + "\\right)"
+            val opTex = when (op) { "≤" -> "\\le"; "≥" -> "\\ge"; else -> op }
+            tests += Step("\$$interval\$", "At \$${x.name} = ${num(t)}\$: \$${num(av)} $opTex ${num(bv)}\$ is " + (if (holds) "true, so the interval is kept." else "false."), null)
+        }
+        out += Step("Test each interval", "One value from each interval decides it, since the sign doesn't change inside." + (if (op == "≤" || op == "≥") " The boundary points where the two sides are equal are included too." else ""), null, substeps = tests)
+        return out
+    }
+
+    private fun num(v: Double): String = if (v == Math.rint(v) && kotlin.math.abs(v) < 1e12) v.toLong().toString() else String.format(java.util.Locale.ROOT, "%.4g", v).trimEnd('0').trimEnd('.')
+
+    /**
+     * A system: linear ones by Gauss–Jordan elimination on the augmented matrix, row operation by
+     * row operation; others by substituting one unknown from an equation that is linear in it.
+     */
+    private fun systemSteps(list: List<Eq>, vars: List<Sym>): List<Step> {
+        val fs = list.map { Algebra.expand(sub(it.lhs, it.rhs)) }
+        // Linear: each unknown at most to the first power, with a number (no unknown) in front.
+        val coefficient = { f: Expr, v: Sym -> Algebra.coefficients(f, v)?.takeIf { c -> c.size <= 2 && c.getOrElse(1) { ZERO }.let { k -> vars.all { k.freeOf(it) } } } }
+        val linear = fs.all { f -> vars.all { v -> coefficient(f, v) != null } }
+        if (linear && list.size <= 6 && vars.size <= 6) {
+            val cols = vars.size + 1
+            val cells = fs.flatMap { f ->
+                val constant = Algebra.simplify(vars.fold(f) { e, v -> e.subst(v, ZERO) })
+                vars.map { v -> Algebra.simplify(coefficient(f, v)!!.getOrElse(1) { ZERO }) } + Algebra.simplify(neg(constant))
+            }
+            val aug = com.example.cas.cas.Mat(list.size, cols, cells)
+            val steps = ArrayList<Step>()
+            steps += Step("Augmented matrix", "Each row is one equation: the coefficients of \$${vars.joinToString(", ") { lx(it) }}\$, then the constant on the right.", ex(aug))
+            val (done, ops) = gaussJordan(aug, vars.size)
+            steps += Step("Elimination", "Row operations change the equations but not their solutions: scale a row, or add a multiple of one row to another, until each pivot is \$1\$ with zeros above and below.", ex(done), substeps = ops)
+            steps += Step("Read off", "Each row of the reduced matrix now says what one unknown is.", null)
+            return steps
+        }
+        // Substitution: an unknown that appears linearly, with a number in front, in one of the equations.
+        for ((i, f) in fs.withIndex()) for (v in vars) {
+            val c = Algebra.coefficients(f, v) ?: continue
+            if (c.size != 2 || !c[1].isConstant || c[1] == ZERO || !c[0].freeOf(v)) continue
+            val expr = Algebra.simplify(div(neg(c[0]), c[1]))
+            val rest = list.filterIndexed { j, _ -> j != i }.map { e -> Eq(Algebra.simplify(e.lhs.subst(v, expr)), Algebra.simplify(e.rhs.subst(v, expr))) }
+            val steps = ArrayList<Step>()
+            steps += Step("Solve equation ${i + 1} for \$${lx(v)}\$", null, ex(Eq(v, expr)))
+            steps += Step("Substitute", "Put it into the other equation" + (if (rest.size > 1) "s" else "") + ": one unknown fewer.", line(*rest.flatMapIndexed { k, e -> (if (k > 0) listOf<Any>(",", "  ") else emptyList()) + listOf<Any>(e) }.toTypedArray()))
+            val left = vars.filter { it != v }
+            if (rest.size == 1 && left.size == 1) runCatching { Algebra.solve(rest[0], left[0]) }.getOrNull()?.let { steps += Step("Solve for \$${lx(left[0])}\$", null, ex(it)) }
+            steps += Step("Back-substitute", "Put each value into \$${lx(v)} = ${lx(expr)}\$.", null)
+            return steps
+        }
+        return listOf(Step("Substitution", "Solve one equation for one unknown and put that into the others, until one unknown is left; then work back.", null))
+    }
+
+    /**
+     * ℒ{f}, ℱ{f} and their inverses: the definition, linearity (term by term, or the partial
+     * fractions of an inverse Laplace transform), and for each term the table entry or theorem
+     * that gives it.
+     */
+    private fun transform(n: Func, angle: AngleUnit): Solution? {
+        val ev = Evaluator(angle)
+        val work = ev.transformWork(com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n))).items.single() as Func)
+        val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
+        val answer = ans(question, work.value)
+        val t = work.input.name; val w = work.output.name
+        val name = if (work.laplace) "\\mathcal{L}" else "\\mathcal{F}"
+        val sup = if (work.inverse) "^{-1}" else ""
+        // ℒ{term} (or ℒ⁻¹, ℱ, ℱ⁻¹) as a row, as the keypad writes it.
+        fun of(e: Expr) = MathRow(mutableListOf(Func(n.name, listOf(if (work.inverse) line("−1") else MathRow(), ex(e)))))
+        val steps = ArrayList<Step>()
+        steps += Step("Definition", when {
+            work.laplace && !work.inverse -> "\$\\mathcal{L}\\{f\\}($w) = \\int_0^\\infty f($t)\\, e^{-$w$t}\\, d$t\$. Rather than integrating, the transform is built from a table of known transforms and the rules that combine them."
+            work.laplace -> "\$\\mathcal{L}^{-1}\\{F\\}($w)\$ is the function whose Laplace transform is \$F($t)\$. It is found by writing \$F\$ as a sum of entries in the table, read backwards."
+            !work.inverse -> "\$\\mathcal{F}\\{f\\}($w) = \\int_{-\\infty}^{\\infty} f($t)\\, e^{-i$w$t}\\, d$t\$ (angular frequency). The transform is built from a table of known transforms and the rules that combine them."
+            else -> "\$\\mathcal{F}^{-1}\\{F\\}($w) = \\frac{1}{2\\pi}\\int_{-\\infty}^{\\infty} F($t)\\, e^{i$t$w}\\, d$t\$."
+        }, null)
+        work.fractions?.let { steps += Step("Partial fractions", "Split \$F($t)\$ into fractions with simple denominators; each one is in the table.", eq(work.body, it)) }
+        if (work.terms.isNotEmpty()) {
+            steps += Step("Linearity", "\$${name}${sup}\$ of a sum is the sum of the transforms, and constants come out: \$${name}${sup}\\{a f + b g\\} = a\\, ${name}${sup}\\{f\\} + b\\, ${name}${sup}\\{g\\}\$. Term by term:", null)
+            for (term in work.terms) steps += Step(Latex.of(of(term.term)).let { "\$$it\$" }, term.rules.joinToString(".\n").ifEmpty { null }, eq(of(term.term), term.value))
+        } else if (work.rules.isNotEmpty()) {
+            steps += Step("Rules used", work.rules.joinToString(".\n"), eq(of(work.body), work.value))
+        }
+        steps += Step("Result", if (work.terms.isNotEmpty()) "The terms added together." else null, answer, Kind.Result)
+        val method = (if (work.inverse) "Inverse " else "") + (if (work.laplace) "Laplace" else "Fourier") + " transform"
         return Solution(method, steps, answer)
     }
 

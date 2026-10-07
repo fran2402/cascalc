@@ -93,4 +93,36 @@ class SolveOnEnterTest {
     @Test fun derivativeInT() = assertEquals("y=3e^(-t)", solve(r(dd("y", "t"), "=−y,y(0)=3")).replace(" ", ""))
     @Test fun derivativeOfAnExpressionIsNotAnOde() = assertEquals("x=2", solve(r(com.example.cas.editor.Derivative(r("x"), r("x²")), "=4")))
     @Test fun derivativeButtonSteps() = assertEquals(true, com.example.cas.engine.Steps.of(r(dd("y"), "=2y,y(0)=1")) != null)
+
+    // Any letter or built symbol can be the unknown: Greek, script, x₁, v̂.
+    private val x1 = com.example.cas.cas.CustomSymbol("x", sub = "1").encode()
+    private val x2 = com.example.cas.cas.CustomSymbol("x", sub = "2").encode()
+    private val script = com.example.cas.editor.MathAlphabets.calligraphic('A')
+    @Test fun greek() = assertEquals("α=-2, α=2", solve(r("α²=4")))
+    @Test fun greekInAFunction() = assertEquals("φ=π/2", solve(r(Func("sin", listOf(r("φ"))), "=1")))
+    @Test fun scriptLetter() = assertEquals("$script=4", solve(r("2", Sym(script), "=8")))
+    @Test fun builtSymbol() = assertEquals("x_1=2", solve(r(Sym(x1), "+1=3")))
+    @Test fun builtSymbolSystem() = assertEquals("x_1=2, x_2=1", solve(r(Sym(x1), "+", Sym(x2), "=3,", Sym(x1), "−", Sym(x2), "=1")))
+    @Test fun builtSymbolsAsk() = assertEquals("Choose 1 of [$x1, $x2]", solve(r(Sym(x1), "=2", Sym(x2))))
+    @Test fun greekDifferential() = assertEquals("θ=cos(x)", solve(r("θ′′+θ=0,θ(0)=1,θ′(0)=0")).replace(" ", ""))
+    @Test fun builtSymbolDifferential() = assertEquals("x_1=C1e^(2x)", solve(r(Sym(x1), "′=2", Sym(x1))).replace(" ", "").replace("C_1", "C1"))
+    @Test fun scriptDifferential() = assertEquals(true, solve(r(Sym(script), "′=", Sym(script))).startsWith(script))
+
+    // The steps show the working, not just the rule's name.
+    private fun titles(row: MathRow): List<String> = com.example.cas.engine.Steps.of(row)!!.steps.flatMap { listOf(it.title) + it.substeps.map { s -> s.title } }
+    @Test fun stepsLinearDivides() = assertEquals(true, "Divide by \$2\$" in titles(r("2x+3=11")))
+    @Test fun stepsIsolateExponential() = assertEquals(true, titles(r("3", Sym("e"), Pow(r("2x")), "+1=7")).containsAll(listOf("Subtract \$1\$", "Divide by \$3\$", "Take logarithms")))
+    @Test fun stepsInequalityTestsIntervals() = assertEquals(3, com.example.cas.engine.Steps.of(r("x²<4"))!!.steps.first { it.title == "Test each interval" }.substeps.size)
+    @Test fun stepsLinearSystemEliminates() = assertEquals(true, "Augmented matrix" in titles(r("x+y=3,x−y=1")))
+    @Test fun stepsNonlinearSystemSubstitutes() = assertEquals(true, "Substitute" in titles(r("x²+y²=25,y=x+1")))
+    @Test fun stepsMatrixEntryByEntry() = assertEquals(true, "Entry by entry" in titles(r(mat(2, 2, "1", "1", "1", "−1"), "×", mat(2, 1, "x", "y"), "=", mat(2, 1, "3", "1"))))
+    @Test fun stepsShown() = assertEquals(true, com.example.cas.engine.Steps.supports(r("2x+3=11")))
+    @Test fun stepsLaplace() = assertEquals(true, com.example.cas.engine.Steps.of(r(Func("laplace", listOf(MathRow(), r("t²+3", Sym("e"), Pow(r("−2t")))))))!!.steps.any { it.text?.contains("First shift theorem") == true })
+    @Test fun stepsInverseLaplacePartialFractions() = assertEquals(true, "Partial fractions" in titles(r(Func("laplace", listOf(r("−1"), r(com.example.cas.editor.Frac(r("1"), r("s²+3s+2"))))))))
+
+    // Use on an answer with several values offers each one.
+    private fun choices(row: MathRow) = com.example.cas.engine.Formatter.choices(Evaluator(solveEquations = true).evaluate(row)).map { Printer.plain(it.second) }
+    @Test fun useChoicesRoots() = assertEquals(listOf("-3", "3"), choices(r("x²=9")))
+    @Test fun useChoicesSystem() = assertEquals(listOf("2", "1"), choices(r("x+y=3,x−y=1")))
+    @Test fun useOneValueNoChoice() = assertEquals(emptyList<String>(), choices(r("2x+3=11")))
 }

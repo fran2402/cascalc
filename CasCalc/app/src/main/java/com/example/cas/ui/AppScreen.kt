@@ -43,9 +43,12 @@ fun AppScreen() {
     val prefs = remember { context.getSharedPreferences("calculator", Context.MODE_PRIVATE) }
     var mode by remember { mutableStateOf(runCatching { Mode.valueOf(prefs.getString("mode", Mode.Calculator.name)!!) }.getOrDefault(Mode.Calculator)) }
     val calculator: CalculatorViewModel = viewModel()
-    val graph2d: Graph2DViewModel = viewModel()
-    val graph3d: Graph3DViewModel = viewModel()
-    val complex: ComplexViewModel = viewModel()
+    // The graph modes are made on first use (each loads and works out its lines), not at launch.
+    val owner = checkNotNull(androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner.current)
+    val graphs = remember(owner) { LazyGraphs(owner) }
+    val graph2d by graphs.graph2d
+    val graph3d by graphs.graph3d
+    val complex by graphs.complex
     val colors = MaterialTheme.colorScheme
     val switchTo = { m: Mode ->
         mode = m
@@ -77,7 +80,7 @@ fun AppScreen() {
     }
 
     // A graph file the app was opened with: imported, opened, and its mode shown.
-    OpenGraphFileEffect(mapOf(Mode.Graph2D to graph2d, Mode.Graph3D to graph3d, Mode.Complex to complex), onSwitch = switchTo)
+    OpenGraphFileEffect(graphs, onSwitch = switchTo)
 
     Column(Modifier.fillMaxSize().background(colors.surface).systemBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -86,7 +89,7 @@ fun AppScreen() {
                 when (mode) {
                     Mode.Calculator -> CalculatorLeadingAction(calculator)
                     // Saved graphs of every graph mode; opening one switches to its mode.
-                    else -> ProjectsButton(mode, mapOf(Mode.Graph2D to graph2d, Mode.Graph3D to graph3d, Mode.Complex to complex), onSwitch = switchTo)
+                    else -> ProjectsButton(mode, graphs, onSwitch = switchTo)
                 }
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
@@ -145,4 +148,21 @@ private fun GraphMenuAction() {
             DropdownMenuItem(text = { Text(tr("Acknowledgements")) }, leadingIcon = { AppIcon(TableIcons.Thanks, null) }, onClick = { menu = false; acknowledgements = true })
         }
     }
+}
+
+/**
+ * The three graph modes' view models, each made the first time it's asked for: by its mode, or as
+ * a map (only the entries read are made), so starting in the calculator loads no graphs.
+ */
+class LazyGraphs(owner: androidx.lifecycle.ViewModelStoreOwner) : AbstractMap<Mode, GraphViewModel>() {
+    private val provider = androidx.lifecycle.ViewModelProvider(owner)
+    val graph2d = lazy { provider[Graph2DViewModel::class.java] }
+    val graph3d = lazy { provider[Graph3DViewModel::class.java] }
+    val complex = lazy { provider[ComplexViewModel::class.java] }
+    private val byMode: Map<Mode, Lazy<GraphViewModel>> = mapOf(Mode.Graph2D to graph2d, Mode.Graph3D to graph3d, Mode.Complex to complex)
+    override val keys: Set<Mode> get() = byMode.keys
+    override fun containsKey(key: Mode) = key in byMode
+    override fun get(key: Mode): GraphViewModel? = byMode[key]?.value
+    override val entries: Set<Map.Entry<Mode, GraphViewModel>>
+        get() = byMode.mapValues { it.value.value }.entries
 }

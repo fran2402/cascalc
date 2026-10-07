@@ -14,6 +14,18 @@ package com.example.cas.cas
 object Transforms {
     private fun fail(what: String): Nothing = throw MathError("No $what transform found for that")
 
+    // The rules used, for the steps: each a line with LaTeX in $ … $, recorded while [traced] runs.
+    private val log = ThreadLocal<MutableList<String>?>()
+    private fun rule(text: String) { log.get()?.add(text) }
+
+    /** [block]'s value and the rules it used, in order, each once. */
+    fun <T> traced(block: () -> T): Pair<T, List<String>> {
+        val list = ArrayList<String>()
+        val outer = log.get()
+        log.set(list)
+        try { return block() to list.distinct() } finally { log.set(outer) }
+    }
+
     /** u as k·x + b (k and b free of x), or null. */
     private fun linear(u: Expr, x: Sym): Pair<Expr, Expr>? {
         val c = Algebra.coefficients(Algebra.expand(u), x) ?: return null
@@ -56,10 +68,11 @@ object Transforms {
     fun laplace(f: Expr, t: Sym, sv: Sym): Expr = s(add(terms(f, t).map { (c, g) -> mul(c, laplaceOf(g, t, sv)) }))
 
     private fun laplaceOf(fs: List<Expr>, t: Sym, sv: Sym): Expr {
-        if (fs.isEmpty()) return div(ONE, sv)
+        if (fs.isEmpty()) { rule("Constant: \$\\mathcal{L}\\{1\\} = \\frac{1}{s}\$"); return div(ONE, sv) }
         // e^(kt + b) g(t) → e^b G(s − k).
         fs.indexOfFirst { exponential(it, t) != null }.takeIf { it >= 0 }?.let { k ->
             val (a, b) = exponential(fs[k], t)!!
+            rule("First shift theorem: \$\\mathcal{L}\\{e^{at} g(t)\\} = G(s - a)\$")
             val g = laplaceOf(fs.filterIndexed { j, _ -> j != k }, t, sv)
             return mul(pow(E, b), g.subst(sv, sub(sv, a)))
         }
@@ -69,13 +82,15 @@ object Transforms {
             if (!positive(a)) fail("Laplace")
             val t0 = s(neg(div(b, a)))
             val rest = fs.filterIndexed { j, _ -> j != k }
-            if (!positive(t0)) return laplaceOf(rest, t, sv)
+            if (!positive(t0)) { rule("A step at or before \$t = 0\$ is \$1\$ for all \$t > 0\$, where the integral runs"); return laplaceOf(rest, t, sv) }
+            rule("Second shift theorem: \$\\mathcal{L}\\{H(t - t_0)\\, g(t)\\} = e^{-t_0 s}\\, \\mathcal{L}\\{g(t + t_0)\\}\$")
             val shifted = mul(rest).subst(t, add(t, t0))
             return mul(pow(E, neg(mul(t0, sv))), laplace(shifted, t, sv))
         }
         // sgn(t − t₀) = 2H(t − t₀) − 1.
         fs.indexOfFirst { it is Fn && it.name == "sgn" }.takeIf { it >= 0 }?.let { k ->
             val u = (fs[k] as Fn).args[0]
+            rule("Sign as steps: \$\\operatorname{sgn}(u) = 2H(u) - 1\$")
             val rest = fs.filterIndexed { j, _ -> j != k }
             return sub(mul(TWO, laplace(mul(listOf(Fn("heaviside", listOf(u))) + rest), t, sv)), laplace(mul(rest), t, sv))
         }
@@ -83,24 +98,28 @@ object Transforms {
         fs.indexOfFirst { it is Fn && it.name == "rect" }.takeIf { it >= 0 }?.let { k ->
             val u = (fs[k] as Fn).args[0]
             val rest = mul(fs.filterIndexed { j, _ -> j != k })
+            rule("Pulse as steps: \$\\operatorname{rect}(u) = H\\left(u + \\tfrac{1}{2}\\right) - H\\left(u - \\tfrac{1}{2}\\right)\$")
             return sub(laplace(mul(Fn("heaviside", listOf(add(u, HALF))), rest), t, sv), laplace(mul(Fn("heaviside", listOf(sub(u, HALF))), rest), t, sv))
         }
         // δ(kt + b) g(t): g(t₀) e^(−t₀s)/|k|.
         fs.indexOfFirst { it is Fn && it.name == "dirac" }.takeIf { it >= 0 }?.let { k ->
             val (a, b) = linear((fs[k] as Fn).args[0], t) ?: fail("Laplace")
             val t0 = s(neg(div(b, a)))
-            if (negative(t0)) return ZERO
+            if (negative(t0)) { rule("An impulse before \$t = 0\$ is outside the integral: it gives \$0\$"); return ZERO }
+            rule("Sifting property: \$\\mathcal{L}\\{\\delta(t - t_0)\\, g(t)\\} = g(t_0)\\, e^{-t_0 s}\$")
             val g = mul(fs.filterIndexed { j, _ -> j != k }).subst(t, t0)
             return mul(div(g, fn("abs", a)), pow(E, neg(mul(t0, sv))))
         }
         val (n, rest) = power(fs, t)
         if (rest.isEmpty()) {
             // tᵖ: Γ(p + 1)/s^(p + 1) (n!/s^(n + 1) for whole n).
+            rule("Power rule: \$\\mathcal{L}\\{t^n\\} = \\frac{n!}{s^{n+1}}\$ (\$\\frac{\\Gamma(p+1)}{s^{p+1}}\$ for any power \$p > -1\$)")
             return div(fn("gamma", add(n, ONE)), pow(sv, add(n, ONE)))
         }
         // tⁿ g(t) → (−1)ⁿ dⁿG/dsⁿ.
         if (n != ZERO) {
             val k = (n as? Num)?.q?.takeIf { it.isInteger && it.signum > 0 }?.num?.toInt() ?: fail("Laplace")
+            rule("Multiplication by \$t^n\$: \$\\mathcal{L}\\{t^n g(t)\\} = (-1)^n \\frac{d^n G}{ds^n}\$")
             var g = laplaceOf(rest, t, sv)
             repeat(k) { g = s(Calculus.diff(g, sv)) }
             return mul(pow(MINUS_ONE, n), g)
@@ -108,6 +127,13 @@ object Transforms {
         val one = rest.singleOrNull() as? Fn ?: return integralLaplace(mul(fs), t, sv)
         val (a, b) = linear(one.args.getOrNull(0) ?: fail("Laplace"), t) ?: return integralLaplace(mul(fs), t, sv)
         val s2 = pow(sv, 2); val a2 = pow(a, 2)
+        when (one.name) {
+            "sin" -> rule("Table: \$\\mathcal{L}\\{\\sin(at)\\} = \\frac{a}{s^2 + a^2}\$, \$\\mathcal{L}\\{\\cos(at)\\} = \\frac{s}{s^2 + a^2}\$")
+            "cos" -> rule("Table: \$\\mathcal{L}\\{\\cos(at)\\} = \\frac{s}{s^2 + a^2}\$, \$\\mathcal{L}\\{\\sin(at)\\} = \\frac{a}{s^2 + a^2}\$")
+            "sinh" -> rule("Table: \$\\mathcal{L}\\{\\sinh(at)\\} = \\frac{a}{s^2 - a^2}\$, \$\\mathcal{L}\\{\\cosh(at)\\} = \\frac{s}{s^2 - a^2}\$")
+            "cosh" -> rule("Table: \$\\mathcal{L}\\{\\cosh(at)\\} = \\frac{s}{s^2 - a^2}\$, \$\\mathcal{L}\\{\\sinh(at)\\} = \\frac{a}{s^2 - a^2}\$")
+        }
+        if (one.name in setOf("sin", "cos", "sinh", "cosh") && b != ZERO) rule("Angle sum: \$\\sin(at + b) = \\sin(at)\\cos b + \\cos(at)\\sin b\$ (and likewise for the others), then the table")
         // sin(at + b) = sin(at)cos b + cos(at) sin b, and so on.
         return when (one.name) {
             "sin" -> div(add(mul(a, fn("cos", b)), mul(sv, fn("sin", b))), add(s2, a2))
@@ -122,6 +148,7 @@ object Transforms {
     private fun integralLaplace(f: Expr, t: Sym, sv: Sym): Expr {
         val r = runCatching { Calculus.definite(mul(f, pow(E, neg(mul(sv, t)))), t, ZERO, INF) }.getOrNull()
         if (r == null || !r.freeOf(t) || r.contains { it is Fn && it.name in setOf("integral", "lim") }) fail("Laplace")
+        rule("No table entry fits: the definition \$\\int_0^\\infty f(t)\\, e^{-st}\\, dt\$, integrated directly")
         return r
     }
 
@@ -143,6 +170,7 @@ object Transforms {
             val g = rational(add(parts), sv, t)
             if (delay == ZERO) g else {
                 if (!positive(delay)) fail("inverse Laplace")
+                rule("Second shift theorem, backwards: \$\\mathcal{L}^{-1}\\{e^{-as} F(s)\\} = f(t - a)\\, H(t - a)\$")
                 mul(g.subst(t, sub(t, delay)), Fn("heaviside", listOf(sub(t, delay))))
             }
         }))
@@ -150,6 +178,7 @@ object Transforms {
 
     private fun rational(big: Expr, sv: Sym, t: Sym): Expr {
         val parts = runCatching { Algebra.apart(big, sv) }.getOrDefault(big)
+        if (parts is Add && Printer.plain(parts) != Printer.plain(Algebra.expand(big))) rule("Partial fractions: split \$F(s)\$ into simple fractions, each in the table")
         val list = if (parts is Add) parts.terms else listOf(parts)
         return add(list.map { term ->
             // Each partial fraction as written: the factors with a negative whole power are below the line.
@@ -157,7 +186,7 @@ object Transforms {
             val below = fs.filter { it is Pow && it.exp is Num && (it.exp as Num).q.isInteger && (it.exp as Num).q.signum < 0 && !it.base.freeOf(sv) }
             val num = mul(fs.filter { it !in below })
             when {
-                below.isEmpty() && num.freeOf(sv) -> mul(num, Fn("dirac", listOf(t)))
+                below.isEmpty() && num.freeOf(sv) -> { rule("Constant: \$\\mathcal{L}^{-1}\\{1\\} = \\delta(t)\$"); mul(num, Fn("dirac", listOf(t))) }
                 below.size == 1 -> {
                     val d = below[0] as Pow
                     fraction(num, d.base, (-(d.exp as Num).q.num.toInt()), sv, t) ?: power(term, sv, t) ?: fail("inverse Laplace")
@@ -174,6 +203,7 @@ object Transforms {
         val (n, rest) = power(fs.filter { !it.freeOf(sv) }, sv)
         if (rest.isNotEmpty() || !negative(n)) return null
         val p = neg(n)
+        rule("Power rule, backwards: \$\\mathcal{L}^{-1}\\left\\{\\frac{1}{s^n}\\right\\} = \\frac{t^{n-1}}{(n-1)!}\$")
         return mul(c, div(pow(t, sub(p, ONE)), fn("gamma", p)))
     }
 
@@ -188,6 +218,7 @@ object Transforms {
             2 -> {
                 if (nc.size != 1) return null
                 val a = bc[1]; val root = neg(div(bc[0], a))
+                rule(if (n == 1) "Table: \$\\mathcal{L}^{-1}\\left\\{\\frac{1}{s - a}\\right\\} = e^{at}\$" else "Table: \$\\mathcal{L}^{-1}\\left\\{\\frac{1}{(s - a)^n}\\right\\} = \\frac{t^{n-1} e^{at}}{(n-1)!}\$")
                 mul(div(nc[0], mul(k, pow(a, n.toLong()))), div(pow(t, n - 1L), fn("fact", num((n - 1).toLong()))), pow(E, mul(root, t)))
             }
             // (As + B)/(a(s² + ps + q)): e^(αt)(A cos βt + (B + Aα)/β sin βt)/a, α = −p/2, β² = q − p²/4.
@@ -198,6 +229,7 @@ object Transforms {
                 val alpha = s(neg(div(p, TWO)))
                 val beta2 = s(sub(q, div(pow(p, 2), num(4))))
                 val second = add(bigB, mul(bigA, alpha))
+                rule("Complete the square: \$s^2 + ps + q = (s - \\alpha)^2 + \\beta^2\$, then \$\\frac{s - \\alpha}{(s - \\alpha)^2 + \\beta^2} \\to e^{\\alpha t}\\cos \\beta t\$ and \$\\frac{\\beta}{(s - \\alpha)^2 + \\beta^2} \\to e^{\\alpha t}\\sin \\beta t\$")
                 when {
                     positive(beta2) -> { val beta = sqrt(beta2); mul(pow(E, mul(alpha, t)), add(mul(bigA, fn("cos", mul(beta, t))), mul(div(second, beta), fn("sin", mul(beta, t))))) }
                     negative(beta2) -> { val g = sqrt(neg(beta2)); mul(pow(E, mul(alpha, t)), add(mul(bigA, fn("cosh", mul(g, t))), mul(div(second, g), fn("sinh", mul(g, t))))) }
@@ -215,11 +247,12 @@ object Transforms {
 
     private fun fourierOf(fs: List<Expr>, t: Sym, w: Sym): Expr {
         val iw = mul(I, w)
-        if (fs.isEmpty()) return mul(TWO, PI, Fn("dirac", listOf(w)))
+        if (fs.isEmpty()) { rule("Constant: \$\\mathcal{F}\\{1\\} = 2\\pi\\, \\delta(\\omega)\$"); return mul(TWO, PI, Fn("dirac", listOf(w))) }
         // t g(t) → i dG/dω.
         val (n, rest0) = power(fs, t)
         if (n != ZERO) {
             val k = (n as? Num)?.q?.takeIf { it.isInteger && it.signum > 0 }?.num?.toInt() ?: fail("Fourier")
+            rule("Multiplication by \$t\$: \$\\mathcal{F}\\{t\\, g(t)\\} = i \\frac{dG}{d\\omega}\$")
             var g = fourierOf(rest0, t, w)
             repeat(k) { g = s(mul(I, Calculus.diff(g, w))) }
             return g
@@ -228,6 +261,7 @@ object Transforms {
         fs.indexOfFirst { it is Fn && it.name == "dirac" }.takeIf { it >= 0 }?.let { k ->
             val (a, b) = linear((fs[k] as Fn).args[0], t) ?: fail("Fourier")
             val t0 = s(neg(div(b, a)))
+            rule("Sifting property: \$\\mathcal{F}\\{\\delta(t - t_0)\\, g(t)\\} = g(t_0)\\, e^{-i\\omega t_0}\$")
             val g = mul(fs.filterIndexed { j, _ -> j != k }).subst(t, t0)
             return mul(div(g, fn("abs", a)), pow(E, neg(mul(iw, t0))))
         }
@@ -235,6 +269,8 @@ object Transforms {
         fs.indexOfFirst { it is Fn && it.name in setOf("cos", "sin") && linear(it.args[0], t) != null }.takeIf { it >= 0 }?.let { k ->
             val f = fs[k] as Fn
             val (a, b) = linear(f.args[0], t)!!
+            rule(if (f.name == "cos") "Modulation: \$\\mathcal{F}\\{\\cos(at)\\, g(t)\\} = \\tfrac{1}{2}\\left[G(\\omega - a) + G(\\omega + a)\\right]\$"
+                else "Modulation: \$\\mathcal{F}\\{\\sin(at)\\, g(t)\\} = \\tfrac{1}{2i}\\left[G(\\omega - a) - G(\\omega + a)\\right]\$")
             val g = fourierOf(fs.filterIndexed { j, _ -> j != k }, t, w)
             val up = mul(pow(E, mul(I, b)), g.subst(w, sub(w, a)))
             val down = mul(pow(E, neg(mul(I, b))), g.subst(w, add(w, a)))
@@ -244,6 +280,7 @@ object Transforms {
         fs.indexOfFirst { f -> exponential(f, t)?.first?.let { k -> s(mul(k, I)).let { r -> r.freeOf(I) && r != ZERO } } == true }.takeIf { it >= 0 }?.let { k ->
             val (a, b) = exponential(fs[k], t)!!
             val shift = s(div(a, I))
+            rule("Frequency shift: \$\\mathcal{F}\\{e^{iat} g(t)\\} = G(\\omega - a)\$")
             val g = fourierOf(fs.filterIndexed { j, _ -> j != k }, t, w)
             return mul(pow(E, b), g.subst(w, sub(w, shift)))
         }
@@ -257,11 +294,13 @@ object Transforms {
             if (others.isEmpty()) {
                 // H(t − t₀) = e^(−iωt₀)(πδ(ω) + 1/(iω)); H(t₀ − t) with the sign of the second part flipped.
                 val sign = if (positive(k)) ONE else MINUS_ONE
+                rule("Table: \$\\mathcal{F}\\{H(t)\\} = \\pi\\, \\delta(\\omega) + \\frac{1}{i\\omega}\$, and a delay \$t_0\$ multiplies by \$e^{-i\\omega t_0}\$")
                 return mul(pow(E, neg(mul(iw, t0))), add(mul(PI, Fn("dirac", listOf(w))), div(sign, iw)))
             }
             val ex = others.singleOrNull()?.let { exponential(it, t) } ?: fail("Fourier")
             val (lam, c) = ex
             val rate = sub(lam, iw)
+            rule("Definition, integrated over the half-line where the step is on: \$\\mathcal{F}\\{e^{-at} H(t)\\} = \\int_0^\\infty e^{-(a + i\\omega)t}\\, dt = \\frac{1}{a + i\\omega}\$")
             return when {
                 positive(k) && negative(lam) -> mul(pow(E, c), div(pow(E, mul(rate, t0)), neg(rate)))
                 !positive(k) && positive(lam) -> mul(pow(E, c), div(pow(E, mul(rate, t0)), rate))
@@ -273,6 +312,12 @@ object Transforms {
             val t0 = s(neg(div(b, a)))
             val shift = pow(E, neg(mul(iw, t0)))
             val v = div(w, a)
+            when (one.name) {
+                "rect" -> rule("Table: \$\\mathcal{F}\\{\\operatorname{rect}(t)\\} = \\frac{\\sin(\\omega/2)}{\\omega/2}\$")
+                "tri" -> rule("Table: \$\\mathcal{F}\\{\\operatorname{tri}(t)\\} = \\left(\\frac{\\sin(\\omega/2)}{\\omega/2}\\right)^2\$")
+                "sgn" -> rule("Table: \$\\mathcal{F}\\{\\operatorname{sgn}(t)\\} = \\frac{2}{i\\omega}\$")
+            }
+            if (one.name in setOf("rect", "tri", "sgn") && (a != ONE || b != ZERO)) rule("Scaling and shift: \$\\mathcal{F}\\{g(at + b)\\} = \\frac{1}{|a|}\\, e^{i\\omega b/a}\\, G\\left(\\frac{\\omega}{a}\\right)\$")
             return when (one.name) {
                 // rect(at + b): sin(ω/2a)/(ω/2a) / |a|, shifted.
                 "rect" -> mul(shift, div(ONE, fn("abs", a)), div(fn("sin", div(v, TWO)), div(v, TWO)))
@@ -290,6 +335,7 @@ object Transforms {
                 val (k, b) = linear(abs.args[0], t) ?: fail("Fourier")
                 if (!coef.freeOf(t) || !negative(coef)) fail("Fourier")
                 val a = s(neg(mul(coef, fn("abs", k))))
+                rule("Table: \$\\mathcal{F}\\{e^{-a|t|}\\} = \\frac{2a}{a^2 + \\omega^2}\$")
                 val t0 = s(neg(div(b, k)))
                 return mul(pow(E, neg(mul(iw, t0))), div(mul(TWO, a), mul(fn("abs", k), add(pow(div(a, fn("abs", k)), 2), pow(w, 2)))).let { s(it) })
             }
@@ -297,6 +343,7 @@ object Transforms {
             val c = Algebra.coefficients(Algebra.expand(ex), t)
             if (c != null && c.size == 3 && c.all { it.freeOf(t) } && negative(c[2])) {
                 val a = neg(c[2])
+                rule("Gaussian: \$\\mathcal{F}\\{e^{-at^2}\\} = \\sqrt{\\frac{\\pi}{a}}\\, e^{-\\omega^2/4a}\$, completing the square for the rest of the exponent")
                 return mul(sqrt(div(PI, a)), pow(E, c[0]), pow(E, div(pow(sub(c[1], iw), 2), mul(num(4), a))))
             }
         }
@@ -305,6 +352,7 @@ object Transforms {
             val c = Algebra.coefficients(Algebra.expand(one.base), t)
             if (c != null && c.size == 3 && c[1] == ZERO && c.all { it.freeOf(t) } && positive(c[0]) && positive(c[2])) {
                 val a = sqrt(div(c[0], c[2]))
+                rule("Table: \$\\mathcal{F}\\left\\{\\frac{1}{t^2 + a^2}\\right\\} = \\frac{\\pi}{a}\\, e^{-a|\\omega|}\$")
                 return div(mul(div(PI, a), pow(E, neg(mul(a, fn("abs", w))))), c[2])
             }
             // 1/(a + ikt): from the step table by duality.
@@ -315,6 +363,7 @@ object Transforms {
                 if (r.freeOf(I) && r != ZERO && positive(div(a0, r))) {
                     // 1/(a + i r t) = (1/r)/(a/r + i t) → (2π/r) e^(aω/r) H(−ω), a/r > 0.
                     val aa = div(a0, r)
+                    rule("Duality with \$\\mathcal{F}\\{e^{-at} H(t)\\} = \\frac{1}{a + i\\omega}\$: \$\\mathcal{F}\\{F(t)\\} = 2\\pi f(-\\omega)\$")
                     return mul(div(mul(TWO, PI), fn("abs", r)), pow(E, mul(aa, w)), Fn("heaviside", listOf(neg(w))))
                 }
             }
@@ -325,6 +374,7 @@ object Transforms {
     /** ℱ⁻¹{F(ω)}(t) = (1/2π) ∫ F(ω) e^(iωt) dω, by duality: ℱ⁻¹{F}(t) = ℱ{F}(−t)/2π. */
     fun inverseFourier(big: Expr, w: Sym, t: Sym): Expr {
         val v = Sym("ν·")
+        rule("Duality: \$\\mathcal{F}^{-1}\\{F\\}(t) = \\frac{1}{2\\pi}\\, \\mathcal{F}\\{F\\}(-t)\$, so the forward table is used")
         val forward = runCatching { fourier(big, w, v) }.getOrNull() ?: fail("inverse Fourier")
         return s(div(forward.subst(v, neg(t)), mul(TWO, PI)))
     }

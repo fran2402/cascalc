@@ -403,6 +403,8 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
     // ---- Saving -----------------------------------------------------------------
 
     private fun save() {
+        // Not before the saved history is in (it would be written over).
+        if (!loaded) { saveWhenLoaded = true; return }
         // The limit counts the loose calculations; pinned ones and those in folders are kept.
         val limit = if (AppSettings.historyLimit > 0) AppSettings.historyLimit else Int.MAX_VALUE
         val loose = history.filter { !it.pinned && it.folder == null }
@@ -421,8 +423,28 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
         prefs.edit().putString("history", text).putString("variables", vars).apply()
     }
 
+    /** False until the saved history is read (in the background, so the app opens at once). */
+    private var loaded = false
+    private var saveWhenLoaded = false
+
     private fun load() {
-        prefs.getString("history", "").orEmpty().lines().filter { it.isNotBlank() }.forEach { line ->
+        val text = prefs.getString("history", "").orEmpty()
+        val savedVariables = prefs.getString("variables", "").orEmpty()
+        viewModelScope.launch {
+            // Each saved answer is worked out again (for Ans and Use): off the main thread.
+            val (items, vars) = withContext(Dispatchers.Default) { readHistory(text) to readVariables(savedVariables) }
+            // Anything entered while it loaded stays after the saved calculations.
+            history.addAll(0, items)
+            vars.forEach { (k, v) -> if (k !in variables) variables[k] = v }
+            if (lastValue == null) lastValue = history.lastOrNull()?.answer?.value
+            loaded = true
+            if (saveWhenLoaded) save()
+        }
+    }
+
+    private fun readHistory(text: String): List<HistoryItem> {
+        val history = ArrayList<HistoryItem>()
+        text.lines().filter { it.isNotBlank() }.forEach { line ->
             runCatching {
                 val parts = line.split("\t")
                 val expr = MathCodec.decode(parts[0])
@@ -437,13 +459,18 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
                 }
             }
         }
-        prefs.getString("variables", "").orEmpty().lines().filter { it.isNotBlank() }.forEach { line ->
+        return history
+    }
+
+    private fun readVariables(text: String): Map<String, Expr> {
+        val out = LinkedHashMap<String, Expr>()
+        text.lines().filter { it.isNotBlank() }.forEach { line ->
             runCatching {
                 val (name, code) = line.split("\t", limit = 2)
-                variables[name] = Evaluator().evaluate(MathCodec.decode(code))
+                out[name] = Evaluator().evaluate(MathCodec.decode(code))
             }
         }
-        lastValue = history.lastOrNull()?.answer?.value
+        return out
     }
 
     companion object {

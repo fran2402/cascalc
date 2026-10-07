@@ -44,8 +44,9 @@ fun LaunchAnimation(onDone: () -> Unit) {
     val time = remember { Animatable(0f) }
     val exit = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
-        time.animateTo(1f, tween(1250, easing = androidx.compose.animation.core.LinearEasing))
-        exit.animateTo(1f, tween(380, easing = FastOutSlowInEasing))
+        // Brief: the icon draws itself in about half a second, then fades (a tap skips it).
+        time.animateTo(1f, tween(550, easing = androidx.compose.animation.core.LinearEasing))
+        exit.animateTo(1f, tween(200, easing = FastOutSlowInEasing))
         onDone()
     }
     val scope = androidx.compose.runtime.rememberCoroutineScope()

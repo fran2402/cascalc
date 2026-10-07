@@ -44,4 +44,28 @@ class TransformTest {
     @Test fun impulseSamplesItsFactor() = assertEquals(listOf("1" to "1"), impulses(Evaluator().evaluate(r("x²", f("dirac", "x−1")))))
     @Test fun impulsesOfACosine() = assertEquals(2, impulses(Evaluator(transformVariable = "x").evaluate(F(r(f("cos", "t"))))).size)
     @Test fun noImpulses() = assertEquals(0, impulses(Evaluator().evaluate(r(f("sin", "x")))).size)
+
+    // Complex-valued transforms in the graphs: the real and imaginary parts from one complex evaluation.
+    @Test fun complexValuedGraph() {
+        val e = Evaluator(transformVariable = "x").evaluate(F(r(f("heaviside", "t"), Sym("e"), Pow(r("−t")))))
+        val z = com.example.cas.graph.ComplexCompiler.compile(e, listOf("x"))(com.example.cas.cas.CD(1.0), DoubleArray(0))
+        assertEquals(0.5, z.re, 1e-12); assertEquals(-0.5, z.im, 1e-12)
+    }
+
+    // F{sin t} = iπ(δ(ω + 1) − δ(ω − 1)): impulses with imaginary weights ±π.
+    @Test fun imaginaryImpulses() {
+        val e = Evaluator(transformVariable = "x").evaluate(F(r(f("sin", "t"))))
+        val imps = com.example.cas.graph.Impulses.of(e, com.example.cas.cas.Sym("x"))
+        val im = imps.associate { com.example.cas.cas.Numeric.real(it.at) to com.example.cas.graph.ComplexCompiler.compile(it.height, listOf("x"))(com.example.cas.cas.CD(0.0), DoubleArray(0)).im }
+        assertEquals(Math.PI, im.getValue(-1.0), 1e-12); assertEquals(-Math.PI, im.getValue(1.0), 1e-12)
+    }
+
+    // sin(ω/2)/(ω/2) has a removable gap at 0: the curve goes through 1 there.
+    @Test fun removableGapFilled() {
+        val sinc = { x: Double -> kotlin.math.sin(x / 2) / (x / 2) }
+        assertEquals(1.0, com.example.cas.graph.Plot2D.removable(sinc, 0.0, 20.0), 1e-9)
+        assertEquals(true, com.example.cas.graph.Plot2D.removable({ 1 / it }, 0.0, 20.0).isNaN())
+        val lines = com.example.cas.graph.Plot2D.sample(sinc, com.example.cas.graph.Viewport(-10.0, 10.0, -2.0, 2.0), 600)
+        assertEquals(1, lines.size)
+    }
 }

@@ -82,7 +82,7 @@ object Plot2D {
         val limit = view.height * 4
         for (i in 0..samples) {
             val x = view.xMin + view.width * i / samples
-            val y = f(x)
+            val y = f(x).let { if (it.isFinite()) it else removable(f, x, view.width) }
             if (!y.isFinite()) {
                 if (current.size > 1) out += current
                 current = ArrayList(); prev = null
@@ -102,6 +102,18 @@ object Plot2D {
 
     private val Viewport.yMid get() = (yMin + yMax) / 2
 
+    /**
+     * The value a curve has a hair either side of [x] where it is undefined at [x] itself, when
+     * the two sides agree: a removable gap, like sin(ω/2)/(ω/2) at 0, is filled; a pole or a jump
+     * stays a gap (NaN).
+     */
+    fun removable(f: (Double) -> Double, x: Double, span: Double): Double {
+        val h = maxOf(span * 1e-7, kotlin.math.abs(x) * 1e-12)
+        val a = f(x - h); val b = f(x + h)
+        if (!a.isFinite() || !b.isFinite()) return Double.NaN
+        return if (abs(a - b) <= 1e-5 * maxOf(1.0, abs(a), abs(b))) (a + b) / 2 else Double.NaN
+    }
+
     /** A steep section is a real jump if the midpoint isn't between its ends. */
     private fun jumpsAcross(f: (Double) -> Double, a: Double, b: Double): Boolean {
         val fa = f(a); val fb = f(b); val fm = f((a + b) / 2)
@@ -109,31 +121,83 @@ object Plot2D {
         return fm < minOf(fa, fb) - abs(fb - fa) || fm > maxOf(fa, fb) + abs(fb - fa)
     }
 
-    /** Points where the curve crosses y = 0, found by bisection (not poles). */
+    /**
+     * Points where the curve meets y = 0: crossings found by bisection (not poles), and touching
+     * zeros (x² at 0). Values within rounding noise of 0 ([noiseFloor]) count as 0, so a curve that
+     * is 0 up to rounding (δ's surroundings, a cancelled difference) wobbling across the axis isn't
+     * a row of zeros: a near-zero stretch gives at most one point, and none when it's flat noise
+     * (its raw values change sign more than once). Points closer than a sample apart are merged.
+     */
     fun zeros(f: (Double) -> Double, xMin: Double, xMax: Double, samples: Int = 800): List<Double> {
+        val h = (xMax - xMin) / samples
+        val xs = DoubleArray(samples + 1) { xMin + h * it }
+        val ys = DoubleArray(samples + 1) { f(xs[it]) }
+        val eps = noiseFloor(ys)
+        fun sign(y: Double) = if (abs(y) <= eps) 0 else if (y > 0) 1 else -1
         val out = ArrayList<Double>()
-        var px = xMin
-        var py = f(px)
-        for (i in 1..samples) {
-            val x = xMin + (xMax - xMin) * i / samples
-            val y = f(x)
-            if (py.isFinite() && y.isFinite()) {
-                if (y == 0.0) out += x
-                else if (py * y < 0) {
-                    var a = px; var b = x; var fa = py
-                    repeat(60) {
-                        val m = (a + b) / 2
-                        val fm = f(m)
-                        if (fa * fm <= 0) b = m else { a = m; fa = fm }
-                    }
-                    val r = (a + b) / 2
-                    val scale = maxOf(1.0, abs(py), abs(y))
-                    if (abs(f(r)) < 1e-6 * scale) out += r
+        fun bisect(lo: Double, hi: Double, flo: Double): Double {
+            var a = lo; var b = hi; var fa = flo
+            repeat(60) {
+                val m = (a + b) / 2
+                val fm = f(m)
+                if (fa * fm <= 0) b = m else { a = m; fa = fm }
+            }
+            return (a + b) / 2
+        }
+        var i = 0
+        while (i <= samples) {
+            if (!ys[i].isFinite()) { i++; continue }
+            if (sign(ys[i]) != 0) {
+                // A sign change to the next sample (both clearly away from 0): bisect, unless it's a pole.
+                val j = i + 1
+                if (j <= samples && ys[j].isFinite() && sign(ys[j]) != 0 && sign(ys[j]) != sign(ys[i])) {
+                    val r = bisect(xs[i], xs[j], ys[i])
+                    if (abs(f(r)) < 1e-6 * maxOf(1.0, abs(ys[i]), abs(ys[j]))) out += r
+                }
+                i++; continue
+            }
+            // A stretch of samples at 0 (up to rounding), and the signs on either side of it.
+            var j = i
+            while (j + 1 <= samples && ys[j + 1].isFinite() && sign(ys[j + 1]) == 0) j++
+            val before = if (i > 0 && ys[i - 1].isFinite()) sign(ys[i - 1]) else 0
+            val after = if (j < samples && ys[j + 1].isFinite()) sign(ys[j + 1]) else 0
+            var flips = 0; var last = 0; var zeroes = 0
+            for (k in i..j) {
+                val s = if (ys[k] > 0) 1 else if (ys[k] < 0) -1 else 0
+                if (s == 0) zeroes++ else { if (last != 0 && s != last) flips++; last = s }
+            }
+            val flat = j - i >= 2 && (flips >= 2 || zeroes >= 2)
+            if (!flat) {
+                val lo = if (i > 0 && before != 0) i - 1 else i
+                val hi = if (j < samples && after != 0) j + 1 else j
+                out += if (before != 0 && after != 0 && before != after || flips == 1) {
+                    // Crosses: bisect across the stretch (on the raw values).
+                    if (ys[lo] == 0.0) xs[lo] else if (ys[hi] == 0.0) xs[hi]
+                    else if (ys[lo] * ys[hi] < 0) bisect(xs[lo], xs[hi], ys[lo])
+                    else xs[(i..j).minBy { abs(ys[it]) }]
+                } else {
+                    // Touches: the smallest |f| in the stretch.
+                    val k = (i..j).minBy { abs(ys[it]) }
+                    if (ys[k] == 0.0) xs[k] else refine({ abs(f(it)) }, xs[maxOf(0, k - 1)], xs[minOf(samples, k + 1)], Kind.Minimum)
                 }
             }
-            px = x; py = y
+            i = j + 1
         }
-        return out.distinctBy { Math.round(it * 1e9) }
+        // One point per zero: rounding can split one into neighbours a hair apart.
+        val merged = ArrayList<Double>()
+        for (x in out.sorted()) if (merged.isEmpty() || x - merged.last() > 1.5 * abs(h)) merged += x
+        return merged
+    }
+
+    /**
+     * How close to 0 a value must be to count as 0 for a curve with sampled values [ys]: rounding
+     * noise, a billionth of the curve's typical size (its 99th-percentile |y|, so a pole doesn't
+     * set it).
+     */
+    fun noiseFloor(ys: DoubleArray): Double {
+        val a = ys.filter { it.isFinite() }.map { abs(it) }.sorted()
+        if (a.isEmpty()) return 0.0
+        return 1e-9 * a[((a.size - 1) * 0.99).toInt()]
     }
 
     /**
@@ -155,6 +219,7 @@ object Plot2D {
     fun extrema(f: (Double) -> Double, xMin: Double, xMax: Double, samples: Int = 800): List<Pair<Double, Kind>> {
         val h = (xMax - xMin) / samples
         val ys = DoubleArray(samples + 1) { f(xMin + h * it) }
+        val eps = noiseFloor(ys)
         val out = ArrayList<Pair<Double, Kind>>()
         for (i in 1 until samples) {
             val a = ys[i - 1]; val b = ys[i]; val c = ys[i + 1]
@@ -164,7 +229,8 @@ object Plot2D {
                 b < a && b <= c -> Kind.Minimum
                 else -> continue
             }
-            // Ignore flat noise and cusps of jumps.
+            // Ignore flat noise (rounding wobbles where the curve is level) and cusps of jumps.
+            if (abs(b - a) <= eps && abs(b - c) <= eps) continue
             if (abs(b - a) > (xMax - xMin) * 1e3) continue
             out += refine(f, xMin + h * (i - 1), xMin + h * (i + 1), kind) to kind
         }
