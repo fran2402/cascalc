@@ -160,37 +160,44 @@ object Surface3D {
         Parallel.rows(n + 1, { }) { _, i0, i1 ->
             for (i in i0 until i1) for (j in 0..n) for (k in 0..n) v[i][j][k] = try { f(xs[i], ys[j], zs[k]) } catch (e: RuntimeException) { Double.NaN }
         }
-        val out = ArrayList<Polygon>()
-        val p = Array(8) { DoubleArray(3) }
-        val s = DoubleArray(8)
-        for (i in 0 until n) for (j in 0 until n) for (k in 0 until n) {
-            var finite = true
-            for (c in 0 until 8) {
-                val ci = i + (c and 1); val cj = j + ((c shr 1) and 1); val ck = k + ((c shr 2) and 1)
-                p[c][0] = xs[ci]; p[c][1] = ys[cj]; p[c][2] = zs[ck]
-                s[c] = v[ci][cj][ck]
-                if (!s[c].isFinite()) finite = false
-            }
-            if (!finite) continue
-            if (s.all { it > 0 } || s.all { it < 0 }) continue
-            for (t in TETS) {
-                val inside = t.filter { s[it] < 0 }
-                val outside = t.filter { s[it] >= 0 }
-                fun cut(a: Int, c: Int): DoubleArray {
-                    val w = s[a] / (s[a] - s[c])
-                    return DoubleArray(3) { d -> p[a][d] + w * (p[c][d] - p[a][d]) }
-                }
-                when (inside.size) {
-                    1 -> out += Polygon(outside.map { cut(inside[0], it) }, surface)
-                    3 -> out += Polygon(inside.map { cut(outside[0], it) }, surface)
-                    2 -> {
-                        val (a, c) = inside; val (d, e) = outside
-                        out += Polygon(listOf(cut(a, d), cut(a, e), cut(c, e), cut(c, d)), surface)
+        // Each slab of cells (one i) on whichever core is free, into its own list; joined in order after.
+        val slabs = arrayOfNulls<List<Polygon>>(n)
+        class Work(val p: Array<DoubleArray> = Array(8) { DoubleArray(3) }, val s: DoubleArray = DoubleArray(8), val ins: IntArray = IntArray(4), val outs: IntArray = IntArray(4))
+        Parallel.rows(n, { Work() }) { work, i0, i1 ->
+            val p = work.p; val s = work.s; val ins = work.ins; val outs = work.outs
+            for (i in i0 until i1) {
+                val out = ArrayList<Polygon>()
+                for (j in 0 until n) for (k in 0 until n) {
+                    var finite = true
+                    var pos = 0
+                    for (c in 0 until 8) {
+                        val ci = i + (c and 1); val cj = j + ((c shr 1) and 1); val ck = k + ((c shr 2) and 1)
+                        p[c][0] = xs[ci]; p[c][1] = ys[cj]; p[c][2] = zs[ck]
+                        s[c] = v[ci][cj][ck]
+                        if (!s[c].isFinite()) finite = false
+                        if (s[c] > 0) pos++
+                    }
+                    // No crossing (all one side) or undefined: nothing in this cell.
+                    if (!finite || pos == 8 || (pos == 0 && s.none { it == 0.0 })) continue
+                    for (t in TETS) {
+                        // Corners inside (< 0) and outside, without lists.
+                        var ni = 0; var no = 0
+                        for (c in t) if (s[c] < 0) ins[ni++] = c else outs[no++] = c
+                        fun cut(a: Int, c: Int): DoubleArray {
+                            val w = s[a] / (s[a] - s[c])
+                            return doubleArrayOf(p[a][0] + w * (p[c][0] - p[a][0]), p[a][1] + w * (p[c][1] - p[a][1]), p[a][2] + w * (p[c][2] - p[a][2]))
+                        }
+                        when (ni) {
+                            1 -> out += Polygon(listOf(cut(ins[0], outs[0]), cut(ins[0], outs[1]), cut(ins[0], outs[2])), surface)
+                            3 -> out += Polygon(listOf(cut(outs[0], ins[0]), cut(outs[0], ins[1]), cut(outs[0], ins[2])), surface)
+                            2 -> out += Polygon(listOf(cut(ins[0], outs[0]), cut(ins[0], outs[1]), cut(ins[1], outs[1]), cut(ins[1], outs[0])), surface)
+                        }
                     }
                 }
+                slabs[i] = out
             }
         }
-        return out
+        return slabs.flatMap { it.orEmpty() }
     }
 
     /**

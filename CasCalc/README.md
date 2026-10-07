@@ -203,6 +203,12 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (7 October, implicit surfaces built on every core)
+
+- **Implicit 3D surfaces are built faster**: the surface is now cut into triangles on every core,
+  and each cell no longer creates throwaway lists. At the same 40³ grid this is about 4× faster
+  than before, so the finer detail levels cost less than the old, coarser ones did.
+
 ## Latest changes (7 October, faster and finer 3D, field and complex plots)
 
 - **Plots use every core**: 2D fields, complex domain colouring and 3D surfaces are sampled on
