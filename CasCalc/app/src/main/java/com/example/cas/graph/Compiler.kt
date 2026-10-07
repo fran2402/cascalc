@@ -157,6 +157,11 @@ object Compiler {
                 }
                 one { v -> op(com.example.cas.cas.CD(v)).let { w -> if (kotlin.math.abs(w.im) < 1e-9 * maxOf(1.0, kotlin.math.abs(w.re))) w.re else Double.NaN } }
             }
+            // Lambert W (principal branch), the inverse normal and the Bessel functions, as the calculator works them out.
+            "lambertw" -> RealFunction { v -> f(v).let { x -> if (x < -1 / Math.E) Double.NaN else runCatching { com.example.cas.cas.Statistics.lambertW(x) }.getOrDefault(Double.NaN) } }
+            "invnorm" -> RealFunction { v -> f(v).let { p -> if (p <= 0.0 || p >= 1.0) Double.NaN else com.example.cas.cas.Statistics.inverseNormal(p) } }
+            "besselj" -> { val g = a[1]; RealFunction { v -> runCatching { com.example.cas.cas.Statistics.besselJ(f(v), g(v)) }.getOrDefault(Double.NaN) } }
+            "bessely" -> { val g = a[1]; RealFunction { v -> g(v).let { x -> if (x <= 0.0) Double.NaN else runCatching { com.example.cas.cas.Statistics.besselY(f(v), x) }.getOrDefault(Double.NaN) } } }
             "gammainc" -> { val g = a[1]; RealFunction { v -> com.example.cas.cas.Special.gammaUpper(f(v), g(v)) } }
             "ellipticf" -> { val g = a[1]; RealFunction { v -> com.example.cas.cas.Special.ellipticF(f(v), g(v)) } }
             "elliptice" -> { val g = a[1]; RealFunction { v -> com.example.cas.cas.Special.ellipticE(f(v), g(v)) } }

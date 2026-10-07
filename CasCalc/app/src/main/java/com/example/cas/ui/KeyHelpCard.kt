@@ -1,5 +1,6 @@
 package com.example.cas.ui
 
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -65,6 +66,7 @@ fun KeyHelpCard(spec: KeySpec, onDismiss: () -> Unit, onTry: (MathRow) -> Unit, 
                             Header(spec, help, where)
                             Formula(help)
                             About(help)
+                            Graph(help)
                             Link(help)
                         }
                         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
@@ -82,6 +84,7 @@ fun KeyHelpCard(spec: KeySpec, onDismiss: () -> Unit, onTry: (MathRow) -> Unit, 
                 Header(spec, help, where)
                 Formula(help)
                 About(help)
+                Graph(help)
                 Steps(help)
                 Examples(help, onTry)
                 Link(help)
@@ -158,6 +161,87 @@ private fun About(help: KeyHelp) {
     if (help.about.isEmpty()) return
     SectionTitle("What it is")
     MathText(help.about, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+}
+
+/**
+ * A small graph of the key's function (or a family of them), as in the graphing modes: the curves
+ * in the theme's graph colors, the axes where they're in view, the range at the corners and a
+ * legend in LaTeX.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun Graph(help: KeyHelp) {
+    val plot = help.plot ?: return
+    val colors = MaterialTheme.colorScheme
+    // The curves spread round the theme's nine graph hues, so even two or three are far apart.
+    val palette = plotColors(colors)
+    val lines = List(plot.curves.size) { k -> palette[(k * palette.size / plot.curves.size.coerceAtLeast(1)) % palette.size] }
+    val samples by produceState<List<DoubleArray>?>(null, plot) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { runCatching { KeyGuides.sample(plot) }.getOrNull() }
+    }
+    Column(Modifier.fillMaxWidth().padding(top = 16.dp).clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainer).padding(14.dp)) {
+        val ys = samples ?: return@Column
+        val yRange = plot.y ?: run {
+            val all = ys.flatMap { it.filter { v -> v.isFinite() } }.sorted()
+            if (all.isEmpty()) return@Column
+            val lo = all[all.size / 20]; val hi = all[all.size - 1 - all.size / 20]
+            val pad = ((hi - lo) * 0.1).coerceAtLeast(0.5)
+            (lo - pad)..(hi + pad)
+        }
+        val axis = colors.outline
+        val grid = colors.outlineVariant.copy(alpha = 0.5f)
+        androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(170.dp).semantics { contentDescription = "Graph" }) {
+            val x0 = plot.x.start; val x1 = plot.x.endInclusive
+            val y0 = yRange.start; val y1 = yRange.endInclusive
+            fun px(x: Double) = ((x - x0) / (x1 - x0) * size.width).toFloat()
+            fun py(y: Double) = ((y1 - y) / (y1 - y0) * size.height).toFloat()
+            drawRect(grid, style = androidx.compose.ui.graphics.drawscope.Stroke(1f))
+            if (x0 < 0 && x1 > 0) drawLine(axis, androidx.compose.ui.geometry.Offset(px(0.0), 0f), androidx.compose.ui.geometry.Offset(px(0.0), size.height), 1.5f)
+            if (y0 < 0 && y1 > 0) drawLine(axis, androidx.compose.ui.geometry.Offset(0f, py(0.0)), androidx.compose.ui.geometry.Offset(size.width, py(0.0)), 1.5f)
+            clipRect {
+                // The first curve last, so it's drawn on top, as in the graphs.
+                ys.indices.reversed().forEach { k ->
+                    val v = ys[k]
+                    val path = androidx.compose.ui.graphics.Path()
+                    var open = false
+                    for (i in v.indices) {
+                        val y = v[i]
+                        // A gap where the curve is undefined, or jumps across the view (a pole or a step).
+                        val jump = i > 0 && v[i - 1].isFinite() && y.isFinite() && kotlin.math.abs(y - v[i - 1]) > (y1 - y0) * 0.75
+                        if (!y.isFinite() || jump) { open = false; if (!y.isFinite()) continue }
+                        val x = x0 + (x1 - x0) * i / (v.size - 1)
+                        val yy = y.coerceIn(y0 - (y1 - y0) * 4, y1 + (y1 - y0) * 4)
+                        if (open) path.lineTo(px(x), py(yy)) else { path.moveTo(px(x), py(yy)); open = true }
+                    }
+                    drawPath(path, lines[k % lines.size], style = androidx.compose.ui.graphics.drawscope.Stroke(2.5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+                }
+            }
+        }
+        // The range at the corners.
+        val small = MaterialTheme.typography.labelSmall
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+            Text("x: ${tick(plot.x.start)} to ${tick(plot.x.endInclusive)}", style = small, color = colors.onSurfaceVariant, modifier = Modifier.weight(1f))
+            Text("y: ${tick(yRange.start)} to ${tick(yRange.endInclusive)}", style = small, color = colors.onSurfaceVariant)
+        }
+        if (plot.curves.size > 1 || plot.curves[0].label.isNotEmpty()) {
+            androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                plot.curves.forEachIndexed { k, c ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(width = 16.dp, height = 3.dp).clip(RoundedCornerShape(2.dp)).background(lines[k % lines.size]))
+                        Spacer(Modifier.width(6.dp))
+                        MathText("\\(${c.label}\\)", style = MaterialTheme.typography.bodyMedium, color = colors.onSurface)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** A range end as a short number: 6.5, −1, 0.85. */
+private fun tick(v: Double): String {
+    val r = kotlin.math.round(v * 100) / 100
+    val t = if (r == kotlin.math.floor(r)) r.toLong().toString() else r.toString()
+    return t.replace('-', '−')
 }
 
 @Composable

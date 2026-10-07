@@ -69,4 +69,23 @@ class KeyHelpTest {
         System.getenv("KEY_EXAMPLES")?.let { java.io.File(it).writeText(out.toString()) }
         assertTrue(failures.joinToString("\n"), failures.isEmpty())
     }
+
+    /** Every card graph evaluates over most of its range, and its legend is valid LaTeX; samples go to $KEY_PLOTS. */
+    @Test fun everyGraphDraws() {
+        val problems = ArrayList<String>()
+        val out = StringBuilder()
+        for ((key, plot) in com.example.cas.ui.KeyGuides.plots) {
+            if (KeyHelps.of(key).plot !== plot) problems += "$key: not on any keypad"
+            val ys = try { com.example.cas.ui.KeyGuides.sample(plot, 120) } catch (e: Exception) { problems += "$key: ${e.message}"; continue }
+            ys.forEachIndexed { k, v ->
+                val c = plot.curves[k]
+                if (v.count { it.isFinite() } < v.size / 3) problems += "$key: ${c.label} is mostly undefined"
+                if (LatexParser.unknownCommands(c.label).isNotEmpty()) problems += "$key: ${c.label}: ${LatexParser.unknownCommands(c.label)}"
+                out.append(key).append('\t').append(c.label).append('\t').append(plot.x.start).append('\t').append(plot.x.endInclusive).append('\t')
+                    .append(plot.y?.start ?: "").append('\t').append(plot.y?.endInclusive ?: "").append('\t').append(v.joinToString(",")).append('\n')
+            }
+        }
+        System.getenv("KEY_PLOTS")?.let { java.io.File(it).writeText(out.toString()) }
+        assertTrue(problems.joinToString("\n"), problems.isEmpty())
+    }
 }

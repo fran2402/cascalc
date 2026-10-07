@@ -653,6 +653,143 @@ object KeyGuides {
         }
     }
 
+    /** One curve of a card's graph: what's plotted (a function of x) and its legend, in LaTeX. */
+    class Curve(val row: MathRow, val label: String)
+
+    /** A small graph on a key's card: its curves over [x], and over [y] (or fitted to them). */
+    class Plot(val curves: List<Curve>, val x: ClosedFloatingPointRange<Double>, val y: ClosedFloatingPointRange<Double>? = null)
+
+    private fun c(label: String, vararg parts: Any) = Curve(m(*parts), label)
+    private fun one(name: String, label: String, lo: Double, hi: Double, y: ClosedFloatingPointRange<Double>? = null) = Plot(listOf(c(label, f(name, "x"))), lo..hi, y)
+    /** A family f(n, x) at several n. */
+    private fun family(name: String, sym: String, ns: List<String>, lo: Double, hi: Double, y: ClosedFloatingPointRange<Double>? = null, extra: List<String> = emptyList()) =
+        Plot(ns.map { n -> c("${sym}_{$n}" + (if (extra.isEmpty()) "" else "^{${extra[0]}}"), f(name, n, *extra.toTypedArray(), "x")) }, lo..hi, y)
+
+    /** Graphs for the keys whose function is worth seeing: the function itself, or a family of them. */
+    val plots: Map<String, Plot> by lazy {
+        val trig = -6.5..6.5
+        mapOf(
+            "natural log" to Plot(listOf(c("""\ln x""", f("ln", "x"))), 0.0..8.0, -3.0..3.0),
+            "log base a" to Plot(listOf(c("""\log_2 x""", f("log", "2", "x")), c("""\log_{10} x""", f("log", "10", "x"))), 0.0..10.0, -3.0..4.0),
+            "absolute value" to one("abs", """|x|""", -4.0, 4.0, -1.0..4.0),
+            "nth root" to Plot(listOf(c("""\sqrt{x}""", sq("x")), c("""\sqrt[3]{x}""", rt("3", "x"))), -8.0..8.0, -2.5..3.0),
+            "power" to Plot(listOf(c("x^2", "x", p("2")), c("x^3", "x", p("3")), c("2^x", "2", p("x"))), -2.5..2.5, -4.0..6.0),
+            "e" to Plot(listOf(c("e^x", "e", p("x")), c("e^{-x}", "e", p("−x"))), -3.0..3.0, -0.5..6.0),
+            "factorial" to Plot(listOf(c("""\Gamma(x + 1)""", f("gamma", "x+1"))), -3.5..4.0, -6.0..10.0),
+            "sin" to one("sin", """\sin x""", trig.start, trig.endInclusive, -1.6..1.6),
+            "cos" to one("cos", """\cos x""", trig.start, trig.endInclusive, -1.6..1.6),
+            "tan" to one("tan", """\tan x""", trig.start, trig.endInclusive, -4.0..4.0),
+            "inverse sin" to one("asin", """\arcsin x""", -1.2, 1.2, -2.0..2.0),
+            "inverse cos" to one("acos", """\arccos x""", -1.2, 1.2, -0.5..3.5),
+            "inverse tan" to one("atan", """\arctan x""", -8.0, 8.0, -2.0..2.0),
+            "hyperbolic sin" to one("sinh", """\sinh x""", -3.0, 3.0, -6.0..6.0),
+            "hyperbolic cos" to one("cosh", """\cosh x""", -3.0, 3.0, -1.0..6.0),
+            "hyperbolic tan" to one("tanh", """\tanh x""", -4.0, 4.0, -1.5..1.5),
+            "inverse hyperbolic sin" to one("asinh", """\operatorname{asinh} x""", -8.0, 8.0, -3.0..3.0),
+            "inverse hyperbolic cos" to one("acosh", """\operatorname{acosh} x""", 0.0, 8.0, -0.5..3.0),
+            "inverse hyperbolic tan" to one("atanh", """\operatorname{atanh} x""", -1.2, 1.2, -3.0..3.0),
+            "cosecant" to one("csc", """\csc x""", trig.start, trig.endInclusive, -4.0..4.0),
+            "secant" to one("sec", """\sec x""", trig.start, trig.endInclusive, -4.0..4.0),
+            "cotangent" to one("cot", """\cot x""", trig.start, trig.endInclusive, -4.0..4.0),
+            "inverse cosecant" to one("acsc", """\operatorname{acsc} x""", -5.0, 5.0, -2.0..2.0),
+            "inverse secant" to one("asec", """\operatorname{asec} x""", -5.0, 5.0, -0.5..3.5),
+            "inverse cotangent" to one("acot", """\operatorname{acot} x""", -6.0, 6.0, -2.0..2.0),
+            "hyperbolic cosecant" to one("csch", """\operatorname{csch} x""", -4.0, 4.0, -4.0..4.0),
+            "hyperbolic secant" to one("sech", """\operatorname{sech} x""", -5.0, 5.0, -0.3..1.3),
+            "hyperbolic cotangent" to one("coth", """\operatorname{coth} x""", -4.0, 4.0, -4.0..4.0),
+            "inverse hyperbolic cosecant" to one("acsch", """\operatorname{acsch} x""", -4.0, 4.0, -3.0..3.0),
+            "inverse hyperbolic secant" to one("asech", """\operatorname{asech} x""", 0.0, 1.2, -0.5..3.5),
+            "inverse hyperbolic cotangent" to one("acoth", """\operatorname{acoth} x""", -4.0, 4.0, -3.0..3.0),
+            "e to the i theta" to Plot(listOf(c("""\operatorname{Re} e^{ix}""", f("cos", "x")), c("""\operatorname{Im} e^{ix}""", f("sin", "x"))), trig, -1.6..1.6),
+            // Distributions.
+            "normal density" to Plot(listOf("0.5", "1", "2").map { s -> c("""\sigma = $s""", f("normpdf", "x", "0", s)) }, -5.0..5.0, -0.05..0.85),
+            "normal distribution function" to Plot(listOf("0.5", "1", "2").map { s -> c("""\sigma = $s""", f("normcdf", "x", "0", s)) }, -5.0..5.0, -0.1..1.1),
+            "exponential density" to Plot(listOf("0.5", "1", "2").map { l -> c("""\lambda = $l""", f("exppdf", "x", l)) }, 0.0..4.0, -0.1..2.1),
+            "exponential distribution function" to Plot(listOf("0.5", "1", "2").map { l -> c("""\lambda = $l""", f("expcdf", "x", l)) }, 0.0..5.0, -0.1..1.1),
+            "uniform density" to Plot(listOf(c("""a = 1,\ b = 3""", f("unifpdf", "x", "1", "3"))), 0.0..4.0, -0.1..0.8),
+            "uniform distribution function" to Plot(listOf(c("""a = 1,\ b = 3""", f("unifcdf", "x", "1", "3"))), 0.0..4.0, -0.1..1.1),
+            "chi-squared density" to Plot(listOf("1", "2", "4").map { k -> c("""k = $k""", f("chi2pdf", "x", k)) }, 0.0..8.0, -0.05..0.6),
+            "chi-squared distribution function" to Plot(listOf("1", "2", "4").map { k -> c("""k = $k""", f("chi2cdf", "x", k)) }, 0.0..10.0, -0.1..1.1),
+            "log-normal density" to Plot(listOf("0.5", "1").map { s -> c("""\sigma = $s""", f("lognpdf", "x", "0", s)) }, 0.0..4.0, -0.05..0.9),
+            "log-normal distribution function" to Plot(listOf("0.5", "1").map { s -> c("""\sigma = $s""", f("logncdf", "x", "0", s)) }, 0.0..4.0, -0.1..1.1),
+            "Cauchy density" to Plot(listOf(c("""\text{Cauchy}""", f("cauchypdf", "x", "0", "1")), c("""\mathcal{N}(0, 1)""", f("normpdf", "x", "0", "1"))), -5.0..5.0, -0.03..0.45),
+            "Cauchy distribution function" to Plot(listOf(c("""\gamma = 1""", f("cauchycdf", "x", "0", "1"))), -6.0..6.0, -0.1..1.1),
+            "Weibull density" to Plot(listOf("0.5", "1", "2").map { k -> c("""k = $k""", f("weibpdf", "x", k, "1")) }, 0.0..3.0, -0.1..2.1),
+            "Weibull distribution function" to Plot(listOf("0.5", "1", "2").map { k -> c("""k = $k""", f("weibcdf", "x", k, "1")) }, 0.0..3.0, -0.1..1.1),
+            "inverse normal" to Plot(listOf(c("""\Phi^{-1}(x)""", f("invnorm", "x"))), 0.0..1.0, -3.0..3.0),
+            // Special functions.
+            "gamma function" to Plot(listOf(c("""\Gamma(x)""", f("gamma", "x"))), -4.0..5.0, -6.0..8.0),
+            "Riemann zeta function" to Plot(listOf(c("""\zeta(x)""", f("zeta", "x"))), -6.0..6.0, -3.0..4.0),
+            "Lambert W function" to Plot(listOf(c("""W(x)""", f("lambertw", "x"))), -0.5..6.0, -1.5..2.0),
+            "Bessel function of the first kind" to Plot(listOf("0", "1", "2").map { n -> c("""J_{$n}""", f("besselj", n, "x")) }, 0.0..15.0, -0.6..1.1),
+            "Bessel function of the second kind" to Plot(listOf("0", "1", "2").map { n -> c("""Y_{$n}""", f("bessely", n, "x")) }, 0.0..15.0, -1.5..0.7),
+            "error function" to Plot(listOf(c("""\operatorname{erf} x""", f("erf", "x"))), -3.0..3.0, -1.3..1.3),
+            "imaginary error function" to Plot(listOf(c("""\operatorname{erfi} x""", f("erfi", "x"))), -2.0..2.0, -6.0..6.0),
+            "upper incomplete gamma function" to Plot(listOf("1", "2", "3").map { s -> c("""\Gamma($s, x)""", f("gammainc", s, "x")) }, 0.0..6.0, -0.2..2.2),
+            "digamma function" to Plot(listOf(c("""\psi(x)""", f("digamma", "x"))), -3.0..5.0, -6.0..4.0),
+            "Hurwitz zeta function" to Plot(listOf("0.5", "1", "2").map { a -> c("""\zeta(x, $a)""", f("hurwitz", "x", a)) }, 1.0..6.0, -0.5..6.0),
+            "sine integral" to Plot(listOf(c("""\operatorname{Si} x""", f("si", "x"))), -15.0..15.0, -2.2..2.2),
+            "cosine integral" to Plot(listOf(c("""\operatorname{Ci} x""", f("ci", "x"))), 0.0..15.0, -2.0..1.0),
+            "exponential integral" to Plot(listOf(c("""\operatorname{Ei} x""", f("ei", "x"))), -4.0..3.0, -4.0..8.0),
+            "logarithmic integral" to Plot(listOf(c("""\operatorname{li} x""", f("li", "x"))), 0.0..10.0, -4.0..7.0),
+            "polylogarithm" to Plot(listOf("1", "2", "3").map { s -> c("""\operatorname{Li}_{$s}""", f("polylog", s, "x")) }, -3.0..0.95, -2.0..3.0),
+            "hyperbolic sine integral" to Plot(listOf(c("""\operatorname{Shi} x""", f("shi", "x"))), -4.0..4.0, -8.0..8.0),
+            "hyperbolic cosine integral" to Plot(listOf(c("""\operatorname{Chi} x""", f("chi", "x"))), 0.0..4.0, -4.0..8.0),
+            "Fresnel sine integral" to Plot(listOf(c("""S(x)""", f("fresnels", "x")), c("""C(x)""", f("fresnelc", "x"))), -5.0..5.0, -1.0..1.0),
+            "Fresnel cosine integral" to Plot(listOf(c("""C(x)""", f("fresnelc", "x")), c("""S(x)""", f("fresnels", "x"))), -5.0..5.0, -1.0..1.0),
+            "incomplete elliptic integral of the first kind" to Plot(listOf("0", "0.5", "0.9").map { k -> c("""m = $k""", f("ellipticf", "x", k)) }, 0.0..3.0, -0.2..5.0),
+            // Polynomials.
+            "Legendre polynomial" to family("legendre", "P", listOf("2", "3", "4"), -1.0, 1.0, -1.1..1.1),
+            "Hermite polynomial" to family("hermite", "H", listOf("2", "3", "4"), -2.2, 2.2, -25.0..25.0),
+            "probabilists' Hermite polynomial" to family("hermitehe", "He", listOf("2", "3", "4"), -3.2, 3.2, -8.0..10.0),
+            "Laguerre polynomial" to family("laguerre", "L", listOf("2", "3", "4"), -1.0, 10.0, -8.0..8.0),
+            "generalized Laguerre polynomial" to Plot(listOf("2", "3").map { n -> c("""L_{$n}^{1}""", f("genlaguerre", n, "1", "x")) }, -1.0..10.0, -6.0..8.0),
+            "Chebyshev polynomial of the first kind" to family("chebyshevt", "T", listOf("2", "3", "4"), -1.0, 1.0, -1.2..1.2),
+            "Chebyshev polynomial of the second kind" to family("chebyshevu", "U", listOf("2", "3", "4"), -1.0, 1.0, -5.0..5.0),
+            "Gegenbauer polynomial" to Plot(listOf("2", "3", "4").map { n -> c("""C_{$n}^{1}""", f("gegenbauer", n, "1", "x")) }, -1.0..1.0, -5.0..5.0),
+            "associated Legendre function" to Plot(listOf(c("""P_2^{1}""", f("assoclegendre", "2", "1", "x")), c("""P_3^{1}""", f("assoclegendre", "3", "1", "x")), c("""P_3^{2}""", f("assoclegendre", "3", "2", "x"))), -1.0..1.0, -8.0..8.0),
+            "Bernoulli polynomial" to family("bernoullipoly", "B", listOf("2", "3", "4"), -0.5, 1.5, -0.3..0.4),
+            "Fibonacci polynomial" to family("fibpoly", "F", listOf("2", "3", "4"), -2.0, 2.0, -6.0..6.0),
+            "Lucas polynomial" to family("lucaspoly", "L", listOf("2", "3", "4"), -2.5, 2.5, -8.0..12.0),
+            "Bessel polynomial" to family("besselpoly", "y", listOf("1", "2", "3"), -3.0, 1.0, -4.0..6.0),
+            "Touchard polynomial" to family("touchard", "T", listOf("2", "3", "4"), -3.0, 1.5, -2.0..6.0),
+            "cyclotomic polynomial" to family("cyclotomic", """\Phi""", listOf("3", "4", "6"), -2.0, 2.0, -1.0..7.0),
+            // Signals.
+            "Heaviside step" to one("heaviside", """H(x)""", -3.0, 3.0, -0.3..1.3),
+            "rectangle function" to one("rect", """\operatorname{rect} x""", -2.0, 2.0, -0.3..1.3),
+            "triangle function" to one("tri", """\operatorname{tri} x""", -2.0, 2.0, -0.3..1.3),
+            "ramp function" to one("ramp", """\operatorname{ramp} x""", -3.0, 3.0, -0.5..3.0),
+            "pulse" to Plot(listOf(c("""\operatorname{pulse}(x, 1, 3)""", f("pulse", "x", "1", "3"))), -1.0..5.0, -0.3..1.3),
+            "sawtooth wave" to one("sawtooth", """\operatorname{saw} x""", -2.5, 2.5, -0.3..1.3),
+            "square wave" to one("squarewave", """\operatorname{sq} x""", -2.0, 2.0, -1.4..1.4),
+            "triangle wave" to one("trianglewave", """\operatorname{tw} x""", -2.0, 2.0, -1.4..1.4),
+            "logistic sigmoid" to one("sigmoid", """\sigma(x)""", -6.0, 6.0, -0.2..1.2),
+            "softplus" to Plot(listOf(c("""\operatorname{softplus} x""", f("softplus", "x")), c("""\operatorname{ramp} x""", f("ramp", "x"))), -4.0..4.0, -0.5..4.0),
+            "clamp" to Plot(listOf(c("""\operatorname{clamp}(x, -1, 1)""", f("clamp", "x", "−1", "1"))), -3.0..3.0, -1.6..1.6),
+            "linear interpolation" to Plot(listOf(c("""\operatorname{lerp}(1, 3, x)""", f("lerp", "1", "3", "x"))), -0.5..1.5, 0.0..4.0),
+            "smoothstep" to Plot(listOf(c("""\operatorname{smoothstep} x""", f("smoothstep", "x")), c("x", "x")), -0.5..1.5, -0.3..1.3),
+            "Gaussian" to Plot(listOf(c("""e^{-x^2}""", f("gauss", "x"))), -3.0..3.0, -0.1..1.2),
+            "wrap" to Plot(listOf(c("""\operatorname{wrap}(x, 0, 1)""", f("wrap", "x", "0", "1"))), -2.0..2.0, -0.3..1.3),
+            // Calculus: a function and what the key makes of it.
+            "integral" to Plot(listOf(c("""\cos x""", f("cos", "x")), c("""\int_0^x \cos t\,dt""", f("sin", "x"))), trig, -1.6..1.6),
+            "Taylor series" to Plot(listOf(c("""\sin x""", f("sin", "x")), c("""x - \frac{x^3}{6}""", "x−", fr(m("x", p("3")), "6")), c("""x - \frac{x^3}{6} + \frac{x^5}{120}""", "x−", fr(m("x", p("3")), "6"), "+", fr(m("x", p("5")), "120"))), -5.0..5.0, -2.0..2.0),
+        )
+    }
+
+    /**
+     * The graph's curves sampled at [n] points across its x range (NaN where a curve is undefined),
+     * worked out with the graphs' own compiler, so they match what the graphing modes draw.
+     */
+    fun sample(plot: Plot, n: Int = 240): List<DoubleArray> = plot.curves.map { curve ->
+        val e = com.example.cas.engine.Evaluator().evaluate(MathCodec.copy(curve.row))
+        val fn = com.example.cas.graph.Compiler.compile(e, listOf("x"))
+        val arg = DoubleArray(1)
+        DoubleArray(n) { i ->
+            arg[0] = plot.x.start + (plot.x.endInclusive - plot.x.start) * i / (n - 1)
+            runCatching { fn(arg) }.getOrDefault(Double.NaN)
+        }
+    }
+
     /** The digits share one guide. */
     val digit = g("""A decimal digit. A number written next to a variable or bracket denotes a product: \(2x\), \(3(x + 1)\).""", s("Tap the digits in order."), ex("12×34"))
 

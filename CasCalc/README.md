@@ -203,6 +203,17 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (7 October, graphs on the key cards)
+
+- **Graphs on key cards**: about 110 function keys now show a small graph on their long-press
+  card, with a typeset legend and the plotted range. It shows the function itself, or a family:
+  P2 to P4 for Legendre, three values of sigma for the normal density, J0 to J2 for Bessel, a
+  function and its Taylor polynomials, and so on. Curves use the theme's graph colors, spread
+  round the color wheel so each one stands out. On phones the graph sits below "What it is"; on
+  tablets, under it in the left column.
+- **Four more functions graph in 2D**: the inverse normal, Lambert W and the Bessel functions J and
+  Y can now be drawn in 2D graphing, not only on the complex plane.
+
 ## Latest changes (7 October, key cards: icons and rewritten definitions)
 
 - **Key cards show the key's own icon**: the two-tone picture from the keypad now heads the card

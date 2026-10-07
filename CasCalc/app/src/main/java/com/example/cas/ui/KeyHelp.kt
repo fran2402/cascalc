@@ -13,6 +13,7 @@ data class KeyHelp(
     val steps: List<String> = emptyList(),
     val examples: List<KeyGuides.Example> = emptyList(),
     val link: String? = null,
+    val plot: KeyGuides.Plot? = null,
 )
 
 object KeyHelps {
@@ -20,7 +21,7 @@ object KeyHelps {
     private fun h(title: String, formula: String) = KeyHelp(title, formula)
 
     private fun withGuide(k: KeyHelp, g: KeyGuides.Guide?) = if (g == null) k else k.copy(about = g.about, steps = g.steps, examples = g.examples)
-    private val all: Map<String, KeyHelp> by lazy { base.mapValues { (k, v) -> withGuide(v, KeyGuides.all[k]) } }
+    private val all: Map<String, KeyHelp> by lazy { base.mapValues { (k, v) -> withGuide(v, KeyGuides.all[k]).copy(plot = KeyGuides.plots[k]) } }
     private val base: Map<String, KeyHelp> = mapOf(
         "pi" to h("π", """\pi = 3.14159\,26535\ldots"""),
         "e" to h("Euler's number", """e = \lim_{n\to\infty} \left(1 + \frac{1}{n}\right)^n = 2.71828\ldots"""),
