@@ -164,9 +164,8 @@ private fun About(help: KeyHelp) {
 }
 
 /**
- * A small graph of the key's function (or a family of them), as in the graphing modes: the curves
- * in the theme's graph colors, the axes where they're in view, the range at the corners and a
- * legend in LaTeX.
+ * A small graph of the key's function (or a family of them): just the curves, in the theme's graph
+ * colors, over the axes where they're in view, with a legend in LaTeX.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -189,13 +188,11 @@ private fun Graph(help: KeyHelp) {
             (lo - pad)..(hi + pad)
         }
         val axis = colors.outline
-        val grid = colors.outlineVariant.copy(alpha = 0.5f)
         androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(170.dp).semantics { contentDescription = "Graph" }) {
             val x0 = plot.x.start; val x1 = plot.x.endInclusive
             val y0 = yRange.start; val y1 = yRange.endInclusive
             fun px(x: Double) = ((x - x0) / (x1 - x0) * size.width).toFloat()
             fun py(y: Double) = ((y1 - y) / (y1 - y0) * size.height).toFloat()
-            drawRect(grid, style = androidx.compose.ui.graphics.drawscope.Stroke(1f))
             if (x0 < 0 && x1 > 0) drawLine(axis, androidx.compose.ui.geometry.Offset(px(0.0), 0f), androidx.compose.ui.geometry.Offset(px(0.0), size.height), 1.5f)
             if (y0 < 0 && y1 > 0) drawLine(axis, androidx.compose.ui.geometry.Offset(0f, py(0.0)), androidx.compose.ui.geometry.Offset(size.width, py(0.0)), 1.5f)
             clipRect {
@@ -217,12 +214,6 @@ private fun Graph(help: KeyHelp) {
                 }
             }
         }
-        // The range at the corners.
-        val small = MaterialTheme.typography.labelSmall
-        Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
-            Text("x: ${tick(plot.x.start)} to ${tick(plot.x.endInclusive)}", style = small, color = colors.onSurfaceVariant, modifier = Modifier.weight(1f))
-            Text("y: ${tick(yRange.start)} to ${tick(yRange.endInclusive)}", style = small, color = colors.onSurfaceVariant)
-        }
         if (plot.curves.size > 1 || plot.curves[0].label.isNotEmpty()) {
             androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 plot.curves.forEachIndexed { k, c ->
@@ -235,13 +226,6 @@ private fun Graph(help: KeyHelp) {
             }
         }
     }
-}
-
-/** A range end as a short number: 6.5, −1, 0.85. */
-private fun tick(v: Double): String {
-    val r = kotlin.math.round(v * 100) / 100
-    val t = if (r == kotlin.math.floor(r)) r.toLong().toString() else r.toString()
-    return t.replace('-', '−')
 }
 
 @Composable

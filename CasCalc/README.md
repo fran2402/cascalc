@@ -203,6 +203,11 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (7 October, cleaner card graphs)
+
+- **Card graphs show only the curves**: the frame and the range labels underneath are gone. Only
+  the curves, the two axes and the legend remain, on phones and tablets alike.
+
 ## Latest changes (7 October, graphs on the key cards)
 
 - **Graphs on key cards**: about 110 function keys now show a small graph on their long-press
