@@ -65,7 +65,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.cas.graph.Bounds
 import com.example.cas.graph.Camera
-import com.example.cas.graph.Face
 import com.example.cas.graph.Polygon
 import com.example.cas.graph.Surface3D
 import com.example.cas.graph.Geometry3D
@@ -76,6 +75,8 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import com.example.cas.graph.Coordinates3D
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.nativeCanvas
 import com.example.cas.graph.Viewport
 import com.example.cas.graph.Scene
 import kotlin.math.PI
@@ -317,16 +318,16 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier, onUseValue: 
     val palette = (0 until GraphViewModel.PLOT_COLOR_COUNT).map { plotColor(it) }
     fun colorOf(f: PlotFunction) = f.customColor?.let { Color(it) } ?: palette[f.colorIndex % palette.size]
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val vertexPaint = remember { android.graphics.Paint() }
     val camera = vm.camera
-    val faces: List<Face> = remember(polygons, camera, size) {
-        if (size.width == 0) emptyList() else Surface3D.faces(polygons, bounds, camera, size.width.toFloat(), size.height.toFloat())
-    }
+    // Flattened once per change of the surfaces; each turn of the view only projects it.
+    val mesh = remember(polygons, bounds) { com.example.cas.graph.Mesh(polygons, bounds) }
+    val faces = remember(mesh, camera, size) { Surface3D.project(mesh, camera, size.width.toFloat(), size.height.toFloat()) }
     // The surface point under the finger: its (x, y, z), with z exact on a z = f(x, y) surface.
     // (x, y, z, and the surface's color slot.)
-    fun pickAt(o: Offset): DoubleArray? = Surface3D.pick(faces, o.x, o.y)?.let { hit ->
-        val c = hit.center.copyOf(4)
-        c[3] = hit.surface.toDouble()
-        vm.functions.firstOrNull { it.colorIndex == hit.surface && it.implicit3D == null && it.compiled != null }
+    fun pickAt(o: Offset): DoubleArray? = Surface3D.pick(faces, o.x, o.y).takeIf { it >= 0 }?.let { hit ->
+        val c = DoubleArray(4) { d -> if (d < 3) mesh.center[3 * hit + d] else mesh.surface[hit].toDouble() }
+        vm.functions.firstOrNull { it.colorIndex == mesh.surface[hit] && it.implicit3D == null && it.compiled != null }
             ?.let { f -> vm.evaluate(f, c[0], c[1]).takeIf { v -> v.isFinite() }?.let { c[2] = it } }
         c
     }
@@ -409,20 +410,36 @@ private fun SurfaceCanvas(vm: Graph3DViewModel, modifier: Modifier, onUseValue: 
                 drawPath(path, edge.copy(alpha = 0.8f), style = Stroke(0.8.dp.toPx()))
             }
             val wire = colors.onSurface.copy(alpha = 0.12f)
-            val hairline = Stroke(0.6.dp.toPx())
-            for (face in faces) {
-                val path = Path().apply {
-                    moveTo(face.xs[0], face.ys[0])
-                    for (k in 1 until face.xs.size) lineTo(face.xs[k], face.ys[k])
-                    close()
+            // Each polygon's color: its surface's height gradient, lit; a solid's walls lighter and see-through.
+            val lows = gradients.map { it.first }; val highs = gradients.map { it.second }
+            fun fillOf(k: Int, shade: Float): Color {
+                val base = lerp(lows[mesh.surface[k] % lows.size], highs[mesh.surface[k] % highs.size], mesh.height[k])
+                return if (mesh.wall[k]) lerp(base, Color.White, 0.35f).copy(alpha = 0.55f)
+                    else Color(base.red * shade, base.green * shade, base.blue * shade, 1f)
+            }
+            if (android.os.Build.VERSION.SDK_INT >= 29) {
+                // Android 10 and later: every face and mesh line as triangles in one draw call.
+                val t = Surface3D.triangles(faces, 0.6.dp.toPx(), { k, shade -> fillOf(k, shade).toArgb() }) { fill ->
+                    wire.compositeOver(Color(fill)).copy(alpha = Color(fill).alpha).toArgb()
                 }
-                val (lo, hi) = gradients[face.surface % gradients.size]
-                val base = lerp(lo, hi, face.height)
-                // A solid's walls (where the box cuts it) are lighter and see-through, as a cut face.
-                val lit = if (face.wall) lerp(base, Color.White, 0.35f).copy(alpha = 0.55f)
-                    else Color(base.red * face.shade, base.green * face.shade, base.blue * face.shade, 1f)
-                drawPath(path, lit)
-                if (face.xs.size == 4) drawPath(path, wire, style = hairline)
+                if (t.count > 0) drawContext.canvas.let { canvas ->
+                    (canvas.nativeCanvas as Any as android.graphics.Canvas).drawVertices(
+                        android.graphics.Canvas.VertexMode.TRIANGLES, t.count, t.vertices, 0, null, 0, t.colors, 0, null, 0, 0,
+                        vertexPaint,
+                    )
+                }
+            } else {
+                val hairline = Stroke(0.6.dp.toPx())
+                for (k in faces.order) {
+                    val a = mesh.start[k]; val e = mesh.start[k + 1]
+                    val path = Path().apply {
+                        moveTo(faces.px[a], faces.py[a])
+                        for (v in a + 1 until e) lineTo(faces.px[v], faces.py[v])
+                        close()
+                    }
+                    drawPath(path, fillOf(k, faces.shade[k]))
+                    if (mesh.edges[k] != 0) drawPath(path, wire, style = hairline)
+                }
             }
             val labelStyle = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 18.sp, color = colors.onSurfaceVariant)
             val names = vm.letters3D.getValue(Coordinates3D.Mode.Cartesian)
@@ -548,9 +565,9 @@ private fun surfacePolygons(vm: Graph3DViewModel, bounds: Bounds): List<Polygon>
         val implicit = f.implicit3D
         when {
             // An inequality: the solid, its boundary and the walls of the box inside it.
-            implicit != null && f.region3D -> Surface3D.solid({ x, y, z -> vm.call(f, implicit, x, y, z) }, bounds, AppSettings.surfaceGrid.second, f.colorIndex)
-            implicit != null -> Surface3D.implicit({ x, y, z -> vm.call(f, implicit, x, y, z) }, bounds, AppSettings.surfaceGrid.second, f.colorIndex)
-            f.compiled != null -> Surface3D.explicit({ x, y -> vm.evaluate(f, x, y) }, bounds, AppSettings.surfaceGrid.first, f.colorIndex)
+            implicit != null && f.region3D -> Surface3D.solid(vm.sharedCaller3(f, implicit), bounds, AppSettings.surfaceGrid.second, f.colorIndex)
+            implicit != null -> Surface3D.implicit(vm.sharedCaller3(f, implicit), bounds, AppSettings.surfaceGrid.second, f.colorIndex)
+            f.compiled != null -> Surface3D.explicit(vm.sharedCaller2(f, f.compiled!!), bounds, AppSettings.surfaceGrid.first, f.colorIndex)
             else -> emptyList<Polygon>()
         }
     }.getOrElse { emptyList() } }
@@ -647,9 +664,9 @@ internal fun stlModel(vm: Graph3DViewModel, r: ExportRequest): ByteArray {
         runCatching {
             val implicit = f.implicit3D
             when {
-                implicit != null && f.region3D -> Surface3D.solid({ x, y, z -> vm.call(f, implicit, x, y, z) }, b, n, f.colorIndex)
-                implicit != null -> Surface3D.implicit({ x, y, z -> vm.call(f, implicit, x, y, z) }, b, n, f.colorIndex)
-                f.compiled != null -> Surface3D.solid({ x, y, z -> z - vm.evaluate(f, x, y) }, b, n, f.colorIndex)
+                implicit != null && f.region3D -> Surface3D.solid(vm.sharedCaller3(f, implicit), b, n, f.colorIndex)
+                implicit != null -> Surface3D.implicit(vm.sharedCaller3(f, implicit), b, n, f.colorIndex)
+                f.compiled != null -> vm.sharedCaller2(f, f.compiled!!).let { g -> Surface3D.solid({ x, y, z -> z - g(x, y) }, b, n, f.colorIndex) }
                 else -> emptyList()
             }
         }.getOrElse { emptyList() }

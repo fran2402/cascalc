@@ -203,6 +203,25 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (7 October, faster and finer 3D, field and complex plots)
+
+- **Plots use every core**: 2D fields, complex domain colouring and 3D surfaces are sampled on
+  all of the phone's cores instead of one.
+- **3D surfaces**:
+  - Drawn in a single call per frame (Android 10 and later) instead of two calls per face, so
+    turning the view stays smooth at much finer detail.
+  - The detail levels are now 40, 64 and 96 cells across (were 24, 36 and 52); implicit surfaces
+    use 20, 30 and 40 (were 16, 22 and 30).
+  - Mesh lines fall on every few grid lines, about 24 across, so fine surfaces aren't buried in
+    lines. Hidden mesh lines stay hidden.
+- **2D fields**:
+  - The colour scale is found about 25 times faster; it was most of the cost at high quality.
+  - Cells are now 8, 4 or 2 px (were 12, 6 or 3). While panning or pinching they are drawn at half
+    that resolution, then sharp once the view stops.
+- **Complex plane**: Low now reaches half resolution (was a quarter), Medium every pixel (was half),
+  and High goes to every pixel straight after the rough pass.
+- **Key card graphs**: the axes are gone too; only the curves and legend remain.
+
 ## Latest changes (7 October, cleaner card graphs)
 
 - **Card graphs show only the curves**: the frame, the axes and the range labels underneath are

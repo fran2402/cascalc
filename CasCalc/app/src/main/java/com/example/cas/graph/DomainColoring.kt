@@ -390,23 +390,28 @@ object DomainColoring {
         shouldStop: () -> Boolean = { false },
         scale: AxisScale = AxisScale(),
     ): DoubleArray? {
+        // Row bands on every core; compiled functions keep their working values per thread.
         val out = DoubleArray(2 * width * height)
-        for (j in 0 until height) {
-            if (j % 16 == 0 && shouldStop()) return null
-            val y = scale.realY(view.yMax - (j + 0.5) / height * view.height)
-            for (i in 0 until width) {
-                val x = scale.realX(view.xMin + (i + 0.5) / width * view.width)
-                val w = try { f(CD(x, y), params) } catch (e: RuntimeException) { CD(Double.NaN) }
-                val k = 2 * (j * width + i)
-                out[k] = w.re; out[k + 1] = w.im
+        val done = Parallel.rows(height, { }, shouldStop) { _, j0, j1 ->
+            for (j in j0 until j1) {
+                val y = scale.realY(view.yMax - (j + 0.5) / height * view.height)
+                for (i in 0 until width) {
+                    val x = scale.realX(view.xMin + (i + 0.5) / width * view.width)
+                    val w = try { f(CD(x, y), params) } catch (e: RuntimeException) { CD(Double.NaN) }
+                    val k = 2 * (j * width + i)
+                    out[k] = w.re; out[k + 1] = w.im
+                }
             }
         }
-        return out
+        return if (done) out else null
     }
 
     /** The colors of [sample]d values. */
-    fun paint(values: DoubleArray, o: ColoringOptions): IntArray =
-        IntArray(values.size / 2) { k -> color(CD(values[2 * k], values[2 * k + 1]), o) }
+    fun paint(values: DoubleArray, o: ColoringOptions): IntArray {
+        val out = IntArray(values.size / 2)
+        Parallel.rows(out.size, { }) { _, from, until -> for (k in from until until) out[k] = color(CD(values[2 * k], values[2 * k + 1]), o) }
+        return out
+    }
 
     /**
      * ∮ f(z) dz along a closed path (the last point joins the first), by the

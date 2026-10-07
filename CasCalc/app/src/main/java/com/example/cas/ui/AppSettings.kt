@@ -229,7 +229,12 @@ object AppSettings {
     fun changeSurfaceDetail(v: Int) { surfaceDetail = v; save("surfaceDetail", v) }
 
     /** The explicit and implicit grid sizes for 3D surfaces at the chosen detail. */
-    val surfaceGrid: Pair<Int, Int> get() = when (surfaceDetail) { 0 -> 24 to 16; 2 -> 52 to 30; else -> 36 to 22 }
+    /**
+     * Grid sizes for z = f(x, y) and for implicit surfaces at each 3D detail level. Surfaces are
+     * sampled on every core and drawn in one call, so these are finer than they used to be (24,
+     * 36 and 52; 16, 22 and 30).
+     */
+    val surfaceGrid: Pair<Int, Int> get() = when (surfaceDetail) { 0 -> 40 to 20; 2 -> 96 to 40; else -> 64 to 30 }
 }
 
 /**

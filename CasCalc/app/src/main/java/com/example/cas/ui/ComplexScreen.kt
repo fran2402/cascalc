@@ -223,9 +223,9 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
         if (c == null || size.width == 0) { image = null; sampled = null; return@LaunchedEffect }
         val p = vm.parameterValues(f!!)
         try {
-            // Medium quality stops at half resolution; high renders every pixel.
-            // Low stops at a quarter.
-            val passes = when (AppSettings.complexQuality) { 1 -> listOf(8 to 0L, 2 to 140L, 1 to 60L); 2 -> listOf(8 to 0L, 4 to 140L); else -> listOf(8 to 0L, 2 to 140L) }
+            // Sampled on every core, so: low stops at half resolution, medium renders every pixel
+            // (after a half-resolution pass), and high goes straight from the rough pass to every pixel.
+            val passes = when (AppSettings.complexQuality) { 1 -> listOf(8 to 0L, 1 to 60L); 2 -> listOf(8 to 0L, 2 to 120L); else -> listOf(8 to 0L, 2 to 100L, 1 to 40L) }
             for ((divisor, wait) in passes) {
                 delay(wait)
                 // The sharp pass takes a moment: the expressive loading indicator shows meanwhile.

@@ -198,9 +198,14 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
     // Functions are sampled again only when one of them changes (not when a point is dragged);
     // constructions are drawn again on every change. Then the two go back into list order.
     val params = vm.parameters.toMap()
-    val curves = remember(view, vm.plotKey, size, params, highlighted, vm.polarGrid, vm.scale, AppSettings.specialPoints, AppSettings.fieldQuality) {
+    // While the view moves (a pan or pinch), fields are drawn at half their resolution; once it has
+    // been still for a moment, at full.
+    var settledView by remember { mutableStateOf<Viewport?>(null) }
+    androidx.compose.runtime.LaunchedEffect(view) { kotlinx.coroutines.delay(150); settledView = view }
+    val moving = settledView != view && vm.functions.any { it.visible && it.plot is Plot2DKind.Field }
+    val curves = remember(view, vm.plotKey, size, params, highlighted, vm.polarGrid, vm.scale, AppSettings.specialPoints, AppSettings.fieldQuality, moving) {
         // Whatever a line does while being sampled, drawing carries on (the line just isn't drawn).
-        if (view == null || size.width == 0) emptyList() else runCatching { plot(vm, view, size, highlighted) { it.geometry == null } }.getOrElse { emptyList() }
+        if (view == null || size.width == 0) emptyList() else runCatching { plot(vm, view, size, highlighted, moving) { it.geometry == null } }.getOrElse { emptyList() }
     }
     val constructions = remember(view, version, size, params, vm.scale) {
         if (view == null || size.width == 0) emptyList() else runCatching { plot(vm, view, size, highlighted) { it.geometry != null } }.getOrElse { emptyList() }
@@ -760,7 +765,7 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
  * crossings are found for the highlighted function of x, so the graph doesn't
  * fill up with dots.
  */
-private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighted: PlotFunction?, which: (PlotFunction) -> Boolean = { true }): List<Plotted> {
+private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighted: PlotFunction?, moving: Boolean = false, which: (PlotFunction) -> Boolean = { true }): List<Plotted> {
     val fns = vm.functions.filter { it.visible && (it.plot != null || it.family.isNotEmpty()) && which(it) }
     val samples = (size.width / 2).coerceIn(200, 900)
     // The view is in scaled coordinates (log₁₀ on a log axis); lines are worked out in values and
@@ -877,12 +882,15 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
                 out += Plotted(f, emptyList(), emptyList(), segments = Curves.implicit(g, view, nx, ny))
             }
             is Plot2DKind.Field -> {
-                // Colored cells 12, 6 or 3 px square (the field quality setting; low by default, as
-                // every cell is worked out again on each pan); the scale follows the values in view.
-                val cell = when (AppSettings.fieldQuality) { 2 -> 3; 1 -> 6; else -> 12 }
-                val fx = (size.width / cell).coerceIn(24, 420); val fy = (size.height / cell).coerceIn(24, 560)
-                val h = vm.caller2(g, k.f); val ok = vm.allowedCaller(g)
-                val values = com.example.cas.graph.Field.sample(sc.function2 { x: Double, y: Double -> if (ok(x, y)) h(x, y) else Double.NaN }, view, fx, fy)
+                // Colored cells 8, 4 or 2 px square (the field quality setting), twice that while the
+                // view moves; worked out on every core. The scale follows the values in view.
+                val cell = when (AppSettings.fieldQuality) { 2 -> 2; 1 -> 4; else -> 8 } * (if (moving) 2 else 1)
+                val fx = (size.width / cell).coerceIn(24, 1200); val fy = (size.height / cell).coerceIn(24, 1600)
+                // One caller per core (each with its own argument array), sliders read once.
+                val values = com.example.cas.graph.Field.sample({
+                    val h = vm.caller2(g, k.f); val ok = vm.allowedCaller(g)
+                    sc.function2 { x: Double, y: Double -> if (ok(x, y)) h(x, y) else Double.NaN }
+                }, view, fx, fy)
                 val range = com.example.cas.graph.Field.range(values)
                 out += Plotted(f, emptyList(), emptyList(), fieldValues = values, fieldSize = IntSize(fx, fy), fieldRange = range)
             }

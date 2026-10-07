@@ -1887,6 +1887,23 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         }
     }
 
+    /**
+     * [fn] at (x, y) with the sliders read once, safe to call from several threads at once (each
+     * thread fills its own argument array): for surfaces sampled on every core.
+     */
+    fun sharedCaller2(f: PlotFunction, fn: RealFunction): (Double, Double) -> Double {
+        val values = DoubleArray(f.parameters.size) { parameters[f.parameters[it]] ?: 1.0 }
+        val args = ThreadLocal.withInitial { DoubleArray(2 + values.size).also { values.copyInto(it, 2) } }
+        return { x, y -> val a = args.get(); a[0] = x; a[1] = y; try { fn(a) } catch (e: RuntimeException) { Double.NaN } }
+    }
+
+    /** [sharedCaller2] for F(x, y, z). */
+    fun sharedCaller3(f: PlotFunction, fn: RealFunction): (Double, Double, Double) -> Double {
+        val values = DoubleArray(f.parameters.size) { parameters[f.parameters[it]] ?: 1.0 }
+        val args = ThreadLocal.withInitial { DoubleArray(3 + values.size).also { values.copyInto(it, 3) } }
+        return { x, y, z -> val a = args.get(); a[0] = x; a[1] = y; a[2] = z; try { fn(a) } catch (e: RuntimeException) { Double.NaN } }
+    }
+
     /** [allowed] for (x, y) with the sliders read once. */
     fun allowedCaller(f: PlotFunction): (Double, Double) -> Boolean {
         if (f.restrictions.isEmpty()) return { _, _ -> true }

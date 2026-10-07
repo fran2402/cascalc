@@ -28,8 +28,12 @@ data class Bounds(val x0: Double, val x1: Double, val y0: Double, val y1: Double
     }
 }
 
-/** A flat piece of a surface in data coordinates (x, y, z), belonging to surface [surface]. */
-class Polygon(val points: List<DoubleArray>, val surface: Int, val wall: Boolean = false)
+/**
+ * A flat piece of a surface in data coordinates (x, y, z), belonging to surface [surface].
+ * [edges]: which sides get a mesh line (bit k: from corner k to the next); by default all four
+ * sides of a quad and none of a triangle.
+ */
+class Polygon(val points: List<DoubleArray>, val surface: Int, val wall: Boolean = false, val edges: Int = if (points.size == 4) 0b1111 else 0)
 
 /** One polygon projected to the screen, ready to paint back to front. [center] is its middle in data coordinates. */
 class Face(val xs: FloatArray, val ys: FloatArray, val depth: Double, val shade: Float, val height: Float, val surface: Int, val center: DoubleArray, val wall: Boolean = false)
@@ -37,22 +41,90 @@ class Face(val xs: FloatArray, val ys: FloatArray, val depth: Double, val shade:
 /** A line of the axis box, projected. */
 class Segment(val x1: Float, val y1: Float, val x2: Float, val y2: Float)
 
+/**
+ * Polygons flattened into plain arrays once (when the surfaces change), so turning the view only
+ * has to project numbers: no objects per face, per frame.
+ */
+class Mesh(polys: List<Polygon>, b: Bounds) {
+    val count = polys.size
+    /** Polygon k's corners are vertices start[k] until start[k + 1]. */
+    val start = IntArray(count + 1)
+    /** Corners in scene coordinates. */
+    val vx: FloatArray; val vy: FloatArray; val vz: FloatArray
+    val surface = IntArray(count)
+    val wall = BooleanArray(count)
+    val edges = IntArray(count)
+    /** Height in the box (0 bottom, 1 top), for the color gradient. */
+    val height = FloatArray(count)
+    /** Unit normal and middle, in scene coordinates. */
+    val nx = FloatArray(count); val ny = FloatArray(count); val nz = FloatArray(count)
+    val mx = FloatArray(count); val my = FloatArray(count); val mz = FloatArray(count)
+    /** The middle in data coordinates (what a tap reads). */
+    val center = DoubleArray(3 * count)
+
+    init {
+        var total = 0
+        for ((k, p) in polys.withIndex()) { start[k] = total; total += p.points.size }
+        start[count] = total
+        vx = FloatArray(total); vy = FloatArray(total); vz = FloatArray(total)
+        for ((k, p) in polys.withIndex()) {
+            surface[k] = p.surface; wall[k] = p.wall; edges[k] = p.edges
+            var sx = 0.0; var sy = 0.0; var sz = 0.0
+            for ((c, q) in p.points.withIndex()) {
+                val s = b.scene(q[0], q[1], q[2])
+                val v = start[k] + c
+                vx[v] = s[0].toFloat(); vy[v] = s[1].toFloat(); vz[v] = s[2].toFloat()
+                sx += s[0]; sy += s[1]; sz += s[2]
+                for (d in 0..2) center[3 * k + d] += q[d] / p.points.size
+            }
+            val m = p.points.size
+            mx[k] = (sx / m).toFloat(); my[k] = (sy / m).toFloat(); mz[k] = (sz / m).toFloat()
+            height[k] = ((sz / m + 0.8) / 1.6).coerceIn(0.0, 1.0).toFloat()
+            // Normal from the first corner to the second and the last (as the faces always did).
+            val a = start[k]; val l = start[k + 1] - 1
+            val ax = vx[a + 1] - vx[a]; val ay = vy[a + 1] - vy[a]; val az = vz[a + 1] - vz[a]
+            val bx = vx[l] - vx[a]; val by = vy[l] - vy[a]; val bz = vz[l] - vz[a]
+            val cx = ay * bz - az * by; val cy = az * bx - ax * bz; val cz = ax * by - ay * bx
+            val len = max(1e-12f, sqrt(cx * cx + cy * cy + cz * cz))
+            nx[k] = cx / len; ny[k] = cy / len; nz[k] = cz / len
+        }
+    }
+}
+
+/** A [Mesh] seen from a camera: every corner on screen, each polygon's shading, and the order to paint them (far to near). */
+class Projected(val mesh: Mesh, val px: FloatArray, val py: FloatArray, val shade: FloatArray, val order: IntArray)
+
+/**
+ * Triangles ready for one Canvas.drawVertices call: two floats per corner and a color each, the
+ * polygons fanned into triangles and their mesh lines as thin quads, all in painting order (so a
+ * line behind the surface stays hidden).
+ */
+class Triangles(val vertices: FloatArray, val colors: IntArray, val count: Int)
+
 object Surface3D {
     // ---- Building surfaces --------------------------------------------------------------
 
-    /** z = f(x, y) sampled on an n × n grid as quads; undefined corners leave holes. */
+    /**
+     * z = f(x, y) sampled on an n × n grid as quads; undefined corners leave holes. [f] is called
+     * from every core, so it must be safe to share. The mesh lines fall on every few grid lines,
+     * about 24 across whatever the detail, so a fine surface isn't buried under its own mesh.
+     */
     fun explicit(f: (Double, Double) -> Double, b: Bounds, n: Int = 40, surface: Int = 0): List<Polygon> {
-        val z = Array(n + 1) { i -> DoubleArray(n + 1) { j -> f(b.x0 + (b.x1 - b.x0) * i / n, b.y0 + (b.y1 - b.y0) * j / n) } }
+        val z = Array(n + 1) { DoubleArray(n + 1) }
+        Parallel.rows(n + 1, { }) { _, i0, i1 ->
+            for (i in i0 until i1) for (j in 0..n) z[i][j] = try { f(b.x0 + (b.x1 - b.x0) * i / n, b.y0 + (b.y1 - b.y0) * j / n) } catch (e: RuntimeException) { Double.NaN }
+        }
         val out = ArrayList<Polygon>()
         val span = b.z1 - b.z0
+        val step = maxOf(1, (n + 23) / 24)
         for (i in 0 until n) for (j in 0 until n) {
-            val corners = listOf(i to j, i + 1 to j, i + 1 to j + 1, i to j + 1)
-            if (corners.any { (a, c) -> !z[a][c].isFinite() }) continue
+            val z00 = z[i][j]; val z10 = z[i + 1][j]; val z11 = z[i + 1][j + 1]; val z01 = z[i][j + 1]
+            if (!z00.isFinite() || !z10.isFinite() || !z11.isFinite() || !z01.isFinite()) continue
             // Leave out quads entirely above or below the box; clamp the rest to just outside it.
-            if (corners.all { (a, c) -> z[a][c] > b.z1 } || corners.all { (a, c) -> z[a][c] < b.z0 }) continue
-            out += Polygon(corners.map { (a, c) ->
-                doubleArrayOf(b.x0 + (b.x1 - b.x0) * a / n, b.y0 + (b.y1 - b.y0) * c / n, z[a][c].coerceIn(b.z0 - span, b.z1 + span))
-            }, surface)
+            if ((z00 > b.z1 && z10 > b.z1 && z11 > b.z1 && z01 > b.z1) || (z00 < b.z0 && z10 < b.z0 && z11 < b.z0 && z01 < b.z0)) continue
+            fun corner(a: Int, c: Int, zz: Double) = doubleArrayOf(b.x0 + (b.x1 - b.x0) * a / n, b.y0 + (b.y1 - b.y0) * c / n, zz.coerceIn(b.z0 - span, b.z1 + span))
+            val edges = (if (j % step == 0) 1 else 0) or (if ((i + 1) % step == 0) 2 else 0) or (if ((j + 1) % step == 0) 4 else 0) or (if (i % step == 0) 8 else 0)
+            out += Polygon(listOf(corner(i, j, z00), corner(i + 1, j, z10), corner(i + 1, j + 1, z11), corner(i, j + 1, z01)), surface, edges = edges)
         }
         return out
     }
@@ -83,7 +155,11 @@ object Surface3D {
         val xs = DoubleArray(n + 1) { b.x0 + (b.x1 - b.x0) * it / n }
         val ys = DoubleArray(n + 1) { b.y0 + (b.y1 - b.y0) * it / n }
         val zs = DoubleArray(n + 1) { b.z0 + (b.z1 - b.z0) * it / n }
-        val v = Array(n + 1) { i -> Array(n + 1) { j -> DoubleArray(n + 1) { k -> f(xs[i], ys[j], zs[k]) } } }
+        // The n³ values on every core ([f] must be safe to share).
+        val v = Array(n + 1) { Array(n + 1) { DoubleArray(n + 1) } }
+        Parallel.rows(n + 1, { }) { _, i0, i1 ->
+            for (i in i0 until i1) for (j in 0..n) for (k in 0..n) v[i][j][k] = try { f(xs[i], ys[j], zs[k]) } catch (e: RuntimeException) { Double.NaN }
+        }
         val out = ArrayList<Polygon>()
         val p = Array(8) { DoubleArray(3) }
         val s = DoubleArray(8)
@@ -159,6 +235,99 @@ object Surface3D {
         }
         return out
     }
+
+    // ---- Fast drawing: a flattened mesh, projected and painted in one call --------------------
+
+    /** Projects every corner of [m] and sorts its polygons far to near, shaded as [faces] shades them. */
+    fun project(m: Mesh, cam: Camera, w: Float, h: Float): Projected {
+        val cy = cos(cam.yaw).toFloat(); val sy = sin(cam.yaw).toFloat()
+        val cp = cos(cam.pitch).toFloat(); val sp = sin(cam.pitch).toFloat()
+        val s = (0.3 * minOf(w, h) * cam.zoom).toFloat()
+        val n = m.vx.size
+        val px = FloatArray(n); val py = FloatArray(n)
+        for (v in 0 until n) {
+            val x1 = m.vx[v] * cy - m.vy[v] * sy
+            val y1 = m.vx[v] * sy + m.vy[v] * cy
+            val ry = y1 * cp - m.vz[v] * sp
+            val rz = y1 * sp + m.vz[v] * cp
+            val k = 3.2f / (3.2f + ry)
+            px[v] = w / 2 + x1 * s * k
+            py[v] = h / 2 - rz * s * k
+        }
+        val light = normalize(doubleArrayOf(-0.4, -0.6, 0.7))
+        val lx = light[0].toFloat(); val ly = light[1].toFloat(); val lz = light[2].toFloat()
+        val shade = FloatArray(m.count)
+        // Depth (the middle's distance) and index packed in one long each, sorted as numbers.
+        val keys = LongArray(m.count)
+        for (k in 0 until m.count) {
+            val nx1 = m.nx[k] * cy - m.ny[k] * sy
+            val ny1 = m.nx[k] * sy + m.ny[k] * cy
+            val lambert = abs(nx1 * lx + (ny1 * cp - m.nz[k] * sp) * ly + (ny1 * sp + m.nz[k] * cp) * lz)
+            shade[k] = 0.35f + 0.65f * lambert
+            val depth = (m.mx[k] * sy + m.my[k] * cy) * cp - m.mz[k] * sp
+            // Far first: larger depth sorts first, so the key is the depth's negation, made sortable.
+            // A float's bits order like a signed int once negative ones have their other bits flipped.
+            val bits = java.lang.Float.floatToIntBits(-depth)
+            val sortable = if (bits < 0) bits xor 0x7FFFFFFF else bits
+            keys[k] = (sortable.toLong() shl 32) or k.toLong()
+        }
+        java.util.Arrays.sort(keys)
+        return Projected(m, px, py, shade, IntArray(m.count) { (keys[it] and 0xFFFFFFFFL).toInt() })
+    }
+
+    /** The nearest polygon under a screen point, or −1. */
+    fun pick(p: Projected, x: Float, y: Float): Int {
+        val m = p.mesh
+        for (o in p.order.indices.reversed()) {
+            val k = p.order[o]
+            var inside = false
+            val a = m.start[k]; val e = m.start[k + 1]
+            var j = e - 1
+            for (i in a until e) {
+                if ((p.py[i] > y) != (p.py[j] > y) && x < (p.px[j] - p.px[i]) * (y - p.py[i]) / (p.py[j] - p.py[i]) + p.px[i]) inside = !inside
+                j = i
+            }
+            if (inside) return k
+        }
+        return -1
+    }
+
+    /**
+     * Every polygon as triangles colored [fill] (ARGB, from the polygon and its shade), each mesh
+     * line as a thin quad [line] px wide colored [wire] (from the fill under it), in painting order.
+     */
+    fun triangles(p: Projected, line: Float, fill: (k: Int, shade: Float) -> Int, wire: (fill: Int) -> Int): Triangles {
+        val m = p.mesh
+        var tris = 0
+        for (k in 0 until m.count) {
+            tris += m.start[k + 1] - m.start[k] - 2
+            tris += 2 * Integer.bitCount(m.edges[k])
+        }
+        val verts = FloatArray(tris * 6)
+        val colors = IntArray(tris * 3)
+        var vi = 0; var ci = 0
+        fun put(x: Float, y: Float, c: Int) { verts[vi++] = x; verts[vi++] = y; colors[ci++] = c }
+        val half = line / 2
+        for (k in p.order) {
+            val a = m.start[k]; val e = m.start[k + 1]
+            val c = fill(k, p.shade[k])
+            for (i in a + 1 until e - 1) { put(p.px[a], p.py[a], c); put(p.px[i], p.py[i], c); put(p.px[i + 1], p.py[i + 1], c) }
+            val edges = m.edges[k]
+            if (edges == 0) continue
+            val lc = wire(c)
+            for (s in 0 until e - a) {
+                if (edges and (1 shl s) == 0) continue
+                val i = a + s; val j = if (i + 1 == e) a else i + 1
+                val dx = p.px[j] - p.px[i]; val dy = p.py[j] - p.py[i]
+                val len = sqrt(dx * dx + dy * dy)
+                val ox = if (len > 0f) -dy / len * half else 0f; val oy = if (len > 0f) dx / len * half else 0f
+                put(p.px[i] + ox, p.py[i] + oy, lc); put(p.px[j] + ox, p.py[j] + oy, lc); put(p.px[j] - ox, p.py[j] - oy, lc)
+                put(p.px[i] + ox, p.py[i] + oy, lc); put(p.px[j] - ox, p.py[j] - oy, lc); put(p.px[i] - ox, p.py[i] - oy, lc)
+            }
+        }
+        return Triangles(verts, colors, vi)
+    }
+
 
     // ---- Projection -------------------------------------------------------------------
 
