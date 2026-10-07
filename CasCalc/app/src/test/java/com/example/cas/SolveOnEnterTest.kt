@@ -77,6 +77,15 @@ class SolveOnEnterTest {
 
     // The derivative button (d/dx of y) works like the y′ keys.
     private fun dd(y: String, v: String = "x", order: String = "") = com.example.cas.editor.Derivative(r(v), r(y), MathRow(), if (order.isEmpty()) MathRow() else r(order))
+    // Exactly what the keypad's derivative key inserts: ∂/∂x, filled in.
+    @Test fun keypadDerivativeKey() = assertEquals("y=e^(2x)", solve(r(com.example.cas.editor.Derivative(r("x"), r("y"), partial = true), "=2y,y(0)=1")).replace(" ", ""))
+    @Test fun keypadDerivativeKeyInTheta() = assertEquals(true, solve(r(com.example.cas.editor.Derivative(r("θ"), r("y"), partial = true), "=y")).contains("θ"))
+    // The steps work in t, as the answer does: no x anywhere in them.
+    @Test fun stepsInT() = com.example.cas.engine.Steps.of(r(dd("y", "t"), "=−y,y(0)=3"))!!.let { sol ->
+        val tex = sol.steps.mapNotNull { st -> st.math?.let { com.example.cas.engine.Latex.of(it) } } + sol.steps.mapNotNull { it.text }
+        assertEquals(true, tex.any { "t" in it.replace("\\text", "").replace("\\left", "").replace("\\right", "") })
+        assertEquals(listOf<String>(), tex.filter { Regex("(?<![a-z\\\\])x").containsMatchIn(it.replace("\\exp", "")) })
+    }
     @Test fun derivativeButton() = assertEquals("y=C1e^(2x)", solve(r(dd("y"), "=2y")).replace(" ", "").replace("_", ""))
     @Test fun derivativeButtonWithCondition() = assertEquals("y=e^(2x)", solve(r(dd("y"), "=2y,y(0)=1")).replace(" ", ""))
     @Test fun secondDerivativeButton() = assertEquals(true, solve(r(dd("y", order = "2"), "+y=0")).let { "cos" in it && "sin" in it })

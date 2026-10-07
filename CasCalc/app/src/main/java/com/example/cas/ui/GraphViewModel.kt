@@ -162,7 +162,8 @@ sealed class Plot2DKind {
     /** The label shown before the typed expression, when the expression doesn't include its own "=". */
     abstract val label: String?
 
-    class Explicit(val f: RealFunction, override val label: String?) : Plot2DKind()
+    /** y = f(x); [impulses]: each δ term's position and height (over x and the sliders, x unused), drawn as arrows. */
+    class Explicit(val f: RealFunction, override val label: String?, val impulses: List<Pair<RealFunction, RealFunction>> = emptyList()) : Plot2DKind()
     class Polar(val r: RealFunction, override val label: String?) : Plot2DKind()
     class Parametric(val x: RealFunction, val y: RealFunction) : Plot2DKind() { override val label = "(x, y) =" }
     class Implicit(val f: RealFunction) : Plot2DKind() { override val label: String? = null }
@@ -907,7 +908,10 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
             val typedEquals = items.any { (it as? com.example.cas.editor.Sym)?.text in setOf("=", "<", ">", "≤", "≥") }
             f.plot = when (spec) {
                 null -> Plot2DKind.Point(Compiler.compile(parts[0], params), Compiler.compile(parts[1], params))
-                is com.example.cas.graph.PlotSpec.Explicit -> Plot2DKind.Explicit(Compiler.compile(spec.f, listOf("x") + params), if (typedEquals) null else "y =")
+                is com.example.cas.graph.PlotSpec.Explicit -> Plot2DKind.Explicit(
+                    Compiler.compile(spec.f, listOf("x") + params), if (typedEquals) null else "y =",
+                    runCatching { com.example.cas.graph.Impulses.of(spec.f, Sym("x")).map { Compiler.compile(it.at, listOf("x") + params) to Compiler.compile(it.height, listOf("x") + params) } }.getOrDefault(emptyList()),
+                )
                 is com.example.cas.graph.PlotSpec.Polar -> Plot2DKind.Polar(Compiler.compile(spec.r, listOf("θ") + params), if (typedEquals) null else "r =")
                 is com.example.cas.graph.PlotSpec.Parametric -> Plot2DKind.Parametric(Compiler.compile(spec.x, listOf("t") + params), Compiler.compile(spec.y, listOf("t") + params))
                 is com.example.cas.graph.PlotSpec.Implicit -> Plot2DKind.Implicit(Compiler.compile(spec.f, listOf("x", "y") + params))
@@ -1408,7 +1412,8 @@ abstract class GraphViewModel(app: Application, private val key: String, val plo
         return out
     }
 
-    private fun evaluatorFor(f: PlotFunction) = Evaluator(angle, null, storedVariables() + letterValues(except = f), unitSystem, coordinates, userFunctions(except = f))
+    // Transforms (ℒ, ℱ) come out in the graph's own variable, so ℒ{sin t} draws over x.
+    private fun evaluatorFor(f: PlotFunction) = Evaluator(angle, null, storedVariables() + letterValues(except = f), unitSystem, coordinates, userFunctions(except = f), transformVariable = plotVars.first())
 
     /**
      * A line like k = 5x sin x or k = Z: a letter (not a coordinate) set to an expression that

@@ -173,7 +173,7 @@ object Steps {
     private fun equation(row: MathRow, angle: AngleUnit, solveFor: List<String>?): Solution? {
         val ev = Evaluator(angle, solveEquations = true).also { it.solveFor = solveFor }
         val eqs = ev.equations(com.example.cas.editor.MathCodec.copy(row)) ?: return null
-        if (eqs.differential) return ode(Func("dsolve", listOf(ev.withPrimes(com.example.cas.editor.MathCodec.copy(row)))), angle)
+        if (eqs.differential) return ode(Func("dsolve", listOf(ev.withPrimes(com.example.cas.editor.MathCodec.copy(row)))), angle, ev.odeVariable)
         if (eqs.unknowns.isEmpty()) return null
         val question = com.example.cas.editor.MathCodec.copy(row)
         val value = runCatching { ev.evaluate(com.example.cas.editor.MathCodec.copy(row)) }.getOrNull() ?: return null
@@ -2155,10 +2155,12 @@ object Steps {
 
     // ---- Differential equations ------------------------------------------------------------------------
 
-    private fun ode(n: Func, angle: AngleUnit): Solution? {
-        val (eqn, y, x) = Evaluator(angle).odeParts(n.args[0]) ?: return null
+    private fun ode(n: Func, angle: AngleUnit, variable: String? = null): Solution? {
+        // The variable it's in: as the derivative button said (d/dt, d/dθ…), else x (or t).
+        fun ev() = Evaluator(angle).also { it.odeVariable = variable }
+        val (eqn, y, x) = ev().odeParts(n.args[0]) ?: return null
         val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
-        val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
+        val value = ev().evaluate(com.example.cas.editor.MathCodec.copy(question))
         val answer = ans(question, value)
         val f = if (eqn is Eq) sub(eqn.lhs, eqn.rhs) else eqn
         val y1 = com.example.cas.cas.Ode.derivativeSymbol(y, 1); val y2 = com.example.cas.cas.Ode.derivativeSymbol(y, 2)

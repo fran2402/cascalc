@@ -203,6 +203,28 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (7 October, Laplace and Fourier transforms, the Dirac delta)
+
+- **New Calculus keys**: Laplace transform, Fourier transform and Dirac delta replace y', y'' and
+  dsolve. Differential equations are typed with the derivative key instead (d/dx(y) = 2y) and
+  solved on Enter.
+- **Laplace transform**: written with a calligraphic L and braces, with a raised box; type -1
+  there for the inverse. Covers powers of t, exponentials, sin, cos, sinh, cosh, steps (delays),
+  impulses, and the shift and t·f(t) rules; the inverse uses partial fractions (repeated roots,
+  quadratic factors, delays e^(-as)).
+- **Fourier transform**: written with a calligraphic F, same raised box, convention
+  integral of f(t) e^(-i omega t) dt. Covers impulses, constants, e^(-a|t|), Gaussians, rect,
+  tri, sgn, the step, a decaying exponential after a step, cos and sin (as impulses), shifts,
+  modulation, t·f(t) and 1/(t^2 + a^2); the inverse by table and duality.
+- **Dirac delta and the step in answers**: delta(t) and H(t - 2) are shown as such (not
+  rewritten), work in the graphs, and H' = delta.
+- **Graphs**: transforms are drawn as functions of x (y = L{sin t} draws 1/(x^2 + 1)). Each
+  c·delta(x - a) is drawn as an arrow of height c at x = a, standing on the rest of the curve.
+- **Custom icons** for the three keys; key cards with examples and graphs.
+- **Steps in the right variable**: differential equations typed with d/dt (or d/d of any symbol)
+  are worked in that variable, steps included. The keypad's derivative key (written with ∂)
+  counts as d for a single letter.
+
 ## Latest changes (7 October, differential equations with the derivative button)
 
 - **The derivative button works in differential equations**: d/dx(y) = 2y, or d²/dx²(y) + y = 0

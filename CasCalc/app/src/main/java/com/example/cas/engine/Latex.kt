@@ -80,6 +80,8 @@ object Latex {
             "round" -> "\\left\\lfloor " + a[0] + "\\right\\rceil"
             "frac" -> "\\left\\{" + a[0] + "\\right\\}"
             "sgn" -> "\\operatorname{sgn}" + paren(a[0])
+            "heaviside" -> "H" + paren(a[0])
+            "dirac" -> "\\delta" + paren(a[0])
             "gamma" -> "\\Gamma" + paren(a[0])
             "contour" -> "\\oint_{" + a[1] + "} " + a[0] + "\\,\\mathrm{d}z"
             "residue" -> "\\operatorname{Res}_{" + a[1] + "}" + paren(a[0])
@@ -96,6 +98,9 @@ object Latex {
             } else "\\mathrm{${f.name}}" + paren(a[0])
             "digamma" -> "\\psi" + paren(a[0])
             "zetaprime" -> "\\zeta'" + paren(a[0])
+            // ℒ{f}, ℱ{f}; with −1 raised, the inverses.
+            "laplace", "fourier" -> if (f.args.size == 2) (if (f.name == "laplace") "\\mathcal{L}" else "\\mathcal{F}") +
+                (if (!f.args[0].isEmpty) "^{" + a[0] + "}" else "") + "\\left\\{" + a[1] + "\\right\\}" else "\\operatorname{${f.name}}" + paren(a.joinToString(", "))
             "grad" -> (if (f.args.size > 1 && !f.args[1].isEmpty) "\\nabla^{" + a[1] + "}" else "\\nabla ") + paren(a[0])
             "div" -> "\\nabla\\cdot " + paren(a[0])
             "curl" -> "\\nabla\\times " + paren(a[0])

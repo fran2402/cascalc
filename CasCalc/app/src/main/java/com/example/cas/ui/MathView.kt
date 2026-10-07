@@ -480,6 +480,7 @@ private fun childLevel(level: Int) = if (level == 0) 0 else level + 1
 
 /** Functions written with a symbol rather than their name. */
 private val FUNCTION_NAMES = mapOf(
+    "heaviside" to "H", "dirac" to "δ",
     "gamma" to "Γ", "zeta" to "ζ", "hurwitz" to "ζ",
     "grad" to "∇", "div" to "∇·", "curl" to "∇×", "laplacian" to "∇²", "jacobian" to "J", "hessian" to "H",
     "perm" to "P", "normpdf" to "φ", "normcdf" to "Φ", "binompdf" to "Bin", "poissonpdf" to "Pois", "total" to "Σ",
@@ -760,6 +761,19 @@ private fun FuncView(f: Func, row: MathRow, index: Int, level: Int) {
                 MathText("∇", level, tap)
             }
             Fenced(Delim.Paren, level) { RowView(f.args[0], level) }
+        }
+        // ℒ{f} and ℱ{f}: the raised box takes −1 for the inverse; it shows while filled, while
+        // the cursor is in the transform, and on the key.
+        "laplace", "fourier" -> if (f.args.size == 2) AxisRow(level) {
+            val letter = com.example.cas.editor.MathAlphabets.calligraphic(if (f.name == "laplace") 'L' else 'F')
+            val inverse = f.args[0]
+            if (!inverse.isEmpty || env.emptyAsDot || cursorInside(env, f)) {
+                Scripts(level, tap, base = { MathText(letter, level) }, sup = { RowView(inverse, level + 1) })
+            } else MathText(letter, level, tap)
+            Fenced(Delim.Brace, level) { RowView(f.args[1], level) }
+        } else AxisRow(level) {
+            MathText(f.name, level, tap)
+            FuncArguments(f, level)
         }
         // The polylogarithm Li_s(z), its order as a subscript.
         "polylog" -> if (f.args.size == 2) AxisRow(level) {

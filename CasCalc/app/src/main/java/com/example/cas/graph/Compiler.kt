@@ -140,6 +140,9 @@ object Compiler {
             "min" -> { val g = a[1]; RealFunction { v -> minOf(f(v), g(v)) } }
             "max" -> { val g = a[1]; RealFunction { v -> maxOf(f(v), g(v)) } }
             "sgn" -> one { kotlin.math.sign(it) }
+            "heaviside" -> one { if (it >= 0) 1.0 else 0.0 }
+            // δ is 0 along the curve; the 2D graph draws each impulse as an arrow (see DiracSpikes).
+            "dirac" -> one { 0.0 }
             "erf" -> one { com.example.cas.cas.Statistics.erf(it) }
             "digamma" -> one { com.example.cas.cas.Statistics.digamma(it) }
             // What derivatives of ψ and ζ come to (as on the complex plane, on the real line).

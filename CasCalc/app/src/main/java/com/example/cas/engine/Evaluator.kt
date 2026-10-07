@@ -10,6 +10,7 @@ import com.example.cas.cas.HALF
 import com.example.cas.cas.I
 import com.example.cas.cas.LinearAlgebra
 import com.example.cas.cas.Mat
+import com.example.cas.cas.map
 import com.example.cas.cas.MathError
 import com.example.cas.cas.Num
 import com.example.cas.cas.Numeric
@@ -68,7 +69,15 @@ class Evaluator(
      * equation, or a differential equation) is solved rather than shown back.
      */
     private val solveEquations: Boolean = false,
+    /**
+     * The variable a transform's result is written in, instead of s (Laplace), ω (Fourier) or t
+     * (the inverses): the graphs set it to their x, so ℒ{sin t} draws as a function of x.
+     */
+    private val transformVariable: String? = null,
 ) {
+    /** Inside a transform: step, box and triangle stay as H, rect and tri, for its tables. */
+    private var keepSignals = false
+
     /** What to solve for, when the user picked it (the letters, as many as there are equations). */
     var solveFor: List<String>? = null
 
@@ -121,8 +130,11 @@ class Evaluator(
      */
     fun equations(row: MathRow): Equations? = equations(withPrimes(clean(row)))
 
-    /** The variable a differential equation typed with the d/dt button differentiates by (null: x, or t if it uses t). */
-    private var odeVariable: String? = null
+    /**
+     * The variable a differential equation typed with the d/dt button differentiates by (null:
+     * x, or t if it uses t). Set by the steps to match the answer.
+     */
+    var odeVariable: String? = null
 
     /**
      * Derivatives of a lone letter typed with the derivative button, d/dx(y) or d²/dt²(y), in an
@@ -136,7 +148,8 @@ class Evaluator(
         val out = ArrayList<Node>()
         for (n in items) {
             val d = n as? com.example.cas.editor.Derivative
-            val y = d?.takeIf { !it.partial && it.at.isEmpty }?.body?.items?.filter { text(it) != Formatter.THIN_SPACE }?.singleOrNull()?.let(::text)
+            // (The keypad's derivative key writes ∂; for a lone letter in one variable that is d.)
+            val y = d?.takeIf { it.at.isEmpty }?.body?.items?.filter { text(it) != Formatter.THIN_SPACE }?.singleOrNull()?.let(::text)
             val v = d?.variable?.items?.singleOrNull()?.let(::text) ?: "x"
             val order = d?.order?.items?.joinToString("") { text(it) ?: "?" }?.ifEmpty { "1" }?.toIntOrNull()
             if (d != null && y != null && y.length == 1 && y[0].isLetter() && y != v && y !in CONSTANT_NAMES && y !in variables && order != null && order in 1..4) {
@@ -468,6 +481,8 @@ class Evaluator(
 
         private fun function(f: Func): Expr {
             when (f.name) {
+                // ℒ{f}, ℱ{f} and their inverses (−1 in the raised box).
+                "laplace", "fourier" -> return transform(f)
                 "solve" -> {
                     // Several equations and unknowns are separated by commas: solve(x + y = 3, x − y = 1; x, y).
                     val vars = splitCommas(f.args[1].items).filter { it.isNotEmpty() }.map { variable(MathRow(it.toMutableList())) }
@@ -668,11 +683,50 @@ class Evaluator(
         }
 
         /**
+         * ℒ{f(t)}(s), ℱ{f(t)}(ω), or with −1 in the raised box the inverses, back to t. The input
+         * variable is t (or x, or the expression's one letter); the output is s, ω or t unless
+         * [transformVariable] says otherwise.
+         */
+        private fun transform(f: Func): Expr {
+            if (f.args.size != 2) throw MathError("Write the function in the braces")
+            val inverse = when (val k = f.args[0].items.filter { (it as? com.example.cas.editor.Sym)?.text != Formatter.THIN_SPACE }.joinToString("") { (it as? com.example.cas.editor.Sym)?.text ?: "?" }) {
+                "" -> false
+                "−1", "-1" -> true
+                else -> throw MathError("Leave the raised box empty, or write −1 there for the inverse (not $k)")
+            }
+            val laplace = f.name == "laplace"
+            val body = try { keepSignals = true; eval(f.args[1], env) } finally { keepSignals = false }
+            val vars = body.freeVars()
+            val preferred = if (inverse) listOf(if (laplace) "s" else "ω", "x", "t") else listOf("t", "x")
+            val input = preferred.firstOrNull { it in vars } ?: vars.singleOrNull()
+                ?: if (vars.isEmpty()) preferred[0] else throw MathError("Write the function in ${preferred[0]}")
+            val output = transformVariable ?: if (inverse) "t" else if (laplace) "s" else "ω"
+            val from = Sym(input)
+            // A placeholder for the output while the input letter may still be in use.
+            val to = Sym("$output·")
+            val r = when {
+                laplace && !inverse -> com.example.cas.cas.Transforms.laplace(body, from, to)
+                laplace -> com.example.cas.cas.Transforms.inverseLaplace(body, from, to)
+                !inverse -> com.example.cas.cas.Transforms.fourier(body, from, to)
+                else -> com.example.cas.cas.Transforms.inverseFourier(body, from, to)
+            }
+            return Algebra.simplify(signalsOut(r.subst(to, Sym(output))))
+        }
+
+        /** rect and tri written as the rest of the app writes them; the step H and the impulse δ stay by name. */
+        private fun signalsOut(e: Expr): Expr = when {
+            e is Fn && e.name in setOf("rect", "tri") -> signal(e.name, e.args.map { signalsOut(it) }, expand = true)
+            else -> e.map { signalsOut(it) }
+        }
+
+        /**
          * Waveforms and piecewise functions for signals, written in |x|, ⌊x⌋, sgn, min and max,
          * so they graph, and simplify at numbers.
          */
-        private fun signal(name: String, a: List<Expr>): Expr {
+        private fun signal(name: String, a: List<Expr>, expand: Boolean = false): Expr {
             val x = a[0]
+            // Inside a transform: kept by name, so its tables recognise them.
+            if (keepSignals && !expand && name in setOf("heaviside", "rect", "tri") && a.size == 1) return Fn(name, a)
             fun need(n: Int) { if (a.size != n) throw MathError("$name takes $n values") }
             fun heaviside(t: Expr) = div(add(ONE, fn("sgn", t)), num(2))
             fun clamp(t: Expr, lo: Expr, hi: Expr) = fn("min", fn("max", t, lo), hi)

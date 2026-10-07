@@ -304,9 +304,10 @@ val FunctionTabs: List<FunctionTab> = listOf(
             ),
             listOf(
                 notation(letters("f", "≈", "Σ"), KeyAction.Insert(0) { Func("taylor", listOf(MathRow(), letters("x", "→", "0"), row("5"))) }, "Taylor series"),
-                notation(letters("y", "′"), KeyAction.Sequence(KeyAction.Type("y"), KeyAction.Type("′")), "y prime"),
-                notation(letters("y″"), KeyAction.Sequence(KeyAction.Type("y"), KeyAction.Type("′"), KeyAction.Type("′")), "y double prime"),
-                notation(letters("y′", "=", "f"), KeyAction.Insert(0) { Func("dsolve") }, "solve differential equation"),
+                // ℒ{□} and ℱ{□}, the cursor in the braces; the raised box (−1 for the inverse) is to its left.
+                math(row(Func("laplace", listOf(MathRow(), row("f")))), KeyAction.Insert(1) { Func("laplace", listOf(MathRow(), MathRow())) }, "Laplace transform"),
+                math(row(Func("fourier", listOf(MathRow(), row("f")))), KeyAction.Insert(1) { Func("fourier", listOf(MathRow(), MathRow())) }, "Fourier transform"),
+                math(row(Func("dirac", listOf(row("x")))), KeyAction.Insert(0) { Func("dirac", 1) }, "Dirac delta"),
                 text("∞", KeyAction.Type("∞"), spoken = "infinity"),
             ),
             listOf(

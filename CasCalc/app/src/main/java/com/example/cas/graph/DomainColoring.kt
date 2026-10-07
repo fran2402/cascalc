@@ -128,6 +128,8 @@ object ComplexCompiler {
             "conj" -> one { CD(it.re, -it.im) }
             "arg" -> one { CD(it.arg()) }
             "sgn" -> one { val m = it.abs(); if (m == 0.0) CD(0.0) else CD(it.re / m, it.im / m) }
+            "heaviside" -> one { CD(if (it.re >= 0) 1.0 else 0.0) }
+            "dirac" -> one { CD(0.0) }
             "fact" -> one { ComplexMath.gamma(it + CD(1.0)) }
             "gamma" -> one(ComplexMath::gamma)
             "zeta" -> one(ComplexMath::zeta)

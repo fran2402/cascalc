@@ -91,6 +91,8 @@ object Calculus {
             }
             "abs" -> div(u, fn("abs", u))
             "sgn" -> ZERO
+            // The step jumps at 0: its derivative is the impulse.
+            "heaviside" -> Fn("dirac", listOf(u))
             // d/du erf u = 2/√π e^(−u²)
             "erf" -> div(mul(TWO, pow(E, neg(pow(u, TWO)))), sqrt(PI))
             "erfi" -> div(mul(TWO, pow(E, pow(u, TWO))), sqrt(PI))

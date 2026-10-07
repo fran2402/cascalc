@@ -861,7 +861,15 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
                     val y0 = if (sc.logX) Double.NaN else fx(0.0)
                     if (y0.isFinite() && view.xMin < 0 && view.xMax > 0) points += Special(0.0, y0, "y-intercept", f.colorIndex)
                 }
-                out += Plotted(f, Plot2D.sample(fx, view, samples), points)
+                // Impulses c·δ(x − a): arrows of height c at x = a, standing on the rest of the curve.
+                val arrows = k.impulses.mapNotNull { (at, height) ->
+                    val a = vm.call(g, at, 0.0); val h = vm.call(g, height, 0.0)
+                    if (!a.isFinite() || !h.isFinite() || h == 0.0) null else {
+                        val base = vm.call(g, k.f, a).takeIf { it.isFinite() } ?: 0.0
+                        com.example.cas.graph.VectorField.Arrow(a, base, a, base + h, kotlin.math.abs(h))
+                    }
+                }
+                out += Plotted(f, Plot2D.sample(fx, view, samples), points, arrows = arrows)
             }
             is Plot2DKind.Polar -> {
                 val r = { t: Double -> vm.call(g, k.r, t).let { rr -> if (vm.allowed(g, rr * kotlin.math.cos(t), rr * kotlin.math.sin(t), theta = t, r = rr)) rr else Double.NaN } }

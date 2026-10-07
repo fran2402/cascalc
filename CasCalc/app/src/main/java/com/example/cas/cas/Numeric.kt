@@ -163,6 +163,9 @@ object Numeric {
                 CD(p - q * kotlin.math.floor(p / q))
             }
             "sgn" -> CD(kotlin.math.sign(r()))
+            "heaviside" -> CD(if (r() >= 0) 1.0 else 0.0)
+            // δ: 0 away from its point (infinite there).
+            "dirac" -> CD(if (r() == 0.0) Double.POSITIVE_INFINITY else 0.0)
             "erf" -> CD(Statistics.erf(r()))
             "digamma" -> CD(Statistics.digamma(r()))
             "trigamma" -> ComplexMath.trigamma(x)

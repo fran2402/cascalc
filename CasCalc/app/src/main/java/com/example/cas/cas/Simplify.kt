@@ -370,6 +370,14 @@ object Simplify {
             "Re", "Im", "conj" -> complexPart(name, x)
             "arg" -> if (x.isConstant && x !is Mat) splitComplex(x).let { (re, im) -> exactArg(re, im) } else Fn(name, args)
             "min", "max" -> minMax(name, args[0], args[1])
+            // The step at a number: 1 from 0 on, 0 before; the impulse is 0 away from 0.
+            "heaviside" -> if (x.isConstant && x !is Mat) runCatching { if (Numeric.real(x) >= 0) ONE else ZERO }.getOrDefault(Fn(name, args)) else Fn(name, args)
+            "dirac" -> when {
+                x.isConstant && x !is Mat && runCatching { Numeric.real(x) != 0.0 }.getOrDefault(false) -> ZERO
+                // δ is even: δ(−u) = δ(u), written with the leading sign positive.
+                x is Mul && (x.factors.first() as? Num)?.q?.signum == -1 -> Fn(name, listOf(product(listOf(MINUS_ONE, x))))
+                else -> Fn(name, args)
+            }
             "sgn" -> when {
                 x is Num -> Num(x.q.signum.toLong())
                 x.isConstant && x !is Mat -> Num(kotlin.math.sign(Numeric.real(x)).toLong())
@@ -420,7 +428,7 @@ object Simplify {
 
     private val NUMERIC_OK = setOf(
         "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh", "asinh", "acosh", "atanh",
-        "ln", "log", "abs", "floor", "ceil", "round", "Re", "Im", "conj", "arg", "fact", "binom", "mod", "min", "max", "sgn", "frac", "gamma", "zeta", "erf", "perm", "invnorm", "digamma", "zetaprime", "lambertw", "besselj", "bessely", "hurwitz", "polylog",
+        "ln", "log", "abs", "floor", "ceil", "round", "Re", "Im", "conj", "arg", "fact", "binom", "mod", "min", "max", "sgn", "heaviside", "frac", "gamma", "zeta", "erf", "perm", "invnorm", "digamma", "zetaprime", "lambertw", "besselj", "bessely", "hurwitz", "polylog",
         "si", "ci", "shi", "chi", "ei", "li", "erfi", "fresnels", "fresnelc", "gammainc", "ellipticf", "elliptice",
     )
 
