@@ -203,6 +203,24 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (8 October, implicit differentiation, series convergence, hypothesis tests)
+
+- **Implicit differentiation**: the derivative key around an equation (d/dx of x^2 + y^2 = 25)
+  differentiates with y as a function of x and gives y' = -x/y. A point (3, 4) in the lower box
+  gives the slope there; order 2 gives y'' over one denominator. The steps show the chain rule,
+  both sides differentiated, the y' terms collected and the division.
+- **Series convergence**: an infinite sum with no closed form now says whether it converges,
+  with a chip naming the test (divergence, geometric, p-series, alternating, ratio, root, limit
+  comparison, integral). Convergent ones show their numerical sum; divergent ones no longer show
+  a meaningless partial sum. The steps work through the deciding test.
+- **Limits**: fixed lim 1/ln x as x goes to infinity (and similar), which came out infinite
+  instead of 0.
+- **Hypothesis tests** in the data table (Data tab, Test, or a column's menu): one-sample,
+  two-sample (Welch) and paired t-tests, chi-squared tests of independence and goodness of fit,
+  and the one-proportion z-test. The dialog shows H0 and H1, the distribution with the rejected
+  tails shaded and the observed value marked, the statistic, degrees of freedom, p-value,
+  confidence interval and the decision at the chosen alpha. Values match SciPy's.
+
 ## Latest changes (7 October, graph previews beside answers)
 
 - **Graph previews**: when an answer is a function of one letter (x^2 - 4, e^(-x/5) sin x, a

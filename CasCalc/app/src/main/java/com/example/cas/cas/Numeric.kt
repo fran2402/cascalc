@@ -72,7 +72,9 @@ object Numeric {
         is Mul -> e.factors.fold(CD(1.0)) { a, t -> a * ev(t, env) }
         is Pow -> ev(e.base, env).pow(ev(e.exp, env))
         // Held Σ and Π bind their variable, so they're added up before the arguments are evaluated.
-        is Fn -> if ((e.name == "sum" || e.name == "product") && e.args.size == 4) heldSum(e, env) else fn(e, e.args.map { ev(it, env) })
+        is Fn -> if ((e.name == "sum" || e.name == "product") && e.args.size == 4) heldSum(e, env)
+            else if (e.name == "diverges") throw MathError("The series diverges")
+            else fn(e, e.args.map { ev(it, env) })
         else -> throw MathError("That isn't a number")
     }
 

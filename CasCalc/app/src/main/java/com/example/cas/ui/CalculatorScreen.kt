@@ -555,6 +555,14 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                 Spacer(Modifier.width(12.dp))
             }
             Row(Modifier.weight(1f), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+            // A series with no closed form: whether it converges, and by which test.
+            val series = rememberSeriesVerdict(item.answer.value)
+            val diverges = (item.answer.value as? com.example.cas.cas.Fn)?.name == "diverges"
+            if (series != null) {
+                SeriesChip(series)
+                if (!diverges) Spacer(Modifier.width(12.dp))
+            }
+            if (!diverges) {
             if (!item.answer.isStatement) {
                 MathText(if (item.answer.isApproximate || item.showApprox) "\$\\approx\$" else "\$=\$", color = colors.primary, style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = answerSize), mathScale = 1f)
                 Spacer(Modifier.width(12.dp))
@@ -570,6 +578,7 @@ internal fun HistoryCard(item: HistoryItem, vm: CalculatorViewModel, onGraph: (G
                         onClick = { use() },
                     ),
                 )
+            }
             }
             }
         }

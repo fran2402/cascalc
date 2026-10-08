@@ -2153,6 +2153,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
     }
     // A column's statistics, or its fill with a series, being shown.
     var statsFor by remember(f) { mutableStateOf<Int?>(null) }
+    var testFor by remember(f) { mutableStateOf<Int?>(null) }
     var seriesFor by remember(f) { mutableStateOf<Int?>(null) }
     /** The column's first formula copied down to the last row, its references moving with it. */
     fun fillFormulaDown(c: Int) {
@@ -2183,6 +2184,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
         record(); quiet[0] = true
         try { pasteClipboard() } finally { quiet[0] = false }
     }
+    testFor?.takeIf { it in cells.indices }?.let { c -> HypothesisDialog(table(), c, names.toList(), onDismiss = { testFor = null }) }
     statsFor?.takeIf { it in cells.indices }?.let { c ->
         ColumnStatsDialog(names[c].ifBlank { "Column ${c + 1}" }, table().stats(c), onDismiss = { statsFor = null })
     }
@@ -2539,6 +2541,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                 ColumnAction(TableIcons.SortDown, "Sort down") { close(); sortDown(c) },
                 ColumnAction(TableIcons.Filter, if (c in filters) "Change filter" else "Filter", on = c in filters) { close(); filterFor = c },
                 ColumnAction(TableIcons.Statistics, "Statistics") { close(); statsFor = c },
+                ColumnAction(TableIcons.HypothesisTest, "Hypothesis test") { close(); testFor = c },
                 ColumnAction(TableIcons.FormatFixed, "Number format") { close(); formatFor = c },
                 ColumnAction(TableIcons.ColorScale, "Color scale", on = fmt.colorScale) { record(); while (fmts.size <= c) fmts.add(com.example.cas.graph.ColumnFormat()); fmts[c] = fmt.copy(colorScale = !fmt.colorScale) },
                 ColumnAction(TableIcons.DataBars, "Data bars", on = fmt.dataBars) { record(); while (fmts.size <= c) fmts.add(com.example.cas.graph.ColumnFormat()); fmts[c] = fmt.copy(dataBars = !fmt.dataBars) },
@@ -2807,6 +2810,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                                 ToolGroup("Analysis", listOf(
                                     TableTool(TableIcons.Insights, "Insights") { insightsFor = c },
                                     TableTool(TableIcons.Statistics, "Statistics") { statsFor = c },
+                                    TableTool(TableIcons.HypothesisTest, "Test") { testFor = c },
                                     TableTool(TableIcons.NewColumn, "New column", menu = derivedMenu),
                                 )),
                                 ToolGroup("Share", listOf(

@@ -377,7 +377,18 @@ object Puiseux {
             fun signAt(c: Expr): Int? = runCatching { Numeric.eval(c.subst(L, Num(-1000))) }.getOrNull()?.takeIf { it.isReal }?.let { if (it.re > 0) 1 else if (it.re < 0) -1 else null }
             return when {
                 e.signum > 0 -> ZERO
-                e.signum < 0 || c.contains { it == L } -> when (signAt(c)) { 1 -> INF; -1 -> neg(INF); else -> null }
+                e.signum < 0 -> when (signAt(c)) { 1 -> INF; -1 -> neg(INF); else -> null }
+                // A constant term in L = ln t: its own limit as L → −∞ (1/ln x → 0, 2 + 1/ln x → 2, ln x → ∞).
+                c.contains { it == L } -> {
+                    val w = Sym("\u0001w")
+                    val l = runCatching { Calculus.limit(c.subst(L, w), w, neg(INF)) }.getOrNull()
+                    when {
+                        l == null || l.contains { it is Fn && it.name == "lim" } -> when (signAt(c)) { 1 -> INF; -1 -> neg(INF); else -> null }
+                        Calculus.isInfinite(l) -> l
+                        s.order != null && s.order.signum <= 0 -> null
+                        else -> Algebra.simplify(l)
+                    }
+                }
                 // A constant term known exactly only if the error is smaller.
                 s.order != null && s.order.signum <= 0 -> null
                 else -> Algebra.simplify(c)

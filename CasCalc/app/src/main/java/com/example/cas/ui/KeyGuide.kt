@@ -187,17 +187,20 @@ object KeyGuides {
             ex(f("acoth", "2"))),
         // ---- Calculus
         "partial derivative" to g("""The rate of change of a function of several variables with respect to one of them, the others held constant: \(\frac{\partial}{\partial y}\left(x^2 y\right) = x^2\).""",
-            s("Tap it and type the function.", """Tap the \(x\) in \(\partial x\) to change the variable."""),
-            ex(d(m("x", p("2"), "y"), v = "y", partial = true)), ex(d(m(f("sin", "xy")), v = "x", partial = true))),
+            s("Tap it and type the function.", """Tap the \(x\) in \(\partial x\) to change the variable.""", """Around an equation it differentiates implicitly, with \(y\) a function of \(x\); a point \((a, b)\) in the lower box gives the slope there."""),
+            ex(d(m("x", p("2"), "y"), v = "y", partial = true)), ex(d(m(f("sin", "xy")), v = "x", partial = true)),
+            ex(d(m("x", p("2"), "+y", p("2"), "=25"), v = "x", partial = true), note = """Implicit: \(y' = -\frac{x}{y}\)."""),
+            ex(d(m("xy=1"), v = "x", partial = true))),
         "integral" to g("""The definite integral \(\int_a^b f(x)\,dx = F(b) - F(a)\), where \(F' = f\): the signed area under \(f\). Without limits it gives the antiderivative \(F(x) + C\).""",
             s("Tap it and type the function.", "Fill the limits, or leave them empty.", """\(\infty\) works as a limit; long-press enter for the steps."""),
             ex(int(m("x", p("2")), lo = "0", hi = "1")), ex(int(m("x", "e", p("x")))), ex(int(m("e", p("−x", p("2"))), lo = "−∞", hi = "∞"))),
         "limit" to g("""The value \(L = \lim_{x \to a} f(x)\) that \(f(x)\) approaches as \(x \to a\); \(a\) may be \(\pm\infty\).""",
             s("Tap it and type the expression.", """Change \(x \to 0\) underneath; \(\infty\) is allowed."""),
             ex(lim(fr(f("sin", "x"), "x"), "x→0")), ex(lim(m("(1+", fr("1", "n"), ")", p("n")), "n→∞")), ex(lim(fr("1", "x"), m("x→0", p("+"))), note = "From the right.")),
-        "sum" to g("""The finite or infinite series \(\sum_{k=a}^{b} f(k) = f(a) + f(a + 1) + \cdots + f(b)\). Closed forms are found where they exist.""",
+        "sum" to g("""The finite or infinite series \(\sum_{k=a}^{b} f(k) = f(a) + f(a + 1) + \cdots + f(b)\). Closed forms are found where they exist; an infinite series without one is tested for convergence (ratio, root, comparison, integral and alternating series tests).""",
             s("Fill the variable and its start below, the end above.", "Type the term."),
-            ex(sum("k", "1", "100", "k")), ex(sum("n", "1", "∞", fr("1", m("n", p("2"))))), ex(sum("k", "0", "n", m("2", p("k"))))),
+            ex(sum("k", "1", "100", "k")), ex(sum("n", "1", "∞", fr("1", m("n", p("2"))))), ex(sum("k", "0", "n", m("2", p("k")))),
+            ex(sum("n", "2", "∞", fr("1", m("n", f("ln", "n")))), note = "Diverges, by the integral test."), ex(sum("n", "1", "∞", fr(m("n!"), m("n", p("n")))), note = "Converges, by the ratio test.")),
         "product" to g("""The product \(\prod_{k=a}^{b} f(k) = f(a) \cdot f(a + 1) \cdots f(b)\).""",
             s("Fill the variable and its start below, the end above.", "Type the factor."),
             ex(prod("k", "1", "5", "k")), ex(prod("k", "1", "4", m("1+", fr("1", "k"))), note = "It telescopes to 5.")),
@@ -647,7 +650,11 @@ object KeyGuides {
     fun answer(e: Example): Pair<MathRow, Boolean>? {
         if (!e.answer) return null
         val angle = if (e.degrees) com.example.cas.engine.AngleUnit.Degrees else com.example.cas.engine.AngleUnit.Radians
-        val a = com.example.cas.engine.Formatter.answer(com.example.cas.engine.Evaluator(angle, solveEquations = true).evaluate(MathCodec.copy(e.row)))
+        val value = com.example.cas.engine.Evaluator(angle, solveEquations = true).evaluate(MathCodec.copy(e.row))
+        // A divergent series has no value to show: the card says so.
+        if (value is com.example.cas.cas.Fn && value.name == "diverges")
+            return MathRow(mutableListOf(com.example.cas.editor.Sym(com.example.cas.cas.CustomSymbol("diverges", upright = "u").encode()))) to false
+        val a = com.example.cas.engine.Formatter.answer(value)
         val same = com.example.cas.engine.Latex.of(a.exact) == com.example.cas.engine.Latex.of(e.row)
         return when {
             !same -> a.exact to a.isApproximate

@@ -392,6 +392,17 @@ You type
 Answer	
 Start a cell with =. Cells are A1, B2…; ranges A1:A10 or whole columns A:A; $A$1 stays put when filled down. Operators + − * / ^ % & and comparisons = <> < > <= >=. Text goes in "quotes".	
 Search, e.g. lookup, NORM, date	
+Hypothesis test	
+Columns of counts	
+First column	
+Expected counts (optional; else equal shares)	
+Second column	
+Alternative	
+Choose α between 0 and 1	
+Reject H₀	
+Keep H₀	
+p < α: the data are unlikely if H₀ were true.	
+p ≥ α: the data are consistent with H₀.	
 In degrees.	
 Type this example	
 Try it	
@@ -410,6 +421,8 @@ The saved graph will be removed. The graph on screen isn't affected.
 Save a graph to keep its lines, colors and sliders, and open it again later.	
 Duplicate	
 No lines	
+Converges	
+Diverges	
 Solve for	
 It has several letters. Which one should it be solved for?	
 Solve	
@@ -721,6 +734,7 @@ Fill blanks
 To numbers	
 Unique	
 Analysis	
+Test	
 New column	
 Share CSV	
 Copy CSV	

@@ -108,7 +108,8 @@ object Formatter {
         // For formulas like xeˣ − eˣ it would just turn e into 2.718….
         val approx = if (numeric(e)) runCatching { approxRow(e) }.getOrNull() else null
         val useful = approx != null && MathCodec.encode(approx) != MathCodec.encode(exact)
-        return Answer(e, exact, if (useful) approx else null, preferApprox = useful && long(e))
+        val heldSeries = e is Fn && e.name == "sum" && e.args.size == 4 && e.args[3] == com.example.cas.cas.INF
+        return Answer(e, exact, if (useful) approx else null, preferApprox = useful && (long(e) || heldSeries))
     }
 
     /** Whether [e] has a fraction too long to read at a glance (12345678901/7): its decimal is shown first. */
@@ -183,6 +184,9 @@ object Formatter {
                     if (e.name == "sum") com.example.cas.editor.BigOpKind.Sum else com.example.cas.editor.BigOpKind.Product,
                     row(e.args[1]), row(e.args[2]), row(e.args[3]), row(e.args[0]),
                 ))
+            } else if (e.name == "diverges" && e.args.size == 1) {
+                // A divergent series: drawn as typed; the card says it diverges.
+                append(out, e.args[0])
             } else if (e.name == "contour" && e.args.size == 4) {
                 // A held ∮: the circle |z − a| = r underneath, as typed.
                 val circle = com.example.cas.cas.Eq(com.example.cas.cas.Fn("abs", listOf(com.example.cas.cas.sub(e.args[1], e.args[2]))), e.args[3])

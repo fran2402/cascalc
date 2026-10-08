@@ -142,8 +142,8 @@ object Steps {
         nested(row, angle)?.let { return@runCatching it }
         when (val n = target(row)) {
             is Integral -> integral(n, angle)
-            is com.example.cas.editor.Derivative -> derivative(n, angle)
-            is com.example.cas.editor.BigOp -> if (n.kind == com.example.cas.editor.BigOpKind.Sum) sum(n, angle) else product(n, angle)
+            is com.example.cas.editor.Derivative -> if (n.body.items.any { (it as? SymNode)?.text == "=" }) implicit(n, angle) else derivative(n, angle)
+            is com.example.cas.editor.BigOp -> if (n.kind == com.example.cas.editor.BigOpKind.Sum) (convergence(n, angle) ?: sum(n, angle)) else product(n, angle)
             is Func -> when (n.name) {
                 "lim" -> limit(n, angle)
                 "residue" -> residue(n, angle)
@@ -417,6 +417,82 @@ object Steps {
             return steps
         }
         return listOf(Step("Substitution", "Solve one equation for one unknown and put that into the others, until one unknown is left; then work back.", null))
+    }
+
+    /**
+     * d/dx of an equation: both sides differentiated with y as y(x) (the chain rule gives y′ for
+     * each y), the y′ terms collected, then divided out; at a point, the values put in.
+     */
+    private fun implicit(n: com.example.cas.editor.Derivative, angle: AngleUnit): Solution? {
+        val work = Evaluator(angle).implicitWork(com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n))).items.single() as com.example.cas.editor.Derivative)
+        val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
+        val answer = ans(question, work.answer)
+        val x = work.x; val y = work.y
+        val yp = Sym(y.name + "′")
+        // The total derivative of one side: ∂/∂x, plus ∂/∂y times y′.
+        fun total(e: Expr) = Algebra.simplify(add(Calculus.diff(e, x), mul(Calculus.diff(e, y), yp)))
+        val steps = ArrayList<Step>()
+        steps += Step("\$${lx(y)}\$ depends on \$${lx(x)}\$", "Treat \$${lx(y)}\$ as a function \$${lx(y)}(${lx(x)})\$. By the chain rule, differentiating anything in \$${lx(y)}\$ gives its derivative in \$${lx(y)}\$ times \$${lx(yp)}\$: \$\\frac{d}{d${lx(x)}}${lx(y)}^2 = 2${lx(y)}\\,${lx(yp)}\$.", null)
+        steps += Step("Differentiate both sides", null, ex(Eq(total(work.lhs), total(work.rhs))))
+        val fy = work.fy; val fx = work.fx
+        steps += Step("Collect the \$${lx(yp)}\$ terms", "Everything with \$${lx(yp)}\$ on the left, the rest on the right.", ex(Eq(Algebra.simplify(mul(fy, yp)), Algebra.simplify(neg(fx)))))
+        val first = Algebra.simplify(neg(div(fx, fy)))
+        steps += Step("Divide by \$${lx(fy)}\$", if (work.order == 1 && work.at == null) null else "This is \$${lx(yp)}\$.", ex(Eq(yp, first)))
+        if (work.order > 1) steps += Step("Differentiate again", "Each further derivative differentiates the one before the same way, putting in \$${lx(yp)} = ${lx(first)}\$ wherever \$${lx(yp)}\$ appears.", null)
+        work.at?.let { (a, b) -> steps += Step("At \$(${lx(a)}, ${lx(b)})\$", "Put in \$${lx(x)} = ${lx(a)}\$ and \$${lx(y)} = ${lx(b)}\$.", null) }
+        steps += Step("Result", null, answer, Kind.Result)
+        return Solution("Implicit differentiation", steps, answer)
+    }
+
+    /**
+     * Σ to ∞ with no closed form: the test that decides whether it converges, worked through
+     * (the limit it turns on, the comparison, the integral), then the verdict.
+     */
+    private fun convergence(n: com.example.cas.editor.BigOp, angle: AngleUnit): Solution? {
+        val question = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(n)))
+        val value = runCatching { Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question)) }.getOrNull() ?: return null
+        val held = (if (value is Fn && value.name == "diverges") value.args[0] else value) as? Fn ?: return null
+        if (held.name != "sum" || held.args.size != 4 || held.args[3] != com.example.cas.cas.INF) return null
+        val (a, kE, lo) = held.args
+        val k = kE as? Sym ?: return null
+        val v = com.example.cas.cas.Convergence.of(a, k, lo) ?: return null
+        val kk = lx(k); val ak = "a_{$kk}"
+        val steps = ArrayList<Step>()
+        steps += Step("The terms", "\$$ak = ${lx(a)}\$, from \$$kk = ${lx(lo)}\$. There's no closed form for the sum, so the question is whether the partial sums settle.", null)
+        when (v.test) {
+            com.example.cas.cas.Convergence.Test.Divergence -> {
+                steps += Step("Divergence test", "A series can only converge if its terms go to \$0\$.", v.limit?.let { line(Func("lim", listOf(ex(a), line(k.name, "→", "∞"))), "=", it) })
+                steps += Step("The terms don't shrink to 0", if (v.limit == null) "\$|$ak| = ${lx(v.body!!)}\$ doesn't go to \$0\$, so the signs alternate around values that stay apart." else "So the series diverges.", null)
+            }
+            com.example.cas.cas.Convergence.Test.Geometric -> steps += Step("Geometric series", "Each term is the one before times \$r = ${lx(v.ratio!!)}\$. A geometric series converges exactly when \$|r| < 1\$" + (if (v.converges) ": here it is." else ": here \$|r| \\ge 1\$."), null)
+            com.example.cas.cas.Convergence.Test.PSeries -> steps += Step("p-series", "\$\\sum \\frac{1}{$kk^p}\$ converges exactly when \$p > 1\$; here \$p = ${lx(v.power!!)}\$.", null)
+            com.example.cas.cas.Convergence.Test.Alternating -> {
+                steps += Step("Alternating signs", "\$$ak = (-1)^{$kk}\\,b_{$kk}\$ with \$b_{$kk} = ${lx(v.body!!)}\$.", null)
+                steps += Step("Alternating series test", "\$b_{$kk}\$ decreases and tends to \$0\$, so the partial sums close in on a limit: each step overshoots by less than the one before.", null)
+            }
+            com.example.cas.cas.Convergence.Test.Ratio -> {
+                steps += Step("Ratio of neighbouring terms", null, line(com.example.cas.editor.Frac(line(a.subst(k, com.example.cas.cas.add(k, com.example.cas.cas.ONE))), line(a)), "=", v.ratio!!))
+                steps += Step("Its limit", null, line(Func("lim", listOf(ex(v.ratio), line(k.name, "→", "∞"))), "=", v.limit!!))
+                steps += Step("Ratio test", if (v.converges) "The limit is below \$1\$: far out, each term is at most a fixed fraction of the one before, as in a convergent geometric series." else "The limit is above \$1\$: the terms eventually grow.", null)
+            }
+            com.example.cas.cas.Convergence.Test.Root -> {
+                steps += Step("The \$$kk\$-th root of the terms", null, line(Func("lim", listOf(ex(com.example.cas.cas.Convergence.kthRoot(a, k)), line(k.name, "→", "∞"))), "=", v.limit!!))
+                steps += Step("Root test", if (v.converges) "Below \$1\$: the terms shrink at least as fast as a convergent geometric series." else "Above \$1\$: the terms grow.", null)
+            }
+            com.example.cas.cas.Convergence.Test.Comparison -> {
+                val p = v.power!!
+                steps += Step("Compare with \$\\frac{1}{$kk^{${lx(p)}}}\$", "For large \$$kk\$ the terms behave like \$\\frac{1}{$kk^{${lx(p)}}}\$:", line(Func("lim", listOf(ex(com.example.cas.cas.mul(a, com.example.cas.cas.pow(k, p))), line(k.name, "→", "∞"))), "=", v.limit!!))
+                steps += Step("Limit comparison test", "The limit is finite and not \$0\$, so the series does what \$\\sum \\frac{1}{$kk^{${lx(p)}}}\$ does, and that p-series " + (if (v.converges) "converges (\$p > 1\$)." else "diverges (\$p \\le 1\$)."), null)
+            }
+            com.example.cas.cas.Convergence.Test.Integral -> {
+                steps += Step("Integral test", "The terms are positive and decreasing, so the series and \$\\int_{${lx(lo)}}^{\\infty} ${lx(a)}\\,d$kk\$ converge or diverge together.", line(int(a, k, lo, com.example.cas.cas.INF), "=", v.limit!!))
+            }
+        }
+        val verdict = if (v.converges) "The series converges" else "The series diverges"
+        val approx = if (v.converges) runCatching { Numeric.real(held) }.getOrNull()?.takeIf { it.isFinite() } else null
+        val answer = if (approx != null) line(question, "≈", com.example.cas.cas.Flt(approx)) else question
+        steps += Step(verdict, "By the ${v.test.label}." + (if (approx != null) " Its sum, added up numerically:" else ""), if (approx != null) answer else null, Kind.Result)
+        return Solution(verdict.removePrefix("The series ").replaceFirstChar { it.uppercase() } + " · " + v.test.label, steps, answer)
     }
 
     /**

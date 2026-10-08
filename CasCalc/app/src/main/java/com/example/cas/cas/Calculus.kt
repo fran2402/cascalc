@@ -972,7 +972,11 @@ object Calculus {
         // lim_{n→∞} Σ 1/k² = ζ(2)); the display and numerics handle a held sum.
         // Σ to ∞: a closed form from the shape of the term (ζ, η, polylogarithms, eˣ, sin x…),
         // else kept and added up numerically.
-        if (!product && isPlusInfinity(hi)) return Series.infinite(body, k, lo) ?: held(body, k, lo, hi, product)
+        // With no closed form, a divergent one says so (its partial sums mean nothing); a
+        // convergent one is kept and added up numerically.
+        if (!product && isPlusInfinity(hi)) return Series.infinite(body, k, lo) ?: held(body, k, lo, hi, product).let { h ->
+            if (Convergence.of(body, k, lo)?.converges == false) Fn("diverges", listOf(h)) else h
+        }
         if (product || loN == null) return held(body, k, lo, hi, product)
         // Geometric: Σ_{k=a}^{b} c·rᵏ = c(rᵃ − rᵇ⁺¹)/(1 − r), so lim_{b→∞} works for |r| < 1.
         geometricSum(body, k, lo, hi)?.let { return it }

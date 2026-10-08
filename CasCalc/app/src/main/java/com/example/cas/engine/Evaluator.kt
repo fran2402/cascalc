@@ -162,6 +162,9 @@ class Evaluator(
         return if (changed) out else items
     }
 
+    /** d/dx of an equation, worked out implicitly (for the steps). */
+    fun implicitWork(d: Derivative): ImplicitWork = RowParser(emptyList(), emptyMap()).implicitWork(d)
+
     /** ℒ{…} or ℱ{…} worked out term by term, with the rules used (for the steps). */
     fun transformWork(f: com.example.cas.editor.Func): TransformWork = RowParser(emptyList(), emptyMap()).transformWork(f)
 
@@ -454,6 +457,8 @@ class Evaluator(
         /** Symbolic d/dx; at a point, falls back to a numerical derivative if the symbolic one fails. */
         private fun derivative(n: Derivative): Expr {
             val x = variable(n.variable)
+            // d/dx of an equation (x² + y² = 25): implicit differentiation, y as y(x).
+            if (n.body.items.any { (it as? com.example.cas.editor.Sym)?.text == "=" }) return implicitWork(n).answer
             val body = eval(n.body, env + (x.name to x))
             val order = if (n.order.isEmpty) 1 else
                 ((eval(n.order, env) as? Num)?.q?.takeIf { it.isInteger && it.signum > 0 }?.num?.toInt()
@@ -471,6 +476,50 @@ class Evaluator(
             val point = Numeric.real(at)
             if (order != 1) symbolic.getOrThrow()
             return com.example.cas.cas.Flt(com.example.cas.cas.Numerics.derivative({ t -> Numeric.real(body, mapOf(x.name to t)) }, point))
+        }
+
+        /**
+         * Implicit differentiation of F(x, y) = 0 (F = left − right), y a function of x: y′ =
+         * −F_x/F_y, each further order the total derivative ∂/∂x + y′ ∂/∂y of the one before.
+         * The dependent letter is y if it's there, else the one other letter. A point (a, b) in the
+         * "at" box gives the slope there.
+         */
+        fun implicitWork(n: Derivative): ImplicitWork {
+            val x = variable(n.variable)
+            val items = n.body.items.toList()
+            val cut = items.indexOfFirst { (it as? com.example.cas.editor.Sym)?.text == "=" }
+            val parts = if (cut < 0 || items.count { (it as? com.example.cas.editor.Sym)?.text == "=" } != 1) emptyList() else listOf(items.subList(0, cut), items.subList(cut + 1, items.size))
+            if (parts.size != 2 || parts.any { it.isEmpty() }) throw MathError("Write one equation, like \$x^2 + y^2 = 25\$")
+            val others = parts.flatMap { p -> RowParser(p, env + (x.name to x)).parse().freeVars() }.distinct().filter { it != x.name && it !in CONSTANT_NAMES }
+            val y = Sym(if ("y" in others) "y" else others.singleOrNull() ?: throw MathError(if (others.isEmpty()) "The equation needs a second letter that depends on \$${x.name}\$" else "Several letters could depend on \$${x.name}\$: use \$y\$ for the one that does"))
+            val bound = env + (x.name to x) + (y.name to y)
+            val lhs = RowParser(parts[0], bound).parse(); val rhs = RowParser(parts[1], bound).parse()
+            val order = if (n.order.isEmpty) 1 else
+                ((eval(n.order, env) as? Num)?.q?.takeIf { it.isInteger && it.signum > 0 }?.num?.toInt()
+                    ?: throw MathError("The order of a derivative must be a whole number"))
+            if (order > 4) throw MathError("Use an order up to 4 for implicit derivatives")
+            val f = Algebra.simplify(com.example.cas.cas.sub(lhs, rhs))
+            val fx = Algebra.simplify(Calculus.diff(f, x)); val fy = Algebra.simplify(Calculus.diff(f, y))
+            if (fy == com.example.cas.cas.ZERO) throw MathError("\$${y.name}\$ doesn't appear in the equation")
+            val first = Algebra.simplify(com.example.cas.cas.neg(com.example.cas.cas.div(fx, fy)))
+            var d = first
+            repeat(order - 1) { d = Algebra.simplify(com.example.cas.cas.add(Calculus.diff(d, x), com.example.cas.cas.mul(Calculus.diff(d, y), first))) }
+            if (order == 2) {
+                // y″ = −(F_xx F_y² − 2F_xy F_x F_y + F_yy F_x²)/F_y³: one fraction, as written by hand.
+                runCatching {
+                    val num = Algebra.expand(com.example.cas.cas.add(com.example.cas.cas.mul(Calculus.diff(fx, x), com.example.cas.cas.pow(fy, 2)),
+                        com.example.cas.cas.mul(com.example.cas.cas.num(-2), Calculus.diff(fx, y), fx, fy), com.example.cas.cas.mul(Calculus.diff(fy, y), com.example.cas.cas.pow(fx, 2))))
+                    com.example.cas.cas.neg(com.example.cas.cas.div(Algebra.factor(num), Algebra.factor(Algebra.expand(com.example.cas.cas.pow(fy, 3)))))
+                }.getOrNull()?.takeIf { com.example.cas.cas.Printer.plain(it).length <= com.example.cas.cas.Printer.plain(d).length + 4 }?.let { d = it }
+            }
+            val name = Sym(y.name + "′".repeat(order))
+            val at = if (n.at.isEmpty) null else {
+                val pts = splitCommas(n.at.items.filter { (it as? com.example.cas.editor.Sym)?.text !in setOf("(", ")") }).filter { it.isNotEmpty() }
+                if (pts.size != 2) throw MathError("Write the point as \$(a, b)\$: both \$${x.name}\$ and \$${y.name}\$")
+                eval(MathRow(pts[0].toMutableList()), env) to eval(MathRow(pts[1].toMutableList()), env)
+            }
+            val value = at?.let { (a, b) -> Algebra.simplify(d.subst(x, a).subst(y, b)) } ?: d
+            return ImplicitWork(x, y, lhs, rhs, fx, fy, order, at, value, Eq(name, value))
         }
 
         private fun integral(n: Integral): Expr {
@@ -984,5 +1033,11 @@ class TransformWork(
 ) {
     class Term(val term: Expr, val value: Expr, val rules: List<String>)
 }
+
+/** An implicit derivative's working, for the answer and the steps: see [Evaluator.implicitWork]. */
+class ImplicitWork(
+    val x: Sym, val y: Sym, val lhs: Expr, val rhs: Expr, val fx: Expr, val fy: Expr, val order: Int,
+    val at: Pair<Expr, Expr>?, val value: Expr, val answer: Expr,
+)
 
 class ChooseUnknowns(val candidates: List<String>, val count: Int) : RuntimeException("Choose what to solve for")
