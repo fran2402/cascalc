@@ -95,7 +95,7 @@ object MoreMath {
             "powmod" -> { need(name, a, 3); val m = i(2); if (m.signum() <= 0) throw MathError("The modulus must be positive"); big(i(0).modPow(i(1), m)) }
             "modinv" -> { need(name, a, 2); val m = i(1); if (m.signum() <= 0) throw MathError("The modulus must be positive")
                 try { big(i(0).modInverse(m)) } catch (e: ArithmeticException) { throw MathError("${i(0)} has no inverse mod $m") } }
-            "isqrt" -> { need(name, a, 1); val n = i(0); if (n.signum() < 0) throw MathError("isqrt takes a number ≥ 0"); big(n.sqrt()) }
+            "isqrt" -> { need(name, a, 1); val n = i(0); if (n.signum() < 0) throw MathError("isqrt takes a number ≥ 0"); big(isqrt(n)) }
             "iroot" -> {
                 need(name, a, 2)
                 val n = i(0); val k = i(1).toInt()
@@ -115,7 +115,7 @@ object MoreMath {
             "shl" -> { need(name, a, 2); big(i(0).shiftLeft(i(1).toInt().coerceIn(-100_000, 100_000))) }
             "shr" -> { need(name, a, 2); big(i(0).shiftRight(i(1).toInt().coerceIn(-100_000, 100_000))) }
             "jacobi" -> { need(name, a, 2); Num(jacobi(i(0), i(1)).toLong()) }
-            "issquare" -> { need(name, a, 1); val n = i(0); Num(if (n.signum() >= 0 && n.sqrt().pow(2) == n) 1L else 0L) }
+            "issquare" -> { need(name, a, 1); val n = i(0); Num(if (n.signum() >= 0 && isqrt(n).pow(2) == n) 1L else 0L) }
             else -> null
         }
     } catch (e: Unknown) { null }
@@ -248,5 +248,16 @@ object MoreMath {
             for (j in den.indices) r[i + j] = r[i + j] - c * den[j]
         }
         return q
+    }
+
+    /** ⌊√n⌋ for n ≥ 0, by Newton's method (BigInteger.sqrt needs Android 13). */
+    private fun isqrt(n: java.math.BigInteger): java.math.BigInteger {
+        if (n.signum() == 0) return n
+        var x = java.math.BigInteger.ONE.shiftLeft((n.bitLength() + 1) / 2)
+        while (true) {
+            val y = x.add(n.divide(x)).shiftRight(1)
+            if (y >= x) return x
+            x = y
+        }
     }
 }

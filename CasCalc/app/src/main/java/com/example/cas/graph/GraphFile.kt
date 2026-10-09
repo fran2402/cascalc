@@ -38,7 +38,7 @@ object GraphFile {
      * [IllegalArgumentException] with a readable reason for anything that isn't a graph file.
      */
     fun read(bytes: ByteArray, fileName: String? = null): Contents {
-        val text = bytes.toString(Charsets.UTF_8).removePrefix("﻿")
+        val text = bytes.toString(Charsets.UTF_8).removePrefix("\uFEFF")
         val lines = text.split('\n').map { it.removeSuffix("\r") }
         val head = lines.firstOrNull().orEmpty()
         require(head.startsWith(MAGIC)) { "This isn't a CAS Scientific Calculator graph file" }
