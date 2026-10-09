@@ -52,6 +52,15 @@ jobs:
       - name: Unit tests
         run: gradle testDebugUnitTest --stacktrace
 
+      # Android Lint, as `gradle build` runs it locally: the report is printed so it can be read
+      # from the log.
+      - name: Lint
+        if: always()
+        run: |
+          gradle lintDebug --continue || status=$?
+          find app/build -name 'lint-results-debug.txt' -exec cat {} \;
+          exit ${status:-0}
+
       - name: Upload test reports
         if: failure()
         uses: actions/upload-artifact@v4

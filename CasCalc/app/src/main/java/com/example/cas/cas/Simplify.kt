@@ -272,11 +272,11 @@ object Simplify {
     fun factorize(m: BigInteger): Map<BigInteger, Int>? {
         var n = m
         val out = LinkedHashMap<BigInteger, Int>()
-        var d = BigInteger.TWO
+        var d = BigInteger.valueOf(2)
         val limit = BigInteger.valueOf(1_000_000)
         while (d * d <= n && d <= limit) {
             while ((n % d).signum() == 0) { out[d] = (out[d] ?: 0) + 1; n /= d }
-            d = if (d == BigInteger.TWO) BigInteger.valueOf(3) else d + BigInteger.TWO
+            d = if (d == BigInteger.valueOf(2)) BigInteger.valueOf(3) else d + BigInteger.valueOf(2)
         }
         if (n > BigInteger.ONE) {
             if (d * d <= n) {
@@ -543,7 +543,7 @@ object Simplify {
             if (q.num > java.math.BigInteger.valueOf(3000)) return null
             return factorial(Num(q - Rational.ONE))
         }
-        if (q.den == java.math.BigInteger.TWO && q.abs().num.bitLength() < 12) {
+        if (q.den == java.math.BigInteger.valueOf(2) && q.abs().num.bitLength() < 12) {
             // Γ(n + ½) = (2n)! √π / (4ⁿ n!), and the reflection for negative values.
             val n = (q - Rational.of(1, 2)).num.toInt()
             if (n >= 0) {

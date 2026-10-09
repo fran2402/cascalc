@@ -45,7 +45,7 @@ object NumberTheory {
             }
             "eulerian" -> big(eulerian(small(n, 0, 300, "Eulerian numbers"), k()))
             "harmonic" -> small(n, 0, 5000, "harmonic numbers").let { m -> Num((1..m).fold(Rational.of(0)) { acc, i -> acc + Rational.of(1, i.toLong()) }) }
-            "triangular" -> big(n * (n + BigInteger.ONE) / BigInteger.TWO)
+            "triangular" -> big(n * (n + BigInteger.ONE) / BigInteger.valueOf(2))
             "motzkin" -> small(n, 0, 5000, "Motzkin numbers").let { m ->
                 // M(n) = ((2n + 1) M(n − 1) + (3n − 3) M(n − 2)) / (n + 2).
                 val a = arrayOfNulls<BigInteger>(maxOf(2, m + 1)); a[0] = BigInteger.ONE; a[1] = BigInteger.ONE
@@ -54,7 +54,7 @@ object NumberTheory {
             }
             "pell" -> small(n, 0, 50_000, "Pell numbers").let { m ->
                 var a = BigInteger.ZERO; var b = BigInteger.ONE
-                repeat(m) { val c = BigInteger.TWO * b + a; a = b; b = c }
+                repeat(m) { val c = BigInteger.valueOf(2) * b + a; a = b; b = c }
                 big(a)
             }
             "primorial" -> small(n, 0, 100_000, "n#").let { m ->
@@ -67,7 +67,7 @@ object NumberTheory {
                 if (j < 1 || j > m) big(BigInteger.ZERO) else big(binomial(m, j) * binomial(m, j - 1) / BigInteger.valueOf(m.toLong()))
             }
             "isprime" -> Num(if (isPrime(n)) 1L else 0L)
-            "nextprime" -> big(if (n < BigInteger.TWO) BigInteger.TWO else n.nextProbablePrime())
+            "nextprime" -> big(if (n < BigInteger.valueOf(2)) BigInteger.valueOf(2) else n.nextProbablePrime())
             "prevprime" -> big(prevPrime(n))
             "prime" -> Num(nthPrime(small(n, 1, 2_000_000, "the n-th prime")).toLong())
             "primepi" -> Num(primePi(small(n, Int.MIN_VALUE, 50_000_000, "π(n)")).toLong())
@@ -110,7 +110,7 @@ object NumberTheory {
     private fun pow(p: Long, e: Int): Long { var r = 1L; repeat(e) { r *= p }; return r }
 
     fun isPrime(n: BigInteger): Boolean {
-        if (n < BigInteger.TWO) return false
+        if (n < BigInteger.valueOf(2)) return false
         if (n.bitLength() <= 62) {
             val m = n.toLong()
             if (m < 4) return true
@@ -121,7 +121,7 @@ object NumberTheory {
     }
 
     private fun prevPrime(n: BigInteger): BigInteger {
-        if (n <= BigInteger.TWO) throw MathError("There's no prime below 2")
+        if (n <= BigInteger.valueOf(2)) throw MathError("There's no prime below 2")
         var k = n - BigInteger.ONE
         while (!isPrime(k)) k -= BigInteger.ONE
         return k
@@ -176,7 +176,7 @@ object NumberTheory {
         fun pair(k: Int): Pair<BigInteger, BigInteger> {
             if (k == 0) return BigInteger.ZERO to BigInteger.ONE
             val (a, b) = pair(k / 2)
-            val c = a * (b * BigInteger.TWO - a)
+            val c = a * (b * BigInteger.valueOf(2) - a)
             val d = a * a + b * b
             return if (k % 2 == 0) c to d else d to (c + d)
         }

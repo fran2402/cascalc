@@ -414,7 +414,7 @@ object Integrals {
     private fun sqrtQuadratic(e: Expr, x: Sym): Expr? {
         // The square root in it (only one kind).
         var root: Pow? = null
-        fun halfPower(z: Expr) = z is Pow && z.exp is Num && (z.exp as Num).q.den == java.math.BigInteger.TWO
+        fun halfPower(z: Expr) = z is Pow && z.exp is Num && (z.exp as Num).q.den == java.math.BigInteger.valueOf(2)
         e.contains { if (halfPower(it) && quadratic((it as Pow).base, x) != null) { if (root == null || root!!.base == it.base) { root = it }; true } else false }
         val r = root ?: return null
         val (c2, c1, c0) = quadratic(r.base, x)!!
@@ -453,7 +453,7 @@ object Integrals {
 
     /** (rootOf²)^(±½) back to rootOf^(±1) (the substitution keeps the root positive). */
     private fun replaceRoot(e: Expr, rootOf: Expr): Expr = when {
-        e is Pow && e.base == pow(rootOf, TWO) && e.exp is Num && (e.exp as Num).q.den == java.math.BigInteger.TWO -> pow(rootOf, Num((e.exp as Num).q.num.toLong()))
+        e is Pow && e.base == pow(rootOf, TWO) && e.exp is Num && (e.exp as Num).q.den == java.math.BigInteger.valueOf(2) -> pow(rootOf, Num((e.exp as Num).q.num.toLong()))
         else -> e.map { replaceRoot(it, rootOf) }
     }
 
