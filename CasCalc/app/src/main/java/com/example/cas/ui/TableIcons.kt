@@ -332,6 +332,15 @@ object TableIcons {
     /** A magnifier: find and replace. */
     val Find: ImageVector by lazy { tableIcon("Find", stroke = listOf(oval(10.5f, 10.5f, 6f, 6f), "M15 15l5.5 5.5"), thin = listOf("M8 10.5h5"), accent = setOf("M8 10.5h5")) }
 
+    /** Half a disc filled: the theme follows the system. */
+    val ThemeSystem: ImageVector by lazy { tableIcon("ThemeSystem", stroke = listOf(oval(12f, 12f, 8.5f, 8.5f)), fill = listOf("M12 3.5a8.5 8.5 0 0 1 0 17z"), accent = setOf("M12 3.5a8.5 8.5 0 0 1 0 17z")) }
+
+    /** A sun: the light theme. */
+    val ThemeLight: ImageVector by lazy { tableIcon("ThemeLight", stroke = listOf("M12 2.5v2.5", "M12 19v2.5", "M2.5 12H5", "M19 12h2.5", "M5.3 5.3l1.8 1.8", "M16.9 16.9l1.8 1.8", "M5.3 18.7l1.8-1.8", "M16.9 7.1l1.8-1.8"), fill = listOf(oval(12f, 12f, 4.2f, 4.2f)), accent = setOf(oval(12f, 12f, 4.2f, 4.2f))) }
+
+    /** A crescent moon: the dark theme. */
+    val ThemeDark: ImageVector by lazy { tableIcon("ThemeDark", stroke = listOf(), fill = listOf("M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"), accent = setOf("M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z")) }
+
     /** An arrow turning back round to its start: reset to the defaults. */
     val Reset: ImageVector by lazy { tableIcon("Reset", stroke = listOf("M5.5 12a6.5 6.5 0 1 0 1.9-4.6", "M4.5 4.5v4h4"), fill = listOf(oval(12f, 12f, 1.6f, 1.6f)), accent = setOf("M4.5 4.5v4h4")) }
 

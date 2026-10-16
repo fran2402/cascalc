@@ -203,6 +203,24 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (16 October, settings in the style of Android's own)
+
+- **Settings look like Pixel settings now**: a main page with Search settings and the
+  categories, each with its icon in a tinted circle and a line saying what's set; each category
+  opens its own page under a large title with a round back button.
+- **Cards and controls**: settings sit in groups of cards (large corners at the ends of a group,
+  small ones between, thin gaps), section names in the accent color; switches show a check when
+  on and a cross when off; choices are connected buttons; sizes and digits are stepped sliders
+  with minus and plus.
+- **Appearance** opens with a live preview (a calculator that follows the theme, math size and
+  keypad size, and a graph in the theme's colors) and picks the theme from three tiles.
+- **Numbers** opens with real answers (1/7, 2^64, a long product) that rewrite themselves as the
+  settings change, and picks the number format from tiles showing the same number each way.
+- **Answers** has Live answer as its large main switch with a short "how it works"; pages end
+  with a short note where it helps.
+- **Search** finds any setting by name and opens its page. On tablets the categories stay in the
+  left pane, with the new cards on the right.
+
 ## Latest changes (16 October, settings reorganized and kept across relaunches)
 
 - **Settings, reorganized** into eight sections, each one kind of thing:
