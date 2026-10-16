@@ -27,7 +27,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
 /**
- * Settings › Calculator tabs: which groups of keys sit above the keypad, and in what order.
+ * Settings › Keypad › Calculator tabs: which groups of keys sit above the keypad, and in what order.
  * The ones on the keypad are listed first (drag the handle to reorder, switch one off to put it
  * away); below them, every tab that isn't, the extra ones among them, each with Add.
  */

@@ -197,10 +197,21 @@ sealed class Plot2DKind {
  * the same keypad as the calculator and compiled for plotting, plus
  * sliders for any extra letters (y = a·sin(bx) gets sliders for a and b).
  */
-abstract class GraphViewModel(app: Application, private val key: String, val plotVars: List<String>, defaults: List<MathRow>) :
+abstract class GraphViewModel(app: Application, protected val key: String, val plotVars: List<String>, defaults: List<MathRow>) :
     AndroidViewModel(app), KeypadHost {
 
-    private val prefs = app.getSharedPreferences("calculator", Context.MODE_PRIVATE)
+    protected val prefs = app.getSharedPreferences("calculator", Context.MODE_PRIVATE)
+
+    /**
+     * Keeps a view setting across relaunches: [read] restores it now, then every change to
+     * what [current] returns is written back with [write].
+     */
+    protected fun <T> persist(read: (android.content.SharedPreferences) -> Unit, current: () -> T, write: (android.content.SharedPreferences.Editor, T) -> Unit) {
+        runCatching { read(prefs) }
+        viewModelScope.launch {
+            androidx.compose.runtime.snapshotFlow(current).drop(1).collect { v -> prefs.edit().also { write(it, v) }.apply() }
+        }
+    }
 
     /**
      * The 3D graph's coordinates: what a line without "=" means (z, r or ρ as a function of the
@@ -2557,6 +2568,7 @@ class Graph2DViewModel(app: Application) : GraphViewModel(app, "g2", listOf("x")
 
     /** Draw a polar grid (circles and rays) instead of the square grid, and read points as (r, θ). */
     var polarGrid by mutableStateOf(false)
+    init { persist({ polarGrid = it.getBoolean("${key}_polarGrid", false) }, { polarGrid }) { e, v -> e.putBoolean("${key}_polarGrid", v) } }
 
     // (Read while the base class is still being built — its last init compiles the saved lines —
     // when this class's own state doesn't exist yet: then the default range.)
@@ -2654,6 +2666,17 @@ class Graph3DViewModel(app: Application) : GraphViewModel(app, "g3", listOf("x",
     /** Null: fit z to the surfaces (and use the x range for implicit ones). */
     var zRange by mutableStateOf<Pair<Double, Double>?>(null)
 
+    // The view (turn, zoom and ranges) as it was left.
+    init {
+        persist({ p ->
+            p.getString("${key}_view", null)?.split(',')?.map { it.toDouble() }?.takeIf { it.size >= 7 }?.let { v ->
+                camera = Camera(v[0], v[1].coerceIn(-1.45, 1.45), v[2].coerceIn(0.3, 5.0))
+                if (v[3] < v[4] && v[5] < v[6]) { xMin = v[3]; xMax = v[4]; yMin = v[5]; yMax = v[6] }
+                zRange = if (v.size >= 9 && v[7] < v[8]) v[7] to v[8] else null
+            }
+        }, { listOf(camera.yaw, camera.pitch, camera.zoom, xMin, xMax, yMin, yMax) + (zRange?.toList() ?: emptyList()) }) { e, v -> e.putString("${key}_view", v.joinToString(",")) }
+    }
+
 
 
     /** Zooms the x and y ranges about their centers (the − and + buttons). */
@@ -2674,6 +2697,20 @@ class ComplexViewModel(app: Application) : GraphViewModel(app, "gc", listOf("z")
     var options by mutableStateOf(com.example.cas.graph.ColoringOptions())
     /** Circles of constant |z| and rays of constant arg z over the coloring. */
     var polarGrid by mutableStateOf(false)
+
+    // The coloring's options and the polar grid, as they were left.
+    init {
+        persist({ p ->
+            p.getString("${key}_coloring", null)?.split(',')?.takeIf { it.size >= 4 }?.let { v ->
+                val (map, reversed) = com.example.cas.graph.Colormap.parse(v[3])
+                options = com.example.cas.graph.ColoringOptions(v[0] == "1", v[1] == "1", v[2] == "1", map, reversed)
+            }
+            polarGrid = p.getBoolean("${key}_polarGrid", false)
+        }, { options to polarGrid }) { e, (o, polar) ->
+            e.putString("${key}_coloring", listOf(if (o.modulusBands) "1" else "0", if (o.phaseLines) "1" else "0", if (o.grid) "1" else "0", com.example.cas.graph.Colormap.save(o.colormap, o.reversed)).joinToString(","))
+            e.putBoolean("${key}_polarGrid", polar)
+        }
+    }
 
     override fun onScaleChanged(from: com.example.cas.graph.AxisScale, to: com.example.cas.graph.AxisScale) {
         view = view?.let { com.example.cas.graph.AxisScale.convert(it, from, to) }

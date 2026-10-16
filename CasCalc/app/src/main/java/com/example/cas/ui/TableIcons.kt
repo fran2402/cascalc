@@ -332,6 +332,9 @@ object TableIcons {
     /** A magnifier: find and replace. */
     val Find: ImageVector by lazy { tableIcon("Find", stroke = listOf(oval(10.5f, 10.5f, 6f, 6f), "M15 15l5.5 5.5"), thin = listOf("M8 10.5h5"), accent = setOf("M8 10.5h5")) }
 
+    /** An arrow turning back round to its start: reset to the defaults. */
+    val Reset: ImageVector by lazy { tableIcon("Reset", stroke = listOf("M5.5 12a6.5 6.5 0 1 0 1.9-4.6", "M4.5 4.5v4h4"), fill = listOf(oval(12f, 12f, 1.6f, 1.6f)), accent = setOf("M4.5 4.5v4h4")) }
+
     /** A bell curve with its upper tail shaded: a hypothesis test (how far out the result falls). */
     val HypothesisTest: ImageVector by lazy {
         tableIcon("HypothesisTest", stroke = listOf("M2.5 18.5c3.2 0 4.6-12.5 9.5-12.5s6.3 12.5 9.5 12.5"), thin = listOf("M2.5 20h19", "M16.6 12v8"),

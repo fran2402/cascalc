@@ -105,7 +105,7 @@ object Docs {
                 ),
                 section(
                     "Exact answers and decimals",
-                    para("Answers are exact whenever they can be: fractions stay fractions, roots stay roots and \$\\pi\$ stays \$\\pi\$. When there's a decimal too, the ≈ chip beside the answer shows it; tap exact to go back. Settings › Numbers can show decimals first, and sets how many significant digits they keep."),
+                    para("Answers are exact whenever they can be: fractions stay fractions, roots stay roots and \$\\pi\$ stays \$\\pi\$. When there's a decimal too, the ≈ chip beside the answer shows it; tap exact to go back. Settings › Answers can show decimals first, and sets how many significant digits they keep."),
                     examples(
                         ex(sq("2"), sq("8"), note = "\$\\sqrt{2}\\sqrt{8}\$ simplifies to a whole number"),
                         ex("2π+", fr("π", "2"), note = "\$\\pi\$ stays a symbol"),

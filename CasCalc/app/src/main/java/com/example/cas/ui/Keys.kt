@@ -155,7 +155,7 @@ private fun letters(vararg parts: String) = MathRow(parts.map { Sym(it) }.toMuta
  */
 class FunctionTab(
     val title: String, val icon: KeyLabel, val keys: List<List<KeySpec>>, val columns: Int = 5, val scrolls: Boolean = false,
-    /** Off until added in Settings › Calculator tabs (the extra tabs that widen what the keys reach). */
+    /** Off until added in Settings › Keypad › Calculator tabs (the extra tabs that widen what the keys reach). */
     val optional: Boolean = false,
     /** What's on it, in a few words, for the tabs page in Settings. */
     val about: String = "",
@@ -409,7 +409,7 @@ val FunctionTabs: List<FunctionTab> = listOf(
     ),
     FunctionTab("Physical constants", KeyLabel.Icon(IconId.Atom), ConstantKeys, columns = 5, scrolls = true, about = "c, h, k_B and every other constant, in SI or other systems"),
     FunctionTab("Symbols", KeyLabel.Icon(IconId.Letters), LetterKeys, columns = 6, scrolls = true, about = "Latin and Greek letters, and symbols you build"),
-    // Extra tabs, off until added in Settings › Calculator tabs.
+    // Extra tabs, off until added in Settings › Keypad › Calculator tabs.
     FunctionTab(
         "Special functions", KeyLabel.Icon(IconId.Special),
         listOf(

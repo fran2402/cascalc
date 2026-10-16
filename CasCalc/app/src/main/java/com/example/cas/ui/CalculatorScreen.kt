@@ -812,7 +812,7 @@ private fun PageSwitch(picture: androidx.compose.ui.graphics.vector.ImageVector,
 private fun FunctionPanel(vm: KeypadHost, rowHeight: Dp, onKey: (KeyAction) -> Unit) {
     val colors = MaterialTheme.colorScheme
     val glyphs = LocalGlyphFallback.current
-    // The tabs shown and their order come from Settings › Calculator tabs.
+    // The tabs shown and their order come from Settings › Keypad › Calculator tabs.
     val shownTabs = CalcTabs.shown()
     val current = CalcTabs.current(vm.selectedTab)
     Column {
@@ -1597,48 +1597,47 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
     if (howTo) DocsPage(onBack = { howTo = false })
     var tabsPage by remember { mutableStateOf(false) }
     if (tabsPage) CalcTabsPage(onBack = { tabsPage = false })
+    var resetting by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    if (resetting) AlertDialog(
+        onDismissRequest = { resetting = false },
+        icon = { AppIcon(TableIcons.Reset, contentDescription = null) },
+        title = { Text(tr("Reset all settings?")) },
+        text = { Text(tr("Every setting on this page goes back to how it was when the app was installed. Your history, graphs, projects, symbols and pinned keys stay as they are.")) },
+        confirmButton = { TextButton(onClick = { resetting = false; AppSettings.resetAll(context); vm?.resetSettings() }) { Text(tr("Reset")) } },
+        dismissButton = { TextButton(onClick = { resetting = false }) { Text(tr("Cancel")) } },
+    )
     // One scrolling page on a phone; on a tablet, the sections down the left and one at a time on the right.
-    SectionedPage("Settings", onBack = onBack, sections = (if (I18n.languages.size < 2) emptyList<PageSection>() else listOf(
-        // Only once a translation has been added (assets/i18n): the system's language, or one picked here.
-        PageSection("Language", TableIcons.Globe) {
-            val codes = listOf("") + I18n.languages.map { it.code }
-            // Its title says "Language" in English too, so it can be found from any language.
-            SettingsRadio(if (I18n.code == "en") "Language" else tr("Language") + " (Language)", listOf(tr("System")) + I18n.languages.map { it.name }, codes.indexOf(AppSettings.language).coerceAtLeast(0)) { AppSettings.changeLanguage(codes[it]) }
-        },
-    )) + listOf(
+    // Each section is one kind of thing: how the app looks, how answers read, numbers, the keypad,
+    // graphs, history, the app as a whole, and help.
+    SectionedPage("Settings", onBack = onBack, sections = listOf(
         PageSection("Appearance", TableIcons.Palette) {
             SettingsChoice("Theme", listOf("System", "Light", "Dark"), AppSettings.theme, AppSettings::changeTheme)
             val wallpaperColors = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
-            if (wallpaperColors) {
-                SettingsToggle("Colors from your wallpaper", "Material You dynamic color", AppSettings.dynamicColor, AppSettings::changeDynamicColor)
-            }
+            if (wallpaperColors) SettingsToggle("Colors from your wallpaper", "Material You dynamic color", AppSettings.dynamicColor, AppSettings::changeDynamicColor)
             // Without Material You, the colors grow from one you choose.
             if (!wallpaperColors || !AppSettings.dynamicColor) ThemeColorChoice()
             SettingsChoice("Math size", listOf("Small", "Medium", "Large"), AppSettings.mathSize, AppSettings::changeMathSize)
-            SettingsChoice("Keypad size", listOf("Compact", "Medium", "Tall"), AppSettings.keypadSize, AppSettings::changeKeypadSize)
-            // Only on tablets (and unfolded foldables), where the keyboard sits beside the math.
-            if (tablet) SettingsChoice("Keyboard side", listOf("Left", "Right"), AppSettings.keypadSide, AppSettings::changeKeypadSide)
             SettingsToggle("Expressive motion", "Springy animations; off for calmer ones", AppSettings.expressiveMotion, AppSettings::changeExpressiveMotion)
         },
-        PageSection("Calculator", TableIcons.ModeCalculator) {
-            SettingsToggle("Live answer", "The result under what you're typing", AppSettings.livePreview, AppSettings::changeLivePreview)
-            SettingsToggle("Continue from the answer", "An operator after = starts with Ans", AppSettings.continueFromAnswer, AppSettings::changeContinueFromAnswer)
-            SettingsToggle("Explanations on long-press", "Formula, theory and how to use each key", AppSettings.keyHelp, AppSettings::changeKeyHelp)
-            SettingsLink(
-                "Calculator tabs", "${CalcTabs.shown().size} on the keypad. Reorder them, put some away, or add more: special functions, combinatorics, polynomials",
-                "Choose the calculator's tabs",
-            ) { tabsPage = true }
-        },
-        PageSection("History", TableIcons.History) {
-            SettingsChoice("History keeps", listOf("50", "100", "500", "All"), when (AppSettings.historyLimit) { 50 -> 0; 100 -> 1; 500 -> 2; else -> 3 }) {
-                AppSettings.changeHistoryLimit(listOf(50, 100, 500, 0)[it])
-            }
-            SettingsToggle("Ask before clearing history", null, AppSettings.confirmClearHistory, AppSettings::changeConfirmClearHistory)
-            SettingsToggle("Ask before deleting", "A calculation, or a line in a graph", AppSettings.confirmDeleteEntry, AppSettings::changeConfirmDeleteEntry)
-        },
-        PageSection("Numbers", TableIcons.NumberFormat) {
+        PageSection("Answers", TableIcons.ModeCalculator) {
             // Tapping an answer switches between its exact form and its decimal; this picks which comes first.
             if (vm != null) SettingsChoice("Show answers as", listOf("Exact", "Decimal"), if (vm.decimalFirst) 1 else 0) { vm.changeDecimalFirst(it == 1) }
+            SettingsToggle("Live answer", "The result under what you're typing", AppSettings.livePreview, AppSettings::changeLivePreview)
+            SettingsToggle("Continue from the answer", "An operator after = starts with Ans", AppSettings.continueFromAnswer, AppSettings::changeContinueFromAnswer)
+            SettingsToggle("Graph previews", "A faded sketch of the curve beside answers that are functions of one letter", AppSettings.answerPreviews, AppSettings::changeAnswerPreviews)
+        },
+        PageSection("Numbers", TableIcons.NumberFormat) {
+            if (vm != null) SettingsSlider(
+                title = "${vm.digits} significant digits",
+                subtitle = "How many digits a decimal keeps",
+                value = vm.digits,
+                range = 4..15,
+                description = "Significant digits",
+            ) { vm.changeDigits(it) }
+            SettingsToggle("Group digits", "1 000 000 rather than 1000000", AppSettings.groupDigits, AppSettings::changeGroupDigits)
+            SettingsChoice("Complex numbers", listOf("a + bi", "Polar"), if (AppSettings.polarComplex) 1 else 0) { AppSettings.changePolarComplex(it == 1) }
+            SettingsGroup("Large and small numbers")
             // Auto: plain digits up to the length below; scientific and engineering: always a × 10ⁿ.
             SettingsChoice("Number format", listOf("Auto", "Scientific", "Engineering"), AppSettings.numberFormat) { AppSettings.changeNumberFormat(it); vm?.reformat() }
             SettingsSlider(
@@ -1655,57 +1654,73 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 range = 1..12,
                 description = "Decimals in scientific notation",
             ) { AppSettings.changeSciDecimals(it); vm?.reformat() }
-            if (vm != null) SettingsSlider(
-                title = "${vm.digits} significant digits",
-                subtitle = "How many digits a decimal keeps",
-                value = vm.digits,
-                range = 4..15,
-                description = "Significant digits",
-            ) { vm.changeDigits(it) }
-            SettingsToggle("Group digits", "1 000 000 rather than 1000000", AppSettings.groupDigits, AppSettings::changeGroupDigits)
-            SettingsToggle("Graph previews", "A faded sketch of the curve beside answers that are functions of one letter", AppSettings.answerPreviews, AppSettings::changeAnswerPreviews)
-            SettingsChoice("Complex decimals", listOf("a + bi", "Polar"), if (AppSettings.polarComplex) 1 else 0) { AppSettings.changePolarComplex(it == 1) }
+        },
+        PageSection("Keypad", TableIcons.Keyboard) {
+            SettingsLink(
+                "Calculator tabs", "${CalcTabs.shown().size} on the keypad. Reorder them, put some away, or add more: special functions, combinatorics, polynomials",
+                "Choose the calculator's tabs",
+            ) { tabsPage = true }
+            SettingsChoice("Keypad size", listOf("Compact", "Medium", "Tall"), AppSettings.keypadSize, AppSettings::changeKeypadSize)
+            // Only on tablets (and unfolded foldables), where the keyboard sits beside the math.
+            if (tablet) SettingsChoice("Keyboard side", listOf("Left", "Right"), AppSettings.keypadSide, AppSettings::changeKeypadSide)
+            SettingsToggle("Explanations on long-press", "Formula, theory and how to use each key", AppSettings.keyHelp, AppSettings::changeKeyHelp)
+            SettingsToggle("Haptic feedback", "A tap on each key and button", AppSettings.haptics, AppSettings::changeHaptics)
+            SettingsToggle("Key sounds", "A click on each key (uses the system's touch sounds)", AppSettings.keySounds, AppSettings::changeKeySounds)
         },
         PageSection("Graphs", TableIcons.Mode2D) {
-            SettingsToggle("Grid lines", "The axes always show", AppSettings.showGrid, AppSettings::changeShowGrid)
-            SettingsToggle("Legend", "Each line's name in the corner, and in exports. Hold a line to rename it", AppSettings.showLegend, AppSettings::changeShowLegend)
-            SettingsToggle("Mark points on curves", "Zeros, extrema and crossings of the tapped curve", AppSettings.specialPoints, AppSettings::changeSpecialPoints)
             SettingsChoice("Starting view", listOf("\$\\pm 5\$", "\$\\pm 10\$", "\$\\pm 20\$"), when (AppSettings.viewHalfWidth) { 5 -> 0; 20 -> 2; else -> 1 }) {
                 AppSettings.changeViewHalfWidth(listOf(5, 10, 20)[it])
             }
+            SettingsToggle("Grid lines", "The axes always show", AppSettings.showGrid, AppSettings::changeShowGrid)
+            SettingsToggle("Legend", "Each line's name in the corner, and in exports. Hold a line to rename it", AppSettings.showLegend, AppSettings::changeShowLegend)
+            SettingsToggle("Mark points on curves", "Zeros, extrema and crossings of the tapped curve", AppSettings.specialPoints, AppSettings::changeSpecialPoints)
+            SettingsGroup("Detail", "Higher is sharper but slower to draw")
             // All three start low, for speed; complex plot quality is stored as 2 low, 0 medium, 1 high.
-            SettingsChoice("2D field quality", listOf("Low", "Medium", "High"), AppSettings.fieldQuality, AppSettings::changeFieldQuality)
-            SettingsChoice("3D surface detail", listOf("Low", "Medium", "High"), AppSettings.surfaceDetail, AppSettings::changeSurfaceDetail)
-            SettingsChoice("Complex plot quality", listOf("Low", "Medium", "High"), when (AppSettings.complexQuality) { 2 -> 0; 1 -> 2; else -> 1 }) {
+            SettingsChoice("2D fields", listOf("Low", "Medium", "High"), AppSettings.fieldQuality, AppSettings::changeFieldQuality)
+            SettingsChoice("3D surfaces", listOf("Low", "Medium", "High"), AppSettings.surfaceDetail, AppSettings::changeSurfaceDetail)
+            SettingsChoice("Complex plots", listOf("Low", "Medium", "High"), when (AppSettings.complexQuality) { 2 -> 0; 1 -> 2; else -> 1 }) {
                 AppSettings.changeComplexQuality(listOf(2, 0, 1)[it])
             }
         },
-        PageSection("Touch and screen", TableIcons.Tap) {
-            SettingsToggle("Haptic feedback", "A tap on each key and button", AppSettings.haptics, AppSettings::changeHaptics)
-            SettingsToggle("Key sounds", "A click on each key (uses the system's touch sounds)", AppSettings.keySounds, AppSettings::changeKeySounds)
-            SettingsToggle("Keep the screen on", "While the app is open", AppSettings.keepScreenOn, AppSettings::changeKeepScreenOn)
+        PageSection("History", TableIcons.History) {
+            SettingsChoice("History keeps", listOf("50", "100", "500", "All"), when (AppSettings.historyLimit) { 50 -> 0; 100 -> 1; 500 -> 2; else -> 3 }) {
+                AppSettings.changeHistoryLimit(listOf(50, 100, 500, 0)[it])
+            }
+            SettingsToggle("Ask before clearing history", "Pinned calculations and those in folders are always kept", AppSettings.confirmClearHistory, AppSettings::changeConfirmClearHistory)
+            SettingsToggle("Ask before deleting", "A calculation, or a line in a graph", AppSettings.confirmDeleteEntry, AppSettings::changeConfirmDeleteEntry)
         },
-        PageSection("Home screen", TableIcons.Shortcut) {
-            val context = LocalContext.current
-            Text(tr("Put a shortcut on your home screen that opens straight to one of these. Holding the app's icon shows them too."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        PageSection("General", TableIcons.Tap) {
+            // Only once a translation has been added (assets/i18n): the system's language, or one picked here.
+            if (I18n.languages.size >= 2) {
+                val codes = listOf("") + I18n.languages.map { it.code }
+                // Its title says "Language" in English too, so it can be found from any language.
+                SettingsRadio(if (I18n.code == "en") "Language" else tr("Language") + " (Language)", listOf(tr("System")) + I18n.languages.map { it.name }, codes.indexOf(AppSettings.language).coerceAtLeast(0)) { AppSettings.changeLanguage(codes[it]) }
+            }
+            SettingsToggle("Keep the screen on", "While the app is open", AppSettings.keepScreenOn, AppSettings::changeKeepScreenOn)
+            SettingsGroup("Home screen shortcuts", "Open straight to one of these. Holding the app's icon shows them too.")
             Shortcuts.entries.forEach { e ->
                 SettingsLink(e.longLabel, "Add to the home screen", "Add a ${e.longLabel} shortcut to the home screen") { Shortcuts.pin(context, e) }
             }
+            SettingsGroup("Reset")
+            SettingsLink("Reset all settings", "Back to how they were at install; your work is kept", "Reset all settings") { resetting = true }
         },
-        PageSection("Feedback", TableIcons.Bug) {
-            val context = LocalContext.current
+        PageSection("Help & feedback", TableIcons.Help) {
             val scope = rememberCoroutineScope()
+            SettingsLink("Documentation", "How everything works: ${Docs.chapters.size} chapters with ${Docs.allExamples.size} worked examples, every key, and the spreadsheet functions", "Open the documentation") { howTo = true }
             SettingsLink("Report a bug", "An email to the developer with the app's log attached", "Report a bug") { scope.launch { Feedback.reportBug(context) } }
             SettingsLink("Request a feature", "An email to the developer with your idea", "Request a feature") { Feedback.requestFeature(context) }
-        },
-        // The documentation opens as its own page, on phones and tablets alike.
-        PageSection("Documentation", TableIcons.Help) {
-            SettingsLink("Documentation", "How everything works: ${Docs.chapters.size} chapters with ${Docs.allExamples.size} worked examples, every key, and the spreadsheet functions", "Open the documentation") { howTo = true }
-        },
-        PageSection("About", TableIcons.Info) {
             SettingsLink("Acknowledgements", "Fonts, libraries, data and methods, with links", "Open the acknowledgements") { onAcknowledgements() }
         },
     ))
+}
+
+/** A small heading inside a settings section, for a group of related settings, with a line about them. */
+@Composable
+private fun SettingsGroup(title: String, detail: String? = null) {
+    Column(Modifier.padding(top = 8.dp)) {
+        Text(tr(title), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (detail != null) Text(tr(detail), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 }
 
 /** Shares a bitmap through the system share sheet, via a file in the cache. */

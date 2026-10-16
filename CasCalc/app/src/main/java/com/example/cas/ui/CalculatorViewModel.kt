@@ -121,6 +121,13 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
         history.forEach { it.showApprox = (on || it.answer.preferApprox) && it.answer.approx != null }
     }
 
+    /** The calculator's own settings back to their defaults (Settings › Reset all settings). */
+    fun resetSettings() {
+        prefs.edit().remove("digits").remove("decimalFirst").apply()
+        changeDecimalFirst(false)
+        changeDigits(10)
+    }
+
     /** Past answers formatted again (after a number setting changed), each shown as the settings say. */
     fun reformat() {
         val redone = history.map { HistoryItem(it.expression, Formatter.answer(it.answer.value), decimalFirst) }

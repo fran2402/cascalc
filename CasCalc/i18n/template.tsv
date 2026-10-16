@@ -52,9 +52,11 @@ Search constants
 Clear the search	
 exact	
 App color	
+Reset all settings?	
+Every setting on this page goes back to how it was when the app was installed. Your history, graphs, projects, symbols and pinned keys stay as they are.	
+Reset	
 Language	
 System	
-Put a shortcut on your home screen that opens straight to one of these. Holding the app's icon shows them too.	
 Done	
 Appearance	
 Theme	
@@ -66,32 +68,24 @@ Math size
 Small	
 Medium	
 Large	
-Keypad size	
-Compact	
-Tall	
-Keyboard side	
-Left	
-Right	
 Expressive motion	
 Springy animations; off for calmer ones	
-Calculator	
+Answers	
+Show answers as	
+Exact	
+Decimal	
 Live answer	
 The result under what you're typing	
 Continue from the answer	
 An operator after = starts with Ans	
-Explanations on long-press	
-Formula, theory and how to use each key	
-Calculator tabs	
-History	
-History keeps	
-All	
-Ask before clearing history	
-Ask before deleting	
-A calculation, or a line in a graph	
+Graph previews	
+A faded sketch of the curve beside answers that are functions of one letter	
 Numbers	
-Show answers as	
-Exact	
-Decimal	
+Group digits	
+1 000 000 rather than 1000000	
+Complex numbers	
+a + bi	
+Polar	
 Number format	
 Auto	
 Scientific	
@@ -99,45 +93,55 @@ Engineering
  else 	
 decimal	
 decimals	
-Group digits	
-1 000 000 rather than 1000000	
-Graph previews	
-A faded sketch of the curve beside answers that are functions of one letter	
-Complex decimals	
-a + bi	
-Polar	
+Keypad	
+Calculator tabs	
+Keypad size	
+Compact	
+Tall	
+Keyboard side	
+Left	
+Right	
+Explanations on long-press	
+Formula, theory and how to use each key	
+Haptic feedback	
+A tap on each key and button	
+Key sounds	
+A click on each key (uses the system's touch sounds)	
 Graphs	
+Starting view	
+$\\pm 5$	
+$\\pm 10$	
+$\\pm 20$	
 Grid lines	
 The axes always show	
 Legend	
 Each line's name in the corner, and in exports. Hold a line to rename it	
 Mark points on curves	
 Zeros, extrema and crossings of the tapped curve	
-Starting view	
-$\\pm 5$	
-$\\pm 10$	
-$\\pm 20$	
-2D field quality	
+2D fields	
 Low	
 High	
-3D surface detail	
-Complex plot quality	
-Touch and screen	
-Haptic feedback	
-A tap on each key and button	
-Key sounds	
-A click on each key (uses the system's touch sounds)	
+3D surfaces	
+Complex plots	
+History	
+History keeps	
+All	
+Ask before clearing history	
+Pinned calculations and those in folders are always kept	
+Ask before deleting	
+A calculation, or a line in a graph	
+General	
 Keep the screen on	
 While the app is open	
-Home screen	
 Add to the home screen	
-Feedback	
+Reset all settings	
+Back to how they were at install; your work is kept	
+Help & feedback	
+Documentation	
 Report a bug	
 An email to the developer with the app's log attached	
 Request a feature	
 An email to the developer with your idea	
-Documentation	
-About	
 Fonts, libraries, data and methods, with links	
 Open the acknowledgements	
 Complex plane. Color shows the argument of f(z), brightness its size. Drag to move, pinch to zoom, tap to read a value. f can use r and θ for |z| and arg z.	
@@ -626,6 +630,7 @@ Tap a vector
 Tap a plane	
 Tap a point or an object	
 Drag points to move them	
+Calculator	
 2D graphing	
 3D graphing	
 Complex plotting	

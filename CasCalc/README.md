@@ -203,6 +203,26 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (16 October, settings reorganized and kept across relaunches)
+
+- **Settings, reorganized** into eight sections, each one kind of thing:
+  - Appearance: theme, colors, math size, motion.
+  - Answers: exact or decimal first, live answer, continue from the answer, graph previews.
+  - Numbers: significant digits, digit grouping, complex form, then large and small numbers
+    (format, when scientific notation starts, its decimals).
+  - Keypad: calculator tabs, keypad size, keyboard side (tablets), long-press explanations,
+    haptics, key sounds.
+  - Graphs: starting view, grid, legend, marked points, then detail (2D fields, 3D surfaces,
+    complex plots).
+  - History: how much is kept, and the confirmations.
+  - General: language, keep the screen on, home screen shortcuts, and a new Reset all settings
+    (with a confirmation; history, graphs, projects, symbols and pins are kept).
+  - Help & feedback: documentation, report a bug, request a feature, acknowledgements.
+- **Kept across relaunches**: the polar grid on the 2D graph and the complex plane, the complex
+  plane's coloring options (colormap, modulus bands, phase lines, grid), and the 3D graph's
+  turn, zoom and x, y and z ranges now come back as they were left. Every setting on the
+  settings page was checked to be saved and read back under the same name.
+
 ## Latest changes (8 October, implicit differentiation, series convergence, hypothesis tests)
 
 - **Implicit differentiation**: the derivative key around an equation (d/dx of x^2 + y^2 = 25)

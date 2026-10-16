@@ -190,6 +190,21 @@ object AppSettings {
         com.example.cas.engine.Formatter.polarComplex = polarComplex
     }
 
+    /** The settings page's own keys, cleared by [resetAll] (not the history, graphs, symbols, pins or tabs). */
+    private val RESETTABLE = listOf(
+        "language", "theme", "dynamicColor", "themeColor", "haptics", "groupDigits", "mathSize", "keypadSize", "keypadSide",
+        "showGrid", "showLegend", "axisNumbers", "numberFormat", "sciAfter", "sciDecimals", "polarComplex", "livePreview",
+        "historyLimit", "confirmClearHistory", "confirmDeleteEntry", "keyHelp", "continueFromAnswer", "expressiveMotion",
+        "keepScreenOn", "keySounds", "specialPoints", "answerPreviews", "viewHalfWidth", "complexQuality", "surfaceDetail", "fieldQuality",
+    )
+
+    /** Every setting back to its default, saved, and in effect at once. */
+    fun resetAll(context: Context) {
+        val p = prefs ?: context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        p.edit().apply { RESETTABLE.forEach { remove(it) } }.commit()
+        init(context)
+    }
+
     fun changeGraphListWidth(dp: Int) { graphListWidth = dp; save("graphListWidth", dp) }
 
     private fun save(key: String, value: Any) {
@@ -242,7 +257,7 @@ object AppSettings {
 }
 
 /**
- * The calculator's tabs as set in Settings › Calculator tabs: their order, and which are shown.
+ * The calculator's tabs as set in Settings › Keypad › Calculator tabs: their order, and which are shown.
  * By position in [FunctionTabs]; the extra tabs start hidden. At least one tab always shows.
  */
 object CalcTabs {
