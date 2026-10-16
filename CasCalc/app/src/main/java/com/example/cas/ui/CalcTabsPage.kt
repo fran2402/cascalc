@@ -48,45 +48,45 @@ fun ColumnScope.CalcTabsContent() {
     fun commit(newShown: List<Int>, newHidden: List<Int>) =
         AppSettings.changeTabs((newShown + newHidden).map { FunctionTabs[it].title }, newShown.map { FunctionTabs[it].title }.toSet())
 
-        Text(
-            tr("The groups of keys above the keypad. Drag a tab to reorder it, switch it off to put it away, and add more from below."),
-            style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
-        )
-        // The tab bar as it will look on the keypad.
-        TabBarPreview(shown)
+    Text(
+        tr("The groups of keys above the keypad. Drag a tab to reorder it, switch it off to put it away, and add more from below."),
+        style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
+    )
+    // The tab bar as it will look on the keypad.
+    TabBarPreview(shown)
 
-        SettingsSection("On the keypad")
-        ReorderableColumn(shown, key = { it }, onMove = { from, to ->
-            // Read afresh: several moves can come before the page is drawn again.
-            val now = CalcTabs.order()
-            val s = now.filter { CalcTabs.isShown(it) }.toMutableList(); s.add(to, s.removeAt(from)); commit(s, now.filter { !CalcTabs.isShown(it) })
-        }) { i, handle ->
-            TabRow(i, handle) {
-                // The last tab can't go: the keypad always has one.
-                Switch(
-                    checked = true, enabled = shown.size > 1,
-                    onCheckedChange = { commit(shown - i, listOf(i) + hidden) },
-                    modifier = Modifier.semantics { contentDescription = tr("Show {0}", tr(FunctionTabs[i].title)) },
-                )
-            }
+    SettingsSection("On the keypad")
+    ReorderableColumn(shown, key = { it }, onMove = { from, to ->
+        // Read afresh: several moves can come before the page is drawn again.
+        val now = CalcTabs.order()
+        val s = now.filter { CalcTabs.isShown(it) }.toMutableList(); s.add(to, s.removeAt(from)); commit(s, now.filter { !CalcTabs.isShown(it) })
+    }) { i, handle ->
+        TabRow(i, handle) {
+            // The last tab can't go: the keypad always has one.
+            Switch(
+                checked = true, enabled = shown.size > 1,
+                onCheckedChange = { commit(shown - i, listOf(i) + hidden) },
+                modifier = Modifier.semantics { contentDescription = tr("Show {0}", tr(FunctionTabs[i].title)) },
+            )
         }
+    }
 
-        SettingsSection("More tabs")
-        if (hidden.isEmpty()) Text(tr("Every tab is on the keypad."), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            hidden.forEach { i ->
-                TabRow(i, handle = null) {
-                    FilledTonalButton(onClick = { commit(shown + i, hidden - i) }, modifier = Modifier.height(40.dp)) {
-                        AppIcon(TableIcons.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(tr("Add"))
-                    }
+    SettingsSection("More tabs")
+    if (hidden.isEmpty()) Text(tr("Every tab is on the keypad."), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        hidden.forEach { i ->
+            TabRow(i, handle = null) {
+                FilledTonalButton(onClick = { commit(shown + i, hidden - i) }, modifier = Modifier.height(40.dp)) {
+                    AppIcon(TableIcons.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(tr("Add"))
                 }
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = { AppSettings.resetTabs() }) { Text(tr("Reset to the default tabs")) }
-        }
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        TextButton(onClick = { AppSettings.resetTabs() }) { Text(tr("Reset to the default tabs")) }
+    }
 }
 
 /** A tab in the list: its handle (on the keypad only), icon, name and what's on it, then [end]. */
