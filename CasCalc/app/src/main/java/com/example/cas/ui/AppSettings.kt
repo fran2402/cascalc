@@ -114,6 +114,9 @@ object AppSettings {
         private set
     var keepScreenOn by mutableStateOf(false)
         private set
+    /** Open at the calculator every time, rather than where the app was left. */
+    var startInCalculator by mutableStateOf(false)
+        private set
     var keySounds by mutableStateOf(false)
         private set
     /** Zeros, extrema and crossings marked on the tapped curve. */
@@ -176,6 +179,7 @@ object AppSettings {
         continueFromAnswer = p.getBoolean("continueFromAnswer", true)
         expressiveMotion = p.getBoolean("expressiveMotion", true)
         keepScreenOn = p.getBoolean("keepScreenOn", false)
+        startInCalculator = p.getBoolean("startInCalculator", false)
         keySounds = p.getBoolean("keySounds", false)
         specialPoints = p.getBoolean("specialPoints", true)
         answerPreviews = p.getBoolean("answerPreviews", true)
@@ -195,7 +199,7 @@ object AppSettings {
         "language", "theme", "dynamicColor", "themeColor", "haptics", "groupDigits", "mathSize", "keypadSize", "keypadSide",
         "showGrid", "showLegend", "axisNumbers", "numberFormat", "sciAfter", "sciDecimals", "polarComplex", "livePreview",
         "historyLimit", "confirmClearHistory", "confirmDeleteEntry", "keyHelp", "continueFromAnswer", "expressiveMotion",
-        "keepScreenOn", "keySounds", "specialPoints", "answerPreviews", "viewHalfWidth", "complexQuality", "surfaceDetail", "fieldQuality",
+        "keepScreenOn", "startInCalculator", "keySounds", "specialPoints", "answerPreviews", "viewHalfWidth", "complexQuality", "surfaceDetail", "fieldQuality",
     )
 
     /** Every setting back to its default, saved, and in effect at once. */
@@ -239,6 +243,7 @@ object AppSettings {
     fun changeContinueFromAnswer(v: Boolean) { continueFromAnswer = v; save("continueFromAnswer", v) }
     fun changeExpressiveMotion(v: Boolean) { expressiveMotion = v; save("expressiveMotion", v) }
     fun changeKeepScreenOn(v: Boolean) { keepScreenOn = v; save("keepScreenOn", v) }
+    fun changeStartInCalculator(v: Boolean) { startInCalculator = v; save("startInCalculator", v) }
     fun changeKeySounds(v: Boolean) { keySounds = v; save("keySounds", v) }
     fun changeSpecialPoints(v: Boolean) { specialPoints = v; save("specialPoints", v) }
     fun changeAnswerPreviews(v: Boolean) { answerPreviews = v; save("answerPreviews", v) }

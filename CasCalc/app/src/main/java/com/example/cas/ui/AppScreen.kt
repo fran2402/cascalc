@@ -41,7 +41,8 @@ import com.example.cas.graph.Camera
 fun AppScreen() {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("calculator", Context.MODE_PRIVATE) }
-    var mode by remember { mutableStateOf(runCatching { Mode.valueOf(prefs.getString("mode", Mode.Calculator.name)!!) }.getOrDefault(Mode.Calculator)) }
+    // Where it was left, unless Settings › General says to open at the calculator.
+    var mode by remember { mutableStateOf(if (AppSettings.startInCalculator) Mode.Calculator else runCatching { Mode.valueOf(prefs.getString("mode", Mode.Calculator.name)!!) }.getOrDefault(Mode.Calculator)) }
     val calculator: CalculatorViewModel = viewModel()
     // The graph modes are made on first use (each loads and works out its lines), not at launch.
     val owner = checkNotNull(androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner.current)

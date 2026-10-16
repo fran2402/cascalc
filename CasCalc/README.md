@@ -203,6 +203,18 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (16 October, settings that move, and more of them)
+
+- **Pages slide in and out**: Settings, Help, Calculator tabs and every other full-screen page
+  now slide and fade in when opened and out when closed (only fade when Expressive motion is off).
+- **One place for Settings**: on a phone, a category, Acknowledgements and Calculator tabs open
+  inside Settings itself, sliding in from the right and back out to the left, instead of
+  jumping to a separate window. Back steps one page at a time.
+- **New settings**: Angles (radians or degrees) and Units for constants under Answers, Numbers
+  on the axes under Graphs, and Open at (where I left off, or always the calculator) under
+  General. Help & feedback shows the app's version and a note that nothing you type leaves
+  the phone, except a bug report you choose to send.
+
 ## Latest changes (16 October, settings in the style of Android's own)
 
 - **Settings look like Pixel settings now**: a main page with Search settings and the

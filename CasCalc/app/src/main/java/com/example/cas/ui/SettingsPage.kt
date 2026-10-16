@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.animation.togetherWith
 import com.example.cas.editor.Frac
 import com.example.cas.editor.MathRow
 import com.example.cas.editor.Pow
@@ -98,8 +99,11 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
     val scope = rememberCoroutineScope()
     var howTo by remember { mutableStateOf(false) }
     var tabsPage by remember { mutableStateOf(false) }
+    var acknowledgements by remember { mutableStateOf(false) }
     var resetting by remember { mutableStateOf(false) }
-    var open by rememberSaveable { mutableStateOf<String?>(null) }
+    // The pages open on a phone, from the main page in: each slides in over the one before.
+    var stack by rememberSaveable { mutableStateOf(listOf<String>()) }
+    val go = { route: String -> stack = stack + route }
 
     val themes = listOf("System", "Light", "Dark")
     val sizes = listOf("Small", "Medium", "Large")
@@ -131,7 +135,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
         },
         Category("Answers", TableIcons.ModeCalculator, 1, 0,
             summary = { listOfNotNull(if (vm?.decimalFirst == true) tr("Decimal first") else tr("Exact first"), tr("live answer").takeIf { AppSettings.livePreview }, tr("previews").takeIf { AppSettings.answerPreviews }).joinToString(", ") },
-            keywords = listOf("Live answer", "Show answers as", "Exact", "Decimal", "Continue from the answer", "Ans", "Graph previews"),
+            keywords = listOf("Live answer", "Show answers as", "Exact", "Decimal", "Continue from the answer", "Ans", "Graph previews", "Angles", "Radians", "Degrees", "Units for constants", "SI", "Planck", "Natural units"),
         ) {
             Hero("Live answer", AppSettings.livePreview, AppSettings::changeLivePreview)
             Header("How it works")
@@ -142,7 +146,12 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 { ToggleRow("Continue from the answer", "An operator after = starts with Ans", AppSettings.continueFromAnswer, AppSettings::changeContinueFromAnswer) },
                 { ToggleRow("Graph previews", "A faded sketch beside answers that are curves", AppSettings.answerPreviews, AppSettings::changeAnswerPreviews) },
             )
-            Footnote("Tap an answer to switch between its exact form and its decimal at any time.")
+            Header("Calculation")
+            Cards(
+                { ChoiceRow("Angles", listOf("Radians", "Degrees"), if (KeypadState.angle == com.example.cas.engine.AngleUnit.Degrees) 1 else 0) { if ((it == 1) != (KeypadState.angle == com.example.cas.engine.AngleUnit.Degrees)) KeypadState.toggleAngle() } },
+                { ChoiceRow("Units for constants", com.example.cas.engine.UnitSystem.entries.map { it.label }, KeypadState.unitSystem.ordinal) { KeypadState.selectUnitSystem(com.example.cas.engine.UnitSystem.entries[it]) } },
+            )
+            Footnote("Tap an answer to switch between its exact form and its decimal at any time. Angles and units can also be switched on the keypad.")
         },
         Category("Numbers", TableIcons.NumberFormat, 1, 0,
             summary = { "${vm?.digits ?: 10} " + tr("digits") + " · " + tr(formats[AppSettings.numberFormat]).lowercase() },
@@ -173,7 +182,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             keywords = listOf("Calculator tabs", "Haptic feedback", "Vibration", "Key sounds", "Explanations on long-press", "Keypad size", "Keyboard side"),
         ) {
             Intro("How the keys sound and feel, and which tabs sit above them.")
-            Cards({ LinkRow("Calculator tabs", "${CalcTabs.shown().size} " + tr("on the keypad; reorder them or add more"), TableIcons.Keyboard, 2) { tabsPage = true } })
+            Cards({ LinkRow("Calculator tabs", "${CalcTabs.shown().size} " + tr("on the keypad; reorder them or add more"), TableIcons.Keyboard, 2) { if (tablet) tabsPage = true else go("Calculator tabs") } })
             Header("Feel")
             Cards(
                 { ToggleRow("Haptic feedback", "A tap on each key and button", AppSettings.haptics, AppSettings::changeHaptics) },
@@ -185,12 +194,13 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
         },
         Category("Graphs", TableIcons.Mode2D, 2, 1,
             summary = { listOfNotNull(tr("Grid").takeIf { AppSettings.showGrid }, tr("legend").takeIf { AppSettings.showLegend }, tr("marked points").takeIf { AppSettings.specialPoints }).joinToString(", ").ifEmpty { tr("Plain") } },
-            keywords = listOf("Starting view", "Grid lines", "Legend", "Mark points on curves", "Zeros", "Detail", "Quality", "2D fields", "3D surfaces", "Complex plots"),
+            keywords = listOf("Starting view", "Grid lines", "Numbers on the axes", "Ticks", "Legend", "Mark points on curves", "Zeros", "Detail", "Quality", "2D fields", "3D surfaces", "Complex plots"),
         ) {
             Header("Display")
             Cards(
                 { ChoiceRow("Starting view", listOf("\$\\pm 5\$", "\$\\pm 10\$", "\$\\pm 20\$"), when (AppSettings.viewHalfWidth) { 5 -> 0; 20 -> 2; else -> 1 }) { AppSettings.changeViewHalfWidth(listOf(5, 10, 20)[it]) } },
                 { ToggleRow("Grid lines", "The axes always show", AppSettings.showGrid, AppSettings::changeShowGrid) },
+                { ToggleRow("Numbers on the axes", "The tick values along the 2D graph's axes", AppSettings.axisNumbers, AppSettings::changeAxisNumbers) },
                 { ToggleRow("Legend", "Each line's name in the corner, and in exports. Hold a line to rename it", AppSettings.showLegend, AppSettings::changeShowLegend) },
                 { ToggleRow("Mark points on curves", "Zeros, extrema and crossings of the tapped curve", AppSettings.specialPoints, AppSettings::changeSpecialPoints) },
             )
@@ -221,8 +231,10 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
         },
         Category("General", TableIcons.Settings, 3, 2,
             summary = { listOfNotNull(tr("Screen on").takeIf { AppSettings.keepScreenOn }, tr("shortcuts"), tr("reset")).joinToString(", ").replaceFirstChar { it.uppercase() } },
-            keywords = listOf("Language", "Keep the screen on", "Home screen shortcuts", "Reset all settings"),
+            keywords = listOf("Open at", "Start", "Language", "Keep the screen on", "Home screen shortcuts", "Reset all settings"),
         ) {
+            Header("Starting up")
+            Cards({ ChoiceRow("Open at", listOf("Where I left off", "Calculator"), if (AppSettings.startInCalculator) 1 else 0) { AppSettings.changeStartInCalculator(it == 1) } })
             Header("Screen")
             Cards(
                 { ToggleRow("Keep the screen on", "While the app is open", AppSettings.keepScreenOn, AppSettings::changeKeepScreenOn) },
@@ -240,7 +252,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
         },
         Category("Help & feedback", TableIcons.Help, 3, 3,
             summary = { tr("Documentation, report a bug") },
-            keywords = listOf("Documentation", "Report a bug", "Request a feature", "Acknowledgements", "Licenses"),
+            keywords = listOf("Documentation", "Report a bug", "Request a feature", "Acknowledgements", "Licenses", "Version", "Privacy"),
         ) {
             Cards(
                 { LinkRow("Documentation", "${Docs.chapters.size} " + tr("chapters with") + " ${Docs.allExamples.size} " + tr("worked examples, every key, and the spreadsheet functions"), TableIcons.Help, 0) { howTo = true } },
@@ -251,21 +263,53 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 { LinkRow("Request a feature", "An email to the developer with your idea", TableIcons.Edit, 1) { Feedback.requestFeature(context) } },
             )
             Header("About")
-            Cards({ LinkRow("Acknowledgements", "Fonts, libraries, data and methods, with links", TableIcons.Info, 2) { onAcknowledgements() } })
+            Cards({ LinkRow("Acknowledgements", "Fonts, libraries, data and methods, with links", TableIcons.Info, 2) { if (tablet) acknowledgements = true else go("Acknowledgements") } })
+            Cards({ InfoRow("Version", appVersion(context)) })
+            Footnote("The app works offline. Nothing you type leaves your phone, except a bug report you choose to send.")
         },
     )
 
     if (tablet) {
         // Two panes, as before: the categories down the left, the chosen one on the right.
         SectionedPage("Settings", onBack = onBack, sections = categories.map { c -> PageSection(c.title, c.icon) { c.content(this) } })
+        if (tabsPage) CalcTabsPage(onBack = { tabsPage = false })
+        if (acknowledgements) AcknowledgementsDialog(onDismiss = { acknowledgements = false })
     } else {
-        PixelPage("Settings", onBack) { MainPage(categories) { open = it } }
-        categories.firstOrNull { it.title == open }?.let { c ->
-            PixelPage(c.title, onBack = { open = null }) { c.content(this) }
+        val page = rememberPageMotion(onBack)
+        val back = { if (stack.isNotEmpty()) stack = stack.dropLast(1) else page.close() }
+        Dialog(onDismissRequest = back, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+            BackHandler(onBack = back)
+            page.Content {
+                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+                    // Deeper pages come in from the right over the one before; going back reverses it.
+                    androidx.compose.animation.AnimatedContent(
+                        targetState = stack,
+                        transitionSpec = {
+                            val d = if (targetState.size >= initialState.size) 1 else -1
+                            val slide = AppSettings.expressiveMotion
+                            val enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(210, delayMillis = 60)) +
+                                (if (slide) androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(330, easing = androidx.compose.animation.core.CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f))) { w -> d * w / 5 } else androidx.compose.animation.EnterTransition.None)
+                            val exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(120)) +
+                                (if (slide) androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(330, easing = androidx.compose.animation.core.CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f))) { w -> -d * w / 5 } else androidx.compose.animation.ExitTransition.None)
+                            enter togetherWith exit
+                        },
+                        label = "settings page",
+                    ) { s ->
+                        val route = s.lastOrNull()
+                        PageFrame(route ?: "Settings", back) {
+                            when (route) {
+                                null -> MainPage(categories, go)
+                                "Acknowledgements" -> AcknowledgementsContent()
+                                "Calculator tabs" -> Column(verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.padding(horizontal = 8.dp)) { CalcTabsContent() }
+                                else -> categories.firstOrNull { it.title == route }?.content?.invoke(this)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
     if (howTo) DocsPage(onBack = { howTo = false })
-    if (tabsPage) CalcTabsPage(onBack = { tabsPage = false })
     if (resetting) AlertDialog(
         onDismissRequest = { resetting = false },
         icon = { AppIcon(TableIcons.Reset, contentDescription = null) },
@@ -278,31 +322,66 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
 
 // ---- Pages --------------------------------------------------------------------------------
 
-/** A full-screen settings page: a round back button and a large title, the content scrolling below. */
+/** A settings page: a round back button and a large title, the content scrolling below. */
 @Composable
-private fun PixelPage(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+private fun PageFrame(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val colors = MaterialTheme.colorScheme
-    Dialog(onDismissRequest = onBack, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-        BackHandler(onBack = onBack)
-        Surface(Modifier.fillMaxSize(), color = colors.surface) {
-            Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-                Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier.size(48.dp).clip(CircleShape).background(colors.surfaceContainerHigh).clickable(onClickLabel = tr("Back"), onClick = onBack),
-                        contentAlignment = Alignment.Center,
-                    ) { AppIcon(TableIcons.Back, contentDescription = tr("Back"), tint = colors.onSurface) }
-                    Spacer(Modifier.width(16.dp))
-                    Text(tr(title), style = MaterialTheme.typography.headlineMedium, color = colors.onSurface, maxLines = 1)
-                }
-                Column(
-                    Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 32.dp),
-                    verticalArrangement = Arrangement.spacedBy(0.dp),
-                    content = content,
-                )
-            }
+    Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(48.dp).clip(CircleShape).background(colors.surfaceContainerHigh).clickable(onClickLabel = tr("Back"), onClick = onBack),
+                contentAlignment = Alignment.Center,
+            ) { AppIcon(TableIcons.Back, contentDescription = tr("Back"), tint = colors.onSurface) }
+            Spacer(Modifier.width(16.dp))
+            Text(tr(title), style = MaterialTheme.typography.headlineMedium, color = colors.onSurface, maxLines = 1)
         }
+        Column(
+            Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 32.dp),
+            content = content,
+        )
     }
 }
+
+/** The acknowledgements as a settings page: each group under its heading, a card per credit that opens its link. */
+@Composable
+private fun ColumnScope.AcknowledgementsContent() {
+    val colors = MaterialTheme.colorScheme
+    val uri = androidx.compose.ui.platform.LocalUriHandler.current
+    Intro("CAS Calculator is built on the work of many people. Tap any entry to read more.")
+    CREDITS.forEach { g ->
+        Header(g.title)
+        Text(g.intro, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 10.dp))
+        Cards(*g.credits.map { c -> @Composable {
+            Column(Modifier.fillMaxWidth().clickable(onClickLabel = "Open ${c.name}") { runCatching { uri.openUri(c.url) } }.then(RowPadding), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(c.name, style = MaterialTheme.typography.titleMedium, color = colors.onSurface, modifier = Modifier.weight(1f))
+                    AppIcon(TableIcons.External, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                }
+                if (c.by != "—") Text(c.by, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                MathText(tr("Used for:") + " " + c.use, style = MaterialTheme.typography.bodyMedium, color = colors.onSurface)
+                if (c.license != "—") Text(c.license, style = MaterialTheme.typography.labelSmall, color = colors.onSecondaryContainer,
+                    modifier = Modifier.padding(top = 4.dp).clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 8.dp, vertical = 2.dp))
+            }
+        } }.toTypedArray())
+    }
+}
+
+/** A row that only shows a value (the version). */
+@Composable
+private fun InfoRow(title: String, value: String) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 72.dp).then(RowPadding), verticalAlignment = Alignment.CenterVertically) {
+        RowTexts(title, value, Modifier.weight(1f))
+    }
+}
+
+/** The installed version, as "1.0 (build 1)". */
+private fun appVersion(context: android.content.Context): String = runCatching {
+    @Suppress("DEPRECATION")
+    val info = context.packageManager.getPackageInfo(context.packageName, 0)
+    @Suppress("DEPRECATION")
+    val code = if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode else info.versionCode.toLong()
+    "${info.versionName} (build $code)"
+}.getOrDefault("?")
 
 /** The main page: search, then the categories in groups (or, while searching, the settings that match). */
 @Composable

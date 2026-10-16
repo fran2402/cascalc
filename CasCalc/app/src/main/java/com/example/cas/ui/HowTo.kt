@@ -86,9 +86,11 @@ fun DocsPage(onBack: () -> Unit) {
     val tablet = isTabletLayout()
     var chapter by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf<Int?>(if (tablet) 0 else null) }
     var jumpTo by remember { mutableStateOf<Int?>(null) }
-    val back = { if (!tablet && chapter != null) chapter = null else onBack() }
+    val page = rememberPageMotion(onBack)
+    val back = { if (!tablet && chapter != null) chapter = null else page.close() }
     androidx.compose.ui.window.Dialog(onDismissRequest = back, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         androidx.activity.compose.BackHandler(onBack = back)
+        page.Content {
         androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = if (tablet) colors.surfaceContainerLow else colors.surface) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -114,6 +116,7 @@ fun DocsPage(onBack: () -> Unit) {
                     }
                 }
             }
+        }
         }
     }
 }

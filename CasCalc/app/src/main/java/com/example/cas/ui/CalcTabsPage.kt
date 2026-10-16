@@ -1,5 +1,7 @@
 package com.example.cas.ui
 
+import androidx.compose.foundation.layout.ColumnScope
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,6 +35,12 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 fun CalcTabsPage(onBack: () -> Unit) {
+    FullScreenPage("Calculator tabs", onBack = onBack) { CalcTabsContent() }
+}
+
+/** The page's content, also shown inside Settings. */
+@Composable
+fun ColumnScope.CalcTabsContent() {
     val colors = MaterialTheme.colorScheme
     val order = CalcTabs.order()
     val shown = order.filter { CalcTabs.isShown(it) }
@@ -40,7 +48,6 @@ fun CalcTabsPage(onBack: () -> Unit) {
     fun commit(newShown: List<Int>, newHidden: List<Int>) =
         AppSettings.changeTabs((newShown + newHidden).map { FunctionTabs[it].title }, newShown.map { FunctionTabs[it].title }.toSet())
 
-    FullScreenPage("Calculator tabs", onBack = onBack) {
         Text(
             tr("The groups of keys above the keypad. Drag a tab to reorder it, switch it off to put it away, and add more from below."),
             style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
@@ -80,7 +87,6 @@ fun CalcTabsPage(onBack: () -> Unit) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             TextButton(onClick = { AppSettings.resetTabs() }) { Text(tr("Reset to the default tabs")) }
         }
-    }
 }
 
 /** A tab in the list: its handle (on the keypad only), icon, name and what's on it, then [end]. */

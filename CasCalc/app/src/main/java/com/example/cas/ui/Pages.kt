@@ -41,15 +41,17 @@ import androidx.compose.ui.window.DialogProperties
  */
 @Composable
 fun FullScreenPage(title: String, onBack: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    val page = rememberPageMotion(onBack)
     Dialog(
-        onDismissRequest = onBack,
+        onDismissRequest = page.close,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
-        BackHandler(onBack = onBack)
+        BackHandler(onBack = page.close)
+        page.Content {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = page.close) {
                         AppIcon(TableIcons.Back, contentDescription = tr("Back"), tint = MaterialTheme.colorScheme.onSurface)
                     }
                     Text(tr(title), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(start = 4.dp))
@@ -61,7 +63,38 @@ fun FullScreenPage(title: String, onBack: () -> Unit, content: @Composable Colum
                 )
             }
         }
+        }
     }
+}
+
+/**
+ * How a full-screen page comes and goes: it slides in a little from the right as it fades in,
+ * and back out the same way when closed (by its back arrow, the system back, or [close]), then
+ * [onClosed] runs. With expressive motion off it only fades.
+ */
+class PageMotion internal constructor(private val state: androidx.compose.animation.core.MutableTransitionState<Boolean>, val close: () -> Unit) {
+    @Composable
+    fun Content(content: @Composable () -> Unit) {
+        val slide = AppSettings.expressiveMotion
+        androidx.compose.animation.AnimatedVisibility(
+            visibleState = state,
+            enter = androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220)) +
+                (if (slide) androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(320, easing = androidx.compose.animation.core.CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f))) { it / 6 } else androidx.compose.animation.EnterTransition.None),
+            exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(160)) +
+                (if (slide) androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(200, easing = androidx.compose.animation.core.CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f))) { it / 6 } else androidx.compose.animation.ExitTransition.None),
+        ) { content() }
+    }
+}
+
+@Composable
+fun rememberPageMotion(onClosed: () -> Unit): PageMotion {
+    val state = androidx.compose.runtime.remember { androidx.compose.animation.core.MutableTransitionState(false).apply { targetState = true } }
+    val latest = androidx.compose.runtime.rememberUpdatedState(onClosed)
+    // Once the exit has played, the page is really closed.
+    androidx.compose.runtime.LaunchedEffect(state.currentState, state.isIdle) {
+        if (state.isIdle && !state.currentState && !state.targetState) latest.value()
+    }
+    return androidx.compose.runtime.remember { PageMotion(state) { state.targetState = false } }
 }
 
 /** A part of a [SectionedPage]: its title and icon in the list, and what it shows. */
@@ -87,8 +120,10 @@ fun SectionedPage(title: String, sections: List<PageSection>, onBack: () -> Unit
     }
     val colors = MaterialTheme.colorScheme
     var chosen by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableIntStateOf(0) }
-    Dialog(onDismissRequest = onBack, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
-        BackHandler(onBack = onBack)
+    val page = rememberPageMotion(onBack)
+    Dialog(onDismissRequest = page.close, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        BackHandler(onBack = page.close)
+        page.Content {
         Surface(Modifier.fillMaxSize(), color = colors.surfaceContainerLow) {
             Row(Modifier.fillMaxSize().safeDrawingPadding()) {
                 // The sections, as a list down the left.
@@ -97,7 +132,7 @@ fun SectionedPage(title: String, sections: List<PageSection>, onBack: () -> Unit
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Row(Modifier.padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onBack) { AppIcon(TableIcons.Back, contentDescription = tr("Back"), tint = colors.onSurface) }
+                        IconButton(onClick = page.close) { AppIcon(TableIcons.Back, contentDescription = tr("Back"), tint = colors.onSurface) }
                         Text(tr(title), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, maxLines = 1, modifier = Modifier.padding(start = 4.dp))
                     }
                     sections.forEachIndexed { i, s ->
@@ -141,6 +176,7 @@ fun SectionedPage(title: String, sections: List<PageSection>, onBack: () -> Unit
                     }
                 }
             }
+        }
         }
     }
 }
