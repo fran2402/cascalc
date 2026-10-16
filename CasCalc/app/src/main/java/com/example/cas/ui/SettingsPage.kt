@@ -45,6 +45,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
@@ -133,7 +135,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             Header("Motion")
             Cards({ ToggleRow("Expressive motion", "Springy animations; off for calmer ones", AppSettings.expressiveMotion, AppSettings::changeExpressiveMotion) })
         },
-        Category("Answers", TableIcons.ModeCalculator, 1, 0,
+        Category("Answers", TableIcons.ModeCalculator, 2, 0,
             summary = { listOfNotNull(if (vm?.decimalFirst == true) tr("Decimal first") else tr("Exact first"), tr("live answer").takeIf { AppSettings.livePreview }, tr("previews").takeIf { AppSettings.answerPreviews }).joinToString(", ") },
             keywords = listOf("Live answer", "Show answers as", "Exact", "Decimal", "Continue from the answer", "Ans", "Graph previews", "Angles", "Radians", "Degrees", "Units for constants", "SI", "Planck", "Natural units"),
         ) {
@@ -153,7 +155,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             )
             Footnote("Tap an answer to switch between its exact form and its decimal at any time. Angles and units can also be switched on the keypad.")
         },
-        Category("Numbers", TableIcons.NumberFormat, 1, 0,
+        Category("Numbers", TableIcons.NumberFormat, 4, 0,
             summary = { "${vm?.digits ?: 10} " + tr("digits") + " · " + tr(formats[AppSettings.numberFormat]).lowercase() },
             keywords = listOf("Significant digits", "Group digits", "Number format", "Scientific", "Engineering", "Scientific notation", "Decimals", "Complex numbers", "Polar"),
         ) {
@@ -177,12 +179,12 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             )
             Footnote("Exact answers stay exact; these settings change only how decimals are written.")
         },
-        Category("Keypad", TableIcons.Keyboard, 2, 1,
+        Category("Keypad", TableIcons.Keyboard, 6, 1,
             summary = { "${CalcTabs.shown().size} " + tr("tabs") + " · " + tr(keypadSizes[AppSettings.keypadSize]).lowercase() },
             keywords = listOf("Calculator tabs", "Haptic feedback", "Vibration", "Key sounds", "Explanations on long-press", "Keypad size", "Keyboard side"),
         ) {
             Intro("How the keys sound and feel, and which tabs sit above them.")
-            Cards({ LinkRow("Calculator tabs", "${CalcTabs.shown().size} " + tr("on the keypad; reorder them or add more"), TableIcons.Keyboard, 2) { if (tablet) tabsPage = true else go("Calculator tabs") } })
+            Cards({ LinkRow("Calculator tabs", "${CalcTabs.shown().size} " + tr("on the keypad; reorder them or add more"), TableIcons.Keyboard, 6) { if (tablet) tabsPage = true else go("Calculator tabs") } })
             Header("Feel")
             Cards(
                 { ToggleRow("Haptic feedback", "A tap on each key and button", AppSettings.haptics, AppSettings::changeHaptics) },
@@ -192,7 +194,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             Cards({ ToggleRow("Explanations on long-press", "Formula, theory and how to use each key", AppSettings.keyHelp, AppSettings::changeKeyHelp) })
             Footnote("Key sounds use your phone's touch sounds and follow its volume. The keypad's size is under Appearance.")
         },
-        Category("Graphs", TableIcons.Mode2D, 2, 1,
+        Category("Graphs", TableIcons.Mode2D, 8, 1,
             summary = { listOfNotNull(tr("Grid").takeIf { AppSettings.showGrid }, tr("legend").takeIf { AppSettings.showLegend }, tr("marked points").takeIf { AppSettings.specialPoints }).joinToString(", ").ifEmpty { tr("Plain") } },
             keywords = listOf("Starting view", "Grid lines", "Numbers on the axes", "Ticks", "Legend", "Mark points on curves", "Zeros", "Detail", "Quality", "2D fields", "3D surfaces", "Complex plots"),
         ) {
@@ -216,7 +218,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             )
             Footnote("Higher detail is sharper but slower to draw.")
         },
-        Category("History", TableIcons.History, 3, 2,
+        Category("History", TableIcons.History, 1, 2,
             summary = { if (AppSettings.historyLimit == 0) tr("Keeps everything") else tr("Keeps {0}", AppSettings.historyLimit) },
             keywords = listOf("History keeps", "Ask before clearing history", "Ask before deleting", "Confirm"),
         ) {
@@ -246,25 +248,27 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 }) else null,
             )
             Header("Home screen shortcuts")
-            Cards(*Shortcuts.entries.map { e -> @Composable { LinkRow(e.longLabel, "Add to the home screen", TableIcons.Shortcut, 1, trailing = TableIcons.Add) { Shortcuts.pin(context, e) } } }.toTypedArray())
+            Cards(*Shortcuts.entries.map { e -> @Composable { LinkRow(e.longLabel, "Add to the home screen", TableIcons.Shortcut, 3, trailing = TableIcons.Add) { Shortcuts.pin(context, e) } } }.toTypedArray())
             Header("Reset")
             Cards({ LinkRow("Reset all settings", "Back to how they were at install; your work is kept", TableIcons.Reset, 3, trailing = null) { resetting = true } })
         },
-        Category("Help & feedback", TableIcons.Help, 3, 3,
+        Category("Help & feedback", TableIcons.Help, 5, 3,
             summary = { tr("Documentation, report a bug") },
             keywords = listOf("Documentation", "Report a bug", "Request a feature", "Acknowledgements", "Licenses", "Version", "Privacy"),
         ) {
             Cards(
-                { LinkRow("Documentation", "${Docs.chapters.size} " + tr("chapters with") + " ${Docs.allExamples.size} " + tr("worked examples, every key, and the spreadsheet functions"), TableIcons.Help, 0) { howTo = true } },
+                { LinkRow("Documentation", "${Docs.chapters.size} " + tr("chapters with") + " ${Docs.allExamples.size} " + tr("worked examples, every key, and the spreadsheet functions"), TableIcons.Help, 5) { howTo = true } },
             )
             Header("Feedback")
             Cards(
-                { LinkRow("Report a bug", "An email to the developer with the app's log attached", TableIcons.Bug, 3) { scope.launch { Feedback.reportBug(context) } } },
-                { LinkRow("Request a feature", "An email to the developer with your idea", TableIcons.Edit, 1) { Feedback.requestFeature(context) } },
+                { LinkRow("Report a bug", "An email to the developer with the app's log attached", TableIcons.Bug, WARNING) { scope.launch { Feedback.reportBug(context) } } },
+                { LinkRow("Request a feature", "An email to the developer with your idea", TableIcons.Edit, 7) { Feedback.requestFeature(context) } },
             )
             Header("About")
-            Cards({ LinkRow("Acknowledgements", "Fonts, libraries, data and methods, with links", TableIcons.Info, 2) { if (tablet) acknowledgements = true else go("Acknowledgements") } })
-            Cards({ InfoRow("Version", appVersion(context)) })
+            Cards(
+                { LinkRow("Acknowledgements", "Fonts, libraries, data and methods, with links", TableIcons.Info, 0) { if (tablet) acknowledgements = true else go("Acknowledgements") } },
+                { InfoRow("Version", appVersion(context)) },
+            )
             Footnote("The app works offline. Nothing you type leaves your phone, except a bug report you choose to send.")
         },
     )
@@ -504,10 +508,23 @@ private fun ToggleRow(title: String, detail: String?, checked: Boolean, onChange
     }
 }
 
-/** The tint pairs for icon circles: the scheme's container colors, so they follow the theme and Material You. */
+/** The tone of a warning: the only icon circle in the error color (Report a bug). */
+private const val WARNING = -1
+
+/**
+ * The tint pairs for icon circles: the graph palette (the theme's hues round the color wheel,
+ * Material You's when it's on), a soft circle of the hue with the icon in a stronger shade;
+ * [WARNING] takes the error colors.
+ */
 @Composable
-private fun tone(t: Int): Pair<Color, Color> = with(MaterialTheme.colorScheme) {
-    when (t) { 0 -> primaryContainer to onPrimaryContainer; 1 -> secondaryContainer to onSecondaryContainer; 2 -> tertiaryContainer to onTertiaryContainer; else -> errorContainer to onErrorContainer }
+private fun tone(t: Int): Pair<Color, Color> {
+    val scheme = MaterialTheme.colorScheme
+    if (t == WARNING) return scheme.errorContainer to scheme.onErrorContainer
+    val c = plotColors(scheme)[t.mod(GraphViewModel.PLOT_COLOR_COUNT)]
+    val dark = scheme.surface.luminance() < 0.5f
+    val bg = c.copy(alpha = if (dark) 0.30f else 0.22f).compositeOver(scheme.surfaceContainerHigh)
+    val fg = if (dark) androidx.compose.ui.graphics.lerp(c, Color.White, 0.3f) else androidx.compose.ui.graphics.lerp(c, Color.Black, 0.35f)
+    return bg to fg
 }
 
 /** A row that opens something, with its icon in a tinted circle; [trailing] is the chevron (or + for adding, or nothing). */

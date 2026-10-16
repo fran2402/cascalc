@@ -203,6 +203,14 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (16 October, settings in the graph colors)
+
+- **Icon circles in the graph palette**: each settings category has its own hue from the colors
+  graphs use (the theme's, or Material You's), so neighbors are clearly apart. Red is kept for
+  one thing only: Report a bug.
+- **Version on its own card**: in Help & feedback, Version sits below Acknowledgements as a
+  separate card instead of running into it.
+
 ## Latest changes (16 October, settings that move, and more of them)
 
 - **Pages slide in and out**: Settings, Help, Calculator tabs and every other full-screen page
