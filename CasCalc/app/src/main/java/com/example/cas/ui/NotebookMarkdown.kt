@@ -214,7 +214,7 @@ internal fun TextFieldValue.insert(snippet: String, block: Boolean = false): Tex
 
 /** The formatting bar over an open text block: each button writes the Markdown for you. */
 @Composable
-fun MarkdownToolbar(value: TextFieldValue, onChange: (TextFieldValue) -> Unit, modifier: Modifier = Modifier) {
+fun MarkdownToolbar(value: TextFieldValue, onChange: (TextFieldValue) -> Unit, modifier: Modifier = Modifier, wrap: Boolean = false) {
     val colors = MaterialTheme.colorScheme
     class Tool(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector?, val text: String?, val apply: (TextFieldValue) -> TextFieldValue)
     val tools = listOf(
@@ -246,7 +246,13 @@ fun MarkdownToolbar(value: TextFieldValue, onChange: (TextFieldValue) -> Unit, m
         Tool("Table", TableIcons.Table, null) { it.insert("| " + tr("Column") + " 1 | " + tr("Column") + " 2 |\n|---|---|\n|   |   |", block = true) },
         Tool("Horizontal rule", TableIcons.MdRule, null) { it.insert("---", block = true) },
     )
-    Row(modifier.horizontalScroll(rememberScrollState()).padding(vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    // A scrolling row on a phone; on a tablet's side column, wrapped onto as many rows as it needs.
+    @OptIn(ExperimentalLayoutApi::class)
+    @Composable
+    fun Holder(content: @Composable () -> Unit) =
+        if (wrap) FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { content() }
+        else Row(modifier.horizontalScroll(rememberScrollState()).padding(vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) { content() }
+    Holder {
         tools.forEach { tool ->
             Box(
                 Modifier.size(width = 44.dp, height = 40.dp).clip(RoundedCornerShape(12.dp)).background(colors.surfaceContainerHighest).clickable(onClickLabel = tr(tool.label)) { onChange(tool.apply(value)) },

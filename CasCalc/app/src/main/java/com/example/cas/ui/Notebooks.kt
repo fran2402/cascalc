@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import com.example.cas.engine.Formatter
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -435,66 +437,182 @@ private fun NotebookEditor(doc: Notebook.Doc, onClose: () -> Unit, onGraph: (Gra
 
     if (exporting) NotebookExportSheet(current(), run, onDismiss = { exporting = false })
 
+    val tablet = isTabletLayout()
+    val canUndo = revision >= 0 && undoStack.isNotEmpty()
+    val undo = {
+        undoStack.removeLastOrNull()?.let { previous -> active = null; blocks.clear(); blocks.addAll(previous.map { EditBlock.of(it, bump) }); bump() }
+        Unit
+    }
+    val share = { active = null; exporting = true }
+    // The open block's actions, for the bottom bar (phone) or the floating bar (tablet).
+    val a0 = active
+    val k0 = a0?.let { blocks.indexOf(it) } ?: -1
+    val onUp: (() -> Unit)? = if (a0 != null && k0 > 0) ({ structural { blocks.removeAt(k0); blocks.add(k0 - 1, a0) } }) else null
+    val onDown: (() -> Unit)? = if (a0 != null && k0 in 0 until blocks.lastIndex) ({ structural { blocks.removeAt(k0); blocks.add(k0 + 1, a0) } }) else null
+    val onDuplicate: (() -> Unit)? = if (a0 != null) ({ structural { blocks.add(k0 + 1, EditBlock.of(EditBlock.withId(a0.toBlock(), nextId()), bump)) } }) else null
+    val onDelete: (() -> Unit)? = if (a0 != null) ({ structural { blocks.remove(a0); active = null } }) else null
+    val addItems = listOf(
+        FabItem("Text", TableIcons.Note, "Add text") { add('T') },
+        FabItem("Math", TableIcons.ModeCalculator, "Add math") { add('M') },
+        FabItem("Graph", TableIcons.Mode2D, "Add a graph") { add('G') },
+        FabItem("Table", TableIcons.Table, "Add a table") { add('D') },
+    )
+
+    /** The page: the title, then every block. */
+    @Composable
+    fun Page(modifier: Modifier, bottomRoom: androidx.compose.ui.unit.Dp) {
+        LazyColumn(modifier, state = list, contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 4.dp, bottom = bottomRoom), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            item(key = "title") {
+                Column(Modifier.padding(horizontal = 10.dp)) {
+                    Box {
+                        if (title.isEmpty()) Text(tr("Untitled notebook"), style = MaterialTheme.typography.headlineMedium, color = colors.outline)
+                        BasicTextField(title, { title = it }, singleLine = true, textStyle = MaterialTheme.typography.headlineMedium.copy(color = colors.onSurface), cursorBrush = SolidColor(colors.primary),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), modifier = Modifier.fillMaxWidth())
+                    }
+                    Text(tr("Saved automatically"), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                }
+            }
+            items(blocks, key = { it.id }) { b ->
+                BlockView(
+                    b, isActive = active === b, run = run,
+                    onActivate = { if (active !== b) { active = b; b.focus = null }; keys.keypadHidden = false },
+                    onTap = { e, r, i -> active = b; keys.keypadHidden = false; b.focus = if (e === b.editor) null else e; e.setCursor(r, i) },
+                    onGraph = { rows -> NotebookStore.save(context, current()); onGraph(GraphRequest(rows, 2)) },
+                )
+            }
+            if (blocks.isEmpty()) item { PxFootnote("Add text, math, a graph or a table with the + button.") }
+        }
+    }
+
     Dialog(onDismissRequest = close, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         BackHandler { if (active != null) active = null else close() }
         Surface(Modifier.fillMaxSize(), color = colors.surface) {
             Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(44.dp).clip(CircleShape).background(colors.surfaceContainerHigh).clickable(onClick = close), contentAlignment = Alignment.Center) {
-                        AppIcon(TableIcons.Back, contentDescription = tr("Back"), tint = colors.onSurface)
+                val a = active
+                if (tablet) {
+                    // Tablet: the title bar with Undo, Share and +; then outline · page · keypad.
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(48.dp).clip(CircleShape).background(colors.surfaceContainerHigh).clickable(onClick = close), contentAlignment = Alignment.Center) {
+                            AppIcon(TableIcons.Back, contentDescription = tr("Back"), tint = colors.onSurface)
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Text(title.ifBlank { tr("Untitled notebook") }, style = MaterialTheme.typography.titleLarge, color = colors.onSurface, maxLines = 1, modifier = Modifier.weight(1f))
+                        IconButton(enabled = canUndo, onClick = undo) { AppIcon(TableIcons.Undo, contentDescription = tr("Undo"), tint = if (canUndo) colors.onSurface else colors.outline) }
+                        IconButton(onClick = share) { AppIcon(TableIcons.Share, contentDescription = tr("Share notebook"), tint = colors.onSurface) }
+                        Spacer(Modifier.width(8.dp))
+                        FabMenu(addItems, size = 48.dp, description = "Add text, math, a graph or a table", alignEnd = true)
                     }
-                    Spacer(Modifier.weight(1f))
-                    val canUndo = revision >= 0 && undoStack.isNotEmpty()
-                    IconButton(enabled = canUndo, onClick = {
-                        val previous = undoStack.removeLastOrNull() ?: return@IconButton
-                        active = null; blocks.clear(); blocks.addAll(previous.map { EditBlock.of(it, bump) }); bump()
-                    }) { AppIcon(TableIcons.Undo, contentDescription = tr("Undo"), tint = if (canUndo) colors.onSurface else colors.outline) }
-                    IconButton(onClick = { active = null; exporting = true }) { AppIcon(TableIcons.Share, contentDescription = tr("Share notebook"), tint = colors.onSurface) }
-                }
-                Box(Modifier.weight(1f).fillMaxWidth()) {
-                LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    item(key = "title") {
-                        Column(Modifier.padding(horizontal = 10.dp)) {
-                            Box {
-                                if (title.isEmpty()) Text(tr("Untitled notebook"), style = MaterialTheme.typography.headlineMedium, color = colors.outline)
-                                BasicTextField(title, { title = it }, singleLine = true, textStyle = MaterialTheme.typography.headlineMedium.copy(color = colors.onSurface), cursorBrush = SolidColor(colors.primary),
-                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), modifier = Modifier.fillMaxWidth())
-                            }
-                            Text(tr("Saved automatically"), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                    Row(Modifier.weight(1f).fillMaxWidth()) {
+                        NotebookOutline(blocks, active, Modifier.width(260.dp).fillMaxHeight()) { b ->
+                            active = b; b.focus = null; keys.keypadHidden = false
+                            scope.launch { list.animateScrollToItem(blocks.indexOf(b) + 1) }
+                        }
+                        Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
+                            Page(Modifier.widthIn(max = 760.dp).fillMaxSize(), 96.dp)
+                            if (a != null) BlockActionsBar(onUp, onDown, onDuplicate, onDelete, labels = true, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 20.dp))
+                        }
+                        // The keypad's column for math and graphs, the Markdown tools for text.
+                        if (a != null && a.kind != 'T' && a.kind != 'D') Keypad(keys, Modifier.width(tabletKeypadWidth()).fillMaxHeight().background(colors.surfaceContainerLow), tablet = true)
+                        else if (a != null && a.kind == 'T') Column(Modifier.width(tabletKeypadWidth()).fillMaxHeight().background(colors.surfaceContainerLow).padding(16.dp)) {
+                            Text(tr("Formatting"), style = MaterialTheme.typography.titleSmall, color = colors.primary, modifier = Modifier.padding(bottom = 10.dp))
+                            MarkdownToolbar(a.text, { a.text = it; bump() }, wrap = true)
                         }
                     }
-                    items(blocks, key = { it.id }) { b ->
-                        val k = blocks.indexOf(b)
-                        BlockView(
-                            b, isActive = active === b, run = run,
-                            onActivate = { if (active !== b) { active = b; b.focus = null }; keys.keypadHidden = false },
-                            onTap = { e, r, i -> active = b; keys.keypadHidden = false; b.focus = if (e === b.editor) null else e; e.setCursor(r, i) },
-                            onUp = if (k > 0) ({ structural { blocks.removeAt(k); blocks.add(k - 1, b) } }) else null,
-                            onDown = if (k < blocks.lastIndex) ({ structural { blocks.removeAt(k); blocks.add(k + 1, b) } }) else null,
-                            onDuplicate = { structural { blocks.add(k + 1, EditBlock.of(EditBlock.withId(b.toBlock(), nextId()), bump)) } },
-                            onDelete = { structural { blocks.remove(b); if (active === b) active = null } },
-                            onGraph = { rows -> NotebookStore.save(context, current()); onGraph(GraphRequest(rows, 2)) },
-                        )
+                } else {
+                    // Phone: back at the top; one bar at the bottom.
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(44.dp).clip(CircleShape).background(colors.surfaceContainerHigh).clickable(onClick = close), contentAlignment = Alignment.Center) {
+                            AppIcon(TableIcons.Back, contentDescription = tr("Back"), tint = colors.onSurface)
+                        }
                     }
-                    if (blocks.isEmpty()) item { PxFootnote("Add text, math, a graph or a table with the + button.") }
+                    Page(Modifier.weight(1f).fillMaxWidth(), 24.dp)
+                    val typing = a != null && a.kind != 'T' && a.kind != 'D'
+                    if (typing && !keys.keypadHidden) {
+                        // The keypad, with the block's actions on a slim row over it.
+                        BlockActionsBar(onUp, onDown, onDuplicate, onDelete, labels = false, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+                        Keypad(keys)
+                    } else {
+                        if (a != null && a.kind == 'T') MarkdownToolbar(a.text, { a.text = it; bump() }, Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
+                        Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 12.dp, end = 12.dp, top = 6.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                Modifier.weight(1f).height(64.dp).clip(RoundedCornerShape(32.dp)).background(colors.surfaceContainerHigh).padding(horizontal = 6.dp),
+                                horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                BarAction(TableIcons.ChevronUp, "Up", onUp)
+                                BarAction(TableIcons.ChevronDown, "Down", onDown)
+                                BarAction(TableIcons.Copy, "Copy", onDuplicate)
+                                BarAction(TableIcons.Delete, "Delete", onDelete)
+                                Box(Modifier.width(1.dp).height(30.dp).background(colors.outlineVariant))
+                                BarAction(TableIcons.Undo, "Undo", if (canUndo) undo else null)
+                                BarAction(TableIcons.Share, "Share", share)
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            FabMenu(addItems, size = 64.dp, description = "Add text, math, a graph or a table", alignEnd = true)
+                        }
+                        if (typing) ShowKeypadButton(onClick = { keys.keypadHidden = false }, modifier = Modifier.align(Alignment.End).padding(16.dp))
+                    }
                 }
-                // + on the right, as in the graphs: its menu adds a block after the one open.
-                Box(Modifier.align(Alignment.BottomEnd).padding(20.dp)) {
-                    FabMenu(
-                        listOf(
-                            FabItem("Text", TableIcons.Note, "Add text") { add('T') },
-                            FabItem("Math", TableIcons.ModeCalculator, "Add math") { add('M') },
-                            FabItem("Graph", TableIcons.Mode2D, "Add a graph") { add('G') },
-                            FabItem("Table", TableIcons.Table, "Add a table") { add('D') },
-                        ),
-                        size = 56.dp, description = "Add text, math, a graph or a table", alignEnd = true,
-                    )
-                }
-                }
-                val a = active
-                if (a != null && a.kind == 'T') MarkdownToolbar(a.text, { a.text = it; bump() }, Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
-                if (a != null && a.kind != 'T' && a.kind != 'D' && !keys.keypadHidden) Keypad(keys)
-                else if (a != null && a.kind != 'T' && a.kind != 'D') ShowKeypadButton(onClick = { keys.keypadHidden = false }, modifier = Modifier.align(Alignment.End).padding(16.dp))
+            }
+        }
+    }
+}
+
+/** One of the phone bar's actions: an icon over its name, greyed out when there's nothing to do. */
+@Composable
+private fun BarAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: (() -> Unit)?) {
+    val colors = MaterialTheme.colorScheme
+    Column(
+        Modifier.clip(RoundedCornerShape(16.dp)).clickable(enabled = onClick != null, onClickLabel = tr(label)) { onClick?.invoke() }.padding(horizontal = 6.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        AppIcon(icon, contentDescription = null, tint = if (onClick != null) colors.onSurface else colors.outlineVariant, modifier = Modifier.size(20.dp))
+        Text(tr(label), style = MaterialTheme.typography.labelSmall, color = if (onClick != null) colors.onSurfaceVariant else colors.outlineVariant)
+    }
+}
+
+/** The open block's actions as a pill: move up, move down, duplicate, delete. */
+@Composable
+private fun BlockActionsBar(onUp: (() -> Unit)?, onDown: (() -> Unit)?, onDuplicate: (() -> Unit)?, onDelete: (() -> Unit)?, labels: Boolean, modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Row(modifier.clip(RoundedCornerShape(28.dp)).background(colors.surfaceContainerHigh).padding(horizontal = 6.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        listOf(Triple(TableIcons.ChevronUp, "Up", onUp), Triple(TableIcons.ChevronDown, "Down", onDown), Triple(TableIcons.Copy, "Duplicate", onDuplicate), Triple(TableIcons.Delete, "Delete", onDelete)).forEach { (icon, label, f) ->
+            Row(
+                Modifier.clip(RoundedCornerShape(20.dp)).clickable(enabled = f != null, onClickLabel = tr(label)) { f?.invoke() }.padding(horizontal = if (labels) 12.dp else 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AppIcon(icon, contentDescription = if (labels) null else tr(label), tint = if (f != null) colors.onSurface else colors.outlineVariant, modifier = Modifier.size(20.dp))
+                if (labels) { Spacer(Modifier.width(6.dp)); Text(tr(label), style = MaterialTheme.typography.labelLarge, color = if (f != null) colors.onSurfaceVariant else colors.outlineVariant) }
+            }
+        }
+    }
+}
+
+/** The tablet's outline: every block by its kind and first line, headings set apart; tap one to go to it. */
+@Composable
+private fun NotebookOutline(blocks: List<EditBlock>, active: EditBlock?, modifier: Modifier, onPick: (EditBlock) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    LazyColumn(modifier.background(colors.surfaceContainerLow).padding(horizontal = 10.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        item { Text(tr("Outline"), style = MaterialTheme.typography.titleSmall, color = colors.primary, modifier = Modifier.padding(start = 10.dp, bottom = 8.dp)) }
+        items(blocks, key = { it.id }) { b ->
+            val firstLine = b.text.text.lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
+            val heading = b.kind == 'T' && firstLine.startsWith("#")
+            val (icon, label) = when (b.kind) {
+                'T' -> TableIcons.Note to (firstLine.trimStart('#').trim().ifEmpty { tr("Text") })
+                'G' -> TableIcons.Mode2D to (tr("Graph") + " " + Formatter.plain(b.editor.root)).trim()
+                'D' -> TableIcons.Table to (tr("Table") + " " + b.table.names.joinToString(", "))
+                else -> TableIcons.ModeCalculator to Formatter.plain(b.editor.root).ifEmpty { tr("Math") }
+            }
+            val on = b === active
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) colors.secondaryContainer else Color.Transparent).clickable { onPick(b) }
+                    .padding(start = if (heading) 8.dp else 20.dp, end = 8.dp, top = 9.dp, bottom = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AppIcon(icon, contentDescription = null, tint = colors.primary, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(label, style = if (heading) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
+                    color = if (on) colors.onSecondaryContainer else if (heading) colors.onSurface else colors.onSurfaceVariant, maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             }
         }
     }
@@ -502,20 +620,10 @@ private fun NotebookEditor(doc: Notebook.Doc, onClose: () -> Unit, onGraph: (Gra
 
 @Composable
 private fun BlockView(
-    b: EditBlock, isActive: Boolean, run: Notebook.Run?, onActivate: () -> Unit, onTap: (Editor, MathRow, Int) -> Unit,
-    onUp: (() -> Unit)?, onDown: (() -> Unit)?, onDuplicate: () -> Unit, onDelete: () -> Unit, onGraph: (List<MathRow>) -> Unit,
+    b: EditBlock, isActive: Boolean, run: Notebook.Run?, onActivate: () -> Unit, onTap: (Editor, MathRow, Int) -> Unit, onGraph: (List<MathRow>) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     Column {
-        // The open block's own actions: move it, duplicate it, delete it.
-        if (isActive) Row(Modifier.fillMaxWidth().padding(bottom = 2.dp), horizontalArrangement = Arrangement.End) {
-            @Composable fun act(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: (() -> Unit)?) =
-                IconButton(enabled = onClick != null, onClick = { onClick?.invoke() }) { AppIcon(icon, contentDescription = tr(label), tint = if (onClick != null) colors.onSurfaceVariant else colors.outlineVariant) }
-            act(TableIcons.ChevronUp, "Move up", onUp)
-            act(TableIcons.ChevronDown, "Move down", onDown)
-            act(TableIcons.Copy, "Duplicate", onDuplicate)
-            act(TableIcons.Delete, "Delete", onDelete)
-        }
         val shape = RoundedCornerShape(22.dp)
         val outline = if (isActive) Modifier.border(2.dp, colors.primary, shape) else Modifier
         when (b.kind) {
@@ -523,7 +631,7 @@ private fun BlockView(
                 if (isActive) {
                     Box {
                         if (b.text.text.isEmpty()) Text(tr("Text in Markdown: # heading, **bold**, *italic*, - list, \$x^2\$ math…"), style = MaterialTheme.typography.bodyLarge, color = colors.outline)
-                        BasicTextField(b.text, { b.text = it; b.changed() }, textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 15.sp),
+                        BasicTextField(b.text, { b.text = it; b.changed() }, textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface, fontFamily = CasFonts.Maple, fontSize = 15.sp),
                             cursorBrush = SolidColor(colors.primary), modifier = Modifier.fillMaxWidth())
                     }
                 } else if (b.text.text.isBlank()) Text(tr("Text"), style = MaterialTheme.typography.bodyLarge, color = colors.outline)

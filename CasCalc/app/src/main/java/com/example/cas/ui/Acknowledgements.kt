@@ -48,6 +48,8 @@ val CREDITS: List<CreditGroup> = listOf(
             "The fonts LaTeX documents are set in, so answers look as they would in print.", "SIL Open Font License 1.1", "https://github.com/mathjax/MathJax/tree/legacy-v2/fonts"),
         Credit("New Computer Modern", "Antonis Tsolomitis, after Donald Knuth's Computer Modern", "Blackboard bold (\$\\mathbb{R}\$, \$\\mathbb{C}\$…), Hebrew letters, upright Greek, ħ, the Greek letters Computer Modern lacks, accented letters and unit symbols (Å, °Ré, °Rø, ‰, ℉, ☉) in the unit converter, and its Mono (the typewriter, with its true italic) for the data table's cells",
             "Computer Modern extended with Unicode math and more scripts, so these match the rest of the math.", "GUST Font License", "https://ctan.org/pkg/newcomputermodern"),
+        Credit("Maple Mono", "The Maple Mono Project Authors (subframe7536)", "The notebooks' Markdown text while it's being written",
+            "A rounded monospace typeface with clear, friendly letters.", "SIL Open Font License 1.1", "https://github.com/subframe7536/maple-font"),
         Credit("Material Symbols", "Google", "Icons",
             "Google's icon set, through Compose's extended icons.", "Apache License 2.0", "https://fonts.google.com/icons"),
     )),

@@ -345,10 +345,13 @@ Create
 Share notebook	
 Couldn't share	
 Saved automatically	
-Text in Markdown: # heading, **bold**, *italic*, - list, $x^2$ math…	
+Formatting	
+Outline	
 Text	
-Definitions	
+Graph	
 Math	
+Text in Markdown: # heading, **bold**, *italic*, - list, $x^2$ math…	
+Definitions	
 Functions to draw, separated by commas	
 Open in Graphs	
 auto	
@@ -360,7 +363,6 @@ Plot
 Couldn't export	
 Add text	
 Add math	
-Graph	
 Add a graph	
 Saved graphs	
 Close the search	
@@ -409,7 +411,6 @@ Next
 Solve for	
 It has several letters. Which one should it be solved for?	
 Solve	
-Outline	
 Steps	
 Copy the steps	
 No steps for this one yet	
@@ -664,6 +665,8 @@ Step by step
 cosecant	
 secant	
 cotangent	
+Up	
+Down	
 Typeset like a LaTeX document, with the graphs as figures	
 A .tex file for Overleaf or your own template; graphs as pgfplots	
 Open it in Notebooks on another phone, fully editable	

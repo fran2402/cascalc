@@ -510,7 +510,7 @@ private fun AlsoCard(state: ConverterState, digits: Int, onPick: (String) -> Uni
     Section("Also equals") {
         state.alternatives.forEachIndexed { k, a ->
             Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(if (k == 0) 20.dp else 8.dp)).background(colors.surfaceContainer)
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(if (k == 0) 20.dp else 8.dp)).background(colors.surfaceContainerHighest)
                     .clickable(onClickLabel = "Convert to ${a.text}") { onPick(a.text) }
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -598,7 +598,7 @@ private fun Examples(onPick: (List<String>) -> Unit) {
 private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
     val colors = MaterialTheme.colorScheme
     Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(colors.surface).padding(16.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(colors.surfaceContainerHigh).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(tr(title), style = MaterialTheme.typography.titleSmall, color = colors.primary, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp).semantics { heading() })
@@ -635,7 +635,7 @@ private fun ToggleChip(math: String, name: String, on: Boolean, onChange: (Boole
     val colors = MaterialTheme.colorScheme
     val corner by animateFloatAsState(if (on) 50f else 25f, spring(stiffness = Spring.StiffnessMedium), label = "chip")
     Row(
-        Modifier.height(40.dp).clip(RoundedCornerShape(corner.toInt())).background(if (on) colors.secondaryContainer else colors.surfaceContainerHigh)
+        Modifier.height(40.dp).clip(RoundedCornerShape(corner.toInt())).background(if (on) colors.secondaryContainer else colors.surfaceContainerHighest)
             .clickable(onClickLabel = (if (on) "Don't use " else "Use ") + name) { onChange(!on) }
             .padding(horizontal = 14.dp)
             .semantics { contentDescription = name + if (on) ", on" else ", off" },

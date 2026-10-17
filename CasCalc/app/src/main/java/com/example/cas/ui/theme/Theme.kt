@@ -206,6 +206,13 @@ object CasFonts {
         Font(R.font.ncm_mono_italic, androidx.compose.ui.text.font.FontWeight.Normal, androidx.compose.ui.text.font.FontStyle.Italic),
         Font(R.font.ncm_mono_bold, androidx.compose.ui.text.font.FontWeight.Bold),
     )
+    /** The notebooks' Markdown text: Maple Mono, with its italic and bold. */
+    val Maple = FontFamily(
+        Font(R.font.maple_mono),
+        Font(R.font.maple_mono_italic, androidx.compose.ui.text.font.FontWeight.Normal, androidx.compose.ui.text.font.FontStyle.Italic),
+        Font(R.font.maple_mono_bold, androidx.compose.ui.text.font.FontWeight.Bold),
+        Font(R.font.maple_mono_bold_italic, androidx.compose.ui.text.font.FontWeight.Bold, androidx.compose.ui.text.font.FontStyle.Italic),
+    )
     /** Math on keys: Google Sans Flex, rounded like the rest of the interface. */
     val Math = googleSansFlex(weight = 400)
     val MathItalic = googleSansFlex(weight = 400, slant = -10f)

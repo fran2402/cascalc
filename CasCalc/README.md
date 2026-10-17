@@ -203,6 +203,22 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (17 October, notebook layouts, Maple Mono, converter cards)
+
+- **Phone notebooks: one bar at the bottom.** The open block's actions (up, down, copy,
+  delete; greyed out when nothing is open), Undo and Share sit together in one bar, with the +
+  button at its right end. The actions no longer float above the block. While writing text the
+  Markdown bar sits just above it; while typing math the actions ride on a slim row over the
+  keypad.
+- **Tablet notebooks: outline, page and keypad.** An outline down the left (every block by its
+  first line, headings set apart; tap to jump), the page in the middle at a readable width, and
+  the calculator's keypad as a column on the right while math or a graph is open (the Markdown
+  tools, wrapped, take its place for text). Title, Undo, Share and + in the top bar; the open
+  block's actions float under the page.
+- **Maple Mono** for Markdown while it's being written (credited in Acknowledgements).
+- **Unit converter cards** stand out from the background again: Details, Options, Also equals
+  and Try sit on their own cards, and the chips inside them on a lighter tone.
+
 ## Latest changes (17 October, notebook polish, select and paste in the calculator)
 
 - **Fixed a crash** when a notebook graph or table plot had nothing to space its grid by.
