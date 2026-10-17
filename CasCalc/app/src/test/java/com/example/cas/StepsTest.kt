@@ -42,7 +42,31 @@ class StepsTest {
         assertTrue(Steps.supports(integral(m("x"))))
         assertTrue(Steps.supports(m(fn("contour", m(Frac(m("1"), m("z"))), m(fn("abs", m("z")), "=1")))))
         assertFalse(Steps.supports(m("2+2")))
-        assertFalse(Steps.supports(m(integral(m("x")).items[0], "+1")))
+        // An operation inside a larger expression has steps too.
+        assertTrue(Steps.supports(m(integral(m("x")).items[0], "+1")))
+    }
+
+    @Test fun operationInsideAnExpression() {
+        // 2∫2x dx: the integral on its own (with its steps underneath), put back, then the whole.
+        val s = latexOk(Steps.of(m("2", integral(m("2x")).items[0]))!!)
+        assertTrue(s.steps.first().substeps.isNotEmpty())
+        assertTrue(s.steps.any { it.title == "Put it back" })
+        assertEquals("2x^2+C", text(s.answer).substringAfterLast("=").replace(" ", "").replace("²", "^2"))
+    }
+
+    @Test fun matrixEntryByEntry() {
+        val mat = com.example.cas.editor.Matrix(2, 2, listOf(m("x"), MathRow(), MathRow(), m("x", Pow(m("2")))))
+        val s = latexOk(Steps.of(integral(m(mat)))!!)
+        assertEquals("Entry by entry", s.steps.first().title)
+        // Two entries worked out (the empty ones are 0), then put back, then the answer.
+        assertEquals(2, s.steps.count { it.text?.startsWith("Part") == true })
+    }
+
+    @Test fun customSymbolInTexts() {
+        val name = com.example.cas.cas.CustomSymbol("x", com.example.cas.cas.Accent.DoubleDot, "", "").encode()
+        val s = latexOk(Steps.of(m(Integral(m(), m(), MathRow(mutableListOf(Sym(name))), MathRow(mutableListOf(Sym(name))))))!!)
+        fun all(steps: List<Steps.Step>): List<Steps.Step> = steps.flatMap { listOf(it) + all(it.substeps) }
+        assertTrue(all(s.steps).flatMap { listOfNotNull(it.title, it.text) }.none { com.example.cas.cas.CustomSymbol.MARK in it })
     }
 
     @Test fun byParts() {

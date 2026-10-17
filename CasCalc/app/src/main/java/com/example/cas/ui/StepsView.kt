@@ -87,8 +87,10 @@ fun StepsView(expression: MathRow, angle: AngleUnit, onDismiss: () -> Unit, solv
     val total = solution?.getOrNull()?.steps?.size ?: 0
     // Every step at once (no revealing them one by one).
     val state = StepsState(total, total)
-    if (isTabletLayout()) TabletSteps(expression, solution?.getOrNull(), solution != null, state, onDismiss)
-    else PhoneSteps(expression, solution?.getOrNull(), solution != null, state, onDismiss)
+    // Shown with a matrix's empty entries as 0, as they're read.
+    val question = remember(expression) { Steps.filled(expression) }
+    if (isTabletLayout()) TabletSteps(question, solution?.getOrNull(), solution != null, state, onDismiss)
+    else PhoneSteps(question, solution?.getOrNull(), solution != null, state, onDismiss)
 }
 
 private class StepsState(val shown: Int, val total: Int)

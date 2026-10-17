@@ -82,7 +82,7 @@ object Steps {
     /** A letter that's a variable (not i, e or π). */
     private fun isLetter(t: String) = isVariable(t) && t !in setOf("i", "e", "π")
 
-    fun supports(row: MathRow): Boolean = isEquation(row) || defined(row) != null || target(row) != null || inverseOf(row) != null || isComplexArithmetic(row) || simplificationMoves(row, AngleUnit.Radians).isNotEmpty()
+    fun supports(row: MathRow): Boolean = isEquation(row) || operationPaths(row).isNotEmpty() || defined(row) != null || target(row) != null || inverseOf(row) != null || isComplexArithmetic(row) || simplificationMoves(row, AngleUnit.Radians).isNotEmpty()
 
     /** The rewrites that simplify a plain algebraic expression (empty if there are none, or it isn't one). */
     private fun simplificationMoves(row: MathRow, angle: AngleUnit): List<com.example.cas.cas.AutoSimplify.Move> {
@@ -134,10 +134,15 @@ object Steps {
         }
 
     /** The working for [row], or null if there is none (or it couldn't be found). */
-    fun of(row: MathRow, angle: AngleUnit = AngleUnit.Radians, solveFor: List<String>? = null): Solution? = runCatching {
+    fun of(row: MathRow, angle: AngleUnit = AngleUnit.Radians, solveFor: List<String>? = null): Solution? =
+        work(row, angle, solveFor)?.let { withSymbols(it, row) }
+
+    private fun work(row: MathRow, angle: AngleUnit, solveFor: List<String>?): Solution? = runCatching {
         inverseOf(row)?.let { return@runCatching inverse(row, angle) }
         // An equation, as Enter solves it.
         equation(row, angle, solveFor)?.let { return@runCatching it }
+        // An integral or derivative of a matrix: entry by entry.
+        entryByEntry(row, angle)?.let { return@runCatching it }
         // An operation inside another (∮ inside a limit, a derivative inside an integral): the inside first.
         nested(row, angle)?.let { return@runCatching it }
         when (val n = target(row)) {
@@ -157,9 +162,130 @@ object Steps {
                 "grad", "div", "curl", "jacobian", "hessian" -> vectorCalculus(n, angle)
                 else -> contour(n, angle)
             }
-            else -> definition(row, angle) ?: if (isComplexArithmetic(row)) complex(row, angle) else simplification(row, angle)
+            else -> definition(row, angle) ?: pieces(row, angle) ?: if (isComplexArithmetic(row)) complex(row, angle) else simplification(row, angle)
         }
     }.getOrNull()
+
+    /** A copy of [row] with every empty matrix entry written as 0, for showing the question. */
+    fun filled(row: MathRow): MathRow {
+        val copy = com.example.cas.editor.MathCodec.copy(row)
+        fun walk(r: MathRow) { r.items.forEach { n -> if (n is com.example.cas.editor.Matrix) n.cells.forEach { c -> if (c.items.isEmpty()) c.add(sym("0")) }; n.slots.forEach(::walk) } }
+        walk(copy)
+        return copy
+    }
+
+    // ---- Custom symbols in the texts ---------------------------------------------------------
+
+    /**
+     * The step texts are LaTeX written with the variables' names; a custom symbol's name is its
+     * stored form, so each one in the question is swapped for its LaTeX (ẍ, x̂₁, 𝔈…) throughout.
+     */
+    private fun withSymbols(s: Solution, row: MathRow): Solution {
+        val names = HashSet<String>()
+        fun walk(r: MathRow) { r.items.forEach { n -> if (n is SymNode && com.example.cas.cas.CustomSymbol.isCustom(n.text)) names += n.text; n.slots.forEach(::walk) } }
+        walk(row)
+        if (names.isEmpty()) return s
+        // Longest first, so a name that starts another isn't swapped inside it.
+        val swaps = names.sortedByDescending { it.length }.mapNotNull { n -> com.example.cas.cas.CustomSymbol.decode(n)?.let { n to "{" + it.latex + "}" } }
+        fun fix(t: String?): String? = t?.let { swaps.fold(it) { acc, (n, l) -> acc.replace(n, l) } }
+        fun fix(st: Step): Step = Step(fix(st.title)!!, fix(st.text), st.math, st.kind, st.substeps.map(::fix))
+        return Solution(fix(s.method)!!, s.steps.map(::fix), s.answer)
+    }
+
+    // ---- Operations inside an expression -----------------------------------------------------
+
+    /** Where each outermost operation (∫, d/dx, lim, Σ…) in [row] sits, as item and slot indices, in reading order. */
+    private fun operationPaths(row: MathRow): List<List<Int>> {
+        val out = ArrayList<List<Int>>()
+        fun walk(r: MathRow, prefix: List<Int>) {
+            r.items.forEachIndexed { i, item ->
+                if (isOperation(item)) out += prefix + i
+                else item.slots.forEachIndexed { k, slot -> walk(slot, prefix + i + k) }
+            }
+        }
+        walk(row, emptyList())
+        return out
+    }
+
+    /** A solution's value without an indefinite integral's "+ C" (it goes on the whole answer, not on a part). */
+    private fun partValue(s: Solution): List<Node>? = valueOf(s)?.let { v ->
+        if (v.size >= 2 && (v[v.size - 2] as? SymNode)?.text == "+" && (v.last() as? SymNode)?.text == "C") v.dropLast(2) else v
+    }
+
+    /**
+     * An expression with operations inside it, like 2∫2x dx, a matrix of integrals, or a
+     * product of a limit and a sum: each operation worked out on its own (its steps underneath),
+     * the values put back, and the whole worked out.
+     */
+    private fun pieces(row: MathRow, angle: AngleUnit, question: MathRow = row, lead: List<Step> = emptyList()): Solution? {
+        val paths = operationPaths(row)
+        if (paths.isEmpty() || (paths.size == 1 && target(row) != null && lead.isEmpty())) return null
+        val parts = paths.map { path ->
+            val (parent, index) = nodeAt(row, path)
+            val single = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(parent.items[index])))
+            val solution = work(single, angle, null)
+            val value = solution?.let { partValue(it) }
+                ?: Formatter.row(Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(single))).items.toList()
+            Triple(single, solution, value)
+        }
+        val steps = ArrayList<Step>(lead)
+        parts.forEachIndexed { k, (single, solution, value) ->
+            val title = solution?.method?.replaceFirstChar { it.uppercase() } ?: "Work it out"
+            val text = if (parts.size == 1) "Work out the ${what(single.items[0])} first." else "Part ${k + 1} of ${parts.size}."
+            steps += Step(title, text, line(single, "=", MathRow(value.toMutableList())), Kind.Rule, solution?.steps?.filter { it.kind != Kind.Result } ?: emptyList())
+        }
+        // The values put back, last first so the earlier places don't move.
+        val rewritten = com.example.cas.editor.MathCodec.copy(row)
+        paths.indices.reversed().forEach { k ->
+            val (parent, index) = nodeAt(rewritten, paths[k])
+            val value = com.example.cas.editor.MathCodec.copy(MathRow(parts[k].third.toMutableList())).items.toList()
+            parent.removeAt(index)
+            val bare = parent.items.isEmpty() || value.size == 1 ||
+                ((parent.items.getOrNull(index - 1) as? SymNode)?.text == "(" && (parent.items.getOrNull(index) as? SymNode)?.text == ")")
+            val put = if (bare) value else listOf<Node>(sym("(")) + value + sym(")")
+            put.asReversed().forEach { parent.add(index, it) }
+        }
+        steps += Step(if (parts.size == 1) "Put it back" else "Put them back", null, line(question, "=", rewritten))
+        val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
+        val indefinite = parts.any { (single, _, _) -> (single.items[0] as? Integral)?.let { it.lower.items.isEmpty() && it.upper.items.isEmpty() } == true }
+        val answer = if (indefinite && value !is Eq) line(ans(question, value), "+", "C") else ans(question, value)
+        steps += Step("Answer", if (indefinite) "Add one constant \$C\$ for the whole antiderivative." else null, answer, Kind.Result)
+        val methods = parts.mapNotNull { it.second?.method }.distinct()
+        return Solution(if (methods.isEmpty()) "Work out each part" else methods.joinToString(", "), steps, answer)
+    }
+
+    private fun what(n: Node): String = when (n) {
+        is Integral -> "integral"
+        is com.example.cas.editor.Derivative -> "derivative"
+        is com.example.cas.editor.BigOp -> if (n.kind == com.example.cas.editor.BigOpKind.Sum) "sum" else "product"
+        is Func -> when (n.name) { "lim" -> "limit"; "det" -> "determinant"; else -> "inner part" }
+        else -> "inner part"
+    }
+
+    /**
+     * ∫ or d/dx of a matrix (or vector): the operation goes onto each entry, then each entry is
+     * worked out as its own part. An empty entry is 0.
+     */
+    private fun entryByEntry(row: MathRow, angle: AngleUnit): Solution? {
+        val op = target(row) ?: return null
+        val body = when (op) { is Integral -> op.body; is com.example.cas.editor.Derivative -> op.body; else -> return null }
+        val m = body.items.singleOrNull() as? com.example.cas.editor.Matrix ?: return null
+        val cells = m.cells.map { cell ->
+            if (cell.items.isEmpty() || (cell.items.size == 1 && (cell.items[0] as? SymNode)?.text == "0")) MathRow(mutableListOf(sym("0")))
+            else {
+                val copy = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(op)))
+                val b = when (val o = copy.items[0]) { is Integral -> o.body; is com.example.cas.editor.Derivative -> o.body; else -> return null }
+                while (b.items.isNotEmpty()) b.removeAt(0)
+                com.example.cas.editor.MathCodec.copy(cell).items.toList().forEach { b.add(it) }
+                copy
+            }
+        }
+        val spread = MathRow(mutableListOf(com.example.cas.editor.Matrix(m.rows, m.cols, cells)))
+        val question = com.example.cas.editor.MathCodec.copy(row)
+        val verb = if (op is Integral) "Integrate" else "Differentiate"
+        val lead = listOf(Step("Entry by entry", "$verb each entry of the matrix on its own.", line(question, "=", spread)))
+        return pieces(spread, angle, question, lead)
+    }
 
     /** The letters an answer was solved for: x in x = 2, x and y in x = 2, y = 1 (null if it isn't one). */
     fun solvedFor(value: Expr): List<String>? {

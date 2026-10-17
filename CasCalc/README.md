@@ -203,6 +203,18 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (17 October, steps inside expressions, custom symbols in steps)
+
+- **Steps for operations inside an expression**: 2∫2x dx, a limit times a sum, an integral
+  plus a derivative, or any other mix now has steps. Each integral, derivative, limit, sum or
+  product is worked out on its own (with its full steps underneath), its value is put back, and
+  the whole is worked out. An indefinite integral gets one constant C on the whole answer.
+- **Integrals and derivatives of a matrix, entry by entry**: the operation goes onto each
+  entry, each entry has its own steps, and empty entries are 0 (also shown as 0 in the steps'
+  question instead of empty boxes).
+- **Custom symbols in step texts**: rules like the power rule now show your symbol (an x with
+  two dots, a Fraktur letter…) instead of garbled characters.
+
 ## Latest changes (17 October, one look for graph settings, finer steps)
 
 - **Graph settings look the same in 2D, 3D and the complex plane**, and like the app's own
