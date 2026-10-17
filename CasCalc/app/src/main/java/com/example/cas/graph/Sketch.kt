@@ -51,7 +51,7 @@ object Sketch {
     }
 
     /** The stretch of x to draw: around the zeros and turning points near 0, else where it is defined. */
-    private fun range(f: (Double) -> Double): Pair<Double, Double>? {
+    fun range(f: (Double) -> Double): Pair<Double, Double>? {
         val n = 400
         val xs = DoubleArray(n + 1) { -10.0 + 20.0 * it / n }
         val ok = xs.filter { f(it).isFinite() }

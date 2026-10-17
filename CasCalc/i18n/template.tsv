@@ -4,6 +4,7 @@
 # Lines left empty stay English. {0}, {1}… are filled in by the app; keep them. \n is a new line.
 Graph this	
 More options	
+Notebooks	
 Unit converter	
 Settings	
 Acknowledgements	
@@ -322,13 +323,36 @@ Show the guide to {0}
 Try	
 Open {0}	
 Guide to {0}	
+That isn't a notebook file	
+From history	
+Rename notebook	
+Delete this notebook?	
+It can't be brought back.	
+Search notebooks	
+No notebook matches.	
+Untitled notebook	
+New notebook	
+{0} blocks	
+{0} graphs	
+Duplicate	
+Create	
+Share notebook	
+Couldn't share	
+Saved automatically	
+Text. A line starting with # is a heading; $x^2$ is math.	
+Text	
+Definitions	
+Math	
+Functions to draw, separated by commas	
+Uses the definitions above	
+Open in Graphs	
+Couldn't export	
 Saved graphs	
 Close the search	
 Import a graph file (.g2d, .g3d, .gcp)	
 Nothing to save	
 The saved graph will be removed. The graph on screen isn't affected.	
 Save a graph to keep its lines, colors and sliders, and open it again later.	
-Duplicate	
 No lines	
 Converges	
 Diverges	
@@ -623,6 +647,9 @@ Step by step
 cosecant	
 secant	
 cotangent	
+Typeset like a LaTeX document, with the graphs as figures	
+A .tex file for Overleaf or your own template; graphs as pgfplots	
+Open it in Notebooks on another phone, fully editable	
 Cursor left	
 Cursor right	
 Sort up	
@@ -669,10 +696,8 @@ Now
 =TODAY()	
 Function	
 Function Library	
-Math	
 Lookup	
 Logical	
-Text	
 Financial	
 Engineering	
 Formula Auditing	

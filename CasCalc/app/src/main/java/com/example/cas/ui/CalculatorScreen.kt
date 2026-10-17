@@ -321,6 +321,10 @@ fun CalculatorTrailingAction(vm: CalculatorViewModel) {
                         onClick = { menu = false; vm.clearVariables() },
                     )
                 }
+                DropdownMenuItem(
+                    text = { Text(tr("Notebooks")) }, leadingIcon = { AppIcon(TableIcons.Document, null) },
+                    onClick = { menu = false; NotebookNav.open = true },
+                )
                 if (AppSettings.unitConverter) DropdownMenuItem(
                     text = { Text(tr("Unit converter")) }, leadingIcon = { AppIcon(TableIcons.Converter, null) },
                     onClick = { menu = false; converter = true },

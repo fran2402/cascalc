@@ -203,6 +203,28 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (17 October, notebooks)
+
+- **Notebooks** (⋮ menu, in every mode): documents of blocks you scroll through, for homework,
+  lab reports and notes. Three kinds of block:
+  - **Text**: a line starting with # is a heading; $math$ inside is set as math.
+  - **Math**: any calculator input, with its answer under it. Definitions (g := 9.81,
+    f(x) := x², several in one block split by commas) hold for every block below, so changing
+    one value updates every answer and graph after it, a moment after you type.
+  - **Graph**: functions of anything defined above, separated by commas, drawn in the graph
+    colors; type a range or let it pick one that shows the curve. Open in Graphs sends the
+    functions (definitions filled in) to the 2D graph.
+- **Editing**: tap a block to edit it, with the calculator's keypad for math and graphs (Enter
+  closes it) and the phone's keyboard for text. The open block can be moved up or down,
+  duplicated or deleted; the bar at the bottom adds text, math or a graph after it. Undo brings
+  back blocks added, moved or removed. Notebooks save themselves as you go.
+- **The list**: newest first, searched by title and contents, with rename, duplicate, share and
+  delete. Start blank, from calculations picked from your history, or from a notebook file.
+- **Share**: a PDF typeset in Computer Modern like the history's (headings, paragraphs with
+  their math, each calculation with its answer on the right, graphs as framed figures with a
+  grid), a LaTeX file (amsmath, graphs as pgfplots, ready for Overleaf), or the notebook file
+  itself (.casnb), which opens in Notebooks on another phone.
+
 ## Latest changes (17 October, steps for everything, first-run tour)
 
 - **Steps for every function on the keys**: any calculation with functions in it now has

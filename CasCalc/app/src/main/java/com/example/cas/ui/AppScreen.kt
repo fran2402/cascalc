@@ -130,6 +130,11 @@ fun AppScreen() {
     }
     TourOverlay()
     }
+    // Notebooks, from the ⋮ menu in any mode; "Open in Graphs" from one goes to the 2D graph.
+    if (NotebookNav.open) NotebooksPage(calculator, onBack = { NotebookNav.open = false }, onGraph = { request ->
+        NotebookNav.open = false
+        graph2d.show(request.rows); switchTo(Mode.Graph2D)
+    })
 }
 
 
@@ -149,6 +154,7 @@ private fun GraphMenuAction() {
             AppIcon(TableIcons.More, contentDescription = tr("More options"), tint = colors.onSurfaceVariant)
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+            DropdownMenuItem(text = { Text(tr("Notebooks")) }, leadingIcon = { AppIcon(TableIcons.Document, null) }, onClick = { menu = false; NotebookNav.open = true })
             if (AppSettings.unitConverter) DropdownMenuItem(
                 text = { Text(tr("Unit converter")) }, leadingIcon = { AppIcon(TableIcons.Converter, null) },
                 onClick = { menu = false; converter = true },
