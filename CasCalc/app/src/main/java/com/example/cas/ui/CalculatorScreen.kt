@@ -377,7 +377,8 @@ private fun Display(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, mo
                     )
                 }
                 // Swiping deletes, or asks first when that's turned on in settings.
-                Box(Modifier.animateItem()) {
+                // The newest answer is the one the tour points at.
+                Box(Modifier.animateItem().then(if (item === shownHistory.lastOrNull()) Modifier.tourTarget("answer") else Modifier)) {
                     SwipeToDelete(onDelete = { if (AppSettings.confirmDeleteEntry) confirm = true else vm.deleteHistory(item) }) { HistoryCard(item, vm, onGraph) }
                 }
             }
@@ -405,7 +406,7 @@ private fun InputPanel(vm: CalculatorViewModel) {
     LaunchedEffect(vm.version) {
         if (vm.editor.row === vm.editor.root && vm.editor.index == vm.editor.root.items.size) scroll.animateScrollTo(scroll.maxValue)
     }
-    Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), horizontalAlignment = Alignment.End) {
+    Column(Modifier.fillMaxWidth().tourTarget("input").padding(horizontal = 24.dp, vertical = 8.dp), horizontalAlignment = Alignment.End) {
         // Where the math sits in its box, so a tap beside it (the space to its left, or just past
         // its end) puts the cursor at the start or the end of the line.
         var mathLeft by remember { mutableStateOf(0f) }
@@ -899,7 +900,7 @@ private fun GroupBar(vm: KeypadHost) {
     val tap = rememberKeyTap()
     // Icons only. The built-in groups fit across the screen; with more added the bar keeps their
     // size and scrolls sideways instead of squeezing them.
-    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 4.dp)) {
+    BoxWithConstraints(Modifier.fillMaxWidth().tourTarget("tabs").padding(horizontal = 10.dp, vertical = 4.dp)) {
         val shownTabs = CalcTabs.shown()
         val current = CalcTabs.current(vm.selectedTab)
         val fitting = DEFAULT_TAB_COUNT

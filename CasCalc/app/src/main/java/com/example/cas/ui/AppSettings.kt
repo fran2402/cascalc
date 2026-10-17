@@ -18,6 +18,10 @@ object AppSettings {
         private set
     /** The graphs whose geometry guide has been seen: p the 2D graph, c the complex plane, s the 3D graph. */
     private var guidesSeen by mutableStateOf("")
+    /** The first-run tour has been taken or skipped. */
+    var tourSeen by mutableStateOf(true)
+        private set
+    fun markTourSeen() { tourSeen = true; save("tourSeen", true) }
     fun geometryGuideSeen(space: Char) = space in guidesSeen
     fun markGeometryGuideSeen(space: Char) { if (space !in guidesSeen) { guidesSeen += space; save("geometryGuides", guidesSeen) } }
     /** The calculator's tabs in the order chosen, by title (see [CalcTabs]); empty is the built-in order. */
@@ -160,6 +164,7 @@ object AppSettings {
         I18n.load(context)
         language = p.getString("language", "") ?: ""
         guidesSeen = p.getString("geometryGuides", "") ?: ""
+        tourSeen = p.getBoolean("tourSeen", false)
         tabOrder = p.getString("tabOrder", null)?.split('\n')?.filter { it.isNotEmpty() } ?: emptyList()
         shownTabs = p.getString("shownTabs", null)?.split('\n')?.filter { it.isNotEmpty() }?.toSet()
         SavedSymbols.init(context)

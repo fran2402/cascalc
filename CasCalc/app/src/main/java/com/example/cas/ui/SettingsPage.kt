@@ -246,10 +246,11 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
         },
         Category("Help & feedback", TableIcons.Help, 5, 3,
             summary = { tr("Documentation, report a bug") },
-            keywords = listOf("Documentation", "Report a bug", "Request a feature", "Acknowledgements", "Licenses", "Version", "Privacy"),
+            keywords = listOf("Documentation", "Take the tour", "Report a bug", "Request a feature", "Acknowledgements", "Licenses", "Version", "Privacy"),
         ) {
             PxCards(
                 { LinkRow("Documentation", "${Docs.chapters.size} " + tr("chapters with") + " ${Docs.allExamples.size} " + tr("worked examples, every key, and the spreadsheet functions"), TableIcons.Help, 5) { howTo = true } },
+                { LinkRow("Take the tour", "A one-minute look at the calculator", TableIcons.ModeCalculator, 2) { Tour.start(); onBack() } },
             )
             PxHeader("Feedback")
             PxCards(

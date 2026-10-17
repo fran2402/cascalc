@@ -83,9 +83,15 @@ fun AppScreen() {
     // A graph file the app was opened with: imported, opened, and its mode shown.
     OpenGraphFileEffect(graphs, onSwitch = switchTo)
 
+    // The first-run tour: offered once; it runs on the calculator, with the keypad showing.
+    androidx.compose.runtime.LaunchedEffect(Unit) { Tour.offerOnFirstRun() }
+    androidx.compose.runtime.LaunchedEffect(Tour.active) {
+        if (Tour.active) { switchTo(Mode.Calculator); calculator.historyMode = false; calculator.keypadHidden = false }
+    }
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(colors.surface).systemBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(48.dp).then(if (mode == Mode.Calculator) Modifier.tourTarget("history") else Modifier), contentAlignment = Alignment.Center) {
                 // Graphs have no button here: double-tap a graph to reset its view.
                 when (mode) {
                     Mode.Calculator -> CalculatorLeadingAction(calculator)
@@ -94,9 +100,9 @@ fun AppScreen() {
                 }
             }
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                ModeSwitcher(mode, onSelect = switchTo, onGuide = { guide = it })
+                ModeSwitcher(mode, onSelect = switchTo, onGuide = { guide = it }, modifier = Modifier.tourTarget("modes"))
             }
-            Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(48.dp).tourTarget("more"), contentAlignment = Alignment.Center) {
                 // The ⋮ menu (settings, acknowledgements) is in every mode; the calculator's own
                 // entries (copy, clear history) come with it there.
                 if (mode == Mode.Calculator) CalculatorTrailingAction(calculator) else GraphMenuAction()
@@ -121,6 +127,8 @@ fun AppScreen() {
                 Mode.Complex -> ComplexScreen(complex, onUseValue = { v -> calculator.insertComplex(v); switchTo(Mode.Calculator) })
             }
         }
+    }
+    TourOverlay()
     }
 }
 

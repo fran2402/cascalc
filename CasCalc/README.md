@@ -203,6 +203,24 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (17 October, steps for everything, first-run tour)
+
+- **Steps for every function on the keys**: any calculation with functions in it now has
+  steps, worked one call at a time from the inside out. Each call says what the function is
+  (the same title and formula as its key's help) and gives its value; then the rest is
+  simplified. The common ones show their working: gcd by Euclid's algorithm (each division a
+  step), lcm from the gcd, combinations and permutations with the factorials filled in,
+  factorials written out, square roots with the square factor taken out (the root of 72 is 6
+  times the root of 2), logarithms as "which power", remainders, dot products, vector lengths.
+  A test checks that every function key the calculator can evaluate has steps.
+- **Matrix products, row by column**: A times B shows each entry as a row of A times a column of
+  B, multiplied pair by pair and added.
+- **First-run tour**: a welcome page, then six stops on the calculator (typing, the tabs, what an
+  answer can do, the graph modes, history, the menu). The rest of the screen is dimmed and the
+  part being explained is outlined; the outline glides from stop to stop. Skip tour is on the
+  welcome page and in every card, and Back steps back. It shows once; Settings, Help and
+  feedback, Take the tour runs it again.
+
 ## Latest changes (17 October, steps inside expressions, custom symbols in steps)
 
 - **Steps for operations inside an expression**: 2∫2x dx, a limit times a sum, an integral

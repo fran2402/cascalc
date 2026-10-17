@@ -82,7 +82,7 @@ object Steps {
     /** A letter that's a variable (not i, e or π). */
     private fun isLetter(t: String) = isVariable(t) && t !in setOf("i", "e", "π")
 
-    fun supports(row: MathRow): Boolean = isEquation(row) || operationPaths(row).isNotEmpty() || defined(row) != null || target(row) != null || inverseOf(row) != null || isComplexArithmetic(row) || simplificationMoves(row, AngleUnit.Radians).isNotEmpty()
+    fun supports(row: MathRow): Boolean = isEquation(row) || matrixFactors(row) != null || operationPaths(row).isNotEmpty() || callPaths(row).isNotEmpty() || defined(row) != null || target(row) != null || inverseOf(row) != null || isComplexArithmetic(row) || simplificationMoves(row, AngleUnit.Radians).isNotEmpty()
 
     /** The rewrites that simplify a plain algebraic expression (empty if there are none, or it isn't one). */
     private fun simplificationMoves(row: MathRow, angle: AngleUnit): List<com.example.cas.cas.AutoSimplify.Move> {
@@ -141,6 +141,7 @@ object Steps {
         inverseOf(row)?.let { return@runCatching inverse(row, angle) }
         // An equation, as Enter solves it.
         equation(row, angle, solveFor)?.let { return@runCatching it }
+        matrixProduct(row, angle)?.let { return@runCatching it }
         // An integral or derivative of a matrix: entry by entry.
         entryByEntry(row, angle)?.let { return@runCatching it }
         // An operation inside another (∮ inside a limit, a derivative inside an integral): the inside first.
@@ -149,7 +150,7 @@ object Steps {
             is Integral -> integral(n, angle)
             is com.example.cas.editor.Derivative -> if (n.body.items.any { (it as? SymNode)?.text == "=" }) implicit(n, angle) else derivative(n, angle)
             is com.example.cas.editor.BigOp -> if (n.kind == com.example.cas.editor.BigOpKind.Sum) (convergence(n, angle) ?: sum(n, angle)) else product(n, angle)
-            is Func -> when (n.name) {
+            is Func -> (when (n.name) {
                 "lim" -> limit(n, angle)
                 "residue" -> residue(n, angle)
                 "taylor" -> taylor(n, angle)
@@ -161,8 +162,8 @@ object Steps {
                 "mean", "median", "sd", "psd", "var" -> statistics(n, angle)
                 "grad", "div", "curl", "jacobian", "hessian" -> vectorCalculus(n, angle)
                 else -> contour(n, angle)
-            }
-            else -> definition(row, angle) ?: pieces(row, angle) ?: if (isComplexArithmetic(row)) complex(row, angle) else simplification(row, angle)
+            }) ?: calls(row, angle, all = true)
+            else -> definition(row, angle) ?: pieces(row, angle) ?: calls(row, angle) ?: if (isComplexArithmetic(row)) complex(row, angle) else simplification(row, angle)
         }
     }.getOrNull()
 
@@ -172,6 +173,185 @@ object Steps {
         fun walk(r: MathRow) { r.items.forEach { n -> if (n is com.example.cas.editor.Matrix) n.cells.forEach { c -> if (c.items.isEmpty()) c.add(sym("0")) }; n.slots.forEach(::walk) } }
         walk(copy)
         return copy
+    }
+
+    // ---- A product of two matrices --------------------------------------------------------------
+
+    /** The two matrices of a row that's just A·B (or A B, A×B), typed out. */
+    private fun matrixFactors(row: MathRow): Pair<com.example.cas.editor.Matrix, com.example.cas.editor.Matrix>? {
+        val items = row.items.filter { !(it is SymNode && it.text.isBlank()) }
+        val a = items.firstOrNull() as? com.example.cas.editor.Matrix ?: return null
+        val b = items.lastOrNull() as? com.example.cas.editor.Matrix ?: return null
+        val middle = items.drop(1).dropLast(1)
+        if (a === b || middle.size > 1 || (middle.size == 1 && (middle[0] as? SymNode)?.text !in setOf("·", "×", "*"))) return null
+        return if (a.cols == b.rows) a to b else null
+    }
+
+    /** A·B entry by entry: row i of A times column j of B, each multiplied pairwise and added. */
+    private fun matrixProduct(row: MathRow, angle: AngleUnit): Solution? {
+        val (a, b) = matrixFactors(row) ?: return null
+        if (a.rows * b.cols > 16) return null
+        val ev = Evaluator(angle)
+        fun cell(m: com.example.cas.editor.Matrix, r: Int, c: Int): Expr = m.cell(r, c).let { if (it.items.isEmpty()) ZERO else ev.evaluate(com.example.cas.editor.MathCodec.copy(it)) }
+        val entries = ArrayList<Step>()
+        for (i in 0 until a.rows) for (j in 0 until b.cols) {
+            val terms = (0 until a.cols).map { k -> cell(a, i, k) to cell(b, k, j) }
+            val v = Algebra.simplify(add(terms.map { (x, y) -> mul(x, y) }))
+            entries += Step("Row ${i + 1}, column ${j + 1}", "\$" + terms.joinToString(" + ") { (x, y) -> "${lxp(x)}\\cdot ${lxp(y)}" } + " = ${lx(v)}\$", null)
+        }
+        val question = com.example.cas.editor.MathCodec.copy(row)
+        val value = ev.evaluate(com.example.cas.editor.MathCodec.copy(row))
+        val answer = ans(question, value)
+        val steps = listOf(
+            Step("Matrix product", "A \$${a.rows}\\times ${a.cols}\$ matrix times a \$${b.rows}\\times ${b.cols}\$ one gives \$${a.rows}\\times ${b.cols}\$: each entry is a row of the first times a column of the second, multiplied pair by pair and added.", null, Kind.Rule, entries),
+            Step("Answer", null, answer, Kind.Result),
+        )
+        return Solution("Row times column", steps, answer)
+    }
+
+    // ---- Functions, one call at a time ----------------------------------------------------------
+
+    /** A node that's a function's call worth a step: gcd(…), ⁿCₖ, √72, |x|… (not the operations, which have their own). */
+    private fun isCall(n: Node, all: Boolean = false) = (n is Func && (all || n.name !in FUNCS)) || n is com.example.cas.editor.Binom || n is com.example.cas.editor.Sqrt || n is com.example.cas.editor.Root
+
+    /** Where each innermost call is (one with no call inside it), in reading order. */
+    private fun callPaths(row: MathRow, all: Boolean = false): List<List<Int>> {
+        val out = ArrayList<List<Int>>()
+        fun hasCall(r: MathRow): Boolean = r.items.any { isCall(it, all) || it.slots.any(::hasCall) }
+        fun walk(r: MathRow, prefix: List<Int>) {
+            r.items.forEachIndexed { i, item ->
+                if (isOperation(item) && !(all && item is Func)) return@forEachIndexed
+                if (isCall(item, all) && item.slots.none(::hasCall)) out += prefix + i
+                else item.slots.forEachIndexed { k, slot -> walk(slot, prefix + i + k) }
+            }
+        }
+        walk(row, emptyList())
+        return out
+    }
+
+    /**
+     * Any expression with functions in it, worked one call at a time from the inside out: each
+     * call gets a step saying what the function is (its key's title and formula), the numbers
+     * put into the formula where that's worth showing (combinations, gcd by Euclid, roots…), and
+     * its value; then the rest is simplified.
+     */
+    private fun calls(row: MathRow, angle: AngleUnit, all: Boolean = false): Solution? {
+        val question = com.example.cas.editor.MathCodec.copy(row)
+        var working = com.example.cas.editor.MathCodec.copy(row)
+        val steps = ArrayList<Step>()
+        val methods = LinkedHashSet<String>()
+        val skipped = HashSet<String>()
+        var rounds = 0
+        while (rounds++ < 16) {
+            val path = callPaths(working, all).firstOrNull { p -> nodeAt(working, p).let { (r, i) -> com.example.cas.editor.MathCodec.encode(MathRow(mutableListOf(r.items[i]))) } !in skipped } ?: break
+            val (parent, index) = nodeAt(working, path)
+            val node = parent.items[index]
+            val single = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(node)))
+            val value = runCatching { Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(single)) }.getOrNull()
+            val raw = runCatching { Evaluator(angle).also { it.autoSimplify = false }.evaluate(com.example.cas.editor.MathCodec.copy(single)) }.getOrNull()
+            // A call that stays as it is (sin x of a letter) needs no step.
+            if (value == null || (value is com.example.cas.cas.Fn && raw is com.example.cas.cas.Fn && same(value, raw) && value.args.any { !it.freeVars().isEmpty() })) {
+                skipped += com.example.cas.editor.MathCodec.encode(single); continue
+            }
+            val (title, text, substeps) = describeCall(node, angle, value)
+            methods += title
+            steps += Step(title, text, line(single, "=", value), Kind.Rule, substeps)
+            // The value put in its place, in brackets if it's more than one piece among others.
+            val put = Formatter.row(value).items.toList()
+            parent.removeAt(index)
+            val bare = parent.items.isEmpty() || put.size == 1 || node is com.example.cas.editor.Sqrt
+            val nodes = if (bare) put else listOf<Node>(sym("(")) + put + sym(")")
+            nodes.asReversed().forEach { parent.add(index, it) }
+        }
+        if (steps.isEmpty()) return null
+        val value = Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(question))
+        if (steps.size > 1 || !same(value, Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(working)).let { it }) || working.items.size > 1) {
+            steps += Step("Put the values in", null, line(question, "=", working))
+            simplification(working, angle)?.let { s -> steps += Step("Simplify", null, line(working, "=", value), Kind.Rule, s.steps.filter { it.kind != Kind.Result }) }
+        }
+        val answer = ans(question, value)
+        steps += Step("Answer", null, answer, Kind.Result)
+        return Solution(methods.take(3).joinToString(", "), steps, answer)
+    }
+
+    private fun ints(args: List<Expr>): List<java.math.BigInteger>? = args.map { a -> (a as? Num)?.q?.takeIf { it.isInteger }?.num ?: return null }
+
+    /** What a call is: a title, a line with its formula (numbers put in where worth it), and smaller steps (Euclid's divisions). */
+    private fun describeCall(node: Node, angle: AngleUnit, value: Expr): Triple<String, String?, List<Step>> {
+        val ev = Evaluator(angle)
+        fun arg(r: MathRow) = runCatching { ev.evaluate(com.example.cas.editor.MathCodec.copy(r)) }.getOrNull()
+        when (node) {
+            is com.example.cas.editor.Binom -> {
+                val n = arg(node.n); val k = arg(node.k)
+                val nk = if (n != null && k != null) ints(listOf(n, k)) else null
+                val filled = if (nk != null && nk[0] in 0.toBigInteger()..170.toBigInteger() && nk[1] in 0.toBigInteger()..nk[0])
+                    " = \\frac{${nk[0]}!}{${nk[1]}!\\,${nk[0] - nk[1]}!}" else ""
+                return Triple("Combinations", "\$\\binom{n}{k} = \\frac{n!}{k!\\,(n - k)!}$filled\$: the ways to choose ${nk?.get(1) ?: "k"} of ${nk?.get(0) ?: "n"}, order not counting.", emptyList())
+            }
+            is com.example.cas.editor.Sqrt -> {
+                val x = arg(node.arg)
+                val n = x?.let { ints(listOf(it)) }?.single()
+                if (n != null && n.signum() > 0 && n.bitLength() < 40) {
+                    var big = java.math.BigInteger.ONE; var f = java.math.BigInteger.valueOf(2)
+                    var rest = n
+                    while (f * f <= rest) { while (rest.mod(f * f).signum() == 0) { rest /= f * f; big *= f }; f += java.math.BigInteger.ONE }
+                    if (big > java.math.BigInteger.ONE && rest > java.math.BigInteger.ONE)
+                        return Triple("Simplify the root", "Take out the largest square factor: \$\\sqrt{$n} = \\sqrt{${big * big} \\cdot $rest} = \\sqrt{${big * big}}\\,\\sqrt{$rest}\$.", emptyList())
+                    if (rest == java.math.BigInteger.ONE) return Triple("Square root", "\$${big}^2 = $n\$, so the root is \$$big\$.", emptyList())
+                }
+                return Triple("Square root", "\$\\sqrt{x}\$ is the number whose square is \$x\$.", emptyList())
+            }
+            is com.example.cas.editor.Root -> return Triple("nth root", "\$\\sqrt[n]{x} = x^{1/n}\$.", emptyList())
+            is Func -> {
+                val args = node.args.map { arg(it) }
+                val known = runCatching { com.example.cas.ui.FunctionHelp.of(node.name) }.getOrNull()
+                val title = known?.first ?: node.name
+                val formula = known?.second?.takeIf { it.isNotBlank() }?.let { "\$$it\$" }
+                val nums = if (args.all { it != null }) ints(args.map { it!! }) else null
+                when (node.name) {
+                    "gcd", "lcm" -> if (nums != null && nums.size == 2 && nums.all { it.signum() != 0 }) {
+                        var a = nums[0].abs(); var b = nums[1].abs()
+                        val divs = ArrayList<Step>()
+                        while (b.signum() != 0) {
+                            val q = a / b; val r = a.mod(b)
+                            divs += Step("\$$a = $q \\cdot $b + $r\$", null)
+                            a = b; b = r
+                        }
+                        val g = a
+                        return if (node.name == "gcd") Triple("Greatest common divisor", "Euclid's algorithm: divide, keep the remainder, repeat; the last nonzero remainder is the gcd, \$$g\$.", divs)
+                        else Triple("Least common multiple", "\$\\operatorname{lcm}(a, b) = \\frac{|ab|}{\\gcd(a, b)} = \\frac{${nums[0].abs() * nums[1].abs()}}{$g}\$, with the gcd by Euclid's algorithm.", divs)
+                    }
+                    "perm" -> if (nums != null && nums.size == 2 && nums[1] in 0.toBigInteger()..nums[0] && nums[0] <= 170.toBigInteger())
+                        return Triple("Permutations", "\$^{n}P_{k} = \\frac{n!}{(n - k)!} = \\frac{${nums[0]}!}{${nums[0] - nums[1]}!}\$: ordered choices of ${nums[1]} from ${nums[0]}.", emptyList())
+                    "fact" -> if (nums != null && nums.size == 1 && nums[0] in 1.toBigInteger()..12.toBigInteger())
+                        return Triple("Factorial", "\$${nums[0]}! = " + (1..nums[0].toInt()).joinToString(" \\cdot ") + "\$.", emptyList())
+                    "abs" -> return Triple("Absolute value", "\$|x|\$ is the distance from 0: the number without its sign" + (if (args.firstOrNull()?.let { a -> runCatching { Numeric.eval(a).im != 0.0 }.getOrDefault(false) } == true) ", for a complex number \$\\sqrt{a^2 + b^2}\$." else "."), emptyList())
+                    "log" -> {
+                        val b = args.getOrNull(0); val x = args.getOrNull(1)
+                        if (b != null && x != null && !Calculus.isInfinite(value) && value is Num)
+                            return Triple("Logarithm", "\$\\log_{${lx(b)}} ${lx(x)}\$ asks which power of \$${lx(b)}\$ gives \$${lx(x)}\$: \$${lx(b)}^{${lx(value)}} = ${lx(x)}\$.", emptyList())
+                        return Triple("Logarithm", "Change of base: \$\\log_a x = \\frac{\\ln x}{\\ln a}\$.", emptyList())
+                    }
+                    "dot" -> {
+                        val u = args.getOrNull(0) as? com.example.cas.cas.Mat; val v = args.getOrNull(1) as? com.example.cas.cas.Mat
+                        if (u != null && v != null && u.cells.size == v.cells.size)
+                            return Triple("Dot product", "Multiply matching components and add: \$" + u.cells.indices.joinToString(" + ") { "${lxp(u.cells[it])}\\cdot ${lxp(v.cells[it])}" } + "\$.", emptyList())
+                    }
+                    "cross" -> return Triple("Cross product", "\$\\mathbf{u}\\times\\mathbf{v} = (u_2 v_3 - u_3 v_2,\\ u_3 v_1 - u_1 v_3,\\ u_1 v_2 - u_2 v_1)\$.", emptyList())
+                    "norm" -> {
+                        val u = args.getOrNull(0) as? com.example.cas.cas.Mat
+                        if (u != null) return Triple("Length of a vector", "\$\\|\\mathbf{v}\\| = \\sqrt{" + u.cells.joinToString(" + ") { "${lxp(it)}^2" } + "}\$.", emptyList())
+                    }
+                    "mod" -> if (nums != null && nums.size == 2 && nums[1].signum() != 0) {
+                        val q = nums[0].subtract(nums[0].mod(nums[1].abs())).divide(nums[1])
+                        return Triple("Remainder", "\$${nums[0]} = $q \\cdot ${nums[1]} + ${nums[0].mod(nums[1].abs())}\$: the remainder is what's left over.", emptyList())
+                    }
+                }
+                val with = if (formula != null) "$formula." else "Worked out by the calculator's own method for \$\\operatorname{${node.name}}\$."
+                return Triple(title, with, emptyList())
+            }
+            else -> return Triple("Work it out", null, emptyList())
+        }
     }
 
     // ---- Custom symbols in the texts ---------------------------------------------------------
