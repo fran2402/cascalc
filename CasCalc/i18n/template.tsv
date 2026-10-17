@@ -29,6 +29,7 @@ Delete
 Your calculations will appear here	
 Tap a past question or answer to use it again, hold it to copy it, swipe it away to delete it	
 Expression	
+Done selecting	
 Show actions	
 Use this expression	
 Pinned	
@@ -351,14 +352,16 @@ Math
 Functions to draw, separated by commas	
 Open in Graphs	
 auto	
+{0} more rows	
 Defines	
 as lists for the blocks below: mean, sd, sum…	
-+ Row	
-+ Column	
-Delete row	
-Delete column	
+Edit table	
 Plot	
 Couldn't export	
+Add text	
+Add math	
+Graph	
+Add a graph	
 Saved graphs	
 Close the search	
 Import a graph file (.g2d, .g3d, .gcp)	

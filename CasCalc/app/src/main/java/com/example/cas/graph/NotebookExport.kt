@@ -45,7 +45,7 @@ object NotebookExport {
                 is com.example.cas.engine.Markdown.Inline.Italic -> pieces(i.children, size, color, bold, true, strike, link, out)
                 is com.example.cas.engine.Markdown.Inline.Strike -> pieces(i.children, size, color, bold, italic, true, link, out)
                 is com.example.cas.engine.Markdown.Inline.Link -> pieces(i.children, size, color, bold, italic, strike, true, out)
-                is com.example.cas.engine.Markdown.Inline.Code -> out += Piece(null, i.text, MathScene.metrics.width(i.text, false, size * 0.92), size * 0.72, size * 0.24, Scene.Font.Sans, color = 0xFF7A3E00.toInt())
+                is com.example.cas.engine.Markdown.Inline.Code -> out += Piece(null, i.text, i.text.length * size * 0.92 * 0.525, size * 0.72, size * 0.24, Scene.Font.Mono, color = 0xFF7A3E00.toInt())
                 is com.example.cas.engine.Markdown.Inline.Math -> runCatching { fit(LatexParser.parse(i.latex), size, color, width) }.getOrNull()?.let { b -> out += Piece(b, null, b.width, b.ascent, b.descent) }
                 is com.example.cas.engine.Markdown.Inline.Image -> out += Piece(null, "[" + i.alt.ifBlank { "image" } + "]", MathScene.metrics.width("[" + i.alt + "]", true, size), size * 0.72, size * 0.24, Scene.Font.Italic, color = muted)
                 com.example.cas.engine.Markdown.Inline.Break -> if (out.isNotEmpty()) out[out.lastIndex] = out.last().let { p -> Piece(p.box, p.word, p.w, p.ascent, p.descent, p.font, p.bold, p.strike, p.color, p.underline, true) }
@@ -67,7 +67,7 @@ object NotebookExport {
                 for (p in line) {
                     if (p.box != null) p.box.draw(scene, x, base)
                     else {
-                        scene.add(Scene.Label(x, base, p.word!!, if (p.font == Scene.Font.Sans) size * 0.92 else size, p.color, Scene.Anchor.Start, p.font, baseline = true))
+                        scene.add(Scene.Label(x, base, p.word!!, if (p.font == Scene.Font.Mono) size * 0.92 else size, p.color, Scene.Anchor.Start, p.font, baseline = true))
                         // Bold: the word again, a hair to the right.
                         if (p.bold) scene.add(Scene.Label(x + size * 0.035, base, p.word, size, p.color, Scene.Anchor.Start, p.font, baseline = true))
                         if (p.strike) scene.add(Scene.Stroke(listOf(doubleArrayOf(x, base - size * 0.28, x + p.w, base - size * 0.28)), p.color, 0.6))
@@ -124,7 +124,7 @@ object NotebookExport {
         fun markdown(blocks: List<com.example.cas.engine.Markdown.Block>, left: Double) {
             for (mb in blocks) when (mb) {
                 is com.example.cas.engine.Markdown.Block.Heading -> {
-                    val size = when (mb.level) { 1 -> 18.0; 2 -> 15.0; 3 -> 13.0; else -> 11.5 }
+                    val size = when (mb.level) { 1 -> 20.0; 2 -> 17.0; 3 -> 14.5; 4 -> 13.0; 5 -> 12.0; else -> 11.5 }
                     y += size * 0.5
                     setLines(pieces(mb.inlines, size, ink, bold = true), size, left)
                     y += 2
@@ -149,7 +149,7 @@ object NotebookExport {
                     val h = lines.size * 11.0 + 10
                     room(h)
                     scene.add(Scene.Fill(listOf(doubleArrayOf(left, y, MARGIN + width, y, MARGIN + width, y + h, left, y + h)), 0xFFF2F2F2.toInt()))
-                    lines.forEachIndexed { k, l -> scene.add(Scene.Label(left + 6, y + 13 + k * 11.0, l, 8.5, 0xFF333333.toInt(), Scene.Anchor.Start, Scene.Font.Sans, baseline = true)) }
+                    lines.forEachIndexed { k, l -> scene.add(Scene.Label(left + 6, y + 13 + k * 11.0, l, 8.5, 0xFF333333.toInt(), Scene.Anchor.Start, Scene.Font.Mono, baseline = true)) }
                     y += h + 6
                 }
                 is com.example.cas.engine.Markdown.Block.MathBlock -> runCatching { fit(LatexParser.parse(mb.latex), 13.0, ink, width) }.getOrNull()?.let { box ->
@@ -172,7 +172,7 @@ object NotebookExport {
             fun sx(x: Double) = left + (x - x0) / (x1 - x0) * (right - left)
             fun sy(v: Double) = bottom - (v - p.yMin) / (p.yMax - p.yMin) * (bottom - top)
             // Grid at round steps, then the axes, the frame and the curves.
-            fun step(span: Double): Double { val raw = span / 6; val e = Math.pow(10.0, Math.floor(Math.log10(raw))); return listOf(1.0, 2.0, 5.0, 10.0).first { it * e >= raw } * e }
+            fun step(span: Double): Double { if (!span.isFinite() || span <= 0) return 1.0; val raw = span / 6; val e = Math.pow(10.0, Math.floor(Math.log10(raw))); return listOf(1.0, 2.0, 5.0, 10.0).first { it * e >= raw } * e }
             val grid = ArrayList<DoubleArray>()
             val sxStep = step(x1 - x0); var gx = Math.ceil(x0 / sxStep) * sxStep
             while (gx <= x1 + 1e-9) { grid += doubleArrayOf(sx(gx), top, sx(gx), bottom); scene.add(Scene.Label(sx(gx), bottom + 11, num(gx), 8.0, muted, Scene.Anchor.Middle, Scene.Font.Roman)); gx += sxStep }
@@ -205,10 +205,11 @@ object NotebookExport {
         for (b in d.blocks) when (b) {
             is Notebook.Block.Text -> { markdown(com.example.cas.engine.Markdown.parse(b.text), MARGIN); y += 4 }
             is Notebook.Block.Table -> {
-                fun cell(r: com.example.cas.editor.MathRow): List<Piece> = runCatching { MathScene.layout(r, 10.0, ink) }.getOrNull()?.let { box -> listOf(Piece(box, null, box.width, box.ascent, box.descent)) } ?: emptyList()
-                val header: List<List<Piece>> = b.names.map { cell(it) }
-                val rows = (0 until (b.columns.maxOfOrNull { it.size } ?: 0)).map { r ->
-                    b.names.indices.map { c -> b.columns.getOrNull(c)?.getOrNull(r)?.takeIf { it.items.isNotEmpty() }?.let { cell(it) } ?: emptyList() }
+                val t = b.table
+                fun cell(text: String, bold: Boolean = false): List<Piece> = if (text.isEmpty()) emptyList() else listOf(Piece(null, text, text.length * 10.0 * 0.525, 7.2, 2.4, Scene.Font.Mono, bold))
+                val header: List<List<Piece>> = t.names.map { cell(it, bold = true) }
+                val rows = (0 until t.rowCount).map { r ->
+                    t.names.indices.map { c -> cell(t.cell(c, r).let { raw -> if (Sheet.isFormula(raw)) t.value(c, r)?.let { DataTable.text(it) } ?: raw else raw }) }
                 }
                 table(header, rows, MARGIN)
                 run.plots[b.id]?.let { p -> figure(p) }

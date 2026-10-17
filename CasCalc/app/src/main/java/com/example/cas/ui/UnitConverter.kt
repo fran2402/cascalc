@@ -137,7 +137,7 @@ fun UnitConverterPage(onBack: () -> Unit, onUse: ((Double) -> Unit)? = null) {
 
     Dialog(onDismissRequest = close, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         BackHandler(onBack = close)
-        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 Header(onBack = close)
                 BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -277,9 +277,13 @@ private fun plainUnit(q: Units.Quantity): String = q.parts.joinToString(" ") { p
 @Composable
 private fun Header(onBack: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onBack) { AppIcon(TableIcons.Back, contentDescription = tr("Back"), tint = colors.onSurface) }
-        Text(tr("Unit converter"), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.padding(start = 4.dp).semantics { heading() })
+    // As in the notebooks and Settings: a round back button on its own tone, then the title.
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(48.dp).clip(androidx.compose.foundation.shape.CircleShape).background(colors.surfaceContainerHigh).clickable(onClickLabel = tr("Back"), onClick = onBack), contentAlignment = Alignment.Center) {
+            AppIcon(TableIcons.Back, contentDescription = tr("Back"), tint = colors.onSurface)
+        }
+        Spacer(Modifier.width(16.dp))
+        Text(tr("Unit converter"), style = MaterialTheme.typography.headlineMedium, color = colors.onSurface, modifier = Modifier.semantics { heading() })
         Spacer(Modifier.weight(1f))
     }
 }

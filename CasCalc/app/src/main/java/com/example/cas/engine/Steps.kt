@@ -246,7 +246,7 @@ object Steps {
             val path = callPaths(working, all).firstOrNull { p -> nodeAt(working, p).let { (r, i) -> com.example.cas.editor.MathCodec.encode(MathRow(mutableListOf(r.items[i]))) } !in skipped } ?: break
             val (parent, index) = nodeAt(working, path)
             val node = parent.items[index]
-            val single = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(node)))
+            val single = com.example.cas.editor.MathCodec.decode(com.example.cas.editor.MathCodec.encode(listOf(node)))
             val value = runCatching { Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(single)) }.getOrNull()
             val raw = runCatching { Evaluator(angle).also { it.autoSimplify = false }.evaluate(com.example.cas.editor.MathCodec.copy(single)) }.getOrNull()
             // A call that stays as it is (sin x of a letter) needs no step.
@@ -402,7 +402,7 @@ object Steps {
         if (paths.isEmpty() || (paths.size == 1 && target(row) != null && lead.isEmpty())) return null
         val parts = paths.map { path ->
             val (parent, index) = nodeAt(row, path)
-            val single = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(parent.items[index])))
+            val single = com.example.cas.editor.MathCodec.decode(com.example.cas.editor.MathCodec.encode(listOf(parent.items[index])))
             val solution = work(single, angle, null)
             val value = solution?.let { partValue(it) }
                 ?: Formatter.row(Evaluator(angle).evaluate(com.example.cas.editor.MathCodec.copy(single))).items.toList()
@@ -453,7 +453,7 @@ object Steps {
         val cells = m.cells.map { cell ->
             if (cell.items.isEmpty() || (cell.items.size == 1 && (cell.items[0] as? SymNode)?.text == "0")) MathRow(mutableListOf(sym("0")))
             else {
-                val copy = com.example.cas.editor.MathCodec.copy(MathRow(mutableListOf(op)))
+                val copy = com.example.cas.editor.MathCodec.decode(com.example.cas.editor.MathCodec.encode(listOf(op)))
                 val b = when (val o = copy.items[0]) { is Integral -> o.body; is com.example.cas.editor.Derivative -> o.body; else -> return null }
                 while (b.items.isNotEmpty()) b.removeAt(0)
                 com.example.cas.editor.MathCodec.copy(cell).items.toList().forEach { b.add(it) }

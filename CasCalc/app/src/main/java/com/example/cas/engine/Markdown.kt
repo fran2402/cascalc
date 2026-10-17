@@ -40,7 +40,7 @@ object Markdown {
 
     // ---- Blocks --------------------------------------------------------------------------------
 
-    private val heading = Regex("""^ {0,3}(#{1,6})(?:\s+(.*?))?\s*#*\s*$""")
+    private val heading = Regex("""^ {0,3}(#{1,6})(?:\s*([^#\s].*?))?\s*#*\s*$""")
     private val rule = Regex("""^ {0,3}([-*_])(?:\s*\1){2,}\s*$""")
     private val bullet = Regex("""^( *)([-*+])\s+(.*)$""")
     private val ordered = Regex("""^( *)(\d{1,9})([.)])\s+(.*)$""")

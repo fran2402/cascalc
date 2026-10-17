@@ -96,7 +96,52 @@ class Editor(initial: MathRow = MathRow()) {
         changed()
     }
 
+    // ---- Selection ----------------------------------------------------------------
+    // A run of items in the cursor's row, from [anchor] to [index] (either way round).
+
+    var anchor: Int? = null
+        private set
+
+    val hasSelection get() = anchor != null && anchor != index
+    val selectionStart get() = minOf(anchor ?: index, index)
+    val selectionEnd get() = maxOf(anchor ?: index, index)
+
+    /** Selects [from] to [to] in [row]. */
+    fun select(row: MathRow, from: Int, to: Int) {
+        this.row = row
+        anchor = from.coerceIn(0, row.items.size)
+        index = to.coerceIn(0, row.items.size)
+        changed()
+    }
+
+    fun selectAll() = select(root, 0, root.items.size)
+
+    /** Moves the selection's free end (the cursor) to [to], keeping the anchor. */
+    fun extendTo(to: Int) {
+        if (anchor == null) anchor = index
+        index = to.coerceIn(0, row.items.size)
+        changed()
+    }
+
+    fun clearSelection() { if (anchor != null) { anchor = null; changed() } }
+
+    /** A copy of what's selected (empty when nothing is). */
+    fun selected(): MathRow = if (!hasSelection) MathRow() else MathCodec.decode(MathCodec.encode(row.items.subList(selectionStart, selectionEnd).toList()))
+
+    /** Removes what's selected (one undo step); false when nothing is. */
+    fun deleteSelection(): Boolean {
+        if (!hasSelection) { anchor = null; return false }
+        record()
+        val a = selectionStart; val b = selectionEnd
+        repeat(b - a) { row.removeAt(a) }
+        index = a
+        anchor = null
+        changed()
+        return true
+    }
+
     fun setCursor(row: MathRow, index: Int) {
+        anchor = null
         this.row = row
         this.index = index.coerceIn(0, row.items.size)
         changed()
@@ -307,6 +352,7 @@ class Editor(initial: MathRow = MathRow()) {
     private fun stops(n: Node): List<MathRow> = if (n is Scripted) n.slots.filter { it === n.base || !it.isEmpty || it === row } else n.slots
 
     fun moveRight() {
+        if (anchor != null) { extendTo(index + 1); return }
         if (index < row.items.size) {
             val next = row.items[index]
             val slots = stops(next)
@@ -327,6 +373,7 @@ class Editor(initial: MathRow = MathRow()) {
     }
 
     fun moveLeft() {
+        if (anchor != null) { extendTo(index - 1); return }
         if (index > 0) {
             val prev = row.items[index - 1]
             val slots = stops(prev)

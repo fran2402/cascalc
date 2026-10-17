@@ -513,6 +513,17 @@ object TableIcons {
     val Bold: ImageVector by lazy { tableIcon("Bold", stroke = listOf("M7 4.5h6a3.75 3.75 0 0 1 0 7.5H7z", "M7 12h7a4 4 0 0 1 0 8H7z"), accent = setOf("M7 12h7a4 4 0 0 1 0 8H7z")) }
 
     /** A slanted I: italic. */
+    // ---- Markdown (the notebook's text formatting bar) ----
+    val MdStrike: ImageVector by lazy { tableIcon("MdStrike", stroke = listOf("M16.5 7.2c-.6-1.6-2.2-2.7-4.5-2.7-2.6 0-4.3 1.4-4.3 3.3 0 1.6 1.1 2.6 3.2 3.2", "M14.8 13.5c1.2.6 1.9 1.5 1.9 2.8 0 2-1.9 3.4-4.6 3.4-2.4 0-4.1-1.1-4.8-2.9", "M4 12h16"), accent = setOf("M4 12h16")) }
+    val MdHeading: ImageVector by lazy { tableIcon("MdHeading", stroke = listOf("M5 5v14", "M13 5v14", "M5 12h8"), thin = listOf("M16.5 13.5l2.5-1.5v7"), accent = setOf("M16.5 13.5l2.5-1.5v7")) }
+    val MdQuote: ImageVector by lazy { tableIcon("MdQuote", stroke = listOf("M4.5 18.5h15"), fill = listOf("M5 10.5c0-2.6 1.5-4.6 4-5.5l.6 1.2c-1.3.7-2 1.6-2.1 2.8 1.4 0 2.5 1 2.5 2.4s-1.1 2.6-2.6 2.6C5.9 14 5 12.6 5 10.5z", "M12.5 10.5c0-2.6 1.5-4.6 4-5.5l.6 1.2c-1.3.7-2 1.6-2.1 2.8 1.4 0 2.5 1 2.5 2.4s-1.1 2.6-2.6 2.6c-1.5 0-2.4-1.4-2.4-3.5z"), accent = setOf("M5 10.5c0-2.6 1.5-4.6 4-5.5l.6 1.2c-1.3.7-2 1.6-2.1 2.8 1.4 0 2.5 1 2.5 2.4s-1.1 2.6-2.6 2.6C5.9 14 5 12.6 5 10.5z", "M12.5 10.5c0-2.6 1.5-4.6 4-5.5l.6 1.2c-1.3.7-2 1.6-2.1 2.8 1.4 0 2.5 1 2.5 2.4s-1.1 2.6-2.6 2.6c-1.5 0-2.4-1.4-2.4-3.5z")) }
+    val MdCode: ImageVector by lazy { tableIcon("MdCode", stroke = listOf("M8 7l-5 5 5 5", "M16 7l5 5-5 5", "M13.5 5l-3 14"), accent = setOf("M13.5 5l-3 14")) }
+    val MdMath: ImageVector by lazy { tableIcon("MdMath", stroke = listOf("M17 5H7l5.5 7L7 19h10"), accent = setOf("M17 5H7l5.5 7L7 19h10")) }
+    val MdDisplayMath: ImageVector by lazy { tableIcon("MdDisplayMath", stroke = listOf("M3.5 4.5h17v15h-17z"), thin = listOf("M15 8h-6l3.3 4L9 16h6"), shade = listOf("M3.5 4.5h17v15h-17z"), accent = setOf("M15 8h-6l3.3 4L9 16h6")) }
+    val MdLink: ImageVector by lazy { tableIcon("MdLink", stroke = listOf("M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1", "M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"), accent = setOf("M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1")) }
+    val MdRule: ImageVector by lazy { tableIcon("MdRule", stroke = listOf("M3.5 12h17"), thin = listOf("M6 6.5h12", "M6 17.5h12"), accent = setOf("M3.5 12h17")) }
+    val MdTask: ImageVector by lazy { tableIcon("MdTask", stroke = listOf("M3.5 4.5h7v7h-7z", "M13.5 8h7", "M13.5 16.5h7", "M3.5 13h7v7h-7z"), thin = listOf("M5 8l1.5 1.5L9.5 6"), shade = listOf("M3.5 4.5h7v7h-7z"), accent = setOf("M5 8l1.5 1.5L9.5 6", "M3.5 4.5h7v7h-7z")) }
+
     val Italic: ImageVector by lazy { tableIcon("Italic", stroke = listOf("M10.5 4.5h7", "M6.5 19.5h7", "M14 4.5l-4 15"), accent = setOf("M14 4.5l-4 15")) }
 
     /** A tipped paint bucket and a drop: fill color. */

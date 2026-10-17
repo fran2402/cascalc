@@ -244,7 +244,49 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
         else -> false
     }
 
+    // ---- Selecting, cutting, copying, pasting --------------------------------------------
+
+    /** The selection bar is showing (long-press the input); taps and ◀ ▶ then move the selection's end. */
+    var selecting by mutableStateOf(false)
+        private set
+    /** Until when a tap is the release of the long press that started selecting (not a tap of its own). */
+    private var skipTapUntil = 0L
+    private var clipCode: String? = null
+    private var clipText: String? = null
+
+    fun startSelection() { editor.selectAll(); selecting = true; skipTapUntil = System.currentTimeMillis() + 1500 }
+    fun selectAll() { editor.selectAll(); selecting = true }
+    fun endSelection() { editor.clearSelection(); selecting = false }
+
+    /** The selection as text for the clipboard (kept in full for pasting back here), or null if nothing is selected. */
+    fun copySelection(): String? {
+        if (!editor.hasSelection) return null
+        val sel = editor.selected()
+        clipCode = MathCodec.encode(sel)
+        clipText = Formatter.plain(sel)
+        return clipText
+    }
+
+    fun cutSelection(): String? = copySelection()?.also { editor.deleteSelection(); selecting = false }
+
+    /** Pastes [text]: what was copied here comes back exactly; other text is read as math (LaTeX or plain). */
+    fun paste(text: String?) {
+        if (text.isNullOrBlank()) return
+        val row = if (text == clipText && clipCode != null) MathCodec.decode(clipCode!!)
+        else runCatching { com.example.cas.engine.LatexParser.parse(text.trim()) }.getOrNull()?.takeIf { !it.isEmpty }
+            ?: MathRow(text.trim().map { Sym(it.toString()) }.toMutableList())
+        editor.deleteSelection()
+        editor.insertRow(row)
+        selecting = false
+    }
+
     override fun press(action: KeyAction) {
+        // With something selected, a key replaces it (Backspace just removes it).
+        if (editor.hasSelection) {
+            val removed = editor.deleteSelection()
+            selecting = false
+            if (removed && (action == KeyAction.Backspace || action == KeyAction.Clear)) return
+        } else if (selecting) { editor.clearSelection(); selecting = false }
         if (AppSettings.continueFromAnswer && justEvaluated && editor.isEmpty && ansValue() != null && continuesFromAnswer(action)) editor.type("ans")
         justEvaluated = false
         when (action) {
@@ -269,7 +311,12 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
 
     override fun moveLeft() = editor.moveLeft()
     override fun moveRight() = editor.moveRight()
-    fun tapAt(row: MathRow, index: Int) = editor.setCursor(row, index)
+    fun tapAt(row: MathRow, index: Int) {
+        // The release of the long press that started selecting isn't a tap.
+        if (System.currentTimeMillis() < skipTapUntil) { skipTapUntil = 0L; return }
+        if (selecting && row === editor.row) editor.extendTo(index)
+        else { selecting = false; editor.setCursor(row, index) }
+    }
 
     override fun toggleAngle() {
         KeypadState.toggleAngle()

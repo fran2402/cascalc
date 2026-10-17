@@ -299,7 +299,7 @@ private fun shareNotebookFile(context: Context, d: Notebook.Doc) = share(context
  */
 private class EditBlock(
     val id: Long, val kind: Char, text: String = "", row: MathRow = MathRow(), from: MathRow = MathRow(), to: MathRow = MathRow(),
-    names: List<MathRow> = emptyList(), columns: List<List<MathRow>> = emptyList(), plot: Boolean = false, private val onChange: () -> Unit,
+    table: com.example.cas.graph.DataTable = Notebook.emptyTable(), plot: Boolean = false, private val onChange: () -> Unit,
 ) {
     var text by mutableStateOf(TextFieldValue(text))
     var version by mutableIntStateOf(0)
@@ -307,46 +307,17 @@ private class EditBlock(
     val editor = ed(row)
     val from = ed(from)
     val to = ed(to)
-    val names = mutableStateListOf<Editor>().apply { addAll(names.map { ed(it) }) }
-    val cells = mutableStateListOf<androidx.compose.runtime.snapshots.SnapshotStateList<Editor>>().apply {
-        columns.forEach { col -> add(mutableStateListOf<Editor>().apply { addAll(col.map { ed(it) }) }) }
-    }
+    var table by mutableStateOf(table)
     var plot by mutableStateOf(plot)
     var focus by mutableStateOf<Editor?>(null)
-    val rows get() = cells.maxOfOrNull { it.size } ?: 0
-
-    init {
-        // A new table: columns x and y with three empty rows.
-        if (kind == 'D' && this.names.isEmpty()) {
-            this.names += ed(MathRow(mutableListOf(com.example.cas.editor.Sym("x")))); this.names += ed(MathRow(mutableListOf(com.example.cas.editor.Sym("y"))))
-            repeat(2) { cells += mutableStateListOf<Editor>().apply { repeat(3) { add(ed(MathRow())) } } }
-        }
-    }
 
     fun target(): Editor = focus ?: editor
     fun changed() { version++; onChange() }
-    fun addRow(after: Int = rows - 1) { cells.forEach { col -> col.add((after + 1).coerceIn(0, col.size), ed(MathRow())) }; changed() }
-    fun addColumn() {
-        val used = names.map { Notebook.columnName(it.root) }.toSet()
-        val letter = listOf("z", "u", "v", "w", "a", "b", "c", "p", "q", "r").firstOrNull { it !in used } ?: ""
-        names += ed(MathRow(letter.map { com.example.cas.editor.Sym(it.toString()) }.toMutableList()))
-        cells += mutableStateListOf<Editor>().apply { repeat(rows.coerceAtLeast(1)) { add(ed(MathRow())) } }
-        changed()
-    }
-    fun removeRow(r: Int) { if (rows <= 1) return; cells.forEach { col -> if (r in col.indices) col.removeAt(r) }; focus = null; changed() }
-    fun removeColumn(c: Int) { if (names.size <= 1 || c !in names.indices) return; names.removeAt(c); cells.removeAt(c); focus = null; changed() }
-    /** Where [focus] is in the table: column and row (row −1 for a name). */
-    fun cellOf(e: Editor?): Pair<Int, Int>? {
-        if (e == null) return null
-        names.indexOf(e).takeIf { it >= 0 }?.let { return it to -1 }
-        cells.forEachIndexed { c, col -> col.indexOf(e).takeIf { it >= 0 }?.let { return c to it } }
-        return null
-    }
 
     fun toBlock(): Block = when (kind) {
         'T' -> Block.Text(id, text.text)
         'G' -> Block.Graph(id, com.example.cas.editor.trimMatrices(MathCodec.copy(editor.root)), MathCodec.copy(from.root), MathCodec.copy(to.root))
-        'D' -> Block.Table(id, names.map { MathCodec.copy(it.root) }, cells.map { col -> col.map { MathCodec.copy(it.root) } }, plot)
+        'D' -> Block.Table(id, table, plot)
         else -> Block.Math(id, MathCodec.copy(editor.root))
     }
 
@@ -355,7 +326,7 @@ private class EditBlock(
             is Block.Text -> EditBlock(b.id, 'T', text = b.text, onChange = onChange)
             is Block.Math -> EditBlock(b.id, 'M', row = b.row, onChange = onChange)
             is Block.Graph -> EditBlock(b.id, 'G', row = b.row, from = b.from, to = b.to, onChange = onChange)
-            is Block.Table -> EditBlock(b.id, 'D', names = b.names, columns = b.columns, plot = b.plot, onChange = onChange)
+            is Block.Table -> EditBlock(b.id, 'D', table = b.table, plot = b.plot, onChange = onChange)
         }
 
         /** A copy of [b] with the id [id]. */
@@ -363,7 +334,7 @@ private class EditBlock(
             is Block.Text -> Block.Text(id, b.text)
             is Block.Math -> Block.Math(id, b.row)
             is Block.Graph -> Block.Graph(id, b.row, b.from, b.to)
-            is Block.Table -> Block.Table(id, b.names, b.columns, b.plot)
+            is Block.Table -> Block.Table(id, b.table, b.plot)
         }
     }
 }
@@ -392,14 +363,8 @@ private class NotebookKeys(private val active: () -> EditBlock?, private val onE
             KeyAction.Backspace -> ed.backspace()
             KeyAction.Clear -> ed.clear()
             KeyAction.Enter -> {
-                // In a table, Enter goes down a cell (adding a row at the bottom); in a graph, on to the next field.
-                val at = if (b.kind == 'D') b.cellOf(b.focus) else null
+                // In a graph, Enter goes on to the next field: functions, from, to.
                 when {
-                    at != null -> {
-                        val (c, r) = at
-                        if (r + 1 >= b.rows) b.addRow()
-                        b.focus = b.cells[c][r + 1]
-                    }
                     b.kind == 'G' && b.focus == null -> b.focus = b.from
                     b.kind == 'G' && b.focus === b.from -> b.focus = b.to
                     else -> onEnter()
@@ -455,7 +420,6 @@ private fun NotebookEditor(doc: Notebook.Doc, onClose: () -> Unit, onGraph: (Gra
         val b = EditBlock(nextId(), kind, onChange = bump)
         val at = active?.let { blocks.indexOf(it) + 1 } ?: blocks.size
         blocks.add(at, b); active = b; keys.keypadHidden = false
-        if (kind == 'D') b.focus = b.cells.firstOrNull()?.firstOrNull()
         scope.launch { list.animateScrollToItem(at + 1) }
     }
     val close = { NotebookStore.save(context, current()); onClose() }
@@ -487,7 +451,8 @@ private fun NotebookEditor(doc: Notebook.Doc, onClose: () -> Unit, onGraph: (Gra
                     }) { AppIcon(TableIcons.Undo, contentDescription = tr("Undo"), tint = if (canUndo) colors.onSurface else colors.outline) }
                     IconButton(onClick = { active = null; exporting = true }) { AppIcon(TableIcons.Share, contentDescription = tr("Share notebook"), tint = colors.onSurface) }
                 }
-                LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = list, contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     item(key = "title") {
                         Column(Modifier.padding(horizontal = 10.dp)) {
                             Box {
@@ -502,7 +467,7 @@ private fun NotebookEditor(doc: Notebook.Doc, onClose: () -> Unit, onGraph: (Gra
                         val k = blocks.indexOf(b)
                         BlockView(
                             b, isActive = active === b, run = run,
-                            onActivate = { if (active !== b) { active = b; b.focus = if (b.kind == 'D') b.cells.firstOrNull()?.firstOrNull() else null }; keys.keypadHidden = false },
+                            onActivate = { if (active !== b) { active = b; b.focus = null }; keys.keypadHidden = false },
                             onTap = { e, r, i -> active = b; keys.keypadHidden = false; b.focus = if (e === b.editor) null else e; e.setCursor(r, i) },
                             onUp = if (k > 0) ({ structural { blocks.removeAt(k); blocks.add(k - 1, b) } }) else null,
                             onDown = if (k < blocks.lastIndex) ({ structural { blocks.removeAt(k); blocks.add(k + 1, b) } }) else null,
@@ -511,30 +476,25 @@ private fun NotebookEditor(doc: Notebook.Doc, onClose: () -> Unit, onGraph: (Gra
                             onGraph = { rows -> NotebookStore.save(context, current()); onGraph(GraphRequest(rows, 2)) },
                         )
                     }
-                    if (blocks.isEmpty()) item { PxFootnote("Add text, math or a graph with the bar below.") }
+                    if (blocks.isEmpty()) item { PxFootnote("Add text, math, a graph or a table with the + button.") }
+                }
+                // + on the right, as in the graphs: its menu adds a block after the one open.
+                Box(Modifier.align(Alignment.BottomEnd).padding(20.dp)) {
+                    FabMenu(
+                        listOf(
+                            FabItem("Text", TableIcons.Note, "Add text") { add('T') },
+                            FabItem("Math", TableIcons.ModeCalculator, "Add math") { add('M') },
+                            FabItem("Graph", TableIcons.Mode2D, "Add a graph") { add('G') },
+                            FabItem("Table", TableIcons.Table, "Add a table") { add('D') },
+                        ),
+                        size = 56.dp, description = "Add text, math, a graph or a table", alignEnd = true,
+                    )
+                }
                 }
                 val a = active
                 if (a != null && a.kind == 'T') MarkdownToolbar(a.text, { a.text = it; bump() }, Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
-                if (a != null && a.kind != 'T' && !keys.keypadHidden) Keypad(keys)
-                else if (a == null || a.kind == 'T') AddBar(onAdd = { add(it) }, modifier = Modifier.navigationBarsPadding())
-                else ShowKeypadButton(onClick = { keys.keypadHidden = false }, modifier = Modifier.align(Alignment.End).padding(16.dp))
-            }
-        }
-    }
-}
-
-/** Text · Math · Graph · Table: adds a block after the one open (or at the end). */
-@Composable
-private fun AddBar(onAdd: (Char) -> Unit, modifier: Modifier = Modifier) {
-    val colors = MaterialTheme.colorScheme
-    Row(
-        modifier.padding(horizontal = 12.dp, vertical = 10.dp).fillMaxWidth().height(64.dp).clip(RoundedCornerShape(32.dp)).background(colors.surfaceContainerHigh),
-        horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically,
-    ) {
-        listOf(Triple('T', TableIcons.Note, "Text"), Triple('M', TableIcons.ModeCalculator, "Math"), Triple('G', TableIcons.Mode2D, "Graph"), Triple('D', TableIcons.Table, "Table")).forEach { (kind, icon, label) ->
-            Column(Modifier.clip(RoundedCornerShape(20.dp)).clickable(onClickLabel = tr("Add") + " " + tr(label)) { onAdd(kind) }.padding(horizontal = 18.dp, vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                AppIcon(icon, contentDescription = null, tint = colors.primary, modifier = Modifier.size(22.dp))
-                Text(tr(label), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+                if (a != null && a.kind != 'T' && a.kind != 'D' && !keys.keypadHidden) Keypad(keys)
+                else if (a != null && a.kind != 'T' && a.kind != 'D') ShowKeypadButton(onClick = { keys.keypadHidden = false }, modifier = Modifier.align(Alignment.End).padding(16.dp))
             }
         }
     }
@@ -592,7 +552,7 @@ private fun BlockView(
                     }
                 }
             }
-            'D' -> DataTableView(b, isActive, run, shape, outline, onActivate, onTap)
+            'D' -> DataTableView(b, isActive, run, shape, outline, onActivate)
             else -> {
                 val p = run?.plots?.get(b.id)
                 Column(Modifier.fillMaxWidth().clip(shape).background(colors.surfaceContainerHigh).then(outline).clickable(onClick = onActivate)) {
@@ -641,58 +601,50 @@ private fun MathField(label: String, e: Editor, focused: Boolean, version: Int, 
 }
 
 /**
- * A data table: a name over each column (the letter it defines for the blocks below) and a
- * value in each cell, all typed on the calculator's keypad. Enter goes down a cell, adding a row
- * at the bottom; the bar under it adds and removes rows and columns and turns on a plot of the
- * columns against the first.
+ * A data table: the cells in Computer Modern's typewriter, the column names (letters) on top.
+ * Tapping it (or Edit) opens the full table editor, as for a graph's points: the phone's
+ * keyboard, formulas, formats, sorting, filters, statistics, fits and the rest of its ribbon.
  */
 @Composable
-private fun DataTableView(b: EditBlock, isActive: Boolean, run: Notebook.Run?, shape: RoundedCornerShape, outline: Modifier, onActivate: () -> Unit, onTap: (Editor, MathRow, Int) -> Unit) {
+private fun DataTableView(b: EditBlock, isActive: Boolean, run: Notebook.Run?, shape: RoundedCornerShape, outline: Modifier, onActivate: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val o = run?.outcomes?.get(b.id)
     val p = run?.plots?.get(b.id)
-    val at = b.cellOf(b.focus)
-    Column(Modifier.fillMaxWidth().clip(shape).background(colors.surfaceContainerHigh).then(outline).clickable(onClick = onActivate).padding(vertical = 10.dp)) {
+    var editing by remember { mutableStateOf(false) }
+    val t = b.table
+    if (editing) DataTableEditor(t, key = b.id, onSave = { b.table = it; b.changed() }, onDismiss = { editing = false })
+    val mono = TextStyle(fontFamily = CasFonts.Mono, fontSize = 15.sp, color = colors.onSurface)
+    Column(Modifier.fillMaxWidth().clip(shape).background(colors.surfaceContainerHigh).then(outline).clickable { onActivate(); editing = true }.padding(vertical = 10.dp)) {
         Row(Modifier.padding(horizontal = 12.dp).horizontalScroll(rememberScrollState())) {
-            // Row numbers.
             Column {
-                Box(Modifier.size(width = 32.dp, height = 44.dp))
-                (0 until b.rows).forEach { r -> Box(Modifier.size(width = 32.dp, height = 40.dp), contentAlignment = Alignment.Center) { Text("${r + 1}", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant) } }
+                Box(Modifier.size(width = 30.dp, height = 36.dp))
+                (0 until minOf(t.rowCount, 30)).forEach { r -> Box(Modifier.size(width = 30.dp, height = 32.dp), contentAlignment = Alignment.Center) { Text("${r + 1}", style = mono.copy(fontSize = 12.sp, color = colors.onSurfaceVariant)) } }
             }
-            b.names.indices.forEach { c ->
+            t.names.indices.forEach { c ->
                 Column(Modifier.width(androidx.compose.foundation.layout.IntrinsicSize.Max)) {
-                    val nameFocused = isActive && at == c to -1
-                    Box(
-                        Modifier.fillMaxWidth().widthIn(min = 84.dp).height(44.dp).background(colors.surfaceContainerHighest)
-                            .then(if (nameFocused) Modifier.border(2.dp, colors.primary) else Modifier)
-                            .clickable { onTap(b.names[c], b.names[c].root, b.names[c].root.items.size) }.padding(horizontal = 10.dp),
-                        contentAlignment = Alignment.Center,
-                    ) { MathView(b.names[c].root, 18.sp, colors.primary, accent = colors.primary, cursorRow = if (nameFocused) b.names[c].row else null, cursorIndex = b.names[c].index, version = b.version, onTap = { r, i -> onTap(b.names[c], r, i) }) }
-                    (0 until b.rows).forEach { r ->
-                        val cell = b.cells[c].getOrNull(r)
-                        val focused = isActive && at == c to r
-                        Box(
-                            Modifier.fillMaxWidth().widthIn(min = 84.dp).height(40.dp).background(if (r % 2 == 1) colors.surfaceContainer else colors.surfaceContainerHigh)
-                                .then(if (focused) Modifier.border(2.dp, colors.primary) else Modifier)
-                                .clickable(enabled = cell != null) { cell?.let { onTap(it, it.root, it.root.items.size) } }.padding(horizontal = 10.dp),
-                            contentAlignment = Alignment.CenterEnd,
-                        ) {
-                            if (cell != null) MathView(cell.root, 17.sp, colors.onSurface, accent = colors.primary, cursorRow = if (focused) cell.row else null, cursorIndex = cell.index, version = b.version, onTap = { rr, i -> onTap(cell, rr, i) })
+                    Box(Modifier.fillMaxWidth().widthIn(min = 72.dp).height(36.dp).background(colors.surfaceContainerHighest).padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
+                        Text(t.names[c].ifBlank { "—" }, style = mono.copy(color = colors.primary, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold))
+                    }
+                    (0 until minOf(t.rowCount, 30)).forEach { r ->
+                        val raw = t.cell(c, r)
+                        val shown = if (com.example.cas.graph.Sheet.isFormula(raw)) t.value(c, r)?.let { com.example.cas.graph.DataTable.text(it) } ?: raw else raw
+                        Box(Modifier.fillMaxWidth().widthIn(min = 72.dp).height(32.dp).background(if (r % 2 == 1) colors.surfaceContainer else colors.surfaceContainerHigh).padding(horizontal = 10.dp), contentAlignment = Alignment.CenterEnd) {
+                            Text(shown, style = mono, maxLines = 1)
                         }
                     }
                 }
             }
         }
+        if (t.rowCount > 30) Text(tr("{0} more rows", t.rowCount - 30), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
         if (o?.error != null) Text(o.error, color = colors.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
         else if (o?.defines?.isNotEmpty() == true) MathText(tr("Defines") + " " + o.defines.joinToString(", ") { "\$$it\$" } + " " + tr("as lists for the blocks below: mean, sd, sum…"),
             style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
-        if (isActive) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { b.addRow(at?.second?.takeIf { it >= 0 } ?: (b.rows - 1)) }) { Text(tr("+ Row")) }
-            TextButton(onClick = { b.addColumn() }) { Text(tr("+ Column")) }
-            TextButton(enabled = at != null && at.second >= 0 && b.rows > 1, onClick = { at?.let { b.removeRow(it.second) } }) { Text(tr("Delete row")) }
-            TextButton(enabled = at != null && b.names.size > 1, onClick = { at?.let { b.removeColumn(it.first) } }) { Text(tr("Delete column")) }
-            Text(tr("Plot"), style = MaterialTheme.typography.labelLarge, color = colors.onSurface, modifier = Modifier.padding(start = 8.dp, end = 6.dp))
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { onActivate(); editing = true }) { AppIcon(TableIcons.Edit, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("Edit table")) }
+            Spacer(Modifier.weight(1f))
+            Text(tr("Plot"), style = MaterialTheme.typography.labelLarge, color = colors.onSurface, modifier = Modifier.padding(end = 6.dp))
             androidx.compose.material3.Switch(checked = b.plot, onCheckedChange = { b.plot = it; b.changed() })
+            Spacer(Modifier.width(8.dp))
         }
         if (b.plot && p != null && p.points.isNotEmpty()) NotebookPlot(p, Modifier.fillMaxWidth().height(190.dp).padding(top = 8.dp))
     }
@@ -709,7 +661,7 @@ private fun NotebookPlot(p: Notebook.Plot, modifier: Modifier) {
         val x0 = p.xs.first(); val x1 = p.xs.last()
         fun sx(x: Double) = ((x - x0) / (x1 - x0) * size.width).toFloat()
         fun sy(v: Double) = (size.height - (v - p.yMin) / (p.yMax - p.yMin) * size.height).toFloat()
-        fun step(span: Double): Double { val raw = span / 6; val e = Math.pow(10.0, Math.floor(Math.log10(raw))); return listOf(1.0, 2.0, 5.0, 10.0).first { it * e >= raw } * e }
+        fun step(span: Double): Double { if (!span.isFinite() || span <= 0) return 1.0; val raw = span / 6; val e = Math.pow(10.0, Math.floor(Math.log10(raw))); return listOf(1.0, 2.0, 5.0, 10.0).first { it * e >= raw } * e }
         val gx = step(x1 - x0); var x = Math.ceil(x0 / gx) * gx
         while (x <= x1 + 1e-9) { drawLine(colors.outlineVariant.copy(alpha = 0.5f), Offset(sx(x), 0f), Offset(sx(x), size.height), 1f); x += gx }
         val gy = step(p.yMax - p.yMin); var y = Math.ceil(p.yMin / gy) * gy

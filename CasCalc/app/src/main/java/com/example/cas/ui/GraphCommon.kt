@@ -1922,10 +1922,21 @@ private fun FolderDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () -> U
  */
 @Composable
 private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () -> Unit) {
+    val start = remember(f) { vm.tableOf(f) }
+    DataTableEditor(start, key = f, onSave = { vm.setTable(f, it) }, onDismiss = onDismiss)
+}
+
+/**
+ * The data table editor (the ribbon, formulas, formats, sorting, filters, fits and statistics),
+ * for a graph's points or a notebook's table: [start] is the table opened, [onSave] gets it back
+ * when Done is tapped. [key] tells one table from another.
+ */
+@Composable
+internal fun DataTableEditor(start: com.example.cas.graph.DataTable, key: Any, onSave: (com.example.cas.graph.DataTable) -> Unit, onDismiss: () -> Unit) {
+    val f = key
     val colors = MaterialTheme.colorScheme
     val context = androidx.compose.ui.platform.LocalContext.current
     val density = LocalDensity.current
-    val start = remember(f) { vm.tableOf(f) }
     // Columns of cells, all kept the same length; roles are column positions.
     val names = remember(f) { androidx.compose.runtime.mutableStateListOf(*start.names.let { n -> List(start.columns.size) { n.getOrElse(it) { "" } } }.toTypedArray()) }
     val cells = remember(f) {
@@ -2605,7 +2616,7 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
                         Spacer(Modifier.width(4.dp))
                         Button(
                             enabled = roleY != null && points > 0,
-                            onClick = { vm.setTable(f, table()); onDismiss() },
+                            onClick = { onSave(table()); onDismiss() },
                             shape = RoundedCornerShape(16.dp),
                             contentPadding = PaddingValues(start = 16.dp, end = 20.dp),
                             modifier = Modifier.height(48.dp),

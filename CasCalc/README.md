@@ -203,6 +203,28 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (17 October, notebook polish, select and paste in the calculator)
+
+- **Fixed a crash** when a notebook graph or table plot had nothing to space its grid by.
+- **Notebook tables are the full data table**: tapping a table (or Edit table) opens the same
+  editor as a graph's points, with the phone's keyboard and its whole ribbon: formulas, number
+  formats, sorting, filters, find and replace, statistics, fits and the rest. Named columns are
+  still lists for the blocks below (formulas included). Tables saved before keep their cells.
+- **Computer Modern Typewriter** for tables and code, in the notebook, in Markdown and in the
+  PDF export.
+- **Markdown headings scale properly**: each level a clear step down (30, 25, 21, 18.5, 17 and
+  16 sp), and #Heading without a space counts as a heading too.
+- **Own icons for the Markdown bar**: strikethrough, heading, task list, quote, code, math,
+  display math, link and rule, two-tone like the rest of the app.
+- **The + button**: blocks are added from a + on the bottom right, which opens a menu (Text,
+  Math, Graph, Table) as in the graphs.
+- **Unit converter** matches the notebooks: the round back button, the larger title and the
+  same background.
+- **Select, cut, copy and paste in the calculator**: hold the input to select it all; a bar
+  above it has Select all, Cut, Copy and Paste. Tap in the math (or use the arrow keys) to move
+  the selection's end; typing replaces what's selected and backspace removes it. Copied math
+  pastes back exactly; text from other apps is read as LaTeX or plain math.
+
 ## Latest changes (17 October, Markdown, data tables and keypad ranges in notebooks)
 
 - **Text blocks are Markdown**: headings (# to ######, or underlined with === and ---),

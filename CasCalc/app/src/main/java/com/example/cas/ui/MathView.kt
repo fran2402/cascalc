@@ -1,5 +1,7 @@
 package com.example.cas.ui
 
+import androidx.compose.ui.draw.drawBehind
+
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.relocation.bringIntoViewRequester
@@ -114,6 +116,8 @@ class MathEnv(
      * nothing else MathView is given, so without this Compose would skip redrawing them.
      */
     val version: Int = 0,
+    /** Selected items, highlighted: a row and the range in it. */
+    val selection: Triple<MathRow, Int, Int>? = null,
 ) {
     fun scale(level: Int) = when (level) { 0 -> 1f; 1 -> 0.7f; 2 -> 0.56f; else -> 0.5f }
     fun size(level: Int): TextUnit = size * scale(level)
@@ -134,6 +138,7 @@ fun MathView(
     emptyAsDot: Boolean = false,
     computerModern: Boolean = true,
     onTap: ((MathRow, Int) -> Unit)? = null,
+    selection: Triple<MathRow, Int, Int>? = null,
 ) {
     val env = MathEnv(
         size = fontSize,
@@ -148,6 +153,7 @@ fun MathView(
         mathGlyphs = LocalMathGlyphs.current,
         onTap = onTap,
         version = version,
+        selection = selection,
     )
     CompositionLocalProvider(LocalMath provides env) {
         Box(modifier) { RowView(row, 0) }
@@ -251,8 +257,17 @@ fun RowView(row: MathRow, level: Int) {
             if (up != null) { up.consume(); onTap(row, index) }
         }
     }
+    // The selected run of items, behind them.
+    val sel = env.selection?.takeIf { it.first === row && it.third > it.second }
+    val highlight = if (sel == null) Modifier else Modifier.drawBehind {
+        val n = edgeCount[0]
+        if (n == 0) return@drawBehind
+        val a = sel.second.coerceIn(0, n - 1); val b = (sel.third - 1).coerceIn(0, n - 1)
+        val x0 = edges[2 * a].toFloat(); val x1 = edges[2 * b + 1].toFloat()
+        drawRoundRect(env.accent.copy(alpha = 0.28f), Offset(x0, 0f), Size(x1 - x0, size.height), CornerRadius(4.dp.toPx()))
+    }
     Layout(
-        modifier = besideTaps,
+        modifier = besideTaps.then(highlight),
         content = {
             // The top-level input shows just the cursor when empty; inner slots show a box.
             if (items.isEmpty() && row.parent != null) Placeholder(row, level, active)

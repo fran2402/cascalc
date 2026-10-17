@@ -59,9 +59,12 @@ private fun MdBlock(b: Block, onToggleTask: (Int) -> Unit) {
     val colors = MaterialTheme.colorScheme
     val body = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface)
     when (b) {
-        is Block.Heading -> MdInlines(b.inlines, when (b.level) {
-            1 -> MaterialTheme.typography.headlineSmall; 2 -> MaterialTheme.typography.titleLarge; 3 -> MaterialTheme.typography.titleMedium; else -> MaterialTheme.typography.titleSmall
-        }.copy(color = colors.onSurface, fontWeight = FontWeight.SemiBold), Modifier.padding(top = if (b.level <= 2) 6.dp else 2.dp))
+        // Each level a clear step down, all larger than the text (16 sp) but the last.
+        is Block.Heading -> {
+            val size = listOf(30, 25, 21, 18.5, 17, 16).map { it.toDouble() }[b.level.coerceIn(1, 6) - 1]
+            MdInlines(b.inlines, body.copy(fontSize = size.sp, lineHeight = (size * 1.25).sp, fontWeight = if (b.level <= 2) FontWeight.Bold else FontWeight.SemiBold),
+                Modifier.padding(top = if (b.level <= 2) 8.dp else 4.dp))
+        }
         is Block.Paragraph -> MdInlines(b.inlines, body)
         is Block.ListBlock -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             b.items.forEachIndexed { k, item ->
@@ -97,7 +100,7 @@ private fun MdBlock(b: Block, onToggleTask: (Int) -> Unit) {
         }
         is Block.Code -> Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.surfaceContainerHighest).padding(12.dp)) {
             if (b.language.isNotBlank()) Text(b.language, style = MaterialTheme.typography.labelSmall, color = colors.primary)
-            Box(Modifier.horizontalScroll(rememberScrollState())) { Text(b.text, style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 14.sp, color = colors.onSurface)) }
+            Box(Modifier.horizontalScroll(rememberScrollState())) { Text(b.text, style = TextStyle(fontFamily = com.example.cas.ui.theme.CasFonts.Mono, fontSize = 14.sp, color = colors.onSurface)) }
         }
         is Block.MathBlock -> Box(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
             val row = remember(b.latex) { runCatching { LatexParser.parse(b.latex) }.getOrNull() }
@@ -112,7 +115,7 @@ private fun MdBlock(b: Block, onToggleTask: (Int) -> Unit) {
 @Composable
 private fun MdTable(t: Block.Table) {
     val colors = MaterialTheme.colorScheme
-    val body = MaterialTheme.typography.bodyMedium.copy(color = colors.onSurface)
+    val body = TextStyle(fontFamily = com.example.cas.ui.theme.CasFonts.Mono, fontSize = 14.sp, color = colors.onSurface)
     Box(Modifier.horizontalScroll(rememberScrollState()).clip(RoundedCornerShape(12.dp)).border(1.dp, colors.outlineVariant, RoundedCornerShape(12.dp))) {
         Row {
             t.header.indices.forEach { c ->
@@ -142,7 +145,7 @@ private fun toks(list: List<Inline>, style: SpanStyle, url: String?, out: ArrayL
         is Inline.Italic -> toks(i.children, style.merge(SpanStyle(fontStyle = FontStyle.Italic)), url, out, link)
         is Inline.Strike -> toks(i.children, style.merge(SpanStyle(textDecoration = TextDecoration.LineThrough)), url, out, link)
         is Inline.Link -> toks(i.children, style.merge(SpanStyle(color = link, textDecoration = TextDecoration.Underline)), i.url, out, link)
-        is Inline.Code -> out += Tok(i.text, style.merge(SpanStyle(fontFamily = FontFamily.Monospace)), url, code = true)
+        is Inline.Code -> out += Tok(i.text, style.merge(SpanStyle(fontFamily = com.example.cas.ui.theme.CasFonts.Mono)), url, code = true)
         is Inline.Math -> out += Tok(null, style, url, math = i.latex)
         is Inline.Image -> out += Tok("[" + i.alt.ifBlank { tr("image") } + "]", style.merge(SpanStyle(fontStyle = FontStyle.Italic)), i.url)
         Inline.Break -> out += Tok(null, style, newline = true)
@@ -217,8 +220,8 @@ fun MarkdownToolbar(value: TextFieldValue, onChange: (TextFieldValue) -> Unit, m
     val tools = listOf(
         Tool("Bold", TableIcons.Bold, null) { it.wrap("**", placeholder = tr("bold")) },
         Tool("Italic", TableIcons.Italic, null) { it.wrap("*", placeholder = tr("italic")) },
-        Tool("Strikethrough", null, "S̶") { it.wrap("~~", placeholder = tr("text")) },
-        Tool("Heading", null, "H") { v ->
+        Tool("Strikethrough", TableIcons.MdStrike, null) { it.wrap("~~", placeholder = tr("text")) },
+        Tool("Heading", TableIcons.MdHeading, null) { v ->
             // # → ## → ### → none.
             val lineStart = v.text.lastIndexOf('\n', (v.selection.min - 1).coerceAtLeast(0)).let { if (v.selection.min == 0 || it < 0) 0 else it + 1 }
             val hashes = v.text.drop(lineStart).takeWhile { it == '#' }.length
@@ -229,19 +232,19 @@ fun MarkdownToolbar(value: TextFieldValue, onChange: (TextFieldValue) -> Unit, m
         },
         Tool("Bullet list", TableIcons.Bullets, null) { it.prefixLines("- ") },
         Tool("Numbered list", TableIcons.Numbering, null) { it.prefixLines("", numbered = true) },
-        Tool("Task list", TableIcons.Check, null) { it.prefixLines("- [ ] ") },
-        Tool("Quote", null, "❝") { it.prefixLines("> ") },
-        Tool("Code", null, "</>") { v -> if (v.text.substring(v.selection.min, v.selection.max).contains('\n')) v.wrap("```\n", "\n```") else v.wrap("`", placeholder = "code") },
-        Tool("Math", null, "∑") { it.wrap("$", placeholder = "x^2") },
-        Tool("Display math", null, "$$") { it.insert("$$ \\int_0^1 x\\,dx $$", block = true) },
-        Tool("Link", null, "🔗") { v ->
+        Tool("Task list", TableIcons.MdTask, null) { it.prefixLines("- [ ] ") },
+        Tool("Quote", TableIcons.MdQuote, null) { it.prefixLines("> ") },
+        Tool("Code", TableIcons.MdCode, null) { v -> if (v.text.substring(v.selection.min, v.selection.max).contains('\n')) v.wrap("```\n", "\n```") else v.wrap("`", placeholder = "code") },
+        Tool("Math", TableIcons.MdMath, null) { it.wrap("$", placeholder = "x^2") },
+        Tool("Display math", TableIcons.MdDisplayMath, null) { it.insert("$$ \\int_0^1 x\\,dx $$", block = true) },
+        Tool("Link", TableIcons.MdLink, null) { v ->
             val s = v.selection.min; val e = v.selection.max
             val label = if (s == e) tr("link") else v.text.substring(s, e)
             val t = v.text.substring(0, s) + "[" + label + "](https://)" + v.text.substring(e)
             TextFieldValue(t, TextRange(s + label.length + 3, s + label.length + 11))
         },
         Tool("Table", TableIcons.Table, null) { it.insert("| " + tr("Column") + " 1 | " + tr("Column") + " 2 |\n|---|---|\n|   |   |", block = true) },
-        Tool("Horizontal rule", null, "―") { it.insert("---", block = true) },
+        Tool("Horizontal rule", TableIcons.MdRule, null) { it.insert("---", block = true) },
     )
     Row(modifier.horizontalScroll(rememberScrollState()).padding(vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         tools.forEach { tool ->
@@ -249,7 +252,7 @@ fun MarkdownToolbar(value: TextFieldValue, onChange: (TextFieldValue) -> Unit, m
                 Modifier.size(width = 44.dp, height = 40.dp).clip(RoundedCornerShape(12.dp)).background(colors.surfaceContainerHighest).clickable(onClickLabel = tr(tool.label)) { onChange(tool.apply(value)) },
                 contentAlignment = Alignment.Center,
             ) {
-                if (tool.icon != null) AppIcon(tool.icon, contentDescription = tr(tool.label), tint = colors.onSurface, modifier = Modifier.size(20.dp))
+                if (tool.icon != null) AppIcon(tool.icon, contentDescription = tr(tool.label), tint = colors.onSurface, accent = colors.primary, modifier = Modifier.size(22.dp))
                 else Text(tool.text!!, style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold), color = colors.onSurface)
             }
         }

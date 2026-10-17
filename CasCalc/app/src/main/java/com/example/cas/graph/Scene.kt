@@ -26,7 +26,8 @@ class Scene(val width: Double, val height: Double, val background: Int) {
 
     /** Sans is the app's Google Sans Flex; Roman and Italic are LaTeX's Computer Modern. */
     /** [Size2] is TeX's large-operator font (the display ∫ and ∮). */
-    enum class Font { Sans, Roman, Italic, Size2 }
+    /** [Mono] is Computer Modern's typewriter (code and tables): every letter 0.525 of the size wide. */
+    enum class Font { Sans, Roman, Italic, Size2, Mono }
 
     /** Text with its [anchor] at x and its middle at y, turned [angle] degrees (counterclockwise) about that point. */
     class Label(
@@ -152,6 +153,7 @@ object SvgWriter {
                 val own = if (item.font in embedded) "CM${item.font.name}, " else ""
                 val family = when (item.font) {
                     Scene.Font.Sans -> "Google Sans Flex, Google Sans, Roboto, Arial, sans-serif"
+                    Scene.Font.Mono -> "CMU Typewriter Text, Latin Modern Mono, Courier New, monospace"
                     // The embedded font, else Computer Modern as LaTeX has it, under its usual installed names.
                     else -> own + "Latin Modern Roman, CMU Serif, Computer Modern, cmr10, Times New Roman, serif"
                 }

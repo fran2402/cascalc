@@ -66,14 +66,14 @@ class NotebookTest {
     }
 
     @Test fun tablesDefineColumns() {
-        val t = Block.Table(10, listOf(m("a"), m("b")), listOf(listOf(m("1"), m("2"), m("3")), listOf(m("2"), m("4"), MathRow())), plot = true)
+        val t = Block.Table(10, com.example.cas.graph.DataTable(listOf("a", "b"), listOf(listOf("1", "2", "3"), listOf("2", "=A2*2", "")), null, null), plot = true)
         val run = Notebook.run(listOf(t, Block.Math(11, m(com.example.cas.editor.Func("mean", listOf(m("a")))))))
         assertEquals(listOf("a", "b"), run.outcomes[10]!!.defines)
         assertEquals("2", Formatter.plain(run.outcomes[11]!!.answer!!.exact))
-        // b has two values, so two points.
+        // b has two values (one a formula), so two points.
         assertEquals(2, run.plots[10]!!.points.single().first.size)
         val back = Notebook.decode("x", Notebook.encode(Notebook.Doc("x", "", listOf(t), 0))).blocks.single() as Block.Table
-        assertEquals(3, back.columns[0].size); assertTrue(back.plot); assertEquals("b", Notebook.columnName(back.names[1]))
+        assertEquals(3, back.table.columns[0].size); assertTrue(back.plot); assertEquals("=A2*2", back.table.cell(1, 1))
     }
 
     @Test fun oldNumericLimitsStillOpen() {

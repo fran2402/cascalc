@@ -411,6 +411,7 @@ private fun InputPanel(vm: CalculatorViewModel) {
         if (vm.editor.row === vm.editor.root && vm.editor.index == vm.editor.root.items.size) scroll.animateScrollTo(scroll.maxValue)
     }
     Column(Modifier.fillMaxWidth().tourTarget("input").padding(horizontal = 24.dp, vertical = 8.dp), horizontalAlignment = Alignment.End) {
+        if (vm.selecting) SelectionBar(vm)
         // Where the math sits in its box, so a tap beside it (the space to its left, or just past
         // its end) puts the cursor at the start or the end of the line.
         var mathLeft by remember { mutableStateOf(0f) }
@@ -420,7 +421,10 @@ private fun InputPanel(vm: CalculatorViewModel) {
                 .fillMaxWidth()
                 .horizontalScroll(scroll)
                 .pointerInput(Unit) {
-                    detectTapGestures { o ->
+                    detectTapGestures(
+                        // Hold the input to select it all: then cut, copy or paste from the bar above.
+                        onLongPress = { vm.startSelection() },
+                    ) { o ->
                         val root = vm.editor.root
                         vm.tapAt(root, if (o.x < mathLeft || (o.x <= mathRight && o.x < (mathLeft + mathRight) / 2)) 0 else root.items.size)
                     }
@@ -442,6 +446,7 @@ private fun InputPanel(vm: CalculatorViewModel) {
                     cursorIndex = vm.editor.index,
                     version = vm.version,
                     onTap = vm::tapAt,
+                    selection = if (vm.editor.hasSelection) Triple(vm.editor.row, vm.editor.selectionStart, vm.editor.selectionEnd) else null,
                     modifier = Modifier
                         .padding(vertical = 8.dp)
                         .semantics { contentDescription = tr("Expression") },
@@ -464,6 +469,33 @@ private fun InputPanel(vm: CalculatorViewModel) {
                 }
             }
         }
+    }
+}
+
+/**
+ * Shown while selecting in the input (after holding it): select all, cut, copy and paste, and ×
+ * to stop. While it shows, a tap in the math (or ◀ ▶) moves the selection's end; any key replaces
+ * what's selected.
+ */
+@Composable
+private fun SelectionBar(vm: CalculatorViewModel) {
+    val colors = MaterialTheme.colorScheme
+    @Suppress("DEPRECATION") val clipboard = LocalClipboardManager.current
+    Row(
+        Modifier.padding(bottom = 4.dp).clip(RoundedCornerShape(20.dp)).background(colors.surfaceContainerHighest).horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        @Composable fun act(label: String, icon: ImageVector, enabled: Boolean = true, onClick: () -> Unit) =
+            TextButton(onClick = onClick, enabled = enabled) {
+                AppIcon(icon, contentDescription = null, tint = if (enabled) colors.primary else colors.outline, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp)); Text(tr(label))
+            }
+        val has = vm.editor.hasSelection
+        act("Select all", TableIcons.SelectAll) { vm.selectAll() }
+        act("Cut", TableIcons.Cut, has) { vm.cutSelection()?.let { clipboard.setText(androidx.compose.ui.text.AnnotatedString(it)) } }
+        act("Copy", TableIcons.Copy, has) { vm.copySelection()?.let { clipboard.setText(androidx.compose.ui.text.AnnotatedString(it)) }; vm.endSelection() }
+        act("Paste", TableIcons.Paste, clipboard.hasText()) { vm.paste(clipboard.getText()?.text) }
+        IconButton(onClick = { vm.endSelection() }) { AppIcon(TableIcons.Close, contentDescription = tr("Done selecting"), tint = colors.onSurfaceVariant) }
     }
 }
 
