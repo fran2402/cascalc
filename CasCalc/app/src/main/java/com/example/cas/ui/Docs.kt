@@ -507,6 +507,7 @@ object Docs {
         ModeGuides.graph2D.toChapter("graph2d", "Functions, curves, regions, points and fields in \$x\$ and \$y\$."),
         ModeGuides.graph3D.toChapter("graph3d", "Surfaces, implicit surfaces, curves and solids in three dimensions."),
         ModeGuides.complex.toChapter("complexplane", "Domain coloring of \$f(z)\$, with curves, points and loop integrals."),
+        ModeGuides.plots.toChapter("plots", "Figures after matplotlib: layers of lines, data, distributions and fields, several axes, styles, and a Python export."),
         Chapter(
             "Data tables", "table", "Points from a table: typed, pasted or imported.", part = APP, sections = listOf(
                 section(

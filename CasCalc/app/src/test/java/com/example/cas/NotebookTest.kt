@@ -65,6 +65,25 @@ class NotebookTest {
         assertTrue(pages[0].items.size > 20)
     }
 
+    @Test fun figuresUseDefinitionsAbove() {
+        val fig = com.example.cas.graph.Figure.Doc("f", "", listOf(com.example.cas.graph.Figure.Axes(listOf(
+            com.example.cas.graph.Figure.Layer(com.example.cas.graph.Figure.Kind.Plot, listOf(m("vx")))))), name = "Speed")
+        val all = blocks + Block.Figure(9, fig)
+        val run = Notebook.run(all)
+        val f = all.last() as Block.Figure
+        // v := 20 above, so the line is 20x.
+        val w = com.example.cas.graph.Figure.build(fig, run.figureEval(f), com.example.cas.graph.Figure.THEMES[1]).worked.single()
+        assertNull(w.drawn.single().error)
+        val (xs, ys) = w.drawn.single().series.single()
+        assertEquals(20 * xs[10], ys[10], 1e-9)
+        // Saved and opened again; and drawn into the PDF.
+        val back = Notebook.decode("n", Notebook.encode(Notebook.Doc("n", "t", all, 0)))
+        assertEquals("Speed", (back.blocks.last() as Block.Figure).doc.name)
+        val pages = com.example.cas.graph.NotebookExport.pages(Notebook.Doc("n", "t", all, 0), run, "today")
+        assertTrue(pages.sumOf { it.items.size } > 60)
+        assertTrue(Notebook.latex(Notebook.Doc("n", "t", all, 0), run).contains("Figure: Speed"))
+    }
+
     @Test fun tablesDefineColumns() {
         val t = Block.Table(10, com.example.cas.graph.DataTable(listOf("a", "b"), listOf(listOf("1", "2", "3"), listOf("2", "=A2*2", "")), null, null), plot = true)
         val run = Notebook.run(listOf(t, Block.Math(11, m(com.example.cas.editor.Func("mean", listOf(m("a")))))))

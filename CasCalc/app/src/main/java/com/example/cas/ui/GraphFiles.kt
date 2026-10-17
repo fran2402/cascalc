@@ -27,7 +27,7 @@ val Mode.graphFileKind: GraphFile.Kind?
         Mode.Graph2D -> GraphFile.Kind.Graph2D
         Mode.Graph3D -> GraphFile.Kind.Graph3D
         Mode.Complex -> GraphFile.Kind.Complex
-        Mode.Calculator -> null
+        Mode.Calculator, Mode.Plots -> null
     }
 
 val GraphFile.Kind.mode: Mode

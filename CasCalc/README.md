@@ -203,6 +203,39 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (17 October, Plots mode: matplotlib-style figures)
+
+- **A fifth mode, Plots**, with its own two-tone icon in the mode switcher (the buttons shrink to
+  fit narrow phones). It makes figures the way matplotlib does: axes holding layers, each layer
+  one of pyplot's plotting functions, with inputs typed on the calculator's keypad: an
+  expression in x (a function drawn across the axes), a list like [1, 4, 9], a matrix, or a
+  column of the figure's own table by its letter.
+- **31 layer types, each with its own icon**, in a searchable gallery behind +: line, scatter,
+  steps, stems, error bars, fill between, stacked areas, parametric and polar curves, polygon;
+  histogram (bins, density, cumulative, outline), box plot (whiskers at 1.5 IQR, outliers),
+  violin, ECDF, 2D histogram, hexbin; bars (several stand side by side), horizontal bars, pie,
+  events; contour lines, filled contours, heat map (of f(x, y) or a matrix), arrows, stream
+  lines; horizontal and vertical lines and bands, text, and an arrow with a note.
+- **Each layer's look**: color (auto from the cycle or picked), line style, marker, line width,
+  marker size, opacity, colormap and levels, and a legend name (text with math in dollars).
+  Layers can be hidden, reordered, copied and deleted; errors show under them in the list.
+- **Axes**: title and axis labels (with math), limits (blank for automatic), log scales, equal
+  scales, grid (off, major, minor too), frame (box, L, through zero, none), legend (off, best
+  corner, or placed on a 3 × 3 grid), automatic color bars for mapped layers.
+- **Figure**: a title over it, layouts of several axes (side by side, stacked, 2 × 2 and two
+  mosaics such as "AAB;CDB"), its shape, and styles after plt.style: the app's colors,
+  SciencePlots, SciencePlots dark, ggplot, grayscale and seaborn.
+- **Export** as PDF, PNG or SVG, the figure file (.casfig), or a **Python script** that redraws
+  it in matplotlib (subplot_mosaic, each layer's pyplot call with the numbers it was drawn
+  from, and every axes setting). The script can also be read and copied in the editor.
+- **A library** of saved figures with thumbnails (rename, duplicate, share, delete), templates
+  to start from (blank, function, data, fields, 2 × 2 grid), and opening .casfig files.
+- **Other ways in**: Insert › Chart in any data table makes a figure of its columns (scatter,
+  line, bars, histogram or box plot); ⋮ › Open as figure in the 2D graph turns its curves and
+  view into one; notebooks gain a Figure block, drawn with the definitions above it, edited in
+  the same editor and included in the notebook's PDF.
+- Tablets show the figure beside its layers, with the keypad as a column while typing.
+
 ## Latest changes (17 October, notebook layouts, Maple Mono, converter cards)
 
 - **Phone notebooks: one bar at the bottom.** The open block's actions (up, down, copy,
