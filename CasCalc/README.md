@@ -203,6 +203,20 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (17 October, one look for graph settings, finer steps)
+
+- **Graph settings look the same in 2D, 3D and the complex plane**, and like the app's own
+  settings: grouped cards under View, Axes (or Coordinates) and Detail. Each axis's limits sit on
+  one line, from, the axis letter, to (x, y, z, Re z, Im z). The 2D graph and the complex plane
+  both have the scale of each axis, grid lines and numbers on the axes; the 3D graph has Fit z,
+  the coordinate system by its letters, and Letters to choose them. Done is a filled button.
+- **Five steps instead of three** for math size, keypad size and the detail of 2D fields, 3D
+  surfaces and complex plots (Low, Medium-low, Medium, Medium-high, High). The detail sliders in
+  each graph's settings are the same as in Settings. Your earlier choices carry over (low, medium
+  and high are the first, middle and last steps).
+- **Sharper complex plots at the top steps**: the highest ones sample a little finer than the
+  screen, so color boundaries are smoother.
+
 ## Latest changes (16 October, settings in the graph colors)
 
 - **Icon circles in the graph palette**: each settings category has its own hue from the colors

@@ -206,82 +206,44 @@ private fun LimitsDialog(vm: Graph3DViewModel, onDismiss: () -> Unit) {
     val letters = remember { androidx.compose.runtime.mutableStateMapOf<Coordinates3D.Mode, List<String>>().apply { putAll(vm.letters3D) } }
     fun lettersOk(l: List<String>) = l.size == 3 && l.all { it.isNotBlank() && it.length <= 3 } && l.toSet().size == 3
     val valid = ok(xs) && ok(ys) && (autoZ || ok(zs)) && letters.values.all(::lettersOk)
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(tr("Graph settings")) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                LimitRow("x", x0, x1, { x0 = it }, { x1 = it })
-                LimitRow("y", y0, y1, { y0 = it }, { y1 = it })
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(tr("Fit z to the surfaces"), modifier = Modifier.weight(1f))
-                    Switch(checked = autoZ, onCheckedChange = { autoZ = it })
+    var choosing by remember { mutableStateOf(false) }
+    val mode = vm.coordinates3D
+    val modeName = when (mode) { Coordinates3D.Mode.Cartesian -> "Cartesian"; Coordinates3D.Mode.Cylindrical -> "Cylindrical"; else -> "Spherical" }
+    if (choosing) {
+        val roles = when (mode) {
+            Coordinates3D.Mode.Cartesian -> listOf("First (across)", "Second (depth)", "Third (up)")
+            Coordinates3D.Mode.Cylindrical -> listOf("Distance from the axis", "Angle around the axis", "Height")
+            Coordinates3D.Mode.Spherical -> listOf("Distance from the origin", "Angle around the z-axis", "Angle down from the z-axis")
+        }
+        CoordinateLettersDialog("$modeName coordinates", roles, letters.getValue(mode), Coordinates3D.DEFAULT_LETTERS.getValue(mode), onDone = { letters[mode] = it; choosing = false }, onDismiss = { choosing = false })
+    }
+    GraphSettingsFrame("3D graph", valid, onDone = {
+        vm.xMin = xs.first!!; vm.xMax = xs.second!!
+        vm.yMin = ys.first!!; vm.yMax = ys.second!!
+        vm.zRange = if (autoZ) null else zs.first!! to zs.second!!
+        letters.forEach { (m, l) -> if (l != vm.letters3D[m]) vm.setLetters3D(m, l) }
+        onDismiss()
+    }, onDismiss = onDismiss) {
+        PxHeader("View")
+        PxCards(
+            { LimitRow("x", x0, x1, { x0 = it }, { x1 = it }) },
+            { LimitRow("y", y0, y1, { y0 = it }, { y1 = it }) },
+            { PxToggleRow("Fit z to the surfaces", "The height follows what's drawn", autoZ) { autoZ = it } },
+            if (!autoZ) ({ LimitRow("z", z0, z1, { z0 = it }, { z1 = it }) }) else null,
+        )
+        if (!valid) LimitError(tr("Each lower limit must be below its upper limit."))
+        PxHeader("Coordinates")
+        // As on the calculator's ∇ tab: the systems by their letters.
+        PxCards(
+            {
+                PxChoiceRow("System", Coordinates3D.Mode.entries.map { m -> "\$" + letters.getValue(m).joinToString("\\,") + "\$" }, Coordinates3D.Mode.entries.indexOf(mode)) {
+                    vm.setCoordinates(Coordinates3D.Mode.entries[it])
                 }
-                if (!autoZ) LimitRow("z", z0, z1, { z0 = it }, { z1 = it })
-                if (!valid) Text(tr("Each lower limit must be below its upper limit."), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                Text(tr("Coordinates"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                // As on the calculator's ∇ tab: the systems by their letters, and ✎ to choose them.
-                var choosing by remember { mutableStateOf(false) }
-                if (choosing) {
-                    val m = vm.coordinates3D
-                    val roles = when (m) {
-                        Coordinates3D.Mode.Cartesian -> listOf("First (across)", "Second (depth)", "Third (up)")
-                        Coordinates3D.Mode.Cylindrical -> listOf("Distance from the axis", "Angle around the axis", "Height")
-                        Coordinates3D.Mode.Spherical -> listOf("Distance from the origin", "Angle around the z-axis", "Angle down from the z-axis")
-                    }
-                    val name = when (m) { Coordinates3D.Mode.Cartesian -> "Cartesian"; Coordinates3D.Mode.Cylindrical -> "Cylindrical"; else -> "Spherical" }
-                    CoordinateLettersDialog("$name coordinates", roles, letters.getValue(m), Coordinates3D.DEFAULT_LETTERS.getValue(m), onDone = { letters[m] = it; choosing = false }, onDismiss = { choosing = false })
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
-                    Coordinates3D.Mode.entries.forEachIndexed { k, m ->
-                        SegmentedButton(
-                            selected = vm.coordinates3D == m,
-                            onClick = { vm.setCoordinates(m) },
-                            shape = SegmentedButtonDefaults.itemShape(k, 3),
-                            icon = {},
-                            label = { Text(letters.getValue(m).joinToString("\u200A"), maxLines = 1, style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 16.sp)) },
-                        )
-                    }
-                }
-                IconButton(onClick = { choosing = true }) {
-                    AppIcon(TableIcons.Edit, contentDescription = tr("Choose the coordinate letters"), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                }
-
-                Text(tr("Surface detail"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    listOf("Low", "Medium", "High").forEachIndexed { k, name ->
-                        SegmentedButton(
-                            selected = AppSettings.surfaceDetail == k,
-                            onClick = { AppSettings.changeSurfaceDetail(k) },
-                            shape = SegmentedButtonDefaults.itemShape(k, 3),
-                            icon = {},
-                            label = { Text(name, maxLines = 1) },
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(enabled = valid, onClick = {
-                vm.xMin = xs.first!!; vm.xMax = xs.second!!
-                vm.yMin = ys.first!!; vm.yMax = ys.second!!
-                vm.zRange = if (autoZ) null else zs.first!! to zs.second!!
-                letters.forEach { (m, l) -> if (l != vm.letters3D[m]) vm.setLetters3D(m, l) }
-                onDismiss()
-            }) { Text(tr("Done")) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
-    )
-}
-
-@Composable
-private fun LimitRow(letter: String, lo: String, hi: String, onLo: (String) -> Unit, onHi: (String) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(lo, onLo, singleLine = true, label = { Text(tr("from")) }, modifier = Modifier.weight(1f))
-        Text(letter, style = TextStyle(fontFamily = CasFonts.CmItalic, fontSize = 22.sp))
-        OutlinedTextField(hi, onHi, singleLine = true, label = { Text(tr("to")) }, modifier = Modifier.weight(1f))
+            },
+            { PxActionRow("Letters", tr("Choose the letters for {0} coordinates", tr(modeName).lowercase()), TableIcons.Edit) { choosing = true } },
+        )
+        PxHeader("Detail")
+        DetailCards(only = 1)
     }
 }
 

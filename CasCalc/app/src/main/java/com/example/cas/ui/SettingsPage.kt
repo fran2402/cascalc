@@ -108,8 +108,8 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
     val go = { route: String -> stack = stack + route }
 
     val themes = listOf("System", "Light", "Dark")
-    val sizes = listOf("Small", "Medium", "Large")
-    val keypadSizes = listOf("Compact", "Medium", "Tall")
+    val sizes = AppSettings.MATH_STEPS
+    val keypadSizes = AppSettings.KEYPAD_STEPS
     val formats = listOf("Auto", "Scientific", "Engineering")
 
     val categories = listOf(
@@ -118,158 +118,150 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             keywords = listOf("Theme", "Light", "Dark", "Colors from your wallpaper", "App color", "Math size", "Keypad size", "Expressive motion"),
         ) {
             PreviewCard(listOf("Calculator", "Graph")) { page -> if (page == 0) CalculatorPreview() else GraphPreview() }
-            Header("Theme")
+            PxHeader("Theme")
             Tiles(themes.indices.map { k -> Tile(themes[k], { AppIcon(listOf(TableIcons.ThemeSystem, TableIcons.ThemeLight, TableIcons.ThemeDark)[k], null, Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary) }) },
                 AppSettings.theme, AppSettings::changeTheme)
             val wallpaper = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
-            Cards(
-                if (wallpaper) ({ ToggleRow("Colors from your wallpaper", "Material You dynamic color", AppSettings.dynamicColor, AppSettings::changeDynamicColor) }) else null,
-                if (!wallpaper || !AppSettings.dynamicColor) ({ Box(RowPadding) { ThemeColorChoice() } }) else null,
+            PxCards(
+                if (wallpaper) ({ PxToggleRow("Colors from your wallpaper", "Material You dynamic color", AppSettings.dynamicColor, AppSettings::changeDynamicColor) }) else null,
+                if (!wallpaper || !AppSettings.dynamicColor) ({ Box(PxRowPadding) { ThemeColorChoice() } }) else null,
             )
-            Header("Size options")
-            Cards(
-                { SteppedRow("Math size", "Make answers and formulas bigger or smaller", AppSettings.mathSize, 0..2, AppSettings::changeMathSize) },
-                { SteppedRow("Keypad size", "Make the keys taller or shorter", AppSettings.keypadSize, 0..2, AppSettings::changeKeypadSize) },
-                if (tablet) ({ ChoiceRow("Keyboard side", listOf("Left", "Right"), AppSettings.keypadSide, AppSettings::changeKeypadSide) }) else null,
+            PxHeader("Size options")
+            PxCards(
+                { PxSteppedRow("Math size", tr(sizes[AppSettings.mathSize]) + " · " + tr("make answers and formulas bigger or smaller"), AppSettings.mathSize, 0..4, AppSettings::changeMathSize) },
+                { PxSteppedRow("Keypad size", tr(keypadSizes[AppSettings.keypadSize]) + " · " + tr("make the keys taller or shorter"), AppSettings.keypadSize, 0..4, AppSettings::changeKeypadSize) },
+                if (tablet) ({ PxChoiceRow("Keyboard side", listOf("Left", "Right"), AppSettings.keypadSide, AppSettings::changeKeypadSide) }) else null,
             )
-            Header("Motion")
-            Cards({ ToggleRow("Expressive motion", "Springy animations; off for calmer ones", AppSettings.expressiveMotion, AppSettings::changeExpressiveMotion) })
+            PxHeader("Motion")
+            PxCards({ PxToggleRow("Expressive motion", "Springy animations; off for calmer ones", AppSettings.expressiveMotion, AppSettings::changeExpressiveMotion) })
         },
         Category("Answers", TableIcons.ModeCalculator, 2, 0,
             summary = { listOfNotNull(if (vm?.decimalFirst == true) tr("Decimal first") else tr("Exact first"), tr("live answer").takeIf { AppSettings.livePreview }, tr("previews").takeIf { AppSettings.answerPreviews }).joinToString(", ") },
             keywords = listOf("Live answer", "Show answers as", "Exact", "Decimal", "Continue from the answer", "Ans", "Graph previews", "Angles", "Radians", "Degrees", "Units for constants", "SI", "Planck", "Natural units"),
         ) {
             Hero("Live answer", AppSettings.livePreview, AppSettings::changeLivePreview)
-            Header("How it works")
+            PxHeader("How it works")
             How("While you type", "The result shows under the input before you press Enter, so mistakes show up early.")
-            Header("Answers")
-            Cards(
-                if (vm != null) ({ ChoiceRow("Show answers as", listOf("Exact", "Decimal"), if (vm.decimalFirst) 1 else 0) { vm.changeDecimalFirst(it == 1) } }) else null,
-                { ToggleRow("Continue from the answer", "An operator after = starts with Ans", AppSettings.continueFromAnswer, AppSettings::changeContinueFromAnswer) },
-                { ToggleRow("Graph previews", "A faded sketch beside answers that are curves", AppSettings.answerPreviews, AppSettings::changeAnswerPreviews) },
+            PxHeader("Answers")
+            PxCards(
+                if (vm != null) ({ PxChoiceRow("Show answers as", listOf("Exact", "Decimal"), if (vm.decimalFirst) 1 else 0) { vm.changeDecimalFirst(it == 1) } }) else null,
+                { PxToggleRow("Continue from the answer", "An operator after = starts with Ans", AppSettings.continueFromAnswer, AppSettings::changeContinueFromAnswer) },
+                { PxToggleRow("Graph previews", "A faded sketch beside answers that are curves", AppSettings.answerPreviews, AppSettings::changeAnswerPreviews) },
             )
-            Header("Calculation")
-            Cards(
-                { ChoiceRow("Angles", listOf("Radians", "Degrees"), if (KeypadState.angle == com.example.cas.engine.AngleUnit.Degrees) 1 else 0) { if ((it == 1) != (KeypadState.angle == com.example.cas.engine.AngleUnit.Degrees)) KeypadState.toggleAngle() } },
-                { ChoiceRow("Units for constants", com.example.cas.engine.UnitSystem.entries.map { it.label }, KeypadState.unitSystem.ordinal) { KeypadState.selectUnitSystem(com.example.cas.engine.UnitSystem.entries[it]) } },
+            PxHeader("Calculation")
+            PxCards(
+                { PxChoiceRow("Angles", listOf("Radians", "Degrees"), if (KeypadState.angle == com.example.cas.engine.AngleUnit.Degrees) 1 else 0) { if ((it == 1) != (KeypadState.angle == com.example.cas.engine.AngleUnit.Degrees)) KeypadState.toggleAngle() } },
+                { PxChoiceRow("Units for constants", com.example.cas.engine.UnitSystem.entries.map { it.label }, KeypadState.unitSystem.ordinal) { KeypadState.selectUnitSystem(com.example.cas.engine.UnitSystem.entries[it]) } },
             )
-            Footnote("Tap an answer to switch between its exact form and its decimal at any time. Angles and units can also be switched on the keypad.")
+            PxFootnote("Tap an answer to switch between its exact form and its decimal at any time. Angles and units can also be switched on the keypad.")
         },
         Category("Numbers", TableIcons.NumberFormat, 4, 0,
             summary = { "${vm?.digits ?: 10} " + tr("digits") + " · " + tr(formats[AppSettings.numberFormat]).lowercase() },
             keywords = listOf("Significant digits", "Group digits", "Number format", "Scientific", "Engineering", "Scientific notation", "Decimals", "Complex numbers", "Polar"),
         ) {
             NumbersPreview(vm)
-            Header("Format")
+            PxHeader("Format")
             Tiles(listOf(
                 Tile("Auto", { MathText("\$123\\,456\\,789\$", style = TextStyle(fontSize = 17.sp), mathScale = 1f) }),
                 Tile("Scientific", { MathText("\$1.23{\\times}10^{8}\$", style = TextStyle(fontSize = 17.sp), mathScale = 1f) }),
                 Tile("Engineering", { MathText("\$123{\\times}10^{6}\$", style = TextStyle(fontSize = 17.sp), mathScale = 1f) }),
             ), AppSettings.numberFormat) { AppSettings.changeNumberFormat(it); vm?.reformat() }
-            Header("Precision")
-            Cards(
-                if (vm != null) ({ SteppedRow("Significant digits", "${vm.digits} · " + tr("how many digits a decimal keeps"), vm.digits, 4..15, vm::changeDigits) }) else null,
-                { ToggleRow("Group digits", "123 456 789 rather than 123456789", AppSettings.groupDigits) { AppSettings.changeGroupDigits(it); vm?.reformat() } },
-                { ChoiceRow("Complex numbers", listOf("\$a + bi\$", "\$re^{i\\theta}\$"), if (AppSettings.polarComplex) 1 else 0) { AppSettings.changePolarComplex(it == 1); vm?.reformat() } },
+            PxHeader("Precision")
+            PxCards(
+                if (vm != null) ({ PxSteppedRow("Significant digits", "${vm.digits} · " + tr("how many digits a decimal keeps"), vm.digits, 4..15, vm::changeDigits) }) else null,
+                { PxToggleRow("Group digits", "123 456 789 rather than 123456789", AppSettings.groupDigits) { AppSettings.changeGroupDigits(it); vm?.reformat() } },
+                { PxChoiceRow("Complex numbers", listOf("\$a + bi\$", "\$re^{i\\theta}\$"), if (AppSettings.polarComplex) 1 else 0) { AppSettings.changePolarComplex(it == 1); vm?.reformat() } },
             )
-            Header("Large and small numbers")
-            Cards(
-                { SteppedRow("Scientific notation past ${AppSettings.sciAfter} digits", if (AppSettings.numberFormat == 0) "Longer numbers, exact ones too, show as \$a \\times 10^n\$" else "Longer whole numbers show as \$a \\times 10^n\$", AppSettings.sciAfter, 5..30) { AppSettings.changeSciAfter(it); vm?.reformat() } },
-                { SteppedRow("${AppSettings.sciDecimals} " + (if (AppSettings.sciDecimals == 1) "decimal" else "decimals") + " in \$a \\times 10^n\$", null, AppSettings.sciDecimals, 1..12) { AppSettings.changeSciDecimals(it); vm?.reformat() } },
+            PxHeader("Large and small numbers")
+            PxCards(
+                { PxSteppedRow("Scientific notation past ${AppSettings.sciAfter} digits", if (AppSettings.numberFormat == 0) "Longer numbers, exact ones too, show as \$a \\times 10^n\$" else "Longer whole numbers show as \$a \\times 10^n\$", AppSettings.sciAfter, 5..30) { AppSettings.changeSciAfter(it); vm?.reformat() } },
+                { PxSteppedRow("${AppSettings.sciDecimals} " + (if (AppSettings.sciDecimals == 1) "decimal" else "decimals") + " in \$a \\times 10^n\$", null, AppSettings.sciDecimals, 1..12) { AppSettings.changeSciDecimals(it); vm?.reformat() } },
             )
-            Footnote("Exact answers stay exact; these settings change only how decimals are written.")
+            PxFootnote("Exact answers stay exact; these settings change only how decimals are written.")
         },
         Category("Keypad", TableIcons.Keyboard, 6, 1,
             summary = { "${CalcTabs.shown().size} " + tr("tabs") + " · " + tr(keypadSizes[AppSettings.keypadSize]).lowercase() },
             keywords = listOf("Calculator tabs", "Haptic feedback", "Vibration", "Key sounds", "Explanations on long-press", "Keypad size", "Keyboard side"),
         ) {
             Intro("How the keys sound and feel, and which tabs sit above them.")
-            Cards({ LinkRow("Calculator tabs", "${CalcTabs.shown().size} " + tr("on the keypad; reorder them or add more"), TableIcons.Keyboard, 6) { if (tablet) tabsPage = true else go("Calculator tabs") } })
-            Header("Feel")
-            Cards(
-                { ToggleRow("Haptic feedback", "A tap on each key and button", AppSettings.haptics, AppSettings::changeHaptics) },
-                { ToggleRow("Key sounds", "A click on each key", AppSettings.keySounds, AppSettings::changeKeySounds) },
+            PxCards({ LinkRow("Calculator tabs", "${CalcTabs.shown().size} " + tr("on the keypad; reorder them or add more"), TableIcons.Keyboard, 6) { if (tablet) tabsPage = true else go("Calculator tabs") } })
+            PxHeader("Feel")
+            PxCards(
+                { PxToggleRow("Haptic feedback", "A tap on each key and button", AppSettings.haptics, AppSettings::changeHaptics) },
+                { PxToggleRow("Key sounds", "A click on each key", AppSettings.keySounds, AppSettings::changeKeySounds) },
             )
-            Header("Help on keys")
-            Cards({ ToggleRow("Explanations on long-press", "Formula, theory and how to use each key", AppSettings.keyHelp, AppSettings::changeKeyHelp) })
-            Footnote("Key sounds use your phone's touch sounds and follow its volume. The keypad's size is under Appearance.")
+            PxHeader("Help on keys")
+            PxCards({ PxToggleRow("Explanations on long-press", "Formula, theory and how to use each key", AppSettings.keyHelp, AppSettings::changeKeyHelp) })
+            PxFootnote("Key sounds use your phone's touch sounds and follow its volume. The keypad's size is under Appearance.")
         },
         Category("Graphs", TableIcons.Mode2D, 8, 1,
             summary = { listOfNotNull(tr("Grid").takeIf { AppSettings.showGrid }, tr("legend").takeIf { AppSettings.showLegend }, tr("marked points").takeIf { AppSettings.specialPoints }).joinToString(", ").ifEmpty { tr("Plain") } },
             keywords = listOf("Starting view", "Grid lines", "Numbers on the axes", "Ticks", "Legend", "Mark points on curves", "Zeros", "Detail", "Quality", "2D fields", "3D surfaces", "Complex plots"),
         ) {
-            Header("Display")
-            Cards(
-                { ChoiceRow("Starting view", listOf("\$\\pm 5\$", "\$\\pm 10\$", "\$\\pm 20\$"), when (AppSettings.viewHalfWidth) { 5 -> 0; 20 -> 2; else -> 1 }) { AppSettings.changeViewHalfWidth(listOf(5, 10, 20)[it]) } },
-                { ToggleRow("Grid lines", "The axes always show", AppSettings.showGrid, AppSettings::changeShowGrid) },
-                { ToggleRow("Numbers on the axes", "The tick values along the 2D graph's axes", AppSettings.axisNumbers, AppSettings::changeAxisNumbers) },
-                { ToggleRow("Legend", "Each line's name in the corner, and in exports. Hold a line to rename it", AppSettings.showLegend, AppSettings::changeShowLegend) },
-                { ToggleRow("Mark points on curves", "Zeros, extrema and crossings of the tapped curve", AppSettings.specialPoints, AppSettings::changeSpecialPoints) },
+            PxHeader("Display")
+            PxCards(
+                { PxChoiceRow("Starting view", listOf("\$\\pm 5\$", "\$\\pm 10\$", "\$\\pm 20\$"), when (AppSettings.viewHalfWidth) { 5 -> 0; 20 -> 2; else -> 1 }) { AppSettings.changeViewHalfWidth(listOf(5, 10, 20)[it]) } },
+                { PxToggleRow("Grid lines", "The axes always show", AppSettings.showGrid, AppSettings::changeShowGrid) },
+                { PxToggleRow("Numbers on the axes", "The tick values along the 2D graph's axes", AppSettings.axisNumbers, AppSettings::changeAxisNumbers) },
+                { PxToggleRow("Legend", "Each line's name in the corner, and in exports. Hold a line to rename it", AppSettings.showLegend, AppSettings::changeShowLegend) },
+                { PxToggleRow("Mark points on curves", "Zeros, extrema and crossings of the tapped curve", AppSettings.specialPoints, AppSettings::changeSpecialPoints) },
             )
-            Header("Detail")
-            // Complex plot quality is stored as 2 low, 0 medium, 1 high.
-            Cards(
-                { SteppedRow("2D fields", listOf("Low", "Medium", "High")[AppSettings.fieldQuality], AppSettings.fieldQuality, 0..2, AppSettings::changeFieldQuality) },
-                { SteppedRow("3D surfaces", listOf("Low", "Medium", "High")[AppSettings.surfaceDetail], AppSettings.surfaceDetail, 0..2, AppSettings::changeSurfaceDetail) },
-                {
-                    val level = when (AppSettings.complexQuality) { 2 -> 0; 1 -> 2; else -> 1 }
-                    SteppedRow("Complex plots", listOf("Low", "Medium", "High")[level], level, 0..2) { AppSettings.changeComplexQuality(listOf(2, 0, 1)[it]) }
-                },
-            )
-            Footnote("Higher detail is sharper but slower to draw.")
+            PxHeader("Detail")
+            DetailCards()
+            PxFootnote("Higher detail is sharper but slower to draw. Each graph's own settings have the same sliders.")
         },
         Category("History", TableIcons.History, 1, 2,
             summary = { if (AppSettings.historyLimit == 0) tr("Keeps everything") else tr("Keeps {0}", AppSettings.historyLimit) },
             keywords = listOf("History keeps", "Ask before clearing history", "Ask before deleting", "Confirm"),
         ) {
-            Cards(
-                { ChoiceRow("History keeps", listOf("50", "100", "500", "All"), when (AppSettings.historyLimit) { 50 -> 0; 100 -> 1; 500 -> 2; else -> 3 }) { AppSettings.changeHistoryLimit(listOf(50, 100, 500, 0)[it]) } },
+            PxCards(
+                { PxChoiceRow("History keeps", listOf("50", "100", "500", "All"), when (AppSettings.historyLimit) { 50 -> 0; 100 -> 1; 500 -> 2; else -> 3 }) { AppSettings.changeHistoryLimit(listOf(50, 100, 500, 0)[it]) } },
             )
-            Header("Confirmations")
-            Cards(
-                { ToggleRow("Ask before clearing history", "Pinned calculations and those in folders are always kept", AppSettings.confirmClearHistory, AppSettings::changeConfirmClearHistory) },
-                { ToggleRow("Ask before deleting", "A calculation, or a line in a graph", AppSettings.confirmDeleteEntry, AppSettings::changeConfirmDeleteEntry) },
+            PxHeader("Confirmations")
+            PxCards(
+                { PxToggleRow("Ask before clearing history", "Pinned calculations and those in folders are always kept", AppSettings.confirmClearHistory, AppSettings::changeConfirmClearHistory) },
+                { PxToggleRow("Ask before deleting", "A calculation, or a line in a graph", AppSettings.confirmDeleteEntry, AppSettings::changeConfirmDeleteEntry) },
             )
         },
         Category("General", TableIcons.Settings, 3, 2,
             summary = { listOfNotNull(tr("Screen on").takeIf { AppSettings.keepScreenOn }, tr("shortcuts"), tr("reset")).joinToString(", ").replaceFirstChar { it.uppercase() } },
             keywords = listOf("Open at", "Start", "Language", "Keep the screen on", "Home screen shortcuts", "Reset all settings"),
         ) {
-            Header("Starting up")
-            Cards({ ChoiceRow("Open at", listOf("Where I left off", "Calculator"), if (AppSettings.startInCalculator) 1 else 0) { AppSettings.changeStartInCalculator(it == 1) } })
-            Header("Screen")
-            Cards(
-                { ToggleRow("Keep the screen on", "While the app is open", AppSettings.keepScreenOn, AppSettings::changeKeepScreenOn) },
+            PxHeader("Starting up")
+            PxCards({ PxChoiceRow("Open at", listOf("Where I left off", "Calculator"), if (AppSettings.startInCalculator) 1 else 0) { AppSettings.changeStartInCalculator(it == 1) } })
+            PxHeader("Screen")
+            PxCards(
+                { PxToggleRow("Keep the screen on", "While the app is open", AppSettings.keepScreenOn, AppSettings::changeKeepScreenOn) },
                 // Only once a translation has been added (assets/i18n).
                 if (I18n.languages.size >= 2) ({
                     val codes = listOf("") + I18n.languages.map { it.code }
                     val names = listOf(tr("System")) + I18n.languages.map { it.name }
-                    ChoiceRow(if (I18n.code == "en") "Language" else tr("Language") + " (Language)", names, codes.indexOf(AppSettings.language).coerceAtLeast(0)) { AppSettings.changeLanguage(codes[it]) }
+                    PxChoiceRow(if (I18n.code == "en") "Language" else tr("Language") + " (Language)", names, codes.indexOf(AppSettings.language).coerceAtLeast(0)) { AppSettings.changeLanguage(codes[it]) }
                 }) else null,
             )
-            Header("Home screen shortcuts")
-            Cards(*Shortcuts.entries.map { e -> @Composable { LinkRow(e.longLabel, "Add to the home screen", TableIcons.Shortcut, 3, trailing = TableIcons.Add) { Shortcuts.pin(context, e) } } }.toTypedArray())
-            Header("Reset")
-            Cards({ LinkRow("Reset all settings", "Back to how they were at install; your work is kept", TableIcons.Reset, 3, trailing = null) { resetting = true } })
+            PxHeader("Home screen shortcuts")
+            PxCards(*Shortcuts.entries.map { e -> @Composable { LinkRow(e.longLabel, "Add to the home screen", TableIcons.Shortcut, 3, trailing = TableIcons.Add) { Shortcuts.pin(context, e) } } }.toTypedArray())
+            PxHeader("Reset")
+            PxCards({ LinkRow("Reset all settings", "Back to how they were at install; your work is kept", TableIcons.Reset, 3, trailing = null) { resetting = true } })
         },
         Category("Help & feedback", TableIcons.Help, 5, 3,
             summary = { tr("Documentation, report a bug") },
             keywords = listOf("Documentation", "Report a bug", "Request a feature", "Acknowledgements", "Licenses", "Version", "Privacy"),
         ) {
-            Cards(
+            PxCards(
                 { LinkRow("Documentation", "${Docs.chapters.size} " + tr("chapters with") + " ${Docs.allExamples.size} " + tr("worked examples, every key, and the spreadsheet functions"), TableIcons.Help, 5) { howTo = true } },
             )
-            Header("Feedback")
-            Cards(
+            PxHeader("Feedback")
+            PxCards(
                 { LinkRow("Report a bug", "An email to the developer with the app's log attached", TableIcons.Bug, WARNING) { scope.launch { Feedback.reportBug(context) } } },
                 { LinkRow("Request a feature", "An email to the developer with your idea", TableIcons.Edit, 7) { Feedback.requestFeature(context) } },
             )
-            Header("About")
-            Cards(
+            PxHeader("About")
+            PxCards(
                 { LinkRow("Acknowledgements", "Fonts, libraries, data and methods, with links", TableIcons.Info, 0) { if (tablet) acknowledgements = true else go("Acknowledgements") } },
                 { InfoRow("Version", appVersion(context)) },
             )
-            Footnote("The app works offline. Nothing you type leaves your phone, except a bug report you choose to send.")
+            PxFootnote("The app works offline. Nothing you type leaves your phone, except a bug report you choose to send.")
         },
     )
 
@@ -353,10 +345,10 @@ private fun ColumnScope.AcknowledgementsContent() {
     val uri = androidx.compose.ui.platform.LocalUriHandler.current
     Intro("CAS Calculator is built on the work of many people. Tap any entry to read more.")
     CREDITS.forEach { g ->
-        Header(g.title)
+        PxHeader(g.title)
         Text(g.intro, style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp, end = 8.dp, bottom = 10.dp))
-        Cards(*g.credits.map { c -> @Composable {
-            Column(Modifier.fillMaxWidth().clickable(onClickLabel = "Open ${c.name}") { runCatching { uri.openUri(c.url) } }.then(RowPadding), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        PxCards(*g.credits.map { c -> @Composable {
+            Column(Modifier.fillMaxWidth().clickable(onClickLabel = "Open ${c.name}") { runCatching { uri.openUri(c.url) } }.then(PxRowPadding), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(c.name, style = MaterialTheme.typography.titleMedium, color = colors.onSurface, modifier = Modifier.weight(1f))
                     AppIcon(TableIcons.External, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
@@ -373,8 +365,8 @@ private fun ColumnScope.AcknowledgementsContent() {
 /** A row that only shows a value (the version). */
 @Composable
 private fun InfoRow(title: String, value: String) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 72.dp).then(RowPadding), verticalAlignment = Alignment.CenterVertically) {
-        RowTexts(title, value, Modifier.weight(1f))
+    Row(Modifier.fillMaxWidth().heightIn(min = 72.dp).then(PxRowPadding), verticalAlignment = Alignment.CenterVertically) {
+        PxRowTexts(title, value, Modifier.weight(1f))
     }
 }
 
@@ -416,20 +408,32 @@ private fun ColumnScope.MainPage(categories: List<Category>, onOpen: (String) ->
             .filter { (c, k) -> q.split(' ').filter { it.isNotBlank() }.all { w -> tr(k).contains(w, ignoreCase = true) || k.contains(w, ignoreCase = true) || tr(c.title).contains(w, ignoreCase = true) } }
             .distinctBy { (c, k) -> c.title + k }
         if (hits.isEmpty()) Text(tr("No settings match"), color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(16.dp))
-        else Cards(*hits.take(30).map { (c, k) -> @Composable { LinkRow(k, c.title, c.icon, c.tone, trailing = TableIcons.ChevronRight) { onOpen(c.title) } } }.toTypedArray())
+        else PxCards(*hits.take(30).map { (c, k) -> @Composable { LinkRow(k, c.title, c.icon, c.tone, trailing = TableIcons.ChevronRight) { onOpen(c.title) } } }.toTypedArray())
         return
     }
     categories.groupBy { it.group }.values.forEachIndexed { i, group ->
         if (i > 0) Spacer(Modifier.height(16.dp))
-        Cards(*group.map { c -> @Composable { LinkRow(c.title, c.summary(), c.icon, c.tone, trailing = null) { onOpen(c.title) } } }.toTypedArray())
+        PxCards(*group.map { c -> @Composable { LinkRow(c.title, c.summary(), c.icon, c.tone, trailing = null) { onOpen(c.title) } } }.toTypedArray())
     }
+}
+
+/** The three detail sliders, here and in each graph's settings (where [only] picks one). */
+@Composable
+internal fun DetailCards(only: Int? = null) {
+    val steps = AppSettings.DETAIL_STEPS
+    val rows: List<@Composable () -> Unit> = listOf(
+        { PxSteppedRow("2D fields", steps[AppSettings.fieldQuality], AppSettings.fieldQuality, 0..4, AppSettings::changeFieldQuality) },
+        { PxSteppedRow("3D surfaces", steps[AppSettings.surfaceDetail], AppSettings.surfaceDetail, 0..4, AppSettings::changeSurfaceDetail) },
+        { PxSteppedRow("Complex plots", steps[AppSettings.complexQuality], AppSettings.complexQuality, 0..4, AppSettings::changeComplexQuality) },
+    )
+    PxCards(*(if (only == null) rows else listOf(rows[only])).toTypedArray())
 }
 
 // ---- Building blocks ---------------------------------------------------------------------
 
 /** A group of cards: the first and last have large outer corners, the ones between small, with thin gaps. Null rows are left out. */
 @Composable
-private fun Cards(vararg rows: (@Composable () -> Unit)?) {
+internal fun PxCards(vararg rows: (@Composable () -> Unit)?) {
     val shown = rows.filterNotNull()
     val colors = MaterialTheme.colorScheme
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -446,7 +450,7 @@ private fun Cards(vararg rows: (@Composable () -> Unit)?) {
 
 /** A section's name, in the accent color. */
 @Composable
-private fun Header(text: String) =
+internal fun PxHeader(text: String) =
     Text(tr(text), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp, top = 24.dp, bottom = 10.dp))
 
 @Composable
@@ -455,7 +459,7 @@ private fun Intro(text: String) =
 
 /** An ⓘ and a line underneath the settings. */
 @Composable
-private fun Footnote(text: String) {
+internal fun PxFootnote(text: String) {
     Column(Modifier.padding(start = 12.dp, end = 12.dp, top = 20.dp)) {
         AppIcon(TableIcons.Info, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface)
         Spacer(Modifier.height(10.dp))
@@ -478,17 +482,17 @@ private fun How(title: String, text: String) {
 
 /** A switch with a check in its thumb when on and a cross when off, as in Android's settings. */
 @Composable
-private fun PxSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
+internal fun PxSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
     Switch(
         checked = checked, onCheckedChange = onChange,
         thumbContent = { AppIcon(if (checked) TableIcons.Check else TableIcons.Close, contentDescription = null, modifier = Modifier.size(SwitchDefaults.IconSize)) },
     )
 }
 
-private val RowPadding = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
+internal val PxRowPadding = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
 
 @Composable
-private fun RowTexts(title: String, detail: String?, modifier: Modifier = Modifier) {
+internal fun PxRowTexts(title: String, detail: String?, modifier: Modifier = Modifier) {
     Column(modifier) {
         MathText(tr(title), style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp), color = MaterialTheme.colorScheme.onSurface)
         if (detail != null) MathText(tr(detail), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -497,12 +501,12 @@ private fun RowTexts(title: String, detail: String?, modifier: Modifier = Modifi
 
 /** A setting that's on or off: the whole card toggles it. */
 @Composable
-private fun ToggleRow(title: String, detail: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
+internal fun PxToggleRow(title: String, detail: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 72.dp).clickable(role = Role.Switch) { onChange(!checked) }.then(RowPadding),
+        Modifier.fillMaxWidth().heightIn(min = 72.dp).clickable(role = Role.Switch) { onChange(!checked) }.then(PxRowPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RowTexts(title, detail, Modifier.weight(1f))
+        PxRowTexts(title, detail, Modifier.weight(1f))
         Spacer(Modifier.width(16.dp))
         PxSwitch(checked, onChange)
     }
@@ -531,7 +535,7 @@ private fun tone(t: Int): Pair<Color, Color> {
 @Composable
 private fun LinkRow(title: String, detail: String?, icon: ImageVector?, tone: Int, trailing: ImageVector? = TableIcons.ChevronRight, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 72.dp).clickable(onClickLabel = tr(title), onClick = onClick).then(RowPadding),
+        Modifier.fillMaxWidth().heightIn(min = 72.dp).clickable(onClickLabel = tr(title), onClick = onClick).then(PxRowPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
@@ -539,17 +543,17 @@ private fun LinkRow(title: String, detail: String?, icon: ImageVector?, tone: In
             Box(Modifier.size(44.dp).clip(CircleShape).background(bg), contentAlignment = Alignment.Center) { AppIcon(icon, contentDescription = null, tint = fg, accent = fg) }
             Spacer(Modifier.width(16.dp))
         }
-        RowTexts(title, detail, Modifier.weight(1f))
+        PxRowTexts(title, detail, Modifier.weight(1f))
         if (trailing != null) AppIcon(trailing, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 /** A choice of a few options as connected buttons inside the card. */
 @Composable
-private fun ChoiceRow(title: String, options: List<String>, selected: Int, onChange: (Int) -> Unit) {
+internal fun PxChoiceRow(title: String, options: List<String>, selected: Int, onChange: (Int) -> Unit) {
     val colors = MaterialTheme.colorScheme
-    Column(RowPadding) {
-        RowTexts(title, null)
+    Column(PxRowPadding) {
+        PxRowTexts(title, null)
         Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             options.forEachIndexed { k, name ->
                 val on = k == selected
@@ -570,9 +574,9 @@ private fun ChoiceRow(title: String, options: List<String>, selected: Int, onCha
 
 /** A setting with a few steps: a slider with a dot at each step, and − and + at its ends. */
 @Composable
-private fun SteppedRow(title: String, detail: String?, value: Int, range: IntRange, onChange: (Int) -> Unit) {
-    Column(RowPadding) {
-        RowTexts(title, detail)
+internal fun PxSteppedRow(title: String, detail: String?, value: Int, range: IntRange, onChange: (Int) -> Unit) {
+    Column(PxRowPadding) {
+        PxRowTexts(title, detail)
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { if (value > range.first) onChange(value - 1) }, enabled = value > range.first) { AppIcon(TableIcons.Remove, contentDescription = tr("Less")) }
             ExpressiveSlider(

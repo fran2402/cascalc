@@ -56,7 +56,6 @@ Done
 Complex plane. Color shows the argument of f(z), brightness its size. Drag to move, pinch to zoom, tap to read a value. f can use r and θ for |z| and arg z.	
 Tap where the area should end	
 Graph settings	
-Plot quality	
 Area inside	
 Area inside this curve	
 To the axis	
@@ -91,9 +90,6 @@ Import data
 Square zoom: equal scales	
 Import sheets	
 Each sheet becomes its own line.	
-Grid lines	
-Numbers on the axes	
-Field quality	
 Area	
 Area from here	
 Between curves	
@@ -110,12 +106,8 @@ Remove every solution
 Zoom in	
 Set the limits	
 Zoom out	
-Fit z to the surfaces	
 Each lower limit must be below its upper limit.	
-Coordinates	
-Surface detail	
-from	
-to	
+Choose the letters for {0} coordinates	
 3D graph. Drag to rotate, pinch to zoom, tap the surface to read a point, double-tap to reset.	
 Reversed	
 Run the colors the other way round	
@@ -204,8 +196,6 @@ Resize the list of lines: drag sideways, double-tap to reset
 Use	
 Use the value in the calculator	
 Copy the value	
-Each “from” must be a number below its “to”	
-Axis scale	
 Fit statistics	
 This line can't be fitted to the points (too few points, or values it can't take).	
 No σ(y) on the points, so χ²/ν counts each as σ = 1: it's the residuals' mean square. Give the data a σ(y) column for a true reduced χ².	
@@ -291,6 +281,9 @@ Save file
 Share	
 Export graph	
 Open and replace	
+from	
+to	
+Each “from” must be a number below its “to”	
 Search calculations	
 Export these calculations	
 Empty the folder (calculations stay)	
@@ -340,6 +333,8 @@ No lines
 Converges	
 Diverges	
 math	
+make answers and formulas bigger or smaller	
+make the keys taller or shorter	
 Decimal first	
 Exact first	
 live answer	

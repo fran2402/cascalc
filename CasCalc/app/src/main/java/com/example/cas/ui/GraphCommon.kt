@@ -4100,37 +4100,6 @@ internal class RangeFields(private val base: com.example.cas.graph.Viewport, pri
     }
 }
 
-/** The limits typed exactly, then Linear | Log for each axis, as Material 3 segmented buttons. */
-@Composable
-internal fun RangeAndScaleSettings(state: RangeFields, xName: String, yName: String) {
-    val colors = MaterialTheme.colorScheme
-    listOf(0 to xName, 2 to yName).forEach { (k, name) ->
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(state.fields[k], { state.edit(k, it) }, singleLine = true, label = { Text("$name from") }, modifier = Modifier.weight(1f))
-            OutlinedTextField(state.fields[k + 1], { state.edit(k + 1, it) }, singleLine = true, label = { Text("$name to") }, modifier = Modifier.weight(1f))
-        }
-    }
-    if (!state.valid) Text(tr("Each “from” must be a number below its “to”") + if (state.logX || state.logY) ", and above 0 on a log axis." else ".",
-        color = colors.error, style = MaterialTheme.typography.bodySmall,
-    )
-    Text(tr("Axis scale"), style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
-    listOf(xName to state.logX, yName to state.logY).forEachIndexed { k, (name, log) ->
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.width(64.dp))
-            SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
-                listOf(false to "Linear", true to "Log").forEachIndexed { i, (value, label) ->
-                    SegmentedButton(icon = {}, 
-                        selected = log == value,
-                        onClick = { if (k == 0) state.setLog(value, state.logY) else state.setLog(state.logX, value) },
-                        shape = SegmentedButtonDefaults.itemShape(i, 2),
-                        label = { Text(tr(label)) },
-                    )
-                }
-            }
-        }
-    }
-}
-
 /** A fitted value with its standard error, both rounded to the error's two significant figures (1.991 ± 0.039). */
 internal fun withError(v: Double, e: Double?): String {
     if (e == null || !e.isFinite() || e <= 0) return shortNumber(v)

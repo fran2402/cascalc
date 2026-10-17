@@ -49,10 +49,10 @@ object AppSettings {
     /** Digits in groups of three: 1 000 000. */
     var groupDigits by mutableStateOf(true)
         private set
-    /** 0 small, 1 medium, 2 large. */
-    var mathSize by mutableStateOf(1)
+    /** Five steps, 0 small to 4 large (2 medium). */
+    var mathSize by mutableStateOf(2)
         private set
-    var keypadSize by mutableStateOf(1)
+    var keypadSize by mutableStateOf(2)
         private set
     /** On tablets (the wide layout): the keypad on the left (0) or the right (1). */
     var keypadSide by mutableStateOf(1)
@@ -127,18 +127,32 @@ object AppSettings {
     /** Half the width of the 2D graph's starting view: 5, 10 or 20. */
     var viewHalfWidth by mutableStateOf(10)
         private set
-    /** Complex plots: 0 standard (half resolution), 1 high (full), 2 low (a quarter). */
-    var complexQuality by mutableStateOf(2)
+    /** Complex plots, 0 low to 4 high: see [complexDivisor]. */
+    var complexQuality by mutableStateOf(0)
         private set
-    /** 2D fields f(x, y): 0 low (12 px cells), 1 medium (6 px), 2 high (3 px). */
+    /** 2D fields f(x, y), 0 low to 4 high: see [fieldCell]. */
     var fieldQuality by mutableStateOf(0)
         private set
-    /** 3D surfaces: 0 low, 1 medium, 2 high detail. */
+    /** 3D surfaces, 0 low to 4 high: see [surfaceGrid]. */
     var surfaceDetail by mutableStateOf(0)
         private set
 
-    val mathScale: Float get() = when (mathSize) { 0 -> 0.85f; 2 -> 1.18f; else -> 1f }
-    val keypadScale: Float get() = when (keypadSize) { 0 -> 0.88f; 2 -> 1.14f; else -> 1f }
+    val mathScale: Float get() = listOf(0.85f, 0.92f, 1f, 1.09f, 1.18f)[mathSize.coerceIn(0, 4)]
+    val keypadScale: Float get() = listOf(0.88f, 0.94f, 1f, 1.07f, 1.14f)[keypadSize.coerceIn(0, 4)]
+
+    /** The names of the five steps of every detail setting, low to high. */
+    val DETAIL_STEPS = listOf("Low", "Medium-low", "Medium", "Medium-high", "High")
+    val MATH_STEPS = listOf("Small", "Medium-small", "Medium", "Medium-large", "Large")
+    val KEYPAD_STEPS = listOf("Compact", "Medium-compact", "Medium", "Medium-tall", "Tall")
+
+    /** A 2D field's cell size in pixels at the chosen detail. */
+    val fieldCell: Int get() = listOf(8, 6, 4, 3, 2)[fieldQuality.coerceIn(0, 4)]
+
+    /**
+     * The complex plane's sharpest pass, as screen pixels per sample: 2 (half resolution) up to
+     * every pixel, then a little finer than the screen at the top (drawn scaled down, so edges are smooth).
+     */
+    val complexDivisor: Float get() = listOf(2f, 1.5f, 1f, 0.85f, 0.7f)[complexQuality.coerceIn(0, 4)]
 
     fun init(context: Context) {
         val p = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
@@ -159,8 +173,9 @@ object AppSettings {
         groupDigits = p.getBoolean("groupDigits", true)
         // Until changed: small math and a compact keypad on phones, medium on tablets.
         val size = if (context.resources.configuration.smallestScreenWidthDp >= 600) 1 else 0
-        mathSize = p.getInt("mathSize", size)
-        keypadSize = p.getInt("keypadSize", size)
+        // Five steps now; the three of before (small, medium, large) were 0, 1, 2.
+        mathSize = p.getInt("mathLevel", p.getInt("mathSize", size) * 2).coerceIn(0, 4)
+        keypadSize = p.getInt("keypadLevel", p.getInt("keypadSize", size) * 2).coerceIn(0, 4)
         keypadSide = p.getInt("keypadSide", 1)
         graphListWidth = p.getInt("graphListWidth", 320)
         showGrid = p.getBoolean("showGrid", true)
@@ -184,9 +199,10 @@ object AppSettings {
         specialPoints = p.getBoolean("specialPoints", true)
         answerPreviews = p.getBoolean("answerPreviews", true)
         viewHalfWidth = p.getInt("viewHalfWidth", 10)
-        complexQuality = p.getInt("complexQuality", 2)
-        surfaceDetail = p.getInt("surfaceDetail", 0)
-        fieldQuality = p.getInt("fieldQuality", 0)
+        // Likewise; complex quality was stored as 2 low, 0 medium, 1 high.
+        complexQuality = p.getInt("complexLevel", when (p.getInt("complexQuality", 2)) { 0 -> 2; 1 -> 4; else -> 0 }).coerceIn(0, 4)
+        surfaceDetail = p.getInt("surfaceLevel", p.getInt("surfaceDetail", 0) * 2).coerceIn(0, 4)
+        fieldQuality = p.getInt("fieldLevel", p.getInt("fieldQuality", 0) * 2).coerceIn(0, 4)
         com.example.cas.engine.Formatter.groupDigits = groupDigits
         com.example.cas.engine.Formatter.numberFormat = numberFormat
         com.example.cas.engine.Formatter.sciAfter = sciAfter
@@ -200,6 +216,7 @@ object AppSettings {
         "showGrid", "showLegend", "axisNumbers", "numberFormat", "sciAfter", "sciDecimals", "polarComplex", "livePreview",
         "historyLimit", "confirmClearHistory", "confirmDeleteEntry", "keyHelp", "continueFromAnswer", "expressiveMotion",
         "keepScreenOn", "startInCalculator", "keySounds", "specialPoints", "answerPreviews", "viewHalfWidth", "complexQuality", "surfaceDetail", "fieldQuality",
+        "mathLevel", "keypadLevel", "complexLevel", "surfaceLevel", "fieldLevel",
     )
 
     /** Every setting back to its default, saved, and in effect at once. */
@@ -224,8 +241,8 @@ object AppSettings {
     fun changeThemeColor(v: Int) { themeColor = v; save("themeColor", v) }
     fun changeHaptics(v: Boolean) { haptics = v; save("haptics", v) }
     fun changeGroupDigits(v: Boolean) { groupDigits = v; com.example.cas.engine.Formatter.groupDigits = v; save("groupDigits", v) }
-    fun changeMathSize(v: Int) { mathSize = v; save("mathSize", v) }
-    fun changeKeypadSize(v: Int) { keypadSize = v; save("keypadSize", v) }
+    fun changeMathSize(v: Int) { mathSize = v; save("mathLevel", v) }
+    fun changeKeypadSize(v: Int) { keypadSize = v; save("keypadLevel", v) }
     fun changeKeypadSide(v: Int) { keypadSide = v; save("keypadSide", v) }
     fun changeShowGrid(v: Boolean) { showGrid = v; save("showGrid", v) }
     fun changeShowLegend(v: Boolean) { showLegend = v; save("showLegend", v) }
@@ -248,9 +265,9 @@ object AppSettings {
     fun changeSpecialPoints(v: Boolean) { specialPoints = v; save("specialPoints", v) }
     fun changeAnswerPreviews(v: Boolean) { answerPreviews = v; save("answerPreviews", v) }
     fun changeViewHalfWidth(v: Int) { viewHalfWidth = v; save("viewHalfWidth", v) }
-    fun changeComplexQuality(v: Int) { complexQuality = v; save("complexQuality", v) }
-    fun changeFieldQuality(v: Int) { fieldQuality = v; save("fieldQuality", v) }
-    fun changeSurfaceDetail(v: Int) { surfaceDetail = v; save("surfaceDetail", v) }
+    fun changeComplexQuality(v: Int) { complexQuality = v; save("complexLevel", v) }
+    fun changeFieldQuality(v: Int) { fieldQuality = v; save("fieldLevel", v) }
+    fun changeSurfaceDetail(v: Int) { surfaceDetail = v; save("surfaceLevel", v) }
 
     /** The explicit and implicit grid sizes for 3D surfaces at the chosen detail. */
     /**
@@ -258,7 +275,7 @@ object AppSettings {
      * sampled on every core and drawn in one call, so these are finer than they used to be (24,
      * 36 and 52; 16, 22 and 30).
      */
-    val surfaceGrid: Pair<Int, Int> get() = when (surfaceDetail) { 0 -> 40 to 20; 2 -> 96 to 40; else -> 64 to 30 }
+    val surfaceGrid: Pair<Int, Int> get() = listOf(40 to 20, 52 to 25, 64 to 30, 80 to 35, 96 to 40)[surfaceDetail.coerceIn(0, 4)]
 }
 
 /**

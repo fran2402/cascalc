@@ -223,15 +223,16 @@ private fun ComplexCanvas(vm: ComplexViewModel, modifier: Modifier, onUseValue: 
         if (c == null || size.width == 0) { image = null; sampled = null; return@LaunchedEffect }
         val p = vm.parameterValues(f!!)
         try {
-            // Sampled on every core, so: low stops at half resolution, medium renders every pixel
-            // (after a half-resolution pass), and high goes straight from the rough pass to every pixel.
-            val passes = when (AppSettings.complexQuality) { 1 -> listOf(8 to 0L, 1 to 60L); 2 -> listOf(8 to 0L, 2 to 120L); else -> listOf(8 to 0L, 2 to 100L, 1 to 40L) }
+            // Sampled on every core: a rough pass, then the chosen sharpness (a half-resolution
+            // pass between when that's finer than every pixel).
+            val sharp = AppSettings.complexDivisor
+            val passes = listOf(8f to 0L) + (if (sharp < 1f) listOf(2f to 100L, sharp to 40L) else listOf(sharp to 110L))
             for ((divisor, wait) in passes) {
                 delay(wait)
                 // The sharp pass takes a moment: the expressive loading indicator shows meanwhile.
-                refining = divisor <= 2
-                val w = (size.width / divisor).coerceAtLeast(1)
-                val h = (size.height / divisor).coerceAtLeast(1)
+                refining = divisor <= 2f
+                val w = (size.width / divisor).toInt().coerceAtLeast(1)
+                val h = (size.height / divisor).toInt().coerceAtLeast(1)
                 val ctx = coroutineContext
                 val values = withContext(Dispatchers.Default) { DomainColoring.sample(c, p, v, w, h, { !ctx.isActive }, sc) } ?: return@LaunchedEffect
                 val px = withContext(Dispatchers.Default) { DomainColoring.paint(values, coloringState.value) }
@@ -817,32 +818,11 @@ fun roundedComplex(z: CD): String {
 @Composable
 private fun ComplexSettingsDialog(vm: ComplexViewModel, view: Viewport, onDismiss: () -> Unit) {
     val range = remember { RangeFields(view, vm.scale) }
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(tr("Graph settings")) },
-        text = {
-            Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp), modifier = Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
-                RangeAndScaleSettings(range, "Re z", "Im z")
-                Text(tr("Plot quality"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    // Shown low to high; stored as 2 (low), 0 (medium), 1 (high).
-                    listOf("Low" to 2, "Medium" to 0, "High" to 1).forEachIndexed { k, (name, value) ->
-                        SegmentedButton(
-                            selected = AppSettings.complexQuality == value,
-                            onClick = { AppSettings.changeComplexQuality(value) },
-                            shape = SegmentedButtonDefaults.itemShape(k, 3),
-                            icon = {},
-                            label = { Text(name) },
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            androidx.compose.material3.TextButton(enabled = range.valid, onClick = { range.apply(vm) { vm.view = it }; onDismiss() }) { Text(tr("Done")) }
-        },
-        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
-    )
+    GraphSettingsFrame("Complex plane", range.valid, onDone = { range.apply(vm) { vm.view = it }; onDismiss() }, onDismiss = onDismiss) {
+        RangeAndAxesSections(range, "\\mathrm{Re}\\,z", "\\mathrm{Im}\\,z")
+        PxHeader("Detail")
+        DetailCards(only = 2)
+    }
 }
 
 /** What a tap on the plane landed on: a line's point, curve or loop, at [z] (and [t] on a curve z(t)). */

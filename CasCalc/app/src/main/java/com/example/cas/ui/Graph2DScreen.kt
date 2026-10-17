@@ -905,7 +905,7 @@ private fun plot(vm: Graph2DViewModel, view: Viewport, size: IntSize, highlighte
             is Plot2DKind.Field -> {
                 // Colored cells 8, 4 or 2 px square (the field quality setting), twice that while the
                 // view moves; worked out on every core. The scale follows the values in view.
-                val cell = when (AppSettings.fieldQuality) { 2 -> 2; 1 -> 4; else -> 8 } * (if (moving) 2 else 1)
+                val cell = AppSettings.fieldCell * (if (moving) 2 else 1)
                 val fx = (size.width / cell).coerceIn(24, 1200); val fy = (size.height / cell).coerceIn(24, 1600)
                 // One caller per core (each with its own argument array), sliders read once.
                 val values = com.example.cas.graph.Field.sample({
@@ -1518,39 +1518,11 @@ private fun SheetPickerDialog(
 @Composable
 private fun GraphSettingsDialog(vm: Graph2DViewModel, view: Viewport, onDismiss: () -> Unit) {
     val range = remember { RangeFields(view, vm.scale) }
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(tr("Graph settings")) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.verticalScroll(androidx.compose.foundation.rememberScrollState())) {
-                RangeAndScaleSettings(range, "x", "y")
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(tr("Grid lines"), modifier = Modifier.weight(1f))
-                    androidx.compose.material3.Switch(checked = AppSettings.showGrid, onCheckedChange = AppSettings::changeShowGrid)
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(tr("Numbers on the axes"), modifier = Modifier.weight(1f))
-                    androidx.compose.material3.Switch(checked = AppSettings.axisNumbers, onCheckedChange = AppSettings::changeAxisNumbers)
-                }
-                Text(tr("Field quality"), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                androidx.compose.material3.SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    listOf("Low", "Medium", "High").forEachIndexed { k, name ->
-                        SegmentedButton(
-                            selected = AppSettings.fieldQuality == k,
-                            onClick = { AppSettings.changeFieldQuality(k) },
-                            shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(k, 3),
-                            icon = {},
-                            label = { Text(name) },
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            androidx.compose.material3.TextButton(enabled = range.valid, onClick = { range.apply(vm) { vm.view = it }; onDismiss() }) { Text(tr("Done")) }
-        },
-        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
-    )
+    GraphSettingsFrame("2D graph", range.valid, onDone = { range.apply(vm) { vm.view = it }; onDismiss() }, onDismiss = onDismiss) {
+        RangeAndAxesSections(range, "x", "y")
+        PxHeader("Detail")
+        DetailCards(only = 0)
+    }
 }
 
 /** A height for the shaded area in the view's coordinates; on a log axis, below the view where it has no place. */
