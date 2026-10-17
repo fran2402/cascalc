@@ -67,6 +67,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -229,6 +230,7 @@ private fun NotebookRow(d: Notebook.Doc, onOpen: () -> Unit, onRename: () -> Uni
                     }
                     is Block.Math -> Box(Modifier.fillMaxWidth(0.55f).height(4.dp).clip(CircleShape).background(colors.primary))
                     is Block.Text -> Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(colors.outlineVariant))
+                    is Block.Table -> Box(Modifier.fillMaxWidth().height(10.dp).border(1.dp, colors.primary, RoundedCornerShape(2.dp)))
                 }
             }
         }
@@ -290,17 +292,61 @@ private fun shareNotebookFile(context: Context, d: Notebook.Doc) = share(context
 
 // ---- The editor --------------------------------------------------------------------------------
 
-/** A block being edited: its text, or its math in an [Editor] (a graph's functions too). */
-private class EditBlock(val id: Long, val kind: Char, text: String = "", row: MathRow = MathRow(), xMin: Double? = null, xMax: Double? = null, onChange: () -> Unit) {
-    var text by mutableStateOf(text)
-    val editor = Editor(MathCodec.copy(row)).also { e -> e.onChange = { version++; onChange() } }
+/**
+ * A block being edited: its text, or its math in [Editor]s: a math block's line, a graph's
+ * functions and its from and to, a table's column names and cells. [focus] is the one the
+ * calculator's keypad types into.
+ */
+private class EditBlock(
+    val id: Long, val kind: Char, text: String = "", row: MathRow = MathRow(), from: MathRow = MathRow(), to: MathRow = MathRow(),
+    names: List<MathRow> = emptyList(), columns: List<List<MathRow>> = emptyList(), plot: Boolean = false, private val onChange: () -> Unit,
+) {
+    var text by mutableStateOf(TextFieldValue(text))
     var version by mutableIntStateOf(0)
-    var xMin by mutableStateOf(xMin?.let { shortNumber(it) } ?: "")
-    var xMax by mutableStateOf(xMax?.let { shortNumber(it) } ?: "")
+    private fun ed(r: MathRow) = Editor(MathCodec.copy(r)).also { e -> e.onChange = { version++; onChange() } }
+    val editor = ed(row)
+    val from = ed(from)
+    val to = ed(to)
+    val names = mutableStateListOf<Editor>().apply { addAll(names.map { ed(it) }) }
+    val cells = mutableStateListOf<androidx.compose.runtime.snapshots.SnapshotStateList<Editor>>().apply {
+        columns.forEach { col -> add(mutableStateListOf<Editor>().apply { addAll(col.map { ed(it) }) }) }
+    }
+    var plot by mutableStateOf(plot)
+    var focus by mutableStateOf<Editor?>(null)
+    val rows get() = cells.maxOfOrNull { it.size } ?: 0
+
+    init {
+        // A new table: columns x and y with three empty rows.
+        if (kind == 'D' && this.names.isEmpty()) {
+            this.names += ed(MathRow(mutableListOf(com.example.cas.editor.Sym("x")))); this.names += ed(MathRow(mutableListOf(com.example.cas.editor.Sym("y"))))
+            repeat(2) { cells += mutableStateListOf<Editor>().apply { repeat(3) { add(ed(MathRow())) } } }
+        }
+    }
+
+    fun target(): Editor = focus ?: editor
+    fun changed() { version++; onChange() }
+    fun addRow(after: Int = rows - 1) { cells.forEach { col -> col.add((after + 1).coerceIn(0, col.size), ed(MathRow())) }; changed() }
+    fun addColumn() {
+        val used = names.map { Notebook.columnName(it.root) }.toSet()
+        val letter = listOf("z", "u", "v", "w", "a", "b", "c", "p", "q", "r").firstOrNull { it !in used } ?: ""
+        names += ed(MathRow(letter.map { com.example.cas.editor.Sym(it.toString()) }.toMutableList()))
+        cells += mutableStateListOf<Editor>().apply { repeat(rows.coerceAtLeast(1)) { add(ed(MathRow())) } }
+        changed()
+    }
+    fun removeRow(r: Int) { if (rows <= 1) return; cells.forEach { col -> if (r in col.indices) col.removeAt(r) }; focus = null; changed() }
+    fun removeColumn(c: Int) { if (names.size <= 1 || c !in names.indices) return; names.removeAt(c); cells.removeAt(c); focus = null; changed() }
+    /** Where [focus] is in the table: column and row (row −1 for a name). */
+    fun cellOf(e: Editor?): Pair<Int, Int>? {
+        if (e == null) return null
+        names.indexOf(e).takeIf { it >= 0 }?.let { return it to -1 }
+        cells.forEachIndexed { c, col -> col.indexOf(e).takeIf { it >= 0 }?.let { return c to it } }
+        return null
+    }
 
     fun toBlock(): Block = when (kind) {
-        'T' -> Block.Text(id, text)
-        'G' -> Block.Graph(id, com.example.cas.editor.trimMatrices(MathCodec.copy(editor.root)), xMin.replace("−", "-").toDoubleOrNull(), xMax.replace("−", "-").toDoubleOrNull())
+        'T' -> Block.Text(id, text.text)
+        'G' -> Block.Graph(id, com.example.cas.editor.trimMatrices(MathCodec.copy(editor.root)), MathCodec.copy(from.root), MathCodec.copy(to.root))
+        'D' -> Block.Table(id, names.map { MathCodec.copy(it.root) }, cells.map { col -> col.map { MathCodec.copy(it.root) } }, plot)
         else -> Block.Math(id, MathCodec.copy(editor.root))
     }
 
@@ -308,12 +354,21 @@ private class EditBlock(val id: Long, val kind: Char, text: String = "", row: Ma
         fun of(b: Block, onChange: () -> Unit) = when (b) {
             is Block.Text -> EditBlock(b.id, 'T', text = b.text, onChange = onChange)
             is Block.Math -> EditBlock(b.id, 'M', row = b.row, onChange = onChange)
-            is Block.Graph -> EditBlock(b.id, 'G', row = b.row, xMin = b.xMin, xMax = b.xMax, onChange = onChange)
+            is Block.Graph -> EditBlock(b.id, 'G', row = b.row, from = b.from, to = b.to, onChange = onChange)
+            is Block.Table -> EditBlock(b.id, 'D', names = b.names, columns = b.columns, plot = b.plot, onChange = onChange)
+        }
+
+        /** A copy of [b] with the id [id]. */
+        fun withId(b: Block, id: Long): Block = when (b) {
+            is Block.Text -> Block.Text(id, b.text)
+            is Block.Math -> Block.Math(id, b.row)
+            is Block.Graph -> Block.Graph(id, b.row, b.from, b.to)
+            is Block.Table -> Block.Table(id, b.names, b.columns, b.plot)
         }
     }
 }
 
-/** The keypad driving the open math or graph block. */
+/** The keypad driving the open block's field: a math line, a graph's functions or limits, a table cell. */
 private class NotebookKeys(private val active: () -> EditBlock?, private val onEnter: () -> Unit) : KeypadHost {
     private var hidden by mutableStateOf(false)
     override val angleUnit get() = KeypadState.angle
@@ -322,10 +377,11 @@ private class NotebookKeys(private val active: () -> EditBlock?, private val onE
     override fun toggleAngle() = KeypadState.toggleAngle()
     override fun togglePanel() = KeypadState.togglePanel()
     override fun selectTab(index: Int) = KeypadState.selectTab(index)
-    override fun moveLeft() { active()?.editor?.moveLeft() }
-    override fun moveRight() { active()?.editor?.moveRight() }
+    override fun moveLeft() { active()?.target()?.moveLeft() }
+    override fun moveRight() { active()?.target()?.moveRight() }
     override fun press(action: KeyAction) {
-        val ed = active()?.editor ?: return
+        val b = active() ?: return
+        val ed = b.target()
         when (action) {
             is KeyAction.Type -> ed.type(action.text)
             is KeyAction.Insert -> { ed.insert(action.make(), action.slot); if (action.path.isNotEmpty()) ed.enter(action.path) }
@@ -335,17 +391,30 @@ private class NotebookKeys(private val active: () -> EditBlock?, private val onE
             KeyAction.ListBrackets -> { ed.type("["); ed.type("]"); ed.moveLeft() }
             KeyAction.Backspace -> ed.backspace()
             KeyAction.Clear -> ed.clear()
-            KeyAction.Enter -> onEnter()
+            KeyAction.Enter -> {
+                // In a table, Enter goes down a cell (adding a row at the bottom); in a graph, on to the next field.
+                val at = if (b.kind == 'D') b.cellOf(b.focus) else null
+                when {
+                    at != null -> {
+                        val (c, r) = at
+                        if (r + 1 >= b.rows) b.addRow()
+                        b.focus = b.cells[c][r + 1]
+                    }
+                    b.kind == 'G' && b.focus == null -> b.focus = b.from
+                    b.kind == 'G' && b.focus === b.from -> b.focus = b.to
+                    else -> onEnter()
+                }
+            }
             is KeyAction.Sequence -> action.steps.forEach { press(it) }
             is KeyAction.Paste -> ed.insertRow(action.row)
             KeyAction.PickMatrix, KeyAction.MoreConstants, KeyAction.OpenSymbolBuilder -> Unit
         }
     }
-    override fun insertMatrix(rows: Int, cols: Int) { active()?.editor?.insert(Matrix(rows, cols, growable = true), 0) }
-    override val canUndo get() = active()?.let { it.version; it.editor.canUndo } ?: false
-    override val canRedo get() = active()?.let { it.version; it.editor.canRedo } ?: false
-    override fun undo() { active()?.editor?.undo() }
-    override fun redo() { active()?.editor?.redo() }
+    override fun insertMatrix(rows: Int, cols: Int) { active()?.target()?.insert(Matrix(rows, cols, growable = true), 0) }
+    override val canUndo get() = active()?.let { it.version; it.target().canUndo } ?: false
+    override val canRedo get() = active()?.let { it.version; it.target().canRedo } ?: false
+    override fun undo() { active()?.target()?.undo() }
+    override fun redo() { active()?.target()?.redo() }
     override var keypadHidden: Boolean
         get() = hidden
         set(v) { hidden = v }
@@ -386,6 +455,7 @@ private fun NotebookEditor(doc: Notebook.Doc, onClose: () -> Unit, onGraph: (Gra
         val b = EditBlock(nextId(), kind, onChange = bump)
         val at = active?.let { blocks.indexOf(it) + 1 } ?: blocks.size
         blocks.add(at, b); active = b; keys.keypadHidden = false
+        if (kind == 'D') b.focus = b.cells.firstOrNull()?.firstOrNull()
         scope.launch { list.animateScrollToItem(at + 1) }
     }
     val close = { NotebookStore.save(context, current()); onClose() }
@@ -432,11 +502,11 @@ private fun NotebookEditor(doc: Notebook.Doc, onClose: () -> Unit, onGraph: (Gra
                         val k = blocks.indexOf(b)
                         BlockView(
                             b, isActive = active === b, run = run,
-                            onActivate = { active = b; keys.keypadHidden = false },
-                            onTap = { r, i -> active = b; keys.keypadHidden = false; b.editor.setCursor(r, i) },
+                            onActivate = { if (active !== b) { active = b; b.focus = if (b.kind == 'D') b.cells.firstOrNull()?.firstOrNull() else null }; keys.keypadHidden = false },
+                            onTap = { e, r, i -> active = b; keys.keypadHidden = false; b.focus = if (e === b.editor) null else e; e.setCursor(r, i) },
                             onUp = if (k > 0) ({ structural { blocks.removeAt(k); blocks.add(k - 1, b) } }) else null,
                             onDown = if (k < blocks.lastIndex) ({ structural { blocks.removeAt(k); blocks.add(k + 1, b) } }) else null,
-                            onDuplicate = { structural { blocks.add(k + 1, EditBlock.of(b.toBlock().let { x -> when (x) { is Block.Text -> Block.Text(nextId(), x.text); is Block.Math -> Block.Math(nextId(), x.row); is Block.Graph -> Block.Graph(nextId(), x.row, x.xMin, x.xMax) } }, bump)) } },
+                            onDuplicate = { structural { blocks.add(k + 1, EditBlock.of(EditBlock.withId(b.toBlock(), nextId()), bump)) } },
                             onDelete = { structural { blocks.remove(b); if (active === b) active = null } },
                             onGraph = { rows -> NotebookStore.save(context, current()); onGraph(GraphRequest(rows, 2)) },
                         )
@@ -444,6 +514,7 @@ private fun NotebookEditor(doc: Notebook.Doc, onClose: () -> Unit, onGraph: (Gra
                     if (blocks.isEmpty()) item { PxFootnote("Add text, math or a graph with the bar below.") }
                 }
                 val a = active
+                if (a != null && a.kind == 'T') MarkdownToolbar(a.text, { a.text = it; bump() }, Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
                 if (a != null && a.kind != 'T' && !keys.keypadHidden) Keypad(keys)
                 else if (a == null || a.kind == 'T') AddBar(onAdd = { add(it) }, modifier = Modifier.navigationBarsPadding())
                 else ShowKeypadButton(onClick = { keys.keypadHidden = false }, modifier = Modifier.align(Alignment.End).padding(16.dp))
@@ -452,7 +523,7 @@ private fun NotebookEditor(doc: Notebook.Doc, onClose: () -> Unit, onGraph: (Gra
     }
 }
 
-/** Text · Math · Graph: adds a block after the one open (or at the end). */
+/** Text · Math · Graph · Table: adds a block after the one open (or at the end). */
 @Composable
 private fun AddBar(onAdd: (Char) -> Unit, modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
@@ -460,7 +531,7 @@ private fun AddBar(onAdd: (Char) -> Unit, modifier: Modifier = Modifier) {
         modifier.padding(horizontal = 12.dp, vertical = 10.dp).fillMaxWidth().height(64.dp).clip(RoundedCornerShape(32.dp)).background(colors.surfaceContainerHigh),
         horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically,
     ) {
-        listOf(Triple('T', TableIcons.Note, "Text"), Triple('M', TableIcons.ModeCalculator, "Math"), Triple('G', TableIcons.Mode2D, "Graph")).forEach { (kind, icon, label) ->
+        listOf(Triple('T', TableIcons.Note, "Text"), Triple('M', TableIcons.ModeCalculator, "Math"), Triple('G', TableIcons.Mode2D, "Graph"), Triple('D', TableIcons.Table, "Table")).forEach { (kind, icon, label) ->
             Column(Modifier.clip(RoundedCornerShape(20.dp)).clickable(onClickLabel = tr("Add") + " " + tr(label)) { onAdd(kind) }.padding(horizontal = 18.dp, vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 AppIcon(icon, contentDescription = null, tint = colors.primary, modifier = Modifier.size(22.dp))
                 Text(tr(label), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
@@ -471,7 +542,7 @@ private fun AddBar(onAdd: (Char) -> Unit, modifier: Modifier = Modifier) {
 
 @Composable
 private fun BlockView(
-    b: EditBlock, isActive: Boolean, run: Notebook.Run?, onActivate: () -> Unit, onTap: (MathRow, Int) -> Unit,
+    b: EditBlock, isActive: Boolean, run: Notebook.Run?, onActivate: () -> Unit, onTap: (Editor, MathRow, Int) -> Unit,
     onUp: (() -> Unit)?, onDown: (() -> Unit)?, onDuplicate: () -> Unit, onDelete: () -> Unit, onGraph: (List<MathRow>) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -491,22 +562,12 @@ private fun BlockView(
             'T' -> Box(Modifier.fillMaxWidth().clip(shape).then(outline).clickable(enabled = !isActive, onClick = onActivate).padding(horizontal = 12.dp, vertical = 8.dp)) {
                 if (isActive) {
                     Box {
-                        if (b.text.isEmpty()) Text(tr("Text. A line starting with # is a heading; \$x^2\$ is math."), style = MaterialTheme.typography.bodyLarge, color = colors.outline)
-                        BasicTextField(b.text, { b.text = it }, textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface), cursorBrush = SolidColor(colors.primary), modifier = Modifier.fillMaxWidth())
+                        if (b.text.text.isEmpty()) Text(tr("Text in Markdown: # heading, **bold**, *italic*, - list, \$x^2\$ math…"), style = MaterialTheme.typography.bodyLarge, color = colors.outline)
+                        BasicTextField(b.text, { b.text = it; b.changed() }, textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, fontSize = 15.sp),
+                            cursorBrush = SolidColor(colors.primary), modifier = Modifier.fillMaxWidth())
                     }
-                    // Typing in text changes nothing below, but it is saved.
-                    LaunchedEffect(b.text) { b.editor.onChange() }
-                } else if (b.text.isBlank()) Text(tr("Text"), style = MaterialTheme.typography.bodyLarge, color = colors.outline)
-                else Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    b.text.lines().forEach { line ->
-                        val t = line.trim()
-                        when {
-                            t.startsWith("#") -> MathText(t.trimStart('#').trim(), style = MaterialTheme.typography.titleLarge, color = colors.onSurface)
-                            t.isEmpty() -> Spacer(Modifier.height(6.dp))
-                            else -> MathText(t, style = MaterialTheme.typography.bodyLarge, color = colors.onSurface)
-                        }
-                    }
-                }
+                } else if (b.text.text.isBlank()) Text(tr("Text"), style = MaterialTheme.typography.bodyLarge, color = colors.outline)
+                else MarkdownView(b.text.text, onToggleTask = { line -> b.text = TextFieldValue(com.example.cas.engine.Markdown.toggleTask(b.text.text, line)); b.changed() })
             }
             'M' -> {
                 val o = run?.outcomes?.get(b.id)
@@ -517,7 +578,7 @@ private fun BlockView(
                         if (b.editor.isEmpty && !isActive) Text(tr("Math"), style = MaterialTheme.typography.bodyLarge, color = colors.outline)
                         else MathView(
                             b.editor.root, MathSizes.historyInput, colors.onSurface, accent = colors.primary,
-                            cursorRow = if (isActive) b.editor.row else null, cursorIndex = b.editor.index, version = b.version, onTap = onTap,
+                            cursorRow = if (isActive) b.editor.row else null, cursorIndex = b.editor.index, version = b.version, onTap = { r, i -> onTap(b.editor, r, i) },
                         )
                     }
                     val answer = o?.answer
@@ -531,6 +592,7 @@ private fun BlockView(
                     }
                 }
             }
+            'D' -> DataTableView(b, isActive, run, shape, outline, onActivate, onTap)
             else -> {
                 val p = run?.plots?.get(b.id)
                 Column(Modifier.fillMaxWidth().clip(shape).background(colors.surfaceContainerHigh).then(outline).clickable(onClick = onActivate)) {
@@ -538,17 +600,17 @@ private fun BlockView(
                         AppIcon(TableIcons.Mode2D, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(10.dp))
                         Box(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
-                            if (b.editor.isEmpty && !isActive) Text(tr("Functions to draw, separated by commas"), style = MaterialTheme.typography.bodyMedium, color = colors.outline)
-                            else MathView(b.editor.root, 20.sp, colors.onSurface, accent = colors.primary, cursorRow = if (isActive) b.editor.row else null, cursorIndex = b.editor.index, version = b.version, onTap = onTap)
+                            if (b.editor.isEmpty && !(isActive && b.focus == null)) Text(tr("Functions to draw, separated by commas"), style = MaterialTheme.typography.bodyMedium, color = colors.outline)
+                            else MathView(b.editor.root, 20.sp, colors.onSurface, accent = colors.primary, cursorRow = if (isActive && b.focus == null) b.editor.row else null, cursorIndex = b.editor.index, version = b.version, onTap = { r, i -> onTap(b.editor, r, i) })
                         }
                     }
                     if (p != null && p.error == null && p.xs.isNotEmpty()) NotebookPlot(p, Modifier.fillMaxWidth().height(190.dp))
                     else Text(p?.error?.let { tr(it) } ?: "", color = colors.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (isActive) {
-                            OutlinedTextField(b.xMin, { b.xMin = it; b.editor.onChange() }, singleLine = true, label = { Text(tr("from")) }, modifier = Modifier.width(96.dp).padding(4.dp))
-                            OutlinedTextField(b.xMax, { b.xMax = it; b.editor.onChange() }, singleLine = true, label = { Text(tr("to")) }, modifier = Modifier.width(96.dp).padding(4.dp))
-                        } else Text(tr("Uses the definitions above"), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp))
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        // The range, typed on the calculator's keypad like everything else (π, 2π, a…).
+                        MathField("from", b.from, isActive && b.focus === b.from, b.version) { e, r, i -> onTap(e, r, i) }
+                        Text("  –  ", color = colors.onSurfaceVariant)
+                        MathField("to", b.to, isActive && b.focus === b.to, b.version) { e, r, i -> onTap(e, r, i) }
                         Spacer(Modifier.weight(1f))
                         if (p?.forGraph?.isNotEmpty() == true) TextButton(onClick = { onGraph(p.forGraph) }) {
                             Text(tr("Open in Graphs")); Spacer(Modifier.width(4.dp)); AppIcon(TableIcons.External, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -560,12 +622,88 @@ private fun BlockView(
     }
 }
 
+/** A small box of math (a graph's from or to), outlined while the keypad types into it. */
+@Composable
+private fun MathField(label: String, e: Editor, focused: Boolean, version: Int, onTap: (Editor, MathRow, Int) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Column {
+        Text(tr(label), style = MaterialTheme.typography.labelSmall, color = if (focused) colors.primary else colors.onSurfaceVariant)
+        Box(
+            Modifier.widthIn(min = 64.dp).heightIn(min = 36.dp).clip(RoundedCornerShape(10.dp)).background(colors.surfaceContainerHighest)
+                .then(if (focused) Modifier.border(2.dp, colors.primary, RoundedCornerShape(10.dp)) else Modifier)
+                .clickable { onTap(e, e.root, e.root.items.size) }.padding(horizontal = 10.dp, vertical = 4.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            if (e.isEmpty && !focused) Text(tr("auto"), style = MaterialTheme.typography.bodySmall, color = colors.outline)
+            else MathView(e.root, 17.sp, colors.onSurface, accent = colors.primary, cursorRow = if (focused) e.row else null, cursorIndex = e.index, version = version, onTap = { r, i -> onTap(e, r, i) })
+        }
+    }
+}
+
+/**
+ * A data table: a name over each column (the letter it defines for the blocks below) and a
+ * value in each cell, all typed on the calculator's keypad. Enter goes down a cell, adding a row
+ * at the bottom; the bar under it adds and removes rows and columns and turns on a plot of the
+ * columns against the first.
+ */
+@Composable
+private fun DataTableView(b: EditBlock, isActive: Boolean, run: Notebook.Run?, shape: RoundedCornerShape, outline: Modifier, onActivate: () -> Unit, onTap: (Editor, MathRow, Int) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val o = run?.outcomes?.get(b.id)
+    val p = run?.plots?.get(b.id)
+    val at = b.cellOf(b.focus)
+    Column(Modifier.fillMaxWidth().clip(shape).background(colors.surfaceContainerHigh).then(outline).clickable(onClick = onActivate).padding(vertical = 10.dp)) {
+        Row(Modifier.padding(horizontal = 12.dp).horizontalScroll(rememberScrollState())) {
+            // Row numbers.
+            Column {
+                Box(Modifier.size(width = 32.dp, height = 44.dp))
+                (0 until b.rows).forEach { r -> Box(Modifier.size(width = 32.dp, height = 40.dp), contentAlignment = Alignment.Center) { Text("${r + 1}", style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant) } }
+            }
+            b.names.indices.forEach { c ->
+                Column(Modifier.width(androidx.compose.foundation.layout.IntrinsicSize.Max)) {
+                    val nameFocused = isActive && at == c to -1
+                    Box(
+                        Modifier.fillMaxWidth().widthIn(min = 84.dp).height(44.dp).background(colors.surfaceContainerHighest)
+                            .then(if (nameFocused) Modifier.border(2.dp, colors.primary) else Modifier)
+                            .clickable { onTap(b.names[c], b.names[c].root, b.names[c].root.items.size) }.padding(horizontal = 10.dp),
+                        contentAlignment = Alignment.Center,
+                    ) { MathView(b.names[c].root, 18.sp, colors.primary, accent = colors.primary, cursorRow = if (nameFocused) b.names[c].row else null, cursorIndex = b.names[c].index, version = b.version, onTap = { r, i -> onTap(b.names[c], r, i) }) }
+                    (0 until b.rows).forEach { r ->
+                        val cell = b.cells[c].getOrNull(r)
+                        val focused = isActive && at == c to r
+                        Box(
+                            Modifier.fillMaxWidth().widthIn(min = 84.dp).height(40.dp).background(if (r % 2 == 1) colors.surfaceContainer else colors.surfaceContainerHigh)
+                                .then(if (focused) Modifier.border(2.dp, colors.primary) else Modifier)
+                                .clickable(enabled = cell != null) { cell?.let { onTap(it, it.root, it.root.items.size) } }.padding(horizontal = 10.dp),
+                            contentAlignment = Alignment.CenterEnd,
+                        ) {
+                            if (cell != null) MathView(cell.root, 17.sp, colors.onSurface, accent = colors.primary, cursorRow = if (focused) cell.row else null, cursorIndex = cell.index, version = b.version, onTap = { rr, i -> onTap(cell, rr, i) })
+                        }
+                    }
+                }
+            }
+        }
+        if (o?.error != null) Text(o.error, color = colors.error, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+        else if (o?.defines?.isNotEmpty() == true) MathText(tr("Defines") + " " + o.defines.joinToString(", ") { "\$$it\$" } + " " + tr("as lists for the blocks below: mean, sd, sum…"),
+            style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+        if (isActive) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { b.addRow(at?.second?.takeIf { it >= 0 } ?: (b.rows - 1)) }) { Text(tr("+ Row")) }
+            TextButton(onClick = { b.addColumn() }) { Text(tr("+ Column")) }
+            TextButton(enabled = at != null && at.second >= 0 && b.rows > 1, onClick = { at?.let { b.removeRow(it.second) } }) { Text(tr("Delete row")) }
+            TextButton(enabled = at != null && b.names.size > 1, onClick = { at?.let { b.removeColumn(it.first) } }) { Text(tr("Delete column")) }
+            Text(tr("Plot"), style = MaterialTheme.typography.labelLarge, color = colors.onSurface, modifier = Modifier.padding(start = 8.dp, end = 6.dp))
+            androidx.compose.material3.Switch(checked = b.plot, onCheckedChange = { b.plot = it; b.changed() })
+        }
+        if (b.plot && p != null && p.points.isNotEmpty()) NotebookPlot(p, Modifier.fillMaxWidth().height(190.dp).padding(top = 8.dp))
+    }
+}
+
 /** A graph block's picture: the grid, the axes and each curve in the graphs' colors, with the ends of each axis marked. */
 @Composable
 private fun NotebookPlot(p: Notebook.Plot, modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
     val measurer = rememberTextMeasurer()
-    val curveColors = (0 until p.curves.size).map { plotColor(it) }
+    val curveColors = (0 until maxOf(p.curves.size, p.points.size)).map { plotColor(it) }
     val label = TextStyle(fontSize = 10.sp, color = colors.onSurfaceVariant)
     Canvas(modifier.padding(horizontal = 12.dp).clip(RoundedCornerShape(14.dp)).background(colors.surfaceContainerLowest)) {
         val x0 = p.xs.first(); val x1 = p.xs.last()
@@ -586,6 +724,9 @@ private fun NotebookPlot(p: Notebook.Plot, modifier: Modifier) {
                 if (!open) { path.moveTo(sx(p.xs[i]), sy(v)); open = true } else path.lineTo(sx(p.xs[i]), sy(v))
             }
             drawPath(path, curveColors[k], style = Stroke(2.6.dp.toPx()))
+        }
+        p.points.forEachIndexed { k, (px, py) ->
+            for (i in px.indices) if (py[i] in p.yMin..p.yMax) drawCircle(curveColors[k], 4.dp.toPx(), Offset(sx(px[i]), sy(py[i])))
         }
         drawText(measurer, shortNumber(x0), Offset(6f, size.height - 16.dp.toPx()), label)
         val right = measurer.measure(shortNumber(x1), label)

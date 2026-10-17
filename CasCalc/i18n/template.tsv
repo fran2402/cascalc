@@ -323,6 +323,11 @@ Show the guide to {0}
 Try	
 Open {0}	
 Guide to {0}	
+image	
+bold	
+italic	
+text	
+link	
 That isn't a notebook file	
 From history	
 Rename notebook	
@@ -339,13 +344,20 @@ Create
 Share notebook	
 Couldn't share	
 Saved automatically	
-Text. A line starting with # is a heading; $x^2$ is math.	
+Text in Markdown: # heading, **bold**, *italic*, - list, $x^2$ math…	
 Text	
 Definitions	
 Math	
 Functions to draw, separated by commas	
-Uses the definitions above	
 Open in Graphs	
+auto	
+Defines	
+as lists for the blocks below: mean, sd, sum…	
++ Row	
++ Column	
+Delete row	
+Delete column	
+Plot	
 Couldn't export	
 Saved graphs	
 Close the search	
@@ -623,6 +635,8 @@ Sort by
 Then by	
 Largest first	
 Smallest first	
+Untick	
+Tick	
 Pick a tool	
 The tools stand in groups beside the graph. Tap Segment to try one, or let the guide pick it.	
 The tools are under the graph, in groups. Tap Segment to try one, or let the guide pick it.	

@@ -203,6 +203,26 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (17 October, Markdown, data tables and keypad ranges in notebooks)
+
+- **Text blocks are Markdown**: headings (# to ######, or underlined with === and ---),
+  **bold**, *italic*, ~~strikethrough~~, `code`, links (tap to open) and images (shown by their
+  description), bullet, numbered and task lists (nested by indenting; tap a box to tick it),
+  quotes (nested too), code blocks with their language, display math between $$, tables with
+  | and alignment, horizontal rules, hard line breaks and escapes, with $math$ anywhere.
+  A formatting bar over an open text block writes it for you: bold, italic, strikethrough,
+  heading (tap again for smaller), lists, tasks, quote, code, math, display math, link, table
+  and rule, around the selection. The PDF and LaTeX exports keep all of it.
+- **Data tables**: a new Table block. Each column has a name (x, y…) and a value in each cell,
+  all typed on the calculator's keypad; Enter goes down a cell, adding a row at the bottom. Add
+  and delete rows and columns, and turn on Plot to draw the other columns against the first.
+  Each named column stands for its list in the blocks below: mean(x), sd(y), sum… Tables go
+  into the PDF and the LaTeX file too.
+- **Graph ranges on the calculator's keypad**: a graph's from and to are math fields, typed on
+  the keypad (π, 2π, a letter defined above…) instead of the phone's keyboard, and the keys go
+  into the field you tapped, not the functions. Enter moves from the functions to from, then
+  to. Empty means a range is picked to show the curve.
+
 ## Latest changes (17 October, notebooks)
 
 - **Notebooks** (⋮ menu, in every mode): documents of blocks you scroll through, for homework,

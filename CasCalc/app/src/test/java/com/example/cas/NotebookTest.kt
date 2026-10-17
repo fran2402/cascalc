@@ -1,6 +1,7 @@
 package com.example.cas
 
 import com.example.cas.editor.Frac
+import com.example.cas.editor.MathCodec
 import com.example.cas.editor.MathRow
 import com.example.cas.editor.Node
 import com.example.cas.editor.Pow
@@ -22,7 +23,7 @@ class NotebookTest {
         Block.Text(1, "# Setup\nA ball at \$v_0\$ straight up."),
         Block.Math(2, MathRow(mutableListOf<Node>().apply { addAll(def("g", "10").items); add(Sym(",")); addAll(def("v", "20").items) })),
         Block.Math(3, m("v", Frac(m("v"), m("2g")))),
-        Block.Graph(4, m("vt−5t", Pow(m("2"))), 0.0, 4.0),
+        Block.Graph(4, m("vt−5t", Pow(m("2"))), m("0"), m("4")),
     )
 
     @Test fun definitionsHoldBelow() {
@@ -44,7 +45,7 @@ class NotebookTest {
         assertEquals(4, back.blocks.size)
         assertEquals((blocks[0] as Block.Text).text, (back.blocks[0] as Block.Text).text)
         assertEquals(Formatter.plain((blocks[2] as Block.Math).row), Formatter.plain((back.blocks[2] as Block.Math).row))
-        assertEquals(4.0, (back.blocks[3] as Block.Graph).xMax)
+        assertEquals("4", Formatter.plain((back.blocks[3] as Block.Graph).to))
     }
 
     @Test fun latexExport() {
@@ -62,5 +63,22 @@ class NotebookTest {
         assertEquals(1, pages.size)
         // Title, the heading and paragraph, two calculations and a graph with its grid and curve.
         assertTrue(pages[0].items.size > 20)
+    }
+
+    @Test fun tablesDefineColumns() {
+        val t = Block.Table(10, listOf(m("a"), m("b")), listOf(listOf(m("1"), m("2"), m("3")), listOf(m("2"), m("4"), MathRow())), plot = true)
+        val run = Notebook.run(listOf(t, Block.Math(11, m(com.example.cas.editor.Func("mean", listOf(m("a")))))))
+        assertEquals(listOf("a", "b"), run.outcomes[10]!!.defines)
+        assertEquals("2", Formatter.plain(run.outcomes[11]!!.answer!!.exact))
+        // b has two values, so two points.
+        assertEquals(2, run.plots[10]!!.points.single().first.size)
+        val back = Notebook.decode("x", Notebook.encode(Notebook.Doc("x", "", listOf(t), 0))).blocks.single() as Block.Table
+        assertEquals(3, back.columns[0].size); assertTrue(back.plot); assertEquals("b", Notebook.columnName(back.names[1]))
+    }
+
+    @Test fun oldNumericLimitsStillOpen() {
+        val old = "CASNB 1\ntitle\tx\nG\t1\t" + MathCodec.encode(m("x")) + "\t-2.0\t3.5\n"
+        val g = Notebook.decode("x", old).blocks.single() as Block.Graph
+        assertEquals("3.5", Formatter.plain(g.to))
     }
 }

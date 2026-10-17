@@ -22,8 +22,14 @@ object Notebook {
     sealed class Block(val id: Long) {
         class Text(id: Long, val text: String) : Block(id)
         class Math(id: Long, val row: MathRow) : Block(id)
-        /** A graph of the functions in [row] (separated by commas), from [xMin] to [xMax] (chosen to show the curve when null). */
-        class Graph(id: Long, val row: MathRow, val xMin: Double? = null, val xMax: Double? = null) : Block(id)
+        /** A graph of the functions in [row] (separated by commas), from [from] to [to] (math; a range that shows the curve when empty). */
+        class Graph(id: Long, val row: MathRow, val from: MathRow = MathRow(), val to: MathRow = MathRow()) : Block(id)
+        /**
+         * A data table: columns with a name each (a letter, which then stands for the column as a
+         * list in the blocks below: mean(x), sd(y)…) and a value in each cell. [plot] draws the
+         * second and later columns against the first.
+         */
+        class Table(id: Long, val names: List<MathRow>, val columns: List<List<MathRow>>, val plot: Boolean = false) : Block(id)
     }
 
     class Doc(val id: String, val title: String, val blocks: List<Block>, val edited: Long)
@@ -51,7 +57,10 @@ object Notebook {
         for (b in d.blocks) appendLine(when (b) {
             is Block.Text -> "T\t${b.id}\t" + esc(b.text)
             is Block.Math -> "M\t${b.id}\t" + esc(MathCodec.encode(b.row))
-            is Block.Graph -> "G\t${b.id}\t" + esc(MathCodec.encode(b.row)) + "\t" + (b.xMin?.toString() ?: "") + "\t" + (b.xMax?.toString() ?: "")
+            is Block.Graph -> "G\t${b.id}\t" + esc(MathCodec.encode(b.row)) + "\t" + esc(MathCodec.encode(b.from)) + "\t" + esc(MathCodec.encode(b.to))
+            is Block.Table -> "D\t${b.id}\t${if (b.plot) 1 else 0}\t${b.names.size}" + b.names.indices.joinToString("") { k ->
+                "\t" + esc(MathCodec.encode(b.names[k])) + "\t" + esc(b.columns.getOrElse(k) { emptyList() }.joinToString(CELL) { MathCodec.encode(it) })
+            }
         })
     }
 
@@ -68,11 +77,30 @@ object Notebook {
                 "edited" -> edited = f.getOrNull(1)?.toLongOrNull() ?: 0L
                 "T" -> blocks += Block.Text(f[1].toLong(), unesc(f.getOrElse(2) { "" }))
                 "M" -> blocks += Block.Math(f[1].toLong(), MathCodec.decode(unesc(f.getOrElse(2) { "" })))
-                "G" -> blocks += Block.Graph(f[1].toLong(), MathCodec.decode(unesc(f.getOrElse(2) { "" })), f.getOrNull(3)?.toDoubleOrNull(), f.getOrNull(4)?.toDoubleOrNull())
+                "G" -> blocks += Block.Graph(f[1].toLong(), MathCodec.decode(unesc(f.getOrElse(2) { "" })), limit(f.getOrNull(3)), limit(f.getOrNull(4)))
+                "D" -> {
+                    val n = f.getOrNull(3)?.toIntOrNull() ?: 0
+                    val names = (0 until n).map { k -> MathCodec.decode(unesc(f.getOrElse(4 + 2 * k) { "" })) }
+                    val cols = (0 until n).map { k -> unesc(f.getOrElse(5 + 2 * k) { "" }).let { c -> if (c.isEmpty()) emptyList() else c.split(CELL).map { MathCodec.decode(it) } } }
+                    blocks += Block.Table(f[1].toLong(), names, cols, f.getOrNull(2) == "1")
+                }
             }
         }
         return Doc(id, title, blocks, edited)
     }
+
+    private const val CELL = "\u001E"
+
+    /** A graph's limit as saved: math, or a plain number from before limits were math. */
+    private fun limit(field: String?): MathRow {
+        val t = field?.let { unesc(it) } ?: return MathRow()
+        if (t.isEmpty()) return MathRow()
+        t.toDoubleOrNull()?.let { v -> return MathRow(java.math.BigDecimal(v).round(java.math.MathContext(8)).stripTrailingZeros().toPlainString().replace("-", "−").map { Sym(it.toString()) }.toMutableList()) }
+        return runCatching { MathCodec.decode(t) }.getOrDefault(MathRow())
+    }
+
+    /** A table column's name as the letter it defines (empty when it has none). */
+    fun columnName(r: MathRow): String = r.items.joinToString("") { (it as? Sym)?.text ?: "?" }.takeIf { it.isNotBlank() && "?" !in it && it.none { c -> c.isDigit() } } ?: ""
 
     // ---- Working it out ------------------------------------------------------------------------
 
@@ -82,7 +110,9 @@ object Notebook {
     /** A graph block's curves: each function's points (NaN where it breaks) over the same xs, and the y range to show. */
     class Plot(val xs: DoubleArray, val curves: List<DoubleArray>, val yMin: Double, val yMax: Double, val labels: List<String>, val error: String? = null,
                /** The functions with the definitions put in and their letter written x, for the 2D graph. */
-               val forGraph: List<MathRow> = emptyList())
+               val forGraph: List<MathRow> = emptyList(),
+               /** A table's points: for each later column, its values against the first column's. */
+               val points: List<Pair<DoubleArray, DoubleArray>> = emptyList())
 
     class Run(val outcomes: Map<Long, Outcome>, val plots: Map<Long, Plot>)
 
@@ -144,6 +174,34 @@ object Notebook {
                 }
             }
             is Block.Graph -> plots[b.id] = plot(b, evaluator())
+            is Block.Table -> {
+                val ev = evaluator()
+                val defined = ArrayList<String>()
+                var error: String? = null
+                val values = b.columns.map { col ->
+                    col.map { cell ->
+                        if (cell.items.isEmpty()) null
+                        else runCatching { ev.evaluate(MathCodec.copy(cell)) }.onFailure { e -> if (error == null) error = (e as? MathError)?.message ?: "A cell can't be worked out" }.getOrNull()
+                    }
+                }
+                b.names.forEachIndexed { k, nameRow ->
+                    val name = columnName(nameRow)
+                    val col = values.getOrElse(k) { emptyList() }.filterNotNull()
+                    if (name.isNotEmpty() && col.isNotEmpty()) { variables[name] = Mat(col.size, 1, col); defined += name }
+                }
+                outcomes[b.id] = Outcome(null, error, defined)
+                if (b.plot && values.size >= 2) {
+                    fun num(e: Expr?) = e?.let { runCatching { com.example.cas.cas.Numeric.eval(it) }.getOrNull()?.takeIf { z -> z.im == 0.0 }?.re } ?: Double.NaN
+                    val xs = values[0].map(::num)
+                    val series = values.drop(1).map { ys -> val pairs = xs.indices.map { i -> xs[i] to num(ys.getOrNull(i)) }.filter { it.first.isFinite() && it.second.isFinite() }; pairs.map { it.first }.toDoubleArray() to pairs.map { it.second }.toDoubleArray() }
+                    val allX = series.flatMap { it.first.toList() }; val allY = series.flatMap { it.second.toList() }
+                    if (allX.isNotEmpty()) {
+                        val xLo = allX.min(); val xHi = allX.max(); val yLo = minOf(allY.min(), 0.0); val yHi = maxOf(allY.max(), 0.0)
+                        val xPad = maxOf((xHi - xLo) * 0.08, 0.5); val yPad = maxOf((yHi - yLo) * 0.1, 0.5)
+                        plots[b.id] = Plot(doubleArrayOf(xLo - xPad, xHi + xPad), emptyList(), yLo - yPad, yHi + yPad, b.names.drop(1).map { Latex.of(it) }, points = series)
+                    }
+                }
+            }
         }
         return Run(outcomes, plots)
     }
@@ -171,8 +229,10 @@ object Notebook {
             MathRow(mutableListOf<com.example.cas.editor.Node>(Sym("y"), Sym("="))).also { r -> Formatter.row(inX).items.toList().forEach { r.add(it) } }
         }
         if (fs.isEmpty()) return Plot(DoubleArray(0), emptyList(), -1.0, 1.0, emptyList(), "Each function needs one letter to draw it against")
-        val (a, c) = if (b.xMin != null && b.xMax != null && b.xMin < b.xMax) b.xMin to b.xMax
-        else com.example.cas.graph.Sketch.range(fs.first().first) ?: (-5.0 to 5.0)
+        fun bound(r: MathRow): Double? = if (r.items.isEmpty()) null else runCatching { com.example.cas.cas.Numeric.real(ev.evaluate(MathCodec.copy(r))) }.getOrNull()?.takeIf { it.isFinite() }
+        val fromV = bound(b.from); val toV = bound(b.to)
+        val (a, c) = if (fromV != null && toV != null && fromV < toV) fromV to toV
+        else com.example.cas.graph.Sketch.range(fs.first().first)?.let { (sa, sc) -> (fromV ?: sa) to (toV ?: sc) }?.takeIf { it.first < it.second } ?: ((fromV ?: -5.0) to (toV ?: 5.0))
         val xs = DoubleArray(POINTS + 1) { a + (c - a) * it / POINTS }
         val curves = fs.map { (f, _) -> DoubleArray(xs.size) { f(xs[it]) } }
         val finite = curves.flatMap { cv -> cv.filter { it.isFinite() } }.sorted()
@@ -190,6 +250,8 @@ object Notebook {
     fun latex(d: Doc, run: Run): String = buildString {
         appendLine("\\documentclass[11pt]{article}")
         appendLine("\\usepackage{amsmath,amssymb}")
+        appendLine("\\usepackage[normalem]{ulem}")
+        appendLine("\\usepackage{hyperref}")
         appendLine("\\usepackage{pgfplots}")
         appendLine("\\pgfplotsset{compat=1.18}")
         appendLine("\\title{${texText(d.title.ifBlank { "Notebook" })}}")
@@ -198,17 +260,19 @@ object Notebook {
         appendLine("\\maketitle")
         appendLine()
         for (b in d.blocks) when (b) {
-            is Block.Text -> {
-                // A line starting with # is a heading; the other lines are paragraphs (a blank line between).
-                for (line in b.text.lines()) {
-                    val t = line.trim()
-                    when {
-                        t.startsWith("#") -> { appendLine("\\section*{${texText(t.trimStart('#').trim())}}"); appendLine() }
-                        t.isEmpty() -> appendLine()
-                        else -> appendLine(texInline(t))
-                    }
+            is Block.Text -> { append(Markdown.latex(Markdown.parse(b.text))); appendLine() }
+            is Block.Table -> {
+                val n = b.names.size
+                if (n > 0) {
+                    val rows = b.columns.maxOfOrNull { it.size } ?: 0
+                    appendLine("\\begin{center}\\begin{tabular}{" + "c".repeat(n) + "}")
+                    appendLine("\\hline")
+                    appendLine(b.names.joinToString(" & ") { "\$" + Latex.of(it) + "\$" } + " \\\\ \\hline")
+                    for (r in 0 until rows) appendLine((0 until n).joinToString(" & ") { c -> b.columns.getOrNull(c)?.getOrNull(r)?.takeIf { it.items.isNotEmpty() }?.let { "\$" + Latex.of(it) + "\$" } ?: "" } + " \\\\")
+                    appendLine("\\hline")
+                    appendLine("\\end{tabular}\\end{center}")
+                    appendLine()
                 }
-                appendLine()
             }
             is Block.Math -> if (b.row.items.isNotEmpty()) {
                 val o = run.outcomes[b.id]
