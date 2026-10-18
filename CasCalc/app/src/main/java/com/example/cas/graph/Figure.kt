@@ -1226,7 +1226,8 @@ object Figure {
         if (!t.gridOnTop) grid()
 
         scene.add(Scene.ClipStart(left, top, right - left, bottom - top))
-        for (dr in w.drawn) if (dr.error == null) runCatching { drawLayer(scene, dr, w, t, ::px, ::py, left, top, right, bottom, x0, x1, y0, y1) }
+        // The first layer in the list is on top: drawn last.
+        for (dr in w.drawn.asReversed()) if (dr.error == null) runCatching { drawLayer(scene, dr, w, t, ::px, ::py, left, top, right, bottom, x0, x1, y0, y1) }
         scene.add(Scene.ClipEnd)
 
         // Spines, ticks and their labels.
@@ -1299,8 +1300,7 @@ object Figure {
                 if (xs.size <= 200) markers(xs, ys)
             }
             Kind.Fit -> {
-                // The points faint, the curve over them.
-                if (dr.raw.size == 2) { val (px, py) = dr.raw; val mk = Marker.of(if (s.marker >= 0) s.marker else 0); for (k in px.indices) { val X = px(px[k]); val Y = py(py[k]); if (X.isFinite() && Y.isFinite()) mk.addTo(scene, X, Y, s.size, withAlpha(dr.color, s.alpha * 0.55)) } }
+                // Only the curve: the points are their own layer (a scatter) when wanted.
                 dr.series.forEach { (xs, ys) -> scene.add(Scene.Stroke(polyline(xs, ys), color, s.width, dash)) }
             }
             Kind.Kde -> dr.series.forEach { (xs, ys) ->

@@ -55,7 +55,8 @@ object FigurePython {
             val name = letters.getOrNull(k) ?: 'A'
             appendLine()
             appendLine("ax = axs[\"$name\"]")
-            for (dr in w.drawn) if (dr.error == null) layer(this, dr, w)
+            // The first layer is on top, so it's drawn last; the legend keeps the list's order.
+            for (dr in w.drawn.asReversed()) if (dr.error == null) layer(this, dr, w)
             if (a.title.isNotBlank()) appendLine("ax.set_title(${str(a.title)})")
             if (a.xLabel.isNotBlank()) appendLine("ax.set_xlabel(${str(a.xLabel)})")
             if (a.yLabel.isNotBlank()) appendLine("ax.set_ylabel(${str(a.yLabel)})")
@@ -76,7 +77,10 @@ object FigurePython {
                 2 -> { appendLine("ax.spines[[\"left\", \"bottom\"]].set_position(\"zero\")"); appendLine("ax.spines[[\"top\", \"right\"]].set_visible(False)") }
                 3 -> appendLine("ax.axis(\"off\")")
             }
-            if (a.legend >= 0 && w.drawn.any { it.error == null && it.layer.style.label.isNotBlank() }) appendLine("ax.legend(loc=\"${LOC[a.legend.coerceIn(0, 9)]}\")")
+            if (a.legend >= 0 && w.drawn.any { it.error == null && Figure.legendName(it).isNotBlank() }) {
+                appendLine("handles, labels = ax.get_legend_handles_labels()")
+                appendLine("ax.legend(handles[::-1], labels[::-1], loc=\"${LOC[a.legend.coerceIn(0, 9)]}\")")
+            }
         }
         appendLine()
         appendLine("fig.savefig(\"figure.pdf\")")
@@ -100,8 +104,6 @@ object FigurePython {
         out.append(when (l.kind) {
             Figure.Kind.Plot, Figure.Kind.Parametric, Figure.Kind.Polar -> "ax.plot(${xy()}, $color$line$mk$alpha$label)"
             Figure.Kind.Fit -> {
-                val (px, py) = dr.raw
-                out.appendLine("ax.scatter(${arr(px)}, ${arr(py)}, s=${n(s.size * s.size * 2)}, $color, alpha=${n(s.alpha * 0.55)})")
                 "ax.plot(${xy()}, $color$line$alpha, label=${str(Figure.legendName(dr))})  # least squares: ${if (s.model >= Figure.CUSTOM_FIT) "y = " + s.formula.substringAfter('=').trim() else FitModel.entries.getOrElse(s.model) { FitModel.Linear }.latex}"
             }
             Figure.Kind.Kde -> "ax.plot(${xy()}, $color$line$alpha$label)  # Gaussian KDE (scipy.stats.gaussian_kde)"

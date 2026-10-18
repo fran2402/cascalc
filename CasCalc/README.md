@@ -203,6 +203,17 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (18 October, Plots: column buttons, keypad for your own fit, layer order)
+
+- Under a layer's inputs, each column of the table is a button with its name. Tapping one puts the name in at the cursor, with a space or comma where needed.
+- Column names in the inputs show as colored boxes so each reads as one thing, and a backspace inside a name deletes the whole name.
+- Your own fit model is typed on the calculator's keypad. Picking Your own (or tapping the model) shows only the figure, the y = … box and the keypad. Any error appears under the box, and Done or back returns to the layer.
+- A fitted curve draws only its line, without the data points. Add a scatter layer to show them too.
+- Layers can be reordered by dragging the grip at their left. The layer at the top of the list is drawn on top of the others, in the app and in the Python export (the legend keeps the list's order).
+- The handles on the lines between cells are gone. Drag anywhere near a line to resize; a mark shows only while dragging.
+- Double-tapping the figure's data table (in Data or in a layer) opens the table editor.
+- The table editor opened from a figure no longer asks for x and y columns; the layers say which columns they use. The 2D graph's tables still have roles.
+
 ## Latest changes (18 October, Plots: columns by their full names)
 
 - Fixed: a figure's inputs didn't recognize column names longer than one letter. Typing freq or Signal gave "Too many letters: f, q, r". Now freq, Signal, amp_2 and any other column name work as written, including inside expressions: 2freq, freq*Signal, sin(freq), mean(Signal).

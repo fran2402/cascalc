@@ -1953,7 +1953,16 @@ private fun PointTableDialog(vm: GraphViewModel, f: PlotFunction, onDismiss: () 
  * when Done is tapped. [key] tells one table from another.
  */
 @Composable
-internal fun DataTableEditor(start: com.example.cas.graph.DataTable, key: Any, onSave: (com.example.cas.graph.DataTable) -> Unit, onDismiss: () -> Unit) {
+internal fun DataTableEditor(start: com.example.cas.graph.DataTable, key: Any, onSave: (com.example.cas.graph.DataTable) -> Unit, onDismiss: () -> Unit, roles: Boolean = true) {
+    // A figure's table has no x and y to pick: its layers say which columns they use.
+    androidx.compose.runtime.CompositionLocalProvider(LocalTableRoles provides roles) { DataTableEditorBody(start, key, onSave, onDismiss, roles) }
+}
+
+/** Whether the table being edited picks columns as x, y, σx and σy (the 2D graph's tables do; a figure's don't). */
+internal val LocalTableRoles = androidx.compose.runtime.staticCompositionLocalOf { true }
+
+@Composable
+private fun DataTableEditorBody(start: com.example.cas.graph.DataTable, key: Any, onSave: (com.example.cas.graph.DataTable) -> Unit, onDismiss: () -> Unit, roles: Boolean) {
     val f = key
     val colors = MaterialTheme.colorScheme
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -2023,10 +2032,10 @@ internal fun DataTableEditor(start: com.example.cas.graph.DataTable, key: Any, o
     var splitFor by remember(f) { mutableStateOf<Int?>(null) }
     var functionsOpen by remember(f) { mutableStateOf<String?>(null) }
     val barFocus = remember(f) { androidx.compose.ui.focus.FocusRequester() }
-    var roleX by remember(f) { mutableStateOf(start.x) }
-    var roleY by remember(f) { mutableStateOf(start.y) }
-    var roleSx by remember(f) { mutableStateOf(start.sigmaX) }
-    var roleSy by remember(f) { mutableStateOf(start.sigmaY) }
+    var roleX by remember(f) { mutableStateOf(start.x.takeIf { roles }) }
+    var roleY by remember(f) { mutableStateOf(start.y.takeIf { roles }) }
+    var roleSx by remember(f) { mutableStateOf(start.sigmaX.takeIf { roles }) }
+    var roleSy by remember(f) { mutableStateOf(start.sigmaY.takeIf { roles }) }
     // The one cell being typed in, as (column, row), and where its fill handle is being dragged to.
     var editing by remember(f) { mutableStateOf<Pair<Int, Int>?>(null) }
     var fillTo by remember(f) { mutableStateOf<Pair<Int, Int>?>(null) }
@@ -2071,6 +2080,7 @@ internal fun DataTableEditor(start: com.example.cas.graph.DataTable, key: Any, o
     fun redo() { redoStack.removeLastOrNull()?.let { undoStack.add(snapshot()); restore(it) } }
     /** One role per column and one column per role. */
     fun assign(c: Int, role: String?) {
+        if (!roles) return
         record()
         if (roleX == c) roleX = null; if (roleY == c) roleY = null; if (roleSx == c) roleSx = null; if (roleSy == c) roleSy = null
         when (role) { "x" -> roleX = c; "y" -> roleY = c; "σx" -> roleSx = c; "σy" -> roleSy = c }
@@ -2209,7 +2219,7 @@ internal fun DataTableEditor(start: com.example.cas.graph.DataTable, key: Any, o
         val n = t.rows
         cells.forEach { col -> while (col.size < from + n) col.add("") }
         t.columns.forEachIndexed { c, values -> values.forEachIndexed { r, v -> cells[c][from + r] = com.example.cas.graph.DataTable.text(v) } }
-        if (roleY == null) { if (cells.size >= 2) { roleX = roleX ?: 0; roleY = 1 } else roleY = 0 }
+        if (roles && roleY == null) { if (cells.size >= 2) { roleX = roleX ?: 0; roleY = 1 } else roleY = 0 }
         android.widget.Toast.makeText(context, "$n row${if (n == 1) "" else "s"} pasted", android.widget.Toast.LENGTH_SHORT).show()
     }
     fun paste() {
@@ -2608,9 +2618,10 @@ internal fun DataTableEditor(start: com.example.cas.graph.DataTable, key: Any, o
                             // Short on a phone, where the top bar is crowded.
                             Text(tr(if (wide) "Data table" else "Data"), style = MaterialTheme.typography.titleLarge, maxLines = 1)
                             // What's plotted, and anything wrong, in a line under the title.
-                            val counts = (if (roleY == null) "Pick a y column" else "$points point${if (points == 1) "" else "s"}") + " · ${cells.size} column${if (cells.size == 1) "" else "s"}" +
+                            val rowCount = cells.maxOfOrNull { it.size } ?: 0
+                            val counts = (if (!roles) "$rowCount row${if (rowCount == 1) "" else "s"}" else if (roleY == null) "Pick a y column" else "$points point${if (points == 1) "" else "s"}") + " · ${cells.size} column${if (cells.size == 1) "" else "s"}" +
                                 (if (bad > 0) " · $bad not number${if (bad == 1) "" else "s"}" else "")
-                            Text(counts, style = MaterialTheme.typography.bodySmall, color = if (roleY == null || bad > 0) colors.error else colors.onSurfaceVariant, maxLines = 1)
+                            Text(counts, style = MaterialTheme.typography.bodySmall, color = if ((roles && roleY == null) || bad > 0) colors.error else colors.onSurfaceVariant, maxLines = 1)
                         }
                         // On a tablet the ribbon's tabs share the top bar, so the ribbon takes one row less.
                         if (wide) RibbonTabs(tab, { tab = it }, ribbonFolded, { ribbonFolded = it }, Modifier.weight(1f).padding(horizontal = 12.dp))
@@ -2935,7 +2946,7 @@ internal fun DataTableEditor(start: com.example.cas.graph.DataTable, key: Any, o
                         )
                     }
                     Row(Modifier.weight(1f).fillMaxWidth()) {
-                        if (wide) TableSidePane(current, points, cells.size, bad, roleY == null, Modifier.width(320.dp).fillMaxHeight().padding(start = 16.dp, bottom = 16.dp)) {
+                        if (wide) TableSidePane(current, points, cells.size, bad, roles && roleY == null, Modifier.width(320.dp).fillMaxHeight().padding(start = 16.dp, bottom = 16.dp)) {
                             // The selected column: its role, format, filter and statistics.
                             val c = focusCol.coerceIn(0, maxOf(0, cells.size - 1))
                             val fmt = fmts.getOrElse(c) { com.example.cas.graph.ColumnFormat() }
@@ -3503,7 +3514,7 @@ private fun ColumnCard(
             )
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, shape = RoundedCornerShape(16.dp)) {
-            listOf("x" to "across", "y" to "up", "σx" to "error bars across", "σy" to "error bars up", null to "Not used").forEach { (r, what) ->
+            if (LocalTableRoles.current) listOf("x" to "across", "y" to "up", "σx" to "error bars across", "σy" to "error bars up", null to "Not used").forEach { (r, what) ->
                 DropdownMenuItem(
                     leadingIcon = { RoleBadge(r) },
                     text = { Text(if (r == null) what else what.replaceFirstChar { it.uppercase() }) },
@@ -3511,7 +3522,7 @@ private fun ColumnCard(
                     onClick = { open = false; onRole(r) },
                 )
             }
-            androidx.compose.material3.HorizontalDivider()
+            if (LocalTableRoles.current) androidx.compose.material3.HorizontalDivider()
             DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Statistics, null) }, text = { Text(tr("Statistics")) }, onClick = { open = false; onStats() })
             DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Filter, null) }, text = { Text(tr(if (filtered) "Change the filter…" else "Filter…")) }, onClick = { open = false; onFilter() })
             DropdownMenuItem(leadingIcon = { AppIcon(TableIcons.Percent, null) }, text = { Text(tr("Number format…")) }, onClick = { open = false; onFormat() })
@@ -5039,6 +5050,7 @@ internal fun StatusPill(label: String, s: com.example.cas.graph.SheetTools.Summa
 /** A column's role as an expressive segmented button: x, y, σx, σy or none. */
 @Composable
 private fun RoleSegments(role: String?, onRole: (String?) -> Unit, modifier: Modifier = Modifier) {
+    if (!LocalTableRoles.current) return
     val colors = MaterialTheme.colorScheme
     Row(modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(colors.surfaceContainerHighest).padding(3.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         listOf("x", "y", "σx", "σy", null).forEach { r ->

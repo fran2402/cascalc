@@ -376,12 +376,14 @@ Delete this layer?
 Layers	
 Data	
 Untitled figure	
+Your own model	
+x is the variable; every other letter is a parameter to fit.	
 Add a layer	
 Tap to set its inputs	
 Search: histogram, violin, contour…	
 e.g. sin(x), x^2/2, [1, 4, 9] or a column's letter	
 Couldn't read that file as a table	
-Tap a column's name for a layer of it.	
+Tap a column's name for a layer of it; double-tap the table to edit it.	
 Scatter against {0}	
 Line against {0}	
 Fitted curve against {0}	
@@ -389,9 +391,11 @@ Bars
 Histogram	
 Density curve	
 Box plot	
-Tap a column's name to put it in the input.	
+Put in	
+Tap a column's name to put it in the input; double-tap the table to edit it.	
 Your own	
-In x; every other letter is a parameter to fit, like a*e^(-b*x) + c or a*sin(b*x + c)	
+Edit the model	
+In x; every other letter is a parameter to fit, like a·e^(−bx) + c or a·sin(bx + c)	
 Auto	
 Colorbar label	
 $math$ between dollar signs, like $T$ (K)	
