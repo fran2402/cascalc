@@ -48,6 +48,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -78,6 +79,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -134,6 +139,10 @@ object PlotsNav {
     /** The figure being edited: a saved one, or a new one not saved yet. */
     var doc by mutableStateOf<Figure.Doc?>(null)
     var request by mutableStateOf<Figure.Doc?>(null)
+    /** The 2D graph's points and tables (set by the app), for a figure's table. */
+    var graphPoints: (() -> List<Pair<DoubleArray, DoubleArray>>)? = null
+    /** Adds sets of points to the 2D graph as lines (set by the app). */
+    var sendPoints: ((List<Pair<DoubleArray, DoubleArray>>) -> Unit)? = null
 
     fun show(d: Figure.Doc) { doc = d; open = true }
 }
@@ -311,50 +320,6 @@ fun PlotsPage(onBack: () -> Unit) {
 
 // ---- The editor --------------------------------------------------------------------------------
 
-/** The keypad typing into one [Editor] at a time (a layer's input). */
-private class FieldKeys(private val target: () -> Editor?, private val version: () -> Int, private val onEnter: () -> Unit) : KeypadHost {
-    private var hidden by mutableStateOf(false)
-    override val angleUnit get() = KeypadState.angle
-    override val panelOpen get() = KeypadState.panelOpen
-    override val selectedTab get() = KeypadState.tab
-    override fun toggleAngle() = KeypadState.toggleAngle()
-    override fun togglePanel() = KeypadState.togglePanel()
-    override fun selectTab(index: Int) = KeypadState.selectTab(index)
-    override fun moveLeft() { target()?.moveLeft() }
-    override fun moveRight() { target()?.moveRight() }
-    override fun press(action: KeyAction) {
-        val ed = target() ?: return
-        when (action) {
-            is KeyAction.Type -> ed.type(action.text)
-            is KeyAction.Insert -> { ed.insert(action.make(), action.slot); if (action.path.isNotEmpty()) ed.enter(action.path) }
-            KeyAction.Fraction -> ed.insertFraction()
-            is KeyAction.Power -> ed.insertPower(action.exponent?.let { t -> MathRow(t.map { Sym(it.toString()) }.toMutableList()) })
-            KeyAction.Paren -> ed.smartParen()
-            KeyAction.ListBrackets -> { ed.type("["); ed.type("]"); ed.moveLeft() }
-            KeyAction.Backspace -> ed.backspace()
-            KeyAction.Clear -> ed.clear()
-            KeyAction.Enter -> onEnter()
-            is KeyAction.Sequence -> action.steps.forEach { press(it) }
-            is KeyAction.Paste -> ed.insertRow(action.row)
-            KeyAction.PickMatrix, KeyAction.MoreConstants, KeyAction.OpenSymbolBuilder -> Unit
-        }
-    }
-    override fun insertMatrix(rows: Int, cols: Int) { target()?.insert(Matrix(rows, cols, growable = true), 0) }
-    override val canUndo get() = version().let { target()?.canUndo ?: false }
-    override val canRedo get() = version().let { target()?.canRedo ?: false }
-    override fun undo() { target()?.undo() }
-    override fun redo() { target()?.redo() }
-    override var keypadHidden: Boolean
-        get() = hidden
-        set(v) { hidden = v }
-    override val listKey: Boolean get() = true
-    override val coordinates get() = KeypadState.coordinates
-    override fun selectCoordinates(c: com.example.cas.cas.Coordinates) = KeypadState.selectCoordinates(c)
-    override fun coordinatesOf(kind: com.example.cas.cas.CoordinateKind) = KeypadState.coordinatesOf(kind)
-    override val unitSystem get() = KeypadState.unitSystem
-    override fun selectUnitSystem(units: com.example.cas.engine.UnitSystem) = KeypadState.selectUnitSystem(units)
-}
-
 private enum class FigurePage { None, Gallery, Axes, Figure, Python }
 
 /**
@@ -416,29 +381,50 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
         },
     )
 
-    // The open layer's inputs, each an editor the keypad types into.
+    // The open layer's inputs as text, typed on the phone's keyboard (read as math: sin(x), x^2, [1, 4, 9]).
     val sel = selected?.takeIf { it in axes.layers.indices }
     val layer = sel?.let { axes.layers[it] }
-    var version by remember { mutableIntStateOf(0) }
     var focus by remember { mutableStateOf<Int?>(null) }
-    val editors = remember(axesAt, sel, layer?.kind) {
-        layer?.kind?.inputs?.indices?.map { k -> Editor(MathCodec.copy(layer.input(k))) } ?: emptyList()
+    val texts = remember(axesAt, sel, layer?.kind) {
+        androidx.compose.runtime.mutableStateListOf(*(layer?.kind?.inputs?.indices?.map { k -> com.example.cas.engine.PlainMath.text(layer.input(k)) } ?: emptyList()).toTypedArray())
     }
-    LaunchedEffect(editors) { focus = null }
-    editors.forEach { e ->
-        e.onChange = {
-            version++
-            val s = selected; val l = s?.let { axes.layers.getOrNull(it) }
-            if (s != null && l != null) setLayer(s, l.copy(inputs = editors.map { MathCodec.copy(it.root) }), record = false)
+    LaunchedEffect(texts) { focus = null }
+    fun typed(k: Int, t: String) {
+        if (k !in texts.indices) return
+        texts[k] = t
+        val s0 = selected; val l = s0?.let { axes.layers.getOrNull(it) } ?: return
+        setLayer(s0, l.copy(inputs = texts.map { com.example.cas.engine.PlainMath.parse(it) }), record = false)
+    }
+    // While the keyboard is up, the preview shrinks to a strip.
+    val typing = focus != null && layer != null && androidx.compose.foundation.layout.WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    var tab by remember { mutableIntStateOf(0) }
+
+    /** A column put to use: renamed to a single free letter when its name can't be typed as one, and that letter. */
+    fun useColumn(c: Int): String {
+        val t = doc.data
+        val name = t.names.getOrElse(c) { "" }.trim()
+        if (name.length == 1 && name[0].isLetter()) return name
+        val taken = t.names.map { it.trim() }.toSet()
+        val letter = (listOfNotNull(name.firstOrNull { it.isLetter() }?.lowercaseChar()?.toString()) + listOf("x", "y", "u", "v", "w", "a", "b", "c", "d", "f", "g", "h", "k", "m", "n", "p", "q", "r", "s", "z"))
+            .first { it !in taken && it != "e" && it != "i" }
+        change(doc.copy(data = com.example.cas.graph.DataTable(t.names.mapIndexed { k, n -> if (k == c) letter else n }, t.columns, t.x, t.y, t.sigmaX, t.sigmaY, t.formats, t.frozen, t.styles)))
+        Toast.makeText(context, tr("Column “{0}” is now {1}, so it can be typed", name, letter), Toast.LENGTH_SHORT).show()
+        return letter
+    }
+    /** A layer of [kind] made from columns [cols] (by position), added and opened. */
+    fun addFromColumns(kind: Figure.Kind, cols: List<Int>) {
+        val names = cols.map { useColumn(it) }
+        val r = { n: String -> com.example.cas.engine.PlainMath.parse(n) }
+        val l = when (kind) {
+            Figure.Kind.Scatter, Figure.Kind.Fit, Figure.Kind.ErrorBar, Figure.Kind.Hist2D, Figure.Kind.Hexbin -> Figure.Layer(kind, names.map(r))
+            Figure.Kind.Plot, Figure.Kind.Step, Figure.Kind.Stem -> Figure.Layer(kind, listOf(r(names.last()), r(names.first())), style = Figure.Style(label = names.last()))
+            Figure.Kind.Box, Figure.Kind.Violin, Figure.Kind.Events -> Figure.Layer(kind, listOf(r(names.joinToString(","))), text = names.joinToString(", "))
+            else -> Figure.Layer(kind, listOf(r(names.first())), style = Figure.Style(label = names.first()))
         }
+        val now = doc.axes.getOrElse(axesAt) { Figure.Axes() }
+        change(doc.copy(axes = doc.axes.mapIndexed { k, a -> if (k == axesAt) a.copy(layers = a.layers + l) else a }.ifEmpty { listOf(Figure.Axes(listOf(l))) }))
+        tab = 0; selected = now.layers.size
     }
-    val fieldKeys = remember(editors) {
-        FieldKeys(target = { focus?.let { editors.getOrNull(it) } }, version = { version }, onEnter = {
-            val f = focus
-            focus = if (f != null && f + 1 < editors.size) f + 1 else null
-        })
-    }
-    val typing = focus != null && layer != null
 
     val pageDone = { page = FigurePage.None }
     when (page) {
@@ -488,16 +474,15 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
             if (layer != null && sel != null) {
                 LayerEditor(
                     layer, built?.error(axesAt, layer), built?.worked?.getOrNull(axesAt)?.drawn?.firstOrNull { it.layer === layer }?.color,
-                    columns = doc.data.names.map { it.trim() }.filter { n -> n.isNotEmpty() && n.all { it.isLetter() } },
-                    onColumn = { name ->
-                        val e = editors.getOrNull(focus ?: 0) ?: return@LayerEditor
-                        if (focus == null) { focus = 0; e.setCursor(e.root, e.root.items.size) }
-                        name.forEach { c -> e.type(c.toString()) }
+                    table = doc.data,
+                    onColumn = { c ->
+                        val name = useColumn(c)
+                        val k = focus ?: texts.indexOfFirst { it.isBlank() }.takeIf { it >= 0 } ?: 0
+                        if (k in texts.indices) typed(k, texts[k].let { if (it.isBlank()) name else "$it, $name".takeIf { _ -> l0isMulti(layer) } ?: "$it$name" })
                     },
                     onEditData = { dataOpen = true },
                     onImport = { t -> change(doc.copy(data = t)) },
-                    editors = editors, focus = focus, version = version,
-                    onFocus = { k -> focus = k; fieldKeys.keypadHidden = false },
+                    texts = texts, onText = ::typed, onFocus = { k -> focus = k },
                     onChange = { setLayer(sel, it) },
                     onClose = { selected = null },
                     onMove = { d ->
@@ -522,9 +507,27 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                         }
                         EditorChip(FigureIcons.Axes, "Axes") { page = FigurePage.Axes }
                         EditorChip(FigureIcons.Layout, "Figure") { page = FigurePage.Figure }
-                        EditorChip(TableIcons.Table, "Data") { dataOpen = true }
                         EditorChip(FigureIcons.Python, "Python") { page = FigurePage.Python }
                     }
+                    // Layers, or the figure's whole table.
+                    androidx.compose.material3.SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
+                        listOf(tr("Layers") + " (${axes.layers.size})", tr("Data") + " (${doc.data.rowCount} × ${doc.data.names.size})").forEachIndexed { k, name ->
+                            SegmentedButton(selected = tab == k, onClick = { tab = k }, shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(k, 2), icon = {}, label = { Text(name, maxLines = 1) })
+                        }
+                    }
+                    if (tab == 1) DataPanel(doc.data, Modifier.weight(1f).fillMaxWidth(),
+                        onEdit = { dataOpen = true },
+                        onImport = { t -> change(doc.copy(data = t)) },
+                        onAdd = ::addFromColumns,
+                        onPlotAll = {
+                            val t = doc.data
+                            val xs = useColumn(0)
+                            val ys = (1 until t.names.size).map { useColumn(it) }
+                            val ls = ys.map { y -> Figure.Layer(Figure.Kind.Scatter, listOf(com.example.cas.engine.PlainMath.parse(xs), com.example.cas.engine.PlainMath.parse(y)), style = Figure.Style(label = y)) }
+                            change(doc.copy(axes = doc.axes.mapIndexed { k, a -> if (k == axesAt) a.copy(layers = a.layers + ls, xLabel = a.xLabel.ifBlank { xs }) else a }))
+                            tab = 0
+                        },
+                    ) else
                     LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         itemsIndexed(axes.layers) { k, l ->
                             val dr = built?.worked?.getOrNull(axesAt)?.drawn?.firstOrNull { it.layer === l }
@@ -563,19 +566,16 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                 Column(Modifier.weight(1.3f).fillMaxHeight().padding(12.dp), verticalArrangement = Arrangement.Center) { Preview(Modifier.fillMaxWidth()) }
                 Box(Modifier.weight(1f).fillMaxHeight()) {
                     Controls(Modifier.fillMaxSize())
-                    if (layer == null) AddLayerButton(Modifier.align(Alignment.BottomEnd).padding(20.dp)) { page = FigurePage.Gallery }
+                    if (layer == null && tab == 0) AddLayerButton(Modifier.align(Alignment.BottomEnd).padding(20.dp)) { page = FigurePage.Gallery }
                 }
-                if (typing) Keypad(fieldKeys, Modifier.width(tabletKeypadWidth()).fillMaxHeight().background(colors.surfaceContainerLow), tablet = true)
             }
         } else {
             // While typing, a short strip, so the inputs stay in view.
             Preview(Modifier.padding(horizontal = 12.dp).fillMaxWidth(), compact = typing)
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 Controls(Modifier.fillMaxSize())
-                if (layer == null) AddLayerButton(Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(16.dp)) { page = FigurePage.Gallery }
-                if (typing && fieldKeys.keypadHidden) ShowKeypadButton(onClick = { fieldKeys.keypadHidden = false }, modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp))
+                if (layer == null && tab == 0) AddLayerButton(Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(16.dp)) { page = FigurePage.Gallery }
             }
-            if (typing && !fieldKeys.keypadHidden) Keypad(fieldKeys)
         }
     }
 }
@@ -687,25 +687,142 @@ private fun LayerGallery(onPick: (Figure.Kind) -> Unit, onDismiss: () -> Unit) {
     }
 }
 
-/** A layer's input: its name, and the math in a box the keypad types into. */
+/** Whether a layer's first input takes several things split by commas (box plots, violins, stacked areas). */
+private fun l0isMulti(l: Figure.Layer?) = l?.kind in setOf(Figure.Kind.Box, Figure.Kind.Violin, Figure.Kind.Events, Figure.Kind.Stack)
+
+/** A layer's input, typed on the phone's keyboard and shown as math under it as it's read. */
 @Composable
-private fun InputField(label: String, e: Editor, focused: Boolean, version: Int, onFocus: () -> Unit) {
+private fun InputField(label: String, text: String, onText: (String) -> Unit, onFocus: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth()) {
-        Text(label, style = MaterialTheme.typography.labelMedium, color = if (focused) colors.primary else colors.onSurfaceVariant, modifier = Modifier.padding(start = 6.dp, bottom = 4.dp))
-        Box(
-            Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainerHighest)
-                .then(if (focused) Modifier.border(2.dp, colors.primary, RoundedCornerShape(16.dp)) else Modifier)
-                .clickable { e.setCursor(e.root, e.root.items.size); onFocus() }.padding(horizontal = 14.dp, vertical = 8.dp),
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            Box(Modifier.horizontalScroll(rememberScrollState())) {
-                if (e.isEmpty && !focused) Text(tr("empty"), style = MaterialTheme.typography.bodyMedium, color = colors.outline)
-                else MathView(e.root, 20.sp, colors.onSurface, accent = colors.primary, cursorRow = if (focused) e.row else null, cursorIndex = e.index, version = version,
-                    onTap = { r, i -> e.setCursor(r, i); onFocus() })
+        OutlinedTextField(
+            text, onText, label = { Text(label) }, singleLine = true,
+            placeholder = { Text(tr("e.g. sin(x), x^2/2, [1, 4, 9] or a column's letter"), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+            textStyle = TextStyle(fontFamily = CasFonts.Mono, fontSize = 16.sp, color = colors.onSurface),
+            keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Next),
+            modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) onFocus() },
+        )
+        // How it's read, in the calculator's math.
+        if (text.isNotBlank()) Box(Modifier.padding(start = 12.dp, top = 2.dp).horizontalScroll(rememberScrollState())) {
+            MathView(remember(text) { com.example.cas.engine.PlainMath.parse(text) }, 16.sp, colors.onSurfaceVariant)
+        }
+    }
+}
+
+/**
+ * A table shown whole: the row numbers, each column's name with its mean and spread, and every
+ * row (scrolled, as many as there are). Tapping a column's name: [onHeader].
+ */
+@Composable
+private fun DataGrid(t: com.example.cas.graph.DataTable, modifier: Modifier, onHeader: ((Int) -> Unit)?, headerMenu: (@Composable (Int, () -> Unit) -> Unit)? = null) {
+    val colors = MaterialTheme.colorScheme
+    val mono = TextStyle(fontFamily = CasFonts.Mono, fontSize = 14.sp, color = colors.onSurface)
+    val cellW = 96.dp; val numW = 40.dp
+    val n = t.names.size
+    val stats = remember(t) { (0 until n).map { t.stats(it) } }
+    Box(modifier.clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainerHigh).horizontalScroll(rememberScrollState())) {
+        Column(Modifier.width(numW + cellW * n)) {
+            Row(Modifier.background(colors.surfaceContainerHighest)) {
+                Box(Modifier.size(numW, 52.dp))
+                (0 until n).forEach { c ->
+                    var menu by remember { mutableStateOf(false) }
+                    Box {
+                        Column(
+                            Modifier.size(cellW, 52.dp).clickable(enabled = onHeader != null || headerMenu != null) { if (headerMenu != null) menu = true else onHeader?.invoke(c) }.padding(horizontal = 8.dp, vertical = 4.dp),
+                            horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.Center,
+                        ) {
+                            Text(t.names[c].ifBlank { "—" }, style = mono.copy(color = colors.primary, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            stats[c]?.let { st -> Text("x̄ " + com.example.cas.graph.Figure.tickText(st.mean) + (st.sd?.let { " ± " + com.example.cas.graph.Figure.tickText(it) } ?: ""), style = mono.copy(fontSize = 10.sp, color = colors.onSurfaceVariant), maxLines = 1) }
+                        }
+                        if (headerMenu != null) DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) { headerMenu(c) { menu = false } }
+                    }
+                }
+            }
+            LazyColumn(Modifier.fillMaxWidth()) {
+                items(t.rowCount) { r ->
+                    Row(Modifier.background(if (r % 2 == 1) colors.surfaceContainer else colors.surfaceContainerHigh)) {
+                        Box(Modifier.size(numW, 32.dp), contentAlignment = Alignment.Center) { Text("${r + 1}", style = mono.copy(fontSize = 11.sp, color = colors.onSurfaceVariant)) }
+                        (0 until n).forEach { c ->
+                            val raw = t.cell(c, r)
+                            val shown = if (com.example.cas.graph.Sheet.isFormula(raw)) t.value(c, r)?.let { com.example.cas.graph.DataTable.text(it) } ?: raw else raw
+                            Box(Modifier.size(cellW, 32.dp).padding(horizontal = 8.dp), contentAlignment = Alignment.CenterEnd) { Text(shown, style = mono, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                        }
+                    }
+                }
             }
         }
     }
+}
+
+/**
+ * The figure's table, whole, with what can be done with it: edit it (the full table editor),
+ * import a CSV, bring in the 2D graph's points or send the columns there as points, plot every
+ * column against the first, and, from a column's name, a layer of it.
+ */
+@Composable
+private fun DataPanel(t: com.example.cas.graph.DataTable, modifier: Modifier, onEdit: () -> Unit, onImport: (com.example.cas.graph.DataTable) -> Unit, onAdd: (Figure.Kind, List<Int>) -> Unit, onPlotAll: () -> Unit) {
+    val context = LocalContext.current
+    val colors = MaterialTheme.colorScheme
+    val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            val text = context.contentResolver.openInputStream(uri)!!.use { it.readBytes().toString(Charsets.UTF_8) }
+            onImport(com.example.cas.graph.DataTable.fromCsv(com.example.cas.graph.Csv.parse(text)))
+        }.onFailure { Toast.makeText(context, tr("Couldn't read that file as a table"), Toast.LENGTH_LONG).show() }
+    }
+    Column(modifier.padding(horizontal = 12.dp)) {
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            EditorChip(TableIcons.Edit, "Edit", onEdit)
+            EditorChip(TableIcons.ImportData, "Import CSV") { importer.launch(arrayOf("text/*", "application/csv", "*/*")) }
+            PlotsNav.graphPoints?.let { get ->
+                EditorChip(TableIcons.Mode2D, "From 2D graph") {
+                    val sets = get()
+                    if (sets.isEmpty()) Toast.makeText(context, tr("The 2D graph has no points or tables"), Toast.LENGTH_SHORT).show()
+                    else onImport(withPoints(t, sets))
+                }
+            }
+            PlotsNav.sendPoints?.let { send ->
+                EditorChip(TableIcons.External, "Send to 2D graph") {
+                    val xs = (0 until t.rowCount).map { t.value(0, it) ?: Double.NaN }
+                    val sets = (1 until t.names.size).map { c -> xs.indices.filter { xs[it].isFinite() && (t.value(c, it)?.isFinite() == true) }.let { k -> DoubleArray(k.size) { xs[k[it]] } to DoubleArray(k.size) { t.value(c, k[it])!! } } }.filter { it.first.isNotEmpty() }
+                    if (sets.isEmpty()) Toast.makeText(context, tr("Nothing to send: a column of x and at least one more"), Toast.LENGTH_SHORT).show()
+                    else { send(sets); Toast.makeText(context, tr("Added to the 2D graph: {0} sets of points", sets.size), Toast.LENGTH_SHORT).show() }
+                }
+            }
+            if (t.names.size >= 2) EditorChip(FigureIcons.of(Figure.Kind.Scatter), "Plot all", onPlotAll)
+        }
+        Text(tr("Tap a column's name for a layer of it."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp, bottom = 6.dp))
+        val first = t.names.getOrElse(0) { "x" }.ifBlank { "1st column" }
+        DataGrid(t, Modifier.weight(1f).fillMaxWidth().padding(bottom = 88.dp), onHeader = null, headerMenu = { c, done ->
+            @Composable fun item(label: String, kind: Figure.Kind, cols: List<Int>) =
+                DropdownMenuItem(text = { Text(label) }, leadingIcon = { AppIcon(FigureIcons.of(kind), null) }, onClick = { done(); onAdd(kind, cols) })
+            if (c > 0) {
+                item(tr("Scatter against {0}", first), Figure.Kind.Scatter, listOf(0, c))
+                item(tr("Line against {0}", first), Figure.Kind.Plot, listOf(0, c))
+                item(tr("Fitted curve against {0}", first), Figure.Kind.Fit, listOf(0, c))
+                item(tr("Bars"), Figure.Kind.Bar, listOf(c))
+            }
+            item(tr("Histogram"), Figure.Kind.Hist, listOf(c))
+            item(tr("Density curve"), Figure.Kind.Kde, listOf(c))
+            item(tr("Box plot"), Figure.Kind.Box, listOf(c))
+            item(tr("ECDF"), Figure.Kind.Ecdf, listOf(c))
+        })
+    }
+}
+
+/** [t] with each set of points added as two more columns. */
+private fun withPoints(t: com.example.cas.graph.DataTable, sets: List<Pair<DoubleArray, DoubleArray>>): com.example.cas.graph.DataTable {
+    val empty = t.columns.all { c -> c.all { it.isBlank() } }
+    val names = if (empty) ArrayList<String>() else ArrayList(t.names)
+    val cols = if (empty) ArrayList<List<String>>() else ArrayList(t.columns)
+    val pairs = listOf("x" to "y", "u" to "v", "p" to "q", "s" to "w") + ('a'..'h').map { "x$it" to "y$it" }
+    sets.forEach { (xs, ys) ->
+        val (a, b) = pairs.firstOrNull { (a, b) -> a !in names && b !in names } ?: return@forEach
+        names += a; names += b
+        cols += xs.map { com.example.cas.graph.DataTable.text(it) }; cols += ys.map { com.example.cas.graph.DataTable.text(it) }
+    }
+    val n = cols.maxOfOrNull { it.size } ?: 0
+    return com.example.cas.graph.DataTable(names, cols.map { it + List(n - it.size) { "" } }, null, null)
 }
 
 private val WIDTHS = listOf(0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0)
@@ -724,8 +841,8 @@ private fun nearest(list: List<Double>, v: Double) = list.indices.minByOrNull { 
  */
 @Composable
 private fun LayerEditor(
-    l: Figure.Layer, error: String?, color: Int?, columns: List<String>, onColumn: (String) -> Unit, onEditData: () -> Unit, onImport: (com.example.cas.graph.DataTable) -> Unit,
-    editors: List<Editor>, focus: Int?, version: Int,
+    l: Figure.Layer, error: String?, color: Int?, table: com.example.cas.graph.DataTable, onColumn: (Int) -> Unit, onEditData: () -> Unit, onImport: (com.example.cas.graph.DataTable) -> Unit,
+    texts: List<String>, onText: (Int, String) -> Unit,
     onFocus: (Int?) -> Unit, onChange: (Figure.Layer) -> Unit, onClose: () -> Unit, onMove: (Int) -> Unit, onDuplicate: () -> Unit, onDelete: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -756,21 +873,16 @@ private fun LayerEditor(
         }
         MathText(tr(l.kind.about), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
         PxHeader("Inputs")
-        editors.forEachIndexed { k, e -> InputField(l.kind.inputs[k], e, focus == k, version) { onFocus(k) } }
+        texts.forEachIndexed { k, t -> InputField(l.kind.inputs.getOrElse(k) { "" }, t, { onText(k, it) }) { onFocus(k) } }
         if (error != null) Text(tr(error), style = MaterialTheme.typography.bodyMedium, color = colors.error)
         l.kind.text?.let { name ->
             OutlinedTextField(l.text, { onChange(l.copy(text = it)) }, label = { Text(tr(name)) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                 supportingText = { Text(tr(if (name == "Labels") "Split by commas" else "\$math\$ between dollar signs")) })
         }
         PxHeader("Data")
-        if (columns.isNotEmpty()) Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            columns.forEach { c ->
-                Box(Modifier.height(36.dp).widthIn(min = 44.dp).clip(RoundedCornerShape(12.dp)).background(colors.secondaryContainer).clickable(onClickLabel = tr("Use {0}", c)) { onColumn(c) }.padding(horizontal = 14.dp), contentAlignment = Alignment.Center) {
-                    MathView(MathRow(c.map { Sym(it.toString()) }.toMutableList()), 18.sp, colors.onSecondaryContainer)
-                }
-            }
-        }
-        Text(tr(if (columns.isEmpty()) "The figure's table has no columns named with letters yet." else "Tap a column to type it into the input."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        // The whole table; a column's name puts it in the input being typed.
+        if (table.names.isNotEmpty() && table.rowCount > 0) DataGrid(table, Modifier.fillMaxWidth().heightIn(max = 280.dp), onHeader = onColumn)
+        Text(tr("Tap a column's name to put it in the input."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             EditorChip(TableIcons.Table, "Edit table", onEditData)
             EditorChip(TableIcons.ImportData, "Import CSV") { importer.launch(arrayOf("text/*", "application/csv", "*/*")) }

@@ -371,12 +371,27 @@ Add a graph
 Add a figure	
 Share figure	
 Discard	
+Column “{0}” is now {1}, so it can be typed	
+Layers	
+Data	
 Untitled figure	
 Add a layer	
 Tap to set its inputs	
 Search: histogram, violin, contour…	
-empty	
+e.g. sin(x), x^2/2, [1, 4, 9] or a column's letter	
 Couldn't read that file as a table	
+The 2D graph has no points or tables	
+Nothing to send: a column of x and at least one more	
+Added to the 2D graph: {0} sets of points	
+Tap a column's name for a layer of it.	
+Scatter against {0}	
+Line against {0}	
+Fitted curve against {0}	
+Bars	
+Histogram	
+Density curve	
+Box plot	
+Tap a column's name to put it in the input.	
 Look	
 Color, line and more	
 x label	
@@ -453,6 +468,7 @@ Double-tap a box to type into it with your keyboard (as upright text).
 Italic	
 Save and insert	
 Remove this symbol	
+empty	
 Written upright, as text (eff, max, ext…)	
 Welcome	
 A calculator that does algebra, calculus and graphs, and shows its working.	
@@ -665,7 +681,6 @@ Finish
 Unpin	
 Pin	
 Data table	
-Data	
 Change the filter…	
 Filter…	
 Show the ribbon	

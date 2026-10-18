@@ -203,6 +203,15 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (18 October, Plots inputs on the phone keyboard, the whole data table)
+
+- Layer inputs in Plots are now plain text fields that use the phone's own keyboard, the way you would type in a spreadsheet or Python: e^(-x/6)*sin(2x), x/2, sqrt(x), |x|, [1, 4, 9], pi, theta, 1.5e3, log(x, 2). A small rendered preview under each field shows how the text was read.
+- While you type, the preview shrinks so the field stays visible above the keyboard.
+- A Layers / Data switch sits under the toolbar. Data shows the figure's whole table: every row, with each column's name, mean and spread in the header.
+- Tap a column's name to plot it: as a scatter, line or fitted curve against the first column, or as bars, a histogram, a density, a box or an ECDF. Plot all makes one layer for every column.
+- Data has Edit, Import CSV, From 2D graph (takes the 2D graph's points and tables as columns) and Send to 2D graph (adds each column as a set of points against the first one).
+- A layer's own Data section shows the table too, and tapping a column there puts it into the layer. Columns get single-letter names automatically so expressions can use them.
+
 ## Latest changes (18 October, Plots from the 2D graph and saved graphs)
 
 - **Open as figure from the 2D graph's toolbar**: with Plots on, the button between the polar
