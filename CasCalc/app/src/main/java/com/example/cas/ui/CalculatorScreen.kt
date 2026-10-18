@@ -156,6 +156,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.cas.editor.MathRow
 import com.example.cas.editor.Const
 import com.example.cas.editor.row
 import com.example.cas.engine.AngleUnit
@@ -497,8 +498,10 @@ private fun InputPanel(vm: CalculatorViewModel) {
                 Spacer(Modifier.width(16.dp))
             }
         }
-        if (vm.selecting && vm.editor.hasSelection) SelectionHandles(vm, geometry, areaCoords)
-        else if (vm.cursorHandle && !vm.editor.hasSelection) CursorHandle(vm, geometry, areaCoords)
+        // The selection (or cursor) passed in, so the handles follow every change to it.
+        val ed = vm.editor
+        if (vm.selecting && ed.hasSelection) SelectionHandles(vm, geometry, areaCoords, ed.row, ed.selectionStart, ed.selectionEnd, vm.version)
+        else if (vm.cursorHandle && !ed.hasSelection) CursorHandle(vm, geometry, areaCoords, ed.row, ed.index, vm.version)
         }
         Box(Modifier.heightIn(min = 36.dp).horizontalScroll(rememberScrollState()), contentAlignment = Alignment.CenterEnd) {
             val error = vm.error
@@ -523,7 +526,7 @@ private fun InputPanel(vm: CalculatorViewModel) {
  * takes in whole structures as it needs to.
  */
 @Composable
-private fun SelectionHandles(vm: CalculatorViewModel, geometry: MathGeometry, area: androidx.compose.ui.layout.LayoutCoordinates?) {
+private fun SelectionHandles(vm: CalculatorViewModel, geometry: MathGeometry, area: androidx.compose.ui.layout.LayoutCoordinates?, row: MathRow, from: Int, to: Int, @Suppress("UNUSED_PARAMETER") version: Int) {
     val colors = MaterialTheme.colorScheme
     val density = LocalDensity.current
     val size = 22.dp
@@ -531,9 +534,11 @@ private fun SelectionHandles(vm: CalculatorViewModel, geometry: MathGeometry, ar
     @Suppress("UNUSED_EXPRESSION") geometry.tick
     val a = area?.takeIf { it.isAttached } ?: return
     val origin = a.positionInRoot()
-    val ed = vm.editor
     listOf(true, false).forEach { start ->
-        val caret = geometry.caret(ed.row, if (start) ed.selectionStart else ed.selectionEnd) ?: return@forEach
+        val caretOrNull = geometry.caret(row, if (start) from else to)
+        // Kept for the drag in progress (its gesture outlives this composition).
+        val latest = androidx.compose.runtime.rememberUpdatedState(caretOrNull)
+        val caret = caretOrNull ?: return@forEach
         val local = caret - origin
         if (local.x < -sizePx || local.x > a.size.width + sizePx) return@forEach
         // Dragged from where it was grabbed; the place is read just above the handle's tip.
@@ -545,14 +550,15 @@ private fun SelectionHandles(vm: CalculatorViewModel, geometry: MathGeometry, ar
                 .size(size)
                 .pointerInput(start) {
                     detectDragGestures(
-                        onDragStart = { grab = caret; drag = Offset.Zero },
+                        onDragStart = { grab = latest.value; drag = Offset.Zero; vm.beginHandleDrag(start) },
                         onDragEnd = { grab = null },
                         onDragCancel = { grab = null },
                     ) { change, d ->
                         change.consume()
                         drag += d
-                        val tip = (grab ?: caret) + drag - Offset(0f, with(density) { 14.dp.toPx() })
-                        geometry.hit(tip)?.let { (row, index) -> vm.dragHandle(start, row, index) }
+                        val g = grab ?: return@detectDragGestures
+                        val tip = g + drag - Offset(0f, with(density) { 14.dp.toPx() })
+                        geometry.hit(tip)?.let { (r, index) -> vm.dragHandle(r, index) }
                     }
                 },
         ) {
@@ -567,14 +573,16 @@ private fun SelectionHandles(vm: CalculatorViewModel, geometry: MathGeometry, ar
 
 /** The teardrop under the cursor after a tap: drag it to move the cursor anywhere; tap it for Paste. */
 @Composable
-private fun CursorHandle(vm: CalculatorViewModel, geometry: MathGeometry, area: androidx.compose.ui.layout.LayoutCoordinates?) {
+private fun CursorHandle(vm: CalculatorViewModel, geometry: MathGeometry, area: androidx.compose.ui.layout.LayoutCoordinates?, row: MathRow, index: Int, @Suppress("UNUSED_PARAMETER") version: Int) {
     val colors = MaterialTheme.colorScheme
     val density = LocalDensity.current
     val size = 22.dp
     val sizePx = with(density) { size.toPx() }
     @Suppress("UNUSED_EXPRESSION") geometry.tick
     val a = area?.takeIf { it.isAttached } ?: return
-    val caret = geometry.caret(vm.editor.row, vm.editor.index) ?: return
+    val caretOrNull = geometry.caret(row, index)
+    val latest = androidx.compose.runtime.rememberUpdatedState(caretOrNull)
+    val caret = caretOrNull ?: return
     val local = caret - a.positionInRoot()
     if (local.x < -sizePx || local.x > a.size.width + sizePx) return
     var drag by remember { mutableStateOf(Offset.Zero) }
@@ -585,11 +593,12 @@ private fun CursorHandle(vm: CalculatorViewModel, geometry: MathGeometry, area: 
             .size(size)
             .pointerInput(Unit) { detectTapGestures { vm.showPasteBar() } }
             .pointerInput(Unit) {
-                detectDragGestures(onDragStart = { grab = caret; drag = Offset.Zero }, onDragEnd = { grab = null }, onDragCancel = { grab = null }) { change, d ->
+                detectDragGestures(onDragStart = { grab = latest.value; drag = Offset.Zero }, onDragEnd = { grab = null }, onDragCancel = { grab = null }) { change, d ->
                     change.consume()
                     drag += d
-                    val tip = (grab ?: caret) + drag - Offset(0f, with(density) { 14.dp.toPx() })
-                    geometry.hit(tip)?.let { (row, index) -> vm.moveCursorTo(row, index) }
+                    val g = grab ?: return@detectDragGestures
+                    val tip = g + drag - Offset(0f, with(density) { 14.dp.toPx() })
+                    geometry.hit(tip)?.let { (r, i) -> vm.moveCursorTo(r, i) }
                 }
             },
     ) {

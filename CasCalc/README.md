@@ -203,6 +203,15 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (18 October, selection handles fixed)
+
+- **Handles follow the selection**: they were drawn where the selection first was, so after
+  dragging, typing or Select all they sat in the wrong place (and the cursor's handle off to
+  the side of the cursor). They now move with every change.
+- **Smooth dragging, both ways**: a drag starts from where the handle really is, and the
+  handles can cross each other, so you can select backwards, leftwards or into what's before
+  the other handle, as in Android's text fields.
+
 ## Latest changes (18 October, holding and dragging to select, cursor handle)
 
 - **Holding the input works again**: the math's own taps were taking the touch, so a long press

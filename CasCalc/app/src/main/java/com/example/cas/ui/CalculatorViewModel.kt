@@ -294,11 +294,20 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
     fun endSelection() { editor.clearSelection(); selecting = false; selA = null; selB = null; word = null }
 
     /** A handle dragged to (row, index): [start] true for the selection's start handle. */
-    fun dragHandle(start: Boolean, row: MathRow, index: Int) {
-        if (selA == null || selB == null) return
+    /** Which placed end the handle being dragged moves (decided when the drag starts, so ends can cross). */
+    private var movingA = true
+
+    /** A handle grabbed: [start] true for the selection's start handle. */
+    fun beginHandleDrag(start: Boolean) {
         // The editor's anchor is always on A's side (selections are made from A to B).
         val aFirst = (editor.anchor ?: editor.selectionStart) == editor.selectionStart
-        if (start == aFirst) selA = row to index else selB = row to index
+        movingA = start == aFirst
+    }
+
+    /** The grabbed handle at (row, index): its end moves there, the other stays; they may cross. */
+    fun dragHandle(row: MathRow, index: Int) {
+        if (selA == null || selB == null) return
+        if (movingA) selA = row to index else selB = row to index
         val a = selA!!; val b = selB!!
         editor.selectBetween(a.first, a.second, b.first, b.second)
     }
