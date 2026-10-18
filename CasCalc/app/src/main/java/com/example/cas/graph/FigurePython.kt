@@ -91,6 +91,7 @@ object FigurePython {
             }
         }
         appendLine()
+        if (d.rotation != 0) appendLine("# Turned ${d.rotation * 90}° clockwise in the app: matplotlib draws it upright, so turn the saved file to match.")
         appendLine("fig.savefig(\"figure.pdf\")")
         appendLine("plt.show()")
     }

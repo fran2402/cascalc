@@ -513,7 +513,7 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
     }
     if (dataOpen) DataTableEditor(doc.data, key = doc.id + "data", onSave = { change(doc.copy(data = it)) }, onDismiss = { dataOpen = false }, roles = false)
 
-    val ratio = (1 / doc.aspect).toFloat().coerceIn(0.5f, 3f)
+    val ratio = (if (doc.rotation % 2 == 1) doc.aspect.toFloat() else 1 / doc.aspect.toFloat()).coerceIn(0.33f, 3f)
 
     /**
      * The figure, fitted into its box. With several axes: tap one to edit it (it's outlined), and
@@ -528,9 +528,20 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
             val (cells, cols, rows) = Figure.cells(doc.layout)
             if (cells.size > 1) {
                 // Scene (480 wide) to screen, as FigureCanvas fits it.
-                class Fit(val k: Float, val dx: Float, val dy: Float, val sw: Float, val sh: Float)
+                class Fit(val k: Float, val dx: Float, val dy: Float, val sw: Float, val sh: Float) {
+                    // The figure as drawn upright (480 wide), and the turn it's shown with.
+                    val q = Math.floorMod(latest.value.rotation, 4)
+                    val w0 = 480.0; val h0 = 480.0 * latest.value.aspect.coerceIn(0.3, 2.0)
+                    /** A point of the upright figure where it shows on screen. */
+                    fun out(x: Double, y: Double): Offset { val (a, b) = when (q) { 1 -> (h0 - y) to x; 2 -> (w0 - x) to (h0 - y); 3 -> y to (w0 - x); else -> x to y }; return Offset(dx + a.toFloat() * k, dy + b.toFloat() * k) }
+                    /** A point on screen as a point of the upright figure. */
+                    fun back(p: Offset): Pair<Double, Double> { val a = ((p.x - dx) / k).toDouble(); val b = ((p.y - dy) / k).toDouble(); return when (q) { 1 -> b to (h0 - a); 2 -> (w0 - a) to (h0 - b); 3 -> (w0 - b) to a; else -> a to b } }
+                }
                 fun fit(w: Float, h: Float): Fit {
-                    val sw = 480f; val sh = 480f * latest.value.aspect.coerceIn(0.3, 2.0).toFloat()
+                    // Turned a quarter: the box it's fitted into is the other way round.
+                    val sw0 = 480f; val sh0 = 480f * latest.value.aspect.coerceIn(0.3, 2.0).toFloat()
+                    val odd = latest.value.rotation % 2 == 1
+                    val sw = if (odd) sh0 else sw0; val sh = if (odd) sw0 else sh0
                     val k = minOf(w / sw, h / sh)
                     return Fit(k, (w - sw * k) / 2, (h - sh * k) / 2, sw, sh)
                 }
@@ -539,7 +550,7 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                     .pointerInput(Unit) {
                         detectTapGestures { p ->
                             val f = fit(size.width.toFloat(), size.height.toFloat())
-                            val sx = (p.x - f.dx) / f.k; val sy = (p.y - f.dy) / f.k
+                            val (sx, sy) = f.back(p)
                             val hit = Figure.cellBoxes(latest.value).indexOfFirst { b -> sx >= b[0] && sx <= b[0] + b[2] && sy >= b[1] && sy <= b[1] + b[3] }
                             if (hit >= 0) { axesAt = hit; selected = null }
                         }
@@ -547,8 +558,10 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                     .pointerInput(Unit) {
                         val reach = with(density) { 22.dp.toPx() }
                         detectDragGestures(
-                            onDragStart = { p ->
+                            onDragStart = start@{ p ->
                                 val d = latest.value
+                                // Turned figures keep their cell sizes (resize them upright).
+                                if (d.rotation % 4 != 0) { dragging = null; return@start }
                                 val f = fit(size.width.toFloat(), size.height.toFloat())
                                 val (xe, ye) = Figure.edges(d)
                                 val top = Figure.titleSpace(d).toFloat()
@@ -576,8 +589,9 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                     // The open axes outlined, inside its cell so no edge is cut off.
                     Figure.cellBoxes(d).getOrNull(axesAt)?.let { b ->
                         val inset = 5.dp.toPx(); val sw = 2.dp.toPx()
-                        val l = f.dx + b[0].toFloat() * f.k + inset; val t = f.dy + b[1].toFloat() * f.k + inset
-                        val r = f.dx + (b[0] + b[2]).toFloat() * f.k - inset; val btm = f.dy + (b[1] + b[3]).toFloat() * f.k - inset
+                        val p1 = f.out(b[0], b[1]); val p2 = f.out(b[0] + b[2], b[1] + b[3])
+                        val l = minOf(p1.x, p2.x) + inset; val t = minOf(p1.y, p2.y) + inset
+                        val r = maxOf(p1.x, p2.x) - inset; val btm = maxOf(p1.y, p2.y) - inset
                         drawRoundRect(colors.primary, Offset(l, t), androidx.compose.ui.geometry.Size(r - l, btm - t),
                             androidx.compose.ui.geometry.CornerRadius(14.dp.toPx(), 14.dp.toPx()), style = Stroke(sw, pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f))))
                     }
@@ -1620,7 +1634,11 @@ private fun FigureSettings(d: Figure.Doc, onChange: (Figure.Doc) -> Unit) {
     }
     PxHeader("Shape")
     val shapes = listOf(0.5, 0.667, 0.75, 1.0, 1.3)
-    PxCards({ PxChoiceRow("Height", listOf("2 : 1", "3 : 2", "4 : 3", "1 : 1", "3 : 4"), nearest(shapes, d.aspect)) { onChange(d.copy(aspect = shapes[it])) } })
+    PxCards(
+        { PxChoiceRow("Height", listOf("2 : 1", "3 : 2", "4 : 3", "1 : 1", "3 : 4"), nearest(shapes, d.aspect)) { onChange(d.copy(aspect = shapes[it])) } },
+        // The whole figure turned, axes, labels and all (in the app and in every export).
+        { PxChoiceRow("Rotation", listOf("0°", "90°", "180°", "270°"), Math.floorMod(d.rotation, 4)) { onChange(d.copy(rotation = it)) } },
+    )
     PxHeader("Style")
     // As the colormaps: a card each, a little plot in the style's colors over its name.
     val app = appFigureTheme()

@@ -161,11 +161,13 @@ object Figure {
         val aspect: Double = 0.75, val data: DataTable = emptyData(), val edited: Long = 0L, val name: String = "",
         /** The layout's columns' and rows' shares of the width and height (empty or mismatched: equal). */
         val widths: List<Double> = emptyList(), val heights: List<Double> = emptyList(),
+        /** The whole figure turned clockwise, in quarter turns (0 to 3). */
+        val rotation: Int = 0,
     ) {
         fun copy(title: String = this.title, axes: List<Axes> = this.axes, layout: String = this.layout, theme: Int = this.theme,
                  aspect: Double = this.aspect, data: DataTable = this.data, edited: Long = this.edited, name: String = this.name,
-                 widths: List<Double> = this.widths, heights: List<Double> = this.heights) =
-            Doc(id, title, axes, layout, theme, aspect, data, edited, name, widths, heights)
+                 widths: List<Double> = this.widths, heights: List<Double> = this.heights, rotation: Int = this.rotation) =
+            Doc(id, title, axes, layout, theme, aspect, data, edited, name, widths, heights, rotation)
     }
 
     /** Whether [name] can be typed as a column's name: a letter, then letters, digits or _ (x, freq, Signal, amp_2). */
@@ -462,6 +464,7 @@ object Figure {
         appendLine("layout\t" + esc(d.layout))
         appendLine("theme\t" + d.theme)
         appendLine("aspect\t" + d.aspect)
+        if (d.rotation != 0) appendLine("rotation\t" + d.rotation)
         appendLine("edited\t" + d.edited)
         appendLine("data\t" + esc(d.data.encode()))
         if (d.widths.isNotEmpty() || d.heights.isNotEmpty()) appendLine("ratios\t" + d.widths.joinToString(",") + "\t" + d.heights.joinToString(","))
@@ -484,7 +487,7 @@ object Figure {
         require(lines.firstOrNull()?.trim() == MAGIC) { "Not a figure file" }
         var title = ""; var name = ""; var layout = "A"; var theme = 0; var aspect = 0.75; var edited = 0L
         var data = emptyData()
-        var widths = emptyList<Double>(); var heights = emptyList<Double>()
+        var widths = emptyList<Double>(); var heights = emptyList<Double>(); var rotation = 0
         // Files before format 2 had y before x and the fields' functions first.
         var format = 1
         val axes = ArrayList<Axes>()
@@ -502,6 +505,7 @@ object Figure {
                 "layout" -> layout = s(1).ifBlank { "A" }
                 "theme" -> theme = i(1, 0)
                 "aspect" -> aspect = d(1) ?: 0.75
+                "rotation" -> rotation = Math.floorMod(i(1, 0), 4)
                 "edited" -> edited = f.getOrNull(1)?.toLongOrNull() ?: 0L
                 "data" -> data = DataTable.decode(s(1)) ?: emptyData()
                 "ratios" -> { widths = s(1).split(',').mapNotNull { it.toDoubleOrNull() }; heights = s(2).split(',').mapNotNull { it.toDoubleOrNull() } }
@@ -540,7 +544,7 @@ object Figure {
             }
         }
         val all = axes.mapIndexed { k, a -> a.copy(layers = layers[k]) }
-        return withLayout(Doc(id, title, all, layout, theme, aspect, data, edited, name, widths, heights), layout)
+        return withLayout(Doc(id, title, all, layout, theme, aspect, data, edited, name, widths, heights, rotation), layout)
     }
 
     // ---- Inputs as values ---------------------------------------------------------------------
@@ -1368,7 +1372,8 @@ object Figure {
             worked += w
             drawAxes(scene, w, theme, box[0], box[1], box[2], box[3])
         }
-        return Built(scene, worked)
+        // Turned as a whole: axes, labels and all.
+        return Built(scene.rotated(d.rotation), worked)
     }
 
     /** Where the layout's columns and rows start and end, as shares (0 … 1) of the width and of the height under the title. */

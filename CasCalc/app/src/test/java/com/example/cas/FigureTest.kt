@@ -215,6 +215,21 @@ class FigureTest {
         assertEquals(xs.map { it.toDouble() }, l.series.single().first.toList())
     }
 
+    @Test fun wholeFigureTurns() {
+        val d = doc(Figure.Layer(Kind.Scatter, listOf(m("h"), m("w")))).copy(rotation = 1, aspect = 0.5)
+        val up = Figure.build(d.copy(rotation = 0), eval, app).scene
+        val turned = Figure.build(d, eval, app).scene
+        assertEquals(up.height, turned.width, 1e-9); assertEquals(up.width, turned.height, 1e-9)
+        // A label keeps its place on the figure, a quarter turn round.
+        val a = up.items.filterIsInstance<com.example.cas.graph.Scene.Label>().first()
+        val b = turned.items.filterIsInstance<com.example.cas.graph.Scene.Label>().first()
+        assertEquals(up.height - a.y, b.x, 1e-9); assertEquals(a.x, b.y, 1e-9); assertEquals(a.angle - 90, b.angle, 1e-9)
+        // Pixels turn too: 2 wide × 1 high [p, q] turned clockwise is 1 wide × 2 high [p; q].
+        val img = com.example.cas.graph.Scene(2.0, 1.0, 0).apply { add(com.example.cas.graph.Scene.Image(0.0, 0.0, 2.0, 1.0, intArrayOf(1, 2), 2, 1)) }.rotated(1).items.single() as com.example.cas.graph.Scene.Image
+        assertEquals(listOf(1, 2), img.pixels.toList()); assertEquals(1, img.pixelWidth); assertEquals(2, img.pixelHeight)
+        assertEquals(1, Figure.decode("t", Figure.encode(d)).rotation)
+    }
+
     @Test fun ownFitModelsColorbarLabelsAndCellSizes() {
         val xs = (0..12).map { it * 0.5 }
         val t = DataTable(listOf("a", "b"), listOf(xs.map { "$it" }, xs.map { "${3 * kotlin.math.exp(-0.7 * it) + 1}" }), null, null)

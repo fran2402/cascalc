@@ -203,6 +203,12 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (18 October, Plots: turn the whole figure)
+
+- Figure settings have a Rotation choice: 0°, 90°, 180° or 270° clockwise. It turns the whole figure (axes, numbers, labels, legend, colorbar and heat map pixels), in the preview and in the image, SVG and PDF exports. A quarter turn swaps its width and height.
+- Tapping an axes in a turned figure still picks it, and the outline follows the turn. Cell sizes are resized with the figure upright.
+- The Python export draws the figure upright and says how far to turn the saved file.
+
 ## Latest changes (18 October, Plots: colored split chips, x first everywhere, fields from columns, finer sliders, arrows)
 
 - Each table column has its own color, used everywhere. A column shows as a split chip: its color with a small table icon, then its name on a tone of that color. The same chips appear in input fields, in the read-as line, in the layer list, as the column buttons, and as the table's column headers.
