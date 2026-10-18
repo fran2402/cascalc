@@ -418,14 +418,12 @@ private fun InputPanel(vm: CalculatorViewModel) {
         if (vm.editor.row === vm.editor.root && vm.editor.index == vm.editor.root.items.size) scroll.animateScrollTo(scroll.maxValue)
     }
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
-    // The cursor's handle fades after a few seconds untouched, as Android's does.
-    LaunchedEffect(vm.cursorHandle, vm.version) { if (vm.cursorHandle) { kotlinx.coroutines.delay(4000); vm.cursorHandle = false } }
     // Where every row of the input is on screen: for holding to select at a place, and the handles.
     val geometry = remember { MathGeometry() }
     var boxCoords by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
     var areaCoords by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
     Column(Modifier.fillMaxWidth().tourTarget("input").padding(horizontal = 24.dp, vertical = 8.dp), horizontalAlignment = Alignment.End) {
-        if (vm.selecting) SelectionBar(vm)
+        if (vm.selection.selecting) SelectionBar(vm.selection)
         // Where the math sits in its box, so a tap beside it (the space to its left, or just past
         // its end) puts the cursor at the start or the end of the line.
         var mathLeft by remember { mutableStateOf(0f) }
@@ -436,35 +434,8 @@ private fun InputPanel(vm: CalculatorViewModel) {
                 .fillMaxWidth()
                 .horizontalScroll(scroll)
                 .onGloballyPositioned { boxCoords = it }
-                // Holding: seen before the math's own taps (which would otherwise take the touch).
-                // Held still: the number, letter or piece there is selected; dragging on while
-                // still holding extends the selection, as in any Android text field.
-                .pointerInput(Unit) {
-                    awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                        var released = false
-                        val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-                            while (true) {
-                                val c = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: run { released = true; return@withTimeoutOrNull }
-                                if (!c.pressed) { released = true; return@withTimeoutOrNull }
-                                if ((c.position - down.position).getDistance() > viewConfiguration.touchSlop) { released = true; return@withTimeoutOrNull }
-                            }
-                        }
-                        // A tap or a scroll: left to the math and the scrolling.
-                        if (released || held != null) return@awaitEachGesture
-                        fun place(p: Offset) = boxCoords?.takeIf { it.isAttached }?.let { geometry.hit(it.localToRoot(p)) }
-                        haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                        val at = place(down.position)
-                        vm.startSelection(at?.first, at?.second ?: 0)
-                        down.consume()
-                        while (true) {
-                            val c = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
-                            c.consume()
-                            if (!c.pressed) break
-                            if (at != null) place(c.position)?.let { (r, i) -> vm.dragSelect(r, i) }
-                        }
-                    }
-                }
+                // Hold to select the piece there (dragging on extends it), as in any Android text field.
+                .holdToSelect(vm.selection, geometry, { boxCoords }) { haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress) }
                 .pointerInput(Unit) {
                     detectTapGestures { o ->
                         val root = vm.editor.root
@@ -498,10 +469,7 @@ private fun InputPanel(vm: CalculatorViewModel) {
                 Spacer(Modifier.width(16.dp))
             }
         }
-        // The selection (or cursor) passed in, so the handles follow every change to it.
-        val ed = vm.editor
-        if (vm.selecting && ed.hasSelection) SelectionHandles(vm, geometry, areaCoords, ed.row, ed.selectionStart, ed.selectionEnd, vm.version)
-        else if (vm.cursorHandle && !ed.hasSelection) CursorHandle(vm, geometry, areaCoords, ed.row, ed.index, vm.version)
+        SelectionOverlay(vm.selection, vm.editor, geometry, areaCoords, vm.version)
         }
         Box(Modifier.heightIn(min = 36.dp).horizontalScroll(rememberScrollState()), contentAlignment = Alignment.CenterEnd) {
             val error = vm.error
@@ -517,122 +485,6 @@ private fun InputPanel(vm: CalculatorViewModel) {
                 }
             }
         }
-    }
-}
-
-/**
- * The two teardrop handles under the selection's ends, as in any Android text field: drag one
- * to move that end anywhere in the expression (into a fraction, past a root…); the selection
- * takes in whole structures as it needs to.
- */
-@Composable
-private fun SelectionHandles(vm: CalculatorViewModel, geometry: MathGeometry, area: androidx.compose.ui.layout.LayoutCoordinates?, row: MathRow, from: Int, to: Int, @Suppress("UNUSED_PARAMETER") version: Int) {
-    val colors = MaterialTheme.colorScheme
-    val density = LocalDensity.current
-    val size = 22.dp
-    val sizePx = with(density) { size.toPx() }
-    @Suppress("UNUSED_EXPRESSION") geometry.tick
-    val a = area?.takeIf { it.isAttached } ?: return
-    val origin = a.positionInRoot()
-    listOf(true, false).forEach { start ->
-        val caretOrNull = geometry.caret(row, if (start) from else to)
-        // Kept for the drag in progress (its gesture outlives this composition).
-        val latest = androidx.compose.runtime.rememberUpdatedState(caretOrNull)
-        val caret = caretOrNull ?: return@forEach
-        val local = caret - origin
-        if (local.x < -sizePx || local.x > a.size.width + sizePx) return@forEach
-        // Dragged from where it was grabbed; the place is read just above the handle's tip.
-        var drag by remember(start) { mutableStateOf(Offset.Zero) }
-        var grab by remember(start) { mutableStateOf<Offset?>(null) }
-        Canvas(
-            Modifier
-                .offset { androidx.compose.ui.unit.IntOffset((local.x - if (start) sizePx else 0f).toInt(), local.y.toInt()) }
-                .size(size)
-                .pointerInput(start) {
-                    detectDragGestures(
-                        onDragStart = { grab = latest.value; drag = Offset.Zero; vm.beginHandleDrag(start) },
-                        onDragEnd = { grab = null },
-                        onDragCancel = { grab = null },
-                    ) { change, d ->
-                        change.consume()
-                        drag += d
-                        val g = grab ?: return@detectDragGestures
-                        val tip = g + drag - Offset(0f, with(density) { 14.dp.toPx() })
-                        geometry.hit(tip)?.let { (r, index) -> vm.dragHandle(r, index) }
-                    }
-                },
-        ) {
-            // A circle with one square corner pointing up at the selection's edge.
-            val r = this.size.width / 2
-            drawCircle(colors.primary, r, Offset(r, r))
-            if (start) drawRect(colors.primary, Offset(r, 0f), androidx.compose.ui.geometry.Size(r, r))
-            else drawRect(colors.primary, Offset(0f, 0f), androidx.compose.ui.geometry.Size(r, r))
-        }
-    }
-}
-
-/** The teardrop under the cursor after a tap: drag it to move the cursor anywhere; tap it for Paste. */
-@Composable
-private fun CursorHandle(vm: CalculatorViewModel, geometry: MathGeometry, area: androidx.compose.ui.layout.LayoutCoordinates?, row: MathRow, index: Int, @Suppress("UNUSED_PARAMETER") version: Int) {
-    val colors = MaterialTheme.colorScheme
-    val density = LocalDensity.current
-    val size = 22.dp
-    val sizePx = with(density) { size.toPx() }
-    @Suppress("UNUSED_EXPRESSION") geometry.tick
-    val a = area?.takeIf { it.isAttached } ?: return
-    val caretOrNull = geometry.caret(row, index)
-    val latest = androidx.compose.runtime.rememberUpdatedState(caretOrNull)
-    val caret = caretOrNull ?: return
-    val local = caret - a.positionInRoot()
-    if (local.x < -sizePx || local.x > a.size.width + sizePx) return
-    var drag by remember { mutableStateOf(Offset.Zero) }
-    var grab by remember { mutableStateOf<Offset?>(null) }
-    Canvas(
-        Modifier
-            .offset { androidx.compose.ui.unit.IntOffset((local.x - sizePx / 2).toInt(), local.y.toInt()) }
-            .size(size)
-            .pointerInput(Unit) { detectTapGestures { vm.showPasteBar() } }
-            .pointerInput(Unit) {
-                detectDragGestures(onDragStart = { grab = latest.value; drag = Offset.Zero }, onDragEnd = { grab = null }, onDragCancel = { grab = null }) { change, d ->
-                    change.consume()
-                    drag += d
-                    val g = grab ?: return@detectDragGestures
-                    val tip = g + drag - Offset(0f, with(density) { 14.dp.toPx() })
-                    geometry.hit(tip)?.let { (r, i) -> vm.moveCursorTo(r, i) }
-                }
-            },
-    ) {
-        // A circle with a point at the top: Android's insertion handle.
-        val r = this.size.width / 2
-        drawCircle(colors.primary, r, Offset(r, r * 1.1f))
-        drawPath(androidx.compose.ui.graphics.Path().apply { moveTo(r, 0f); lineTo(r * 1.75f, r * 0.75f); lineTo(r * 0.25f, r * 0.75f); close() }, colors.primary)
-    }
-}
-
-/**
- * Shown while selecting in the input (after holding it): select all, cut, copy and paste, and ×
- * to stop. While it shows, a tap in the math (or ◀ ▶) moves the selection's end; any key replaces
- * what's selected.
- */
-@Composable
-private fun SelectionBar(vm: CalculatorViewModel) {
-    val colors = MaterialTheme.colorScheme
-    @Suppress("DEPRECATION") val clipboard = LocalClipboardManager.current
-    Row(
-        Modifier.padding(bottom = 4.dp).clip(RoundedCornerShape(20.dp)).background(colors.surfaceContainerHighest).horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        @Composable fun act(label: String, icon: ImageVector, enabled: Boolean = true, onClick: () -> Unit) =
-            TextButton(onClick = onClick, enabled = enabled) {
-                AppIcon(icon, contentDescription = null, tint = if (enabled) colors.primary else colors.outline, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp)); Text(tr(label))
-            }
-        val has = vm.editor.hasSelection
-        act("Select all", TableIcons.SelectAll) { vm.selectAll() }
-        act("Cut", TableIcons.Cut, has) { vm.cutSelection()?.let { clipboard.setText(androidx.compose.ui.text.AnnotatedString(it)) } }
-        act("Copy", TableIcons.Copy, has) { vm.copySelection()?.let { clipboard.setText(androidx.compose.ui.text.AnnotatedString(it)) }; vm.endSelection() }
-        act("Paste", TableIcons.Paste, clipboard.hasText()) { vm.paste(clipboard.getText()?.text) }
-        IconButton(onClick = { vm.endSelection() }) { AppIcon(TableIcons.Close, contentDescription = tr("Done selecting"), tint = colors.onSurfaceVariant) }
     }
 }
 

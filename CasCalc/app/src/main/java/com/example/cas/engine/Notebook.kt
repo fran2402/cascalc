@@ -30,6 +30,8 @@ object Notebook {
          * (mean(x), sd(y)…). [plot] draws the second and later columns against the first.
          */
         class Table(id: Long, val table: com.example.cas.graph.DataTable, val plot: Boolean = false) : Block(id)
+        /** A figure made in the Plots mode's editor, drawn with the definitions above it. */
+        class Figure(id: Long, val doc: com.example.cas.graph.Figure.Doc) : Block(id)
     }
 
     class Doc(val id: String, val title: String, val blocks: List<Block>, val edited: Long)
@@ -59,6 +61,7 @@ object Notebook {
             is Block.Math -> "M\t${b.id}\t" + esc(MathCodec.encode(b.row))
             is Block.Graph -> "G\t${b.id}\t" + esc(MathCodec.encode(b.row)) + "\t" + esc(MathCodec.encode(b.from)) + "\t" + esc(MathCodec.encode(b.to))
             is Block.Table -> "D\t${b.id}\t${if (b.plot) 1 else 0}\t" + esc("v2\n" + b.table.encode())
+            is Block.Figure -> "F\t${b.id}\t" + esc(com.example.cas.graph.Figure.encode(b.doc))
         })
     }
 
@@ -74,6 +77,7 @@ object Notebook {
                 "title" -> title = unesc(f.getOrElse(1) { "" })
                 "edited" -> edited = f.getOrNull(1)?.toLongOrNull() ?: 0L
                 "T" -> blocks += Block.Text(f[1].toLong(), unesc(f.getOrElse(2) { "" }))
+                "F" -> runCatching { com.example.cas.graph.Figure.decode("nb" + f[1], unesc(f.getOrElse(2) { "" })) }.getOrNull()?.let { blocks += Block.Figure(f[1].toLong(), it) }
                 "M" -> blocks += Block.Math(f[1].toLong(), MathCodec.decode(unesc(f.getOrElse(2) { "" })))
                 "G" -> blocks += Block.Graph(f[1].toLong(), MathCodec.decode(unesc(f.getOrElse(2) { "" })), limit(f.getOrNull(3)), limit(f.getOrNull(4)))
                 "D" -> {
@@ -130,7 +134,16 @@ object Notebook {
                /** A table's points: for each later column, its values against the first column's. */
                val points: List<Pair<DoubleArray, DoubleArray>> = emptyList())
 
-    class Run(val outcomes: Map<Long, Outcome>, val plots: Map<Long, Plot>)
+    class Run(val outcomes: Map<Long, Outcome>, val plots: Map<Long, Plot>,
+              /** For each figure: the letters and functions defined above it. */
+              val scopes: Map<Long, Pair<Map<String, Expr>, Map<String, UserFunction>>> = emptyMap()) {
+        /** How a figure's inputs are worked out: its table's columns, then the definitions above it. */
+        fun figureEval(b: Block.Figure, angle: AngleUnit = AngleUnit.Radians): (MathRow) -> Expr {
+            val (vars, fns) = scopes[b.id] ?: (emptyMap<String, Expr>() to emptyMap())
+            val all = vars + com.example.cas.graph.Figure.tableVariables(b.doc.data)
+            return com.example.cas.graph.Figure.withFallback(all) { v, row -> Evaluator(angle, null, v, functions = fns).evaluate(com.example.cas.editor.trimMatrices(MathCodec.copy(row))) }
+        }
+    }
 
     /** Splits [row] at its top-level commas. */
     private fun commaParts(row: MathRow): List<MathRow> {
@@ -157,6 +170,7 @@ object Notebook {
         var ans: Expr? = null
         val outcomes = HashMap<Long, Outcome>()
         val plots = HashMap<Long, Plot>()
+        val scopes = HashMap<Long, Pair<Map<String, Expr>, Map<String, UserFunction>>>()
         fun evaluator() = Evaluator(angle, ans, variables.toMap(), units, coordinates, functions.toMap(), solveEquations = true)
         for (b in blocks) when (b) {
             is Block.Text -> Unit
@@ -190,6 +204,7 @@ object Notebook {
                 }
             }
             is Block.Graph -> plots[b.id] = plot(b, evaluator())
+            is Block.Figure -> scopes[b.id] = variables.toMap() to functions.toMap()
             is Block.Table -> {
                 val ev = evaluator()
                 val t = b.table
@@ -216,7 +231,7 @@ object Notebook {
                 }
             }
         }
-        return Run(outcomes, plots)
+        return Run(outcomes, plots, scopes)
     }
 
     private const val POINTS = 240
@@ -274,6 +289,11 @@ object Notebook {
         appendLine()
         for (b in d.blocks) when (b) {
             is Block.Text -> { append(Markdown.latex(Markdown.parse(b.text))); appendLine() }
+            is Block.Figure -> {
+                // The figure itself comes with the PDF; here, its title and where it's drawn from.
+                appendLine("\\begin{center}\\fbox{\\parbox{0.8\\textwidth}{\\centering Figure: ${texText(b.doc.name.ifBlank { b.doc.title.ifBlank { "untitled" } })}\\\\ \\small (share it from the Plots mode as PDF, SVG or a matplotlib script)}}\\end{center}")
+                appendLine()
+            }
             is Block.Table -> {
                 val t = b.table
                 val n = t.names.size

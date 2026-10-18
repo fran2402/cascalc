@@ -197,7 +197,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
         },
         Category("Graphs", TableIcons.Mode2D, 8, 1,
             summary = { listOfNotNull(tr("Grid").takeIf { AppSettings.showGrid }, tr("legend").takeIf { AppSettings.showLegend }, tr("marked points").takeIf { AppSettings.specialPoints }).joinToString(", ").ifEmpty { tr("Plain") } },
-            keywords = listOf("Starting view", "Grid lines", "Numbers on the axes", "Ticks", "Legend", "Mark points on curves", "Zeros", "Detail", "Quality", "2D fields", "3D surfaces", "Complex plots"),
+            keywords = listOf("Starting view", "Grid lines", "Numbers on the axes", "Plots", "Figures", "matplotlib", "Ticks", "Legend", "Mark points on curves", "Zeros", "Detail", "Quality", "2D fields", "3D surfaces", "Complex plots"),
         ) {
             PxHeader("Display")
             PxCards(
@@ -207,6 +207,8 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 { PxToggleRow("Legend", "Each line's name in the corner, and in exports. Hold a line to rename it", AppSettings.showLegend, AppSettings::changeShowLegend) },
                 { PxToggleRow("Mark points on curves", "Zeros, extrema and crossings of the tapped curve", AppSettings.specialPoints, AppSettings::changeSpecialPoints) },
             )
+            PxHeader("Plots")
+            PxCards({ PxToggleRow("Plots (beta)", "Figures after matplotlib (histograms, box plots, contours, fits…) as a notebook block and from the 2D graph's ⋮ menu", AppSettings.plots, AppSettings::changePlots) })
             PxHeader("Detail")
             DetailCards()
             PxFootnote("Higher detail is sharper but slower to draw. Each graph's own settings have the same sliders.")

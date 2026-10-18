@@ -64,6 +64,8 @@ object AppSettings {
     var graphListWidth by mutableStateOf(320)
         private set
     var showGrid by mutableStateOf(true)
+    /** Plots (figures after matplotlib) in notebooks and from the 2D graph: off until turned on. */
+    var plots by mutableStateOf(false)
     /** A legend with each line's name, on the graphs and in exported ones. */
     var showLegend by mutableStateOf(true)
         private set
@@ -184,6 +186,7 @@ object AppSettings {
         keypadSide = p.getInt("keypadSide", 1)
         graphListWidth = p.getInt("graphListWidth", 320)
         showGrid = p.getBoolean("showGrid", true)
+        plots = p.getBoolean("plots", false)
         showLegend = p.getBoolean("showLegend", true)
         axisNumbers = p.getBoolean("axisNumbers", true)
         numberFormat = p.getInt("numberFormat", 0)
@@ -218,7 +221,7 @@ object AppSettings {
     /** The settings page's own keys, cleared by [resetAll] (not the history, graphs, symbols, pins or tabs). */
     private val RESETTABLE = listOf(
         "language", "theme", "dynamicColor", "themeColor", "haptics", "groupDigits", "mathSize", "keypadSize", "keypadSide",
-        "showGrid", "showLegend", "axisNumbers", "numberFormat", "sciAfter", "sciDecimals", "polarComplex", "livePreview",
+        "showGrid", "plots", "showLegend", "axisNumbers", "numberFormat", "sciAfter", "sciDecimals", "polarComplex", "livePreview",
         "historyLimit", "confirmClearHistory", "confirmDeleteEntry", "keyHelp", "continueFromAnswer", "expressiveMotion",
         "keepScreenOn", "startInCalculator", "keySounds", "specialPoints", "answerPreviews", "viewHalfWidth", "complexQuality", "surfaceDetail", "fieldQuality",
         "mathLevel", "keypadLevel", "complexLevel", "surfaceLevel", "fieldLevel",
@@ -250,6 +253,7 @@ object AppSettings {
     fun changeKeypadSize(v: Int) { keypadSize = v; save("keypadLevel", v) }
     fun changeKeypadSide(v: Int) { keypadSide = v; save("keypadSide", v) }
     fun changeShowGrid(v: Boolean) { showGrid = v; save("showGrid", v) }
+    fun changePlots(v: Boolean) { plots = v; save("plots", v) }
     fun changeShowLegend(v: Boolean) { showLegend = v; save("showLegend", v) }
     fun changeAxisNumbers(v: Boolean) { axisNumbers = v; save("axisNumbers", v) }
     fun changeSciDecimals(v: Int) { sciDecimals = v; com.example.cas.engine.Formatter.sciDecimals = v; save("sciDecimals", v) }

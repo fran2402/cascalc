@@ -278,6 +278,15 @@ abstract class GraphViewModel(app: Application, protected val key: String, val p
     var active by mutableStateOf<PlotFunction?>(null)
         private set
 
+    /** Selecting in the open line, as in any Android text field (hold, drag, handles, LaTeX copy and paste). */
+    val selection = MathSelection { active?.editor }
+
+    /** Holding a line to select in it: it becomes the open line first. */
+    fun openForSelecting(f: PlotFunction) {
+        if (isDataLine(f)) return
+        if (active !== f) edit(f)
+    }
+
     /** Bumped when anything that changes the picture changes. */
     var version by mutableIntStateOf(0)
         private set
@@ -699,6 +708,7 @@ abstract class GraphViewModel(app: Application, protected val key: String, val p
     fun edit(f: PlotFunction?) {
         if (f != null && isDataLine(f)) return
         val was = active
+        if (was !== f) selection.end()
         active = f
         if (f != null) keypadHidden = false else typingFocus = false
         // A line left empty (Enter on it, or another line picked) goes away rather than staying as a blank box.
@@ -2496,6 +2506,8 @@ abstract class GraphViewModel(app: Application, protected val key: String, val p
     override fun moveRight() { active?.editor?.moveRight() }
 
     override fun press(action: KeyAction) {
+        // With something selected, a key replaces it (Backspace just removes it).
+        if (selection.beforeKey(action)) return
         // With no line open (the tablet's keyboard is always there), typing starts a new one.
         if (active == null && (action is KeyAction.Type || action is KeyAction.Insert || action is KeyAction.Power ||
                 action == KeyAction.Fraction || action == KeyAction.Paren || action == KeyAction.ListBrackets || action is KeyAction.Sequence || action is KeyAction.Paste)) add()
@@ -2536,6 +2548,7 @@ abstract class GraphViewModel(app: Application, protected val key: String, val p
         // A tap in a line brings the keyboard back, if it was pulled down.
         keypadHidden = false
         f.editor.setCursor(r, index)
+        selection.tapped()
     }
 
     companion object {

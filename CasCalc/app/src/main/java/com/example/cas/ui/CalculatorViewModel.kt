@@ -247,103 +247,13 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
 
     // ---- Selecting, cutting, copying, pasting --------------------------------------------
 
-    /** The selection bar is showing (long-press the input); taps and ◀ ▶ then move the selection's end. */
-    var selecting by mutableStateOf(false)
-        private set
-    /** Until when a tap is the release of the long press that started selecting (not a tap of its own). */
+    /** Selecting in the input, as in any Android text field (hold, drag, handles, LaTeX copy and paste). */
+    val selection = MathSelection { editor }
     private var skipTapUntil = 0L
-    private var clipCode: String? = null
-    private var clipText: String? = null
-
-    /** The selection's two ends as placed (by holding, or by dragging a handle), anywhere in the expression. */
-    private var selA: Pair<MathRow, Int>? = null
-    private var selB: Pair<MathRow, Int>? = null
-
-    /** Holding the input at (row, index): that word (a number, a letter, a fraction…) selected, with handles to change it. */
-    fun startSelection(row: MathRow? = null, index: Int = 0) {
-        if (row == null || editor.root.isEmpty) editor.selectAll() else editor.selectWord(row, index)
-        selA = editor.row to editor.selectionStart; selB = editor.row to editor.selectionEnd
-        word = editor.row to (editor.selectionStart to editor.selectionEnd)
-        selecting = true; cursorHandle = false
-    }
-
-    /** The word the long press took: dragging on from it extends the selection a word at a time, as Android does. */
-    private var word: Pair<MathRow, Pair<Int, Int>>? = null
-
-    /** The finger, still down after the long press, at (row, index): the selection runs from the word to there. */
-    fun dragSelect(row: MathRow, index: Int) {
-        val (wr, range) = word ?: return
-        val (s0, s1) = range
-        // Past the word's end: from its start; before it: from its end.
-        val after = if (row === wr) index >= s1 else (Selection.between(wr, s0, row, index)?.let { (_, a, b) -> b >= a } ?: true)
-        if (row === wr && index in s0..s1) { editor.select(wr, s0, s1); selA = wr to s0; selB = wr to s1; return }
-        if (after) { selA = wr to s0; selB = row to index } else { selA = wr to s1; selB = row to index }
-        val a = selA!!; val b = selB!!
-        editor.selectBetween(a.first, a.second, b.first, b.second)
-    }
-
-    /** The teardrop under the cursor after a tap (drag it to move the cursor; tap it for Paste). */
-    var cursorHandle by mutableStateOf(false)
-
-    /** The cursor handle dragged to (row, index). */
-    fun moveCursorTo(row: MathRow, index: Int) { editor.setCursor(row, index); cursorHandle = true }
-
-    /** The cursor handle tapped: the bar with Paste (and Select all). */
-    fun showPasteBar() { selecting = true; cursorHandle = false }
-    fun selectAll() { editor.selectAll(); selA = editor.root to 0; selB = editor.root to editor.root.items.size; selecting = true }
-    fun endSelection() { editor.clearSelection(); selecting = false; selA = null; selB = null; word = null }
-
-    /** A handle dragged to (row, index): [start] true for the selection's start handle. */
-    /** Which placed end the handle being dragged moves (decided when the drag starts, so ends can cross). */
-    private var movingA = true
-
-    /** A handle grabbed: [start] true for the selection's start handle. */
-    fun beginHandleDrag(start: Boolean) {
-        // The editor's anchor is always on A's side (selections are made from A to B).
-        val aFirst = (editor.anchor ?: editor.selectionStart) == editor.selectionStart
-        movingA = start == aFirst
-    }
-
-    /** The grabbed handle at (row, index): its end moves there, the other stays; they may cross. */
-    fun dragHandle(row: MathRow, index: Int) {
-        if (selA == null || selB == null) return
-        if (movingA) selA = row to index else selB = row to index
-        val a = selA!!; val b = selB!!
-        editor.selectBetween(a.first, a.second, b.first, b.second)
-    }
-
-    /** The selection as LaTeX for the clipboard (kept in full for pasting back here), or null if nothing is selected. */
-    fun copySelection(): String? {
-        if (!editor.hasSelection) return null
-        val sel = editor.selected()
-        clipCode = MathCodec.encode(sel)
-        clipText = runCatching { com.example.cas.engine.Latex.of(sel) }.getOrElse { Formatter.plain(sel) }
-        return clipText
-    }
-
-    fun cutSelection(): String? = copySelection()?.also { editor.deleteSelection(); selecting = false }
-
-    /** Pastes [text]: what was copied here comes back exactly; other text is read as math (LaTeX or plain). */
-    fun paste(text: String?) {
-        if (text.isNullOrBlank()) return
-        // LaTeX as copied from anywhere: with or without $…$, \(…\) or \[…\] around it.
-        val latex = text.trim().removeSurrounding("$$").removeSurrounding("$").removeSurrounding("\\(", "\\)").removeSurrounding("\\[", "\\]").trim()
-        val row = if (text == clipText && clipCode != null) MathCodec.decode(clipCode!!)
-        else runCatching { com.example.cas.engine.LatexParser.parse(latex) }.getOrNull()?.takeIf { !it.isEmpty }
-            ?: MathRow(text.trim().map { Sym(it.toString()) }.toMutableList())
-        editor.deleteSelection()
-        editor.insertRow(row)
-        selecting = false; selA = null; selB = null
-    }
 
     override fun press(action: KeyAction) {
-        cursorHandle = false
         // With something selected, a key replaces it (Backspace just removes it).
-        if (editor.hasSelection) {
-            val removed = editor.deleteSelection()
-            selecting = false
-            if (removed && (action == KeyAction.Backspace || action == KeyAction.Clear)) return
-        } else if (selecting) { editor.clearSelection(); selecting = false }
+        if (selection.beforeKey(action)) return
         if (AppSettings.continueFromAnswer && justEvaluated && editor.isEmpty && ansValue() != null && continuesFromAnswer(action)) editor.type("ans")
         justEvaluated = false
         when (action) {
@@ -372,9 +282,8 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
         // The release of the long press that started selecting isn't a tap.
         if (System.currentTimeMillis() < skipTapUntil) { skipTapUntil = 0L; return }
         // A tap ends selecting and puts the cursor there, with its handle, as in any text field.
-        selecting = false; selA = null; selB = null; word = null
         editor.setCursor(row, index)
-        cursorHandle = true
+        selection.tapped()
     }
 
     override fun toggleAngle() {

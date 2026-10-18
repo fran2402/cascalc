@@ -203,6 +203,31 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (18 October, selecting in graph lines, Plots back as a setting)
+
+- **Select in graph lines too**: in 2D, 3D and the complex plane, hold a line's math to select
+  the piece there, drag on to extend it, drag the handles (they can cross), and use Select all,
+  Cut, Copy (as LaTeX) and Paste from the bar that floats above the line; a tap gives the
+  cursor its handle. The calculator and the graphs share the same selection code.
+- **Plots is back, as a setting** (Settings › Graphs › Plots, off by default) instead of a
+  mode: it opens from the 2D graph's ⋮ menu (Plots, or Open as figure for the curves on
+  screen), as a Figure block in notebooks, and from a data table's Insert › Chart.
+- **Plots looks like the rest of the app**: adding a layer is a dialog of cards like the
+  colormap picker; a layer's look opens the same Color dialog as a graph's line (color, line
+  style, thickness), with its own options underneath (marker, size, opacity, bins, density,
+  colormap, levels, model), applied on Done; the axes and figure settings use the graphs'
+  compact settings dialog, where Cancel puts things back.
+- **Data**: each layer shows the figure's table columns as chips that type themselves into the
+  input, with Edit table and Import CSV right there. A table column named x no longer stops
+  functions of x from drawing.
+- **More features**: a Fitted curve layer (line, quadratic, cubic, exponential, power or
+  logarithm, with its equation and R² in the legend) and a Density curve layer (a smooth
+  estimate of the distribution, to lay over a histogram).
+- **More looks**: 13 new styles, shown as cards with a little plot in their colors: Nature,
+  IEEE, FiveThirtyEight, Tableau, Colorblind (Okabe-Ito), Solarized and Solarized dark, Nord,
+  Dracula, Pastel, Paper, Blueprint and Neon, some with sans-serif labels; the Python export
+  picks the matching matplotlib style where there is one.
+
 ## Latest changes (18 October, selection handles fixed)
 
 - **Handles follow the selection**: they were drawn where the selection first was, so after

@@ -986,14 +986,25 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             // No "y =", "z =" or "f(z) =": the line is read from what's typed, as in Desmos.
             // Long lines scroll sideways; a swipe that starts on the row's edges (the dot on the
             // left, the × and handle on the right) deletes the line instead.
-            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.weight(1f)) {
+            // Where this line's rows are on screen, for holding to select and the handles.
+            val geometry = remember(f) { MathGeometry() }
+            var boxCoords by remember(f) { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
+            var areaCoords by remember(f) { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
+            val haptics = LocalHapticFeedback.current
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.weight(1f).onGloballyPositioned { areaCoords = it }) {
             val viewport = maxWidth
             val across = rememberScrollState()
             // With the cursor at the very end, the end of the line is scrolled into view.
             LaunchedEffect(f.version, active) {
                 if (active && f.editor.row === f.editor.root && f.editor.index == f.editor.root.items.size) across.animateScrollTo(across.maxValue)
             }
-            Box(Modifier.horizontalScroll(across)) {
+            Box(
+                Modifier.horizontalScroll(across).onGloballyPositioned { boxCoords = it }
+                    // Hold to select in the line (dragging on extends it), as in any Android text field.
+                    .then(if (isData) Modifier else Modifier.holdToSelect(vm.selection, geometry, { boxCoords }) {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress); vm.openForSelecting(f)
+                    }),
+            ) {
                 // A long list (an imported file) shows its start and how many points, until it's edited.
                 val items = f.editor.root.items
                 val shortened = if ((isData || !active) && items.size > (if (isData) 60 else 300)) remember(f.version) {
@@ -1031,11 +1042,21 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
                         version = f.version,
                         // The shortened copy isn't the line itself: a tap opens the whole line.
                         onTap = if (isData) null else if (shortened != null) ({ _, _ -> vm.edit(f) }) else ({ r, i -> vm.tapAt(f, r, i) }),
+                        selection = if (active && f.editor.hasSelection) Triple(f.editor.row, f.editor.selectionStart, f.editor.selectionEnd) else null,
+                        geometry = if (shortened == null) geometry else null,
                     )
                     // Room past the end, so the cursor there shows and a tap there reaches it.
                     Spacer(Modifier.width(16.dp))
                     }
                 }
+            }
+            if (active) {
+                SelectionOverlay(vm.selection, f.editor, geometry, areaCoords, f.version)
+                // The bar floats above the line while selecting.
+                if (vm.selection.selecting) androidx.compose.ui.window.Popup(
+                    alignment = Alignment.TopStart,
+                    offset = androidx.compose.ui.unit.IntOffset(0, with(LocalDensity.current) { -52.dp.roundToPx() }),
+                ) { SelectionBar(vm.selection, Modifier.shadow(4.dp, RoundedCornerShape(20.dp))) }
             }
             }
             // Fit sits at the end of the row once the graph has a list of points.
@@ -2767,6 +2788,12 @@ internal fun DataTableEditor(start: com.example.cas.graph.DataTable, key: Any, o
                                     TableTool(TableIcons.DateFunctions, "=TODAY()", large = false) { stamp("=TODAY()") },
                                 )),
                                 ToolGroup("Function", listOf(TableTool(TableIcons.InsertFunction, "Insert function") { functionsOpen = "" })),
+                            ) + listOfNotNull(
+                                // A figure of the table in Plots (when turned on, Settings › Graphs).
+                                if (AppSettings.plots) ToolGroup("Charts", listOf(TableTool(FigureIcons.Mode, "Chart", menu = listOf(
+                                    "Scatter" to com.example.cas.graph.Figure.Kind.Scatter, "Line" to com.example.cas.graph.Figure.Kind.Plot, "Bars" to com.example.cas.graph.Figure.Kind.Bar,
+                                    "Histogram" to com.example.cas.graph.Figure.Kind.Hist, "Box plot" to com.example.cas.graph.Figure.Kind.Box, "Fitted curve" to com.example.cas.graph.Figure.Kind.Fit,
+                                ).map { (name, kind) -> name to { val t = table(); onSave(t); PlotsNav.request = FigureFactory.fromTable(t, kind); onDismiss() } }))) else null,
                             )
                             TableTab.Formulas -> listOf(
                                 ToolGroup("Function Library", listOf(

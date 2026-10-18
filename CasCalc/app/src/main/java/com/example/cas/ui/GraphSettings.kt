@@ -39,15 +39,15 @@ import com.example.cas.ui.theme.CasFonts
  * Done applies the typed limits; switches and detail take effect at once.
  */
 @Composable
-internal fun GraphSettingsFrame(kind: String, valid: Boolean, onDone: () -> Unit, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+internal fun GraphSettingsFrame(kind: String, valid: Boolean, onDone: () -> Unit, onDismiss: () -> Unit, title: String = "Graph settings", content: @Composable ColumnScope.() -> Unit) {
     val colors = MaterialTheme.colorScheme
     val tablet = isTabletLayout()
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         // As the color and colormap dialogs: the same card, title, flat rows and text buttons.
         Surface(shape = RoundedCornerShape(28.dp), color = colors.surfaceContainerHigh, modifier = if (tablet) Modifier.width(560.dp) else Modifier.fillMaxWidth(0.94f)) {
             Column(Modifier.padding(top = 20.dp, bottom = 12.dp)) {
-                Text(tr("Graph settings"), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.padding(horizontal = 24.dp))
-                Text(tr(kind), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(horizontal = 24.dp))
+                Text(tr(title), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.padding(horizontal = 24.dp))
+                if (kind.isNotBlank()) Text(tr(kind), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(horizontal = 24.dp))
                 CompositionLocalProvider(LocalCompactRows provides true) {
                     Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
                         content()

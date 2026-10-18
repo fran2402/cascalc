@@ -5,6 +5,8 @@
 Graph this	
 More options	
 Notebooks	
+Plots	
+Open as figure	
 Unit converter	
 Settings	
 Acknowledgements	
@@ -29,7 +31,6 @@ Delete
 Your calculations will appear here	
 Tap a past question or answer to use it again, hold it to copy it, swipe it away to delete it	
 Expression	
-Done selecting	
 Show actions	
 Use this expression	
 Pinned	
@@ -319,6 +320,7 @@ Type this example
 Try it	
 Open the NIST page	
 NIST CODATA value and uncertainty	
+Done selecting	
 Guide	
 Show the guide to {0}	
 Try	
@@ -349,6 +351,7 @@ Formatting
 Outline	
 Text	
 Graph	
+Figure	
 Math	
 Text in Markdown: # heading, **bold**, *italic*, - list, $x^2$ math…	
 Definitions	
@@ -360,10 +363,37 @@ Defines
 as lists for the blocks below: mean, sd, sum…	
 Edit table	
 Plot	
+Edit figure	
+Empty: Edit figure adds lines, histograms, box plots… of anything defined above.	
 Couldn't export	
 Add text	
 Add math	
 Add a graph	
+Add a figure	
+Share figure	
+That isn't a figure file	
+Rename figure	
+Figures from functions and data, after matplotlib: lines, histograms, box plots, contours and more.	
+Open file	
+A .casfig figure	
+copy	
+Untitled figure	
+{0} layers	
+Add a layer	
+Tap to set its inputs	
+Search: histogram, violin, contour…	
+empty	
+Couldn't read that file as a table	
+Look	
+Color, line and more	
+x label	
+y label	
+$math$ between dollar signs: $t$ (s), $\\sigma^2$	
+Title over the figure	
+The same figure as a matplotlib script, with the numbers it was drawn from.	
+Copied	
+Python script	
+Figure file	
 Saved graphs	
 Close the search	
 Import a graph file (.g2d, .g3d, .gcp)	
@@ -425,7 +455,6 @@ Double-tap a box to type into it with your keyboard (as upright text).
 Italic	
 Save and insert	
 Remove this symbol	
-empty	
 Written upright, as text (eff, max, ext…)	
 Welcome	
 A calculator that does algebra, calculus and graphs, and shows its working.	
@@ -624,6 +653,12 @@ Complex plotting
 Maximum	
 Minimum	
 Zero	
+Hide	
+Show	
+Split by commas	
+$math$ between dollar signs	
+Empty: its equation and R²	
+Empty: not in the legend. $math$ between dollar signs	
 Finish	
 Unpin	
 Pin	
@@ -715,6 +750,8 @@ Today
 Now	
 =TODAY()	
 Function	
+Charts	
+Chart	
 Function Library	
 Lookup	
 Logical	
@@ -741,7 +778,6 @@ Test
 New column	
 Share CSV	
 Copy CSV	
-Show	
 Formulas	
 Hide column	
 Window	
