@@ -155,7 +155,7 @@ object FigureFactory {
 
     /** A figure of a table: its first two letter-named columns as [kind] (scatter, line, bars, histogram, box). */
     fun fromTable(t: DataTable, kind: Figure.Kind): Figure.Doc {
-        val letters = t.names.map { it.trim() }.filter { n -> n.isNotEmpty() && n.all { it.isLetter() } }
+        val letters = t.names.map { it.trim() }.filter { Figure.isColumnName(it) }
         val a = letters.getOrNull(0) ?: "x"; val b = letters.getOrNull(1) ?: a
         val layer = when (kind) {
             Figure.Kind.Scatter -> Figure.Layer(kind, listOf(m(a), m(b)))
@@ -187,9 +187,11 @@ object FigureFactory {
         val layers = ArrayList<Figure.Layer>()
         // Names the expressions can use: a column's own when it's letters and free, else a free letter.
         val letters = listOf("x", "y", "u", "v", "p", "q", "s", "w", "a", "b", "c", "d", "f", "g", "h", "k", "m", "n", "r", "z", "j", "l", "o")
+        // The CSV's own names, made typeable (spaces as _), numbered when two are the same.
         fun fresh(want: String): String {
-            val w = want.trim()
-            if (w.isNotEmpty() && w.all { it.isLetter() } && w != "e" && w != "i" && w !in names) return w
+            val w = Figure.columnName(want)
+            if (w.isNotEmpty() && w != "e" && w != "i" && w !in names) return w
+            if (w.length > 1) return (2..999).map { "${w}_$it" }.first { it !in names }
             return letters.firstOrNull { it !in names } ?: "column${names.size + 1}"
         }
         fun add(name: String, col: List<String>): String { val n = fresh(name); names += n; columns += col; return n }
@@ -417,13 +419,15 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
     val typing = focus != null && layer != null && androidx.compose.foundation.layout.WindowInsets.ime.getBottom(LocalDensity.current) > 0
     var tab by remember { mutableIntStateOf(0) }
 
-    /** A column put to use: renamed to a single free letter when its name can't be typed as one, and that letter. */
+    /** A column put to use by its name (freq, Signal); a name that can't be typed (spaces, signs, none) is made into one first. */
     fun useColumn(c: Int): String {
         val t = doc.data
         val name = t.names.getOrElse(c) { "" }.trim()
-        if (name.length == 1 && name[0].isLetter()) return name
+        if (Figure.isColumnName(name) && name != "e" && name != "i") return name
         val taken = t.names.map { it.trim() }.toSet()
-        val letter = (listOfNotNull(name.firstOrNull { it.isLetter() }?.lowercaseChar()?.toString()) + listOf("x", "y", "u", "v", "w", "a", "b", "c", "d", "f", "g", "h", "k", "m", "n", "p", "q", "r", "s", "z"))
+        val base = Figure.columnName(name)
+        val letter = (listOfNotNull(base.takeIf { it.length > 1 }) + (if (base.length > 1) (2..99).map { "${base}_$it" } else emptyList()) +
+            listOf("x", "y", "u", "v", "w", "a", "b", "c", "d", "f", "g", "h", "k", "m", "n", "p", "q", "r", "s", "z"))
             .first { it !in taken && it != "e" && it != "i" }
         change(doc.copy(data = com.example.cas.graph.DataTable(t.names.mapIndexed { k, n -> if (k == c) letter else n }, t.columns, t.x, t.y, t.sigmaX, t.sigmaY, t.formats, t.frozen, t.styles)))
         Toast.makeText(context, tr("Column “{0}” is now {1}, so it can be typed", name, letter), Toast.LENGTH_SHORT).show()

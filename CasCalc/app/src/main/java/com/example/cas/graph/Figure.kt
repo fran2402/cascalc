@@ -152,11 +152,20 @@ object Figure {
             Doc(id, title, axes, layout, theme, aspect, data, edited, name, widths, heights)
     }
 
-    /** A table's columns named with letters, each as a list (a column vector) of its numbers. */
+    /** Whether [name] can be typed as a column's name: a letter, then letters, digits or _ (x, freq, Signal, amp_2). */
+    fun isColumnName(name: String) = name.isNotEmpty() && name[0].isLetter() && name.all { it.isLetterOrDigit() || it == '_' }
+
+    /** [raw] made into a column name that can be typed: spaces and other marks as _, a letter first. */
+    fun columnName(raw: String): String {
+        val s = raw.trim().map { if (it.isLetterOrDigit() || it == '_') it else '_' }.joinToString("").replace(Regex("_+"), "_").trim('_')
+        return when { s.isEmpty() -> ""; s[0].isLetter() -> s; else -> "c$s" }
+    }
+
+    /** A table's columns with names that can be typed ([isColumnName]), each as a list (a column vector) of its numbers. */
     fun tableVariables(t: DataTable): Map<String, Expr> {
         val out = LinkedHashMap<String, Expr>()
         t.names.forEachIndexed { c, raw ->
-            val name = raw.trim().takeIf { n -> n.isNotEmpty() && n.all { it.isLetter() } } ?: return@forEachIndexed
+            val name = raw.trim().takeIf { isColumnName(it) } ?: return@forEachIndexed
             val col = (0 until t.rowCount).mapNotNull { r -> t.value(c, r)?.let { com.example.cas.cas.Flt(it) } }
             if (col.isNotEmpty()) out[name] = Mat(col.size, 1, col)
         }
@@ -175,16 +184,46 @@ object Figure {
      * last without the plotting letters, so x is the variable. Layers that draw functions of x and
      * y (contours, arrows) take x and y as variables first, through [asFunction].
      */
-    class ColumnEval(private val vars: Map<String, Expr>, private val eval: (Map<String, Expr>, MathRow) -> Expr) : (MathRow) -> Expr {
+    class ColumnEval(given: Map<String, Expr>, private val eval: (Map<String, Expr>, MathRow) -> Expr) : (MathRow) -> Expr {
+        // Names longer than a letter (freq, Signal) are typed letter by letter; each stands for one
+        // symbol of its own, which the row's run of letters is turned into before it's worked out.
+        private val aliases: Map<String, String> = given.keys.filter { it.length > 1 && isColumnName(it) }.sortedByDescending { it.length }
+            .mapIndexed { k, n -> n to (ALIAS_BASE + k).toString() }.toMap()
+        private val vars: Map<String, Expr> = given.mapKeys { (k, _) -> aliases[k] ?: k }
         private val free = vars - PLOT_LETTERS
         private val columns = vars.filterValues { it is Mat && it.cols == 1 && it.rows > 1 }.mapValues { it.value as Mat }
 
-        override fun invoke(row: MathRow): Expr = try { eval(vars, row) } catch (e: Exception) {
-            rowwise(row) ?: if (free.size == vars.size) throw e else eval(free, row)
+        override fun invoke(row: MathRow): Expr = named(row).let { r ->
+            try { eval(vars, r) } catch (e: Exception) {
+                rowwise(r) ?: if (free.size == vars.size) throw e else eval(free, r)
+            }
         }
 
         /** As a function of the plotting letters where it can be one. */
-        fun asFunction(row: MathRow): Expr = if (free.size == vars.size) invoke(row) else try { eval(free, row) } catch (e: Exception) { invoke(row) }
+        fun asFunction(row: MathRow): Expr = if (free.size == vars.size) invoke(row) else try { eval(free, named(row)) } catch (e: Exception) { invoke(row) }
+
+        /** [row] with each long column name, spelled out in letters, as its one symbol. */
+        private fun named(row: MathRow): MathRow {
+            if (aliases.isEmpty()) return row
+            val out = MathCodec.copy(row)
+            fun letter(n: com.example.cas.editor.Node?) = n is Sym && n.text.length == 1 && (n.text[0].isLetterOrDigit() || n.text[0] == '_')
+            fun walk(r: MathRow) {
+                var k = 0
+                while (k < r.items.size) {
+                    val prev = r.items.getOrNull(k - 1)
+                    val hit = if (prev is Sym && prev.text.length == 1 && prev.text[0].isLetter()) null else aliases.entries.firstOrNull { (name, _) ->
+                        k + name.length <= r.items.size && name.indices.all { j -> (r.items[k + j] as? Sym)?.text == name[j].toString() } && !letter(r.items.getOrNull(k + name.length))
+                    }
+                    if (hit != null) {
+                        repeat(hit.key.length) { r.removeAt(k) }
+                        r.add(k, Sym(hit.value))
+                    } else r.items[k].slots.forEach(::walk)
+                    k++
+                }
+            }
+            walk(out)
+            return out
+        }
 
         private fun uses(row: MathRow, name: String): Boolean = row.items.any { n -> (n is Sym && n.text == name) || n.slots.any { uses(it, name) } }
 
@@ -213,6 +252,9 @@ object Figure {
             return if (ok > 0) Mat(n, 1, out) else null
         }
     }
+
+    /** Where the stand-in symbols for long column names start (letters nobody types). */
+    private const val ALIAS_BASE = '\u3041'
 
     /** Layers that draw functions of the plotting letters rather than columns. */
     private val FUNCTION_KINDS = setOf(Kind.Contour, Kind.ContourF, Kind.Heatmap, Kind.Quiver, Kind.Stream, Kind.Parametric, Kind.Polar)

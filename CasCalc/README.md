@@ -203,6 +203,12 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (18 October, Plots: columns by their full names)
+
+- Fixed: a figure's inputs didn't recognize column names longer than one letter. Typing freq or Signal gave "Too many letters: f, q, r". Now freq, Signal, amp_2 and any other column name work as written, including inside expressions: 2freq, freq*Signal, sin(freq), mean(Signal).
+- Open as figure keeps the names of every column from the 2D graph's CSV tables, including the columns the graph doesn't plot. Names that can't be typed become typeable: spaces and signs turn into _ (Noise (dB) becomes Noise_dB), and repeated names get _2, _3.
+- Tapping a column with a typeable name uses that name as it is, instead of renaming it to a single letter.
+
 ## Latest changes (18 October, Plots: functions of columns, resizable cells, own fit models)
 
 - Functions of table columns work on each number: with a column y, sin(y), y^2 + 1 or x*y give a new column of values. Whole-column functions such as mean(y) still use the whole column. A line with no x given is drawn against the x column when the table has one. Contours, arrows, parametric and polar curves still treat x and y as variables.

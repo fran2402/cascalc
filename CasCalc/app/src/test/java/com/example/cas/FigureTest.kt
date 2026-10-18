@@ -147,6 +147,23 @@ class FigureTest {
         assertNull(c.drawn.single().error)
     }
 
+    @Test fun columnsWithLongNames() {
+        val t = DataTable(listOf("freq", "Signal", "amp_2", "x"), listOf(listOf("1", "2", "3"), listOf("2", "4", "6"), listOf("1", "1", "2"), listOf("0", "1", "2")), null, null)
+        val ev = Figure.withFallback(Figure.tableVariables(t)) { v, r -> Evaluator(variables = v).evaluate(com.example.cas.editor.MathCodec.copy(r)) }
+        fun data(s: String) = (Figure.value(com.example.cas.engine.PlainMath.parse(s), ev) as Figure.Value.Data).v.toList()
+        assertEquals(listOf(1.0, 2.0, 3.0), data("freq"))
+        assertEquals(listOf(2.0, 4.0, 6.0), data("2freq"))
+        assertEquals(listOf(3.0, 6.0, 9.0), data("freq + Signal"))
+        assertEquals(listOf(2.0, 8.0, 18.0), data("freq*Signal"))
+        assertEquals(listOf(1.0, 2.0, 6.0), data("amp_2*freq"))
+        assertEquals(listOf(kotlin.math.sin(1.0), kotlin.math.sin(2.0), kotlin.math.sin(3.0)), data("sin(freq)"))
+        assertEquals(4.0, (Figure.value(com.example.cas.engine.PlainMath.parse("mean(Signal)"), ev) as Figure.Value.Num).v, 1e-12)
+        val w = Figure.build(doc(Figure.Layer(Kind.Scatter, listOf(com.example.cas.engine.PlainMath.parse("freq"), com.example.cas.engine.PlainMath.parse("Signal")))), ev, app).worked.single()
+        assertNull(w.drawn.single().error)
+        assertEquals("Noise_dB", Figure.columnName("Noise (dB)"))
+        assertEquals("c2nd", Figure.columnName("2nd"))
+    }
+
     @Test fun ownFitModelsColorbarLabelsAndCellSizes() {
         val xs = (0..12).map { it * 0.5 }
         val t = DataTable(listOf("a", "b"), listOf(xs.map { "$it" }, xs.map { "${3 * kotlin.math.exp(-0.7 * it) + 1}" }), null, null)
