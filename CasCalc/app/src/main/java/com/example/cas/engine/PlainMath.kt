@@ -163,6 +163,27 @@ object PlainMath {
             else -> listOf(Func(RENAMED[name] ?: name, args.ifEmpty { listOf(MathRow()) }))
         }
 
+        /** Rows of a column right after its name: [3:10], [5], [:20], [-10:], kept as they're typed. */
+        private fun rows(): List<Node> {
+            if (!isOp('[')) return emptyList()
+            val save = k
+            take()
+            val out = arrayListOf<Node>(Sym("["))
+            while (true) {
+                when (val t = take()) {
+                    null -> { k = save; return emptyList() }
+                    is Tok.Num -> out += syms(t.s)
+                    is Tok.Other -> if (t.s == ":") out += Sym(":") else { k = save; return emptyList() }
+                    is Tok.Op -> when (t.c) {
+                        ']' -> { out += Sym("]"); return out }
+                        '-' -> out += Sym("−")
+                        else -> { k = save; return emptyList() }
+                    }
+                    else -> { k = save; return emptyList() }
+                }
+            }
+        }
+
         fun primary(): List<Node> {
             val t = take() ?: return emptyList()
             return when (t) {
@@ -182,9 +203,9 @@ object PlainMath {
                         // A function: with brackets (any name of two or more letters), or a known one without (sin x).
                         n.length > 1 && isOp('(') -> { take(); function(lower.takeIf { it in FUNCTIONS } ?: n, args()) }
                         lower in FUNCTIONS -> function(lower, listOf(row(factor())))
-                        n.length == 1 -> listOf(Sym(n))
+                        n.length == 1 -> listOf<Node>(Sym(n)) + rows()
                         // Other names letter by letter, as the keypad types them (a column called "time").
-                        else -> syms(n)
+                        else -> syms(n) + rows()
                     }
                 }
             }

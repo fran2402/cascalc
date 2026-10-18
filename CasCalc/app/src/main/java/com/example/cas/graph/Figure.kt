@@ -39,12 +39,11 @@ object Figure {
      * order can change.
      */
     enum class Kind(val py: String, val title: String, val group: Group, val inputs: List<String>, val text: String? = null, val about: String) {
-        Plot("plot", "Line", Group.Lines, listOf("y", "x"), about = "A function of x, or data: y against x (or against 1, 2, 3…)"),
-        Scatter("scatter", "Scatter", Group.Lines, listOf("x", "y", "size"), about = "Points; size a number or a list"),
+        Plot("plot", "Line", Group.Lines, listOf("y", "x", "y error", "x error"), about = "A function of x, or data: y against x (or against 1, 2, 3…); errors as ± bars"),
+        Scatter("scatter", "Scatter", Group.Lines, listOf("x", "y", "size", "y error", "x error"), about = "Points; size a number or a list; errors as ± bars"),
         Step("step", "Steps", Group.Lines, listOf("y", "x"), about = "A staircase through the values"),
         Stem("stem", "Stems", Group.Lines, listOf("y", "x"), about = "A stem from the axis to each value"),
-        ErrorBar("errorbar", "Error bars", Group.Lines, listOf("x", "y", "error"), about = "Points with ± bars; error a number or a list"),
-        FillBetween("fill_between", "Fill between", Group.Lines, listOf("y₁", "y₂"), about = "The region between two curves (y₂ is 0 when empty)"),
+        FillBetween("fill_between", "Fill between", Group.Lines, listOf("y₁", "y₂", "x"), about = "The region between two curves or columns (y₂ is 0 when empty; x for columns)"),
         Stack("stackplot", "Stacked areas", Group.Lines, listOf("y₁, y₂, …", "x"), about = "Several curves or lists, stacked"),
         Parametric("plot", "Parametric", Group.Lines, listOf("x(t)", "y(t)", "from", "to"), about = "A curve (x(t), y(t)); t from 0 to 2π unless given"),
         Polar("plot", "Polar curve", Group.Lines, listOf("r(θ)", "from", "to"), about = "r as a function of θ, from 0 to 2π unless given"),
@@ -66,8 +65,8 @@ object Figure {
         Heatmap("imshow", "Heat map", Group.Fields, listOf("f(x, y) or a matrix"), about = "f(x, y) as colors, or a matrix's entries"),
         Quiver("quiver", "Arrows", Group.Fields, listOf("u(x, y)", "v(x, y)"), about = "The vector (u, v) as arrows on a grid"),
         Stream("streamplot", "Stream lines", Group.Fields, listOf("u(x, y)", "v(x, y)"), about = "Paths that follow the vector (u, v)"),
-        HLine("axhline", "Horizontal line", Group.Guides, listOf("y"), about = "A line across at this y"),
-        VLine("axvline", "Vertical line", Group.Guides, listOf("x"), about = "A line up at this x"),
+        HLine("axhline", "Horizontal line", Group.Guides, listOf("y"), about = "A line across at this y (a list: one at each)"),
+        VLine("axvline", "Vertical line", Group.Guides, listOf("x"), about = "A line up at this x (a list: one at each)"),
         HSpan("axhspan", "Horizontal band", Group.Guides, listOf("from", "to"), about = "A shaded band between two y values"),
         VSpan("axvspan", "Vertical band", Group.Guides, listOf("from", "to"), about = "A shaded band between two x values"),
         Text("text", "Text", Group.Guides, listOf("x", "y"), text = "Text", about = "A note at (x, y); \$math\$ in dollars"),
@@ -76,10 +75,12 @@ object Figure {
         /** Layers drawn with a colormap (and a color bar) rather than one color. */
         val mapped get() = this == ContourF || this == Heatmap || this == Hist2D || this == Hexbin || this == Contour
         /** Layers whose look is a line (so line style and markers apply). */
-        val lined get() = this in setOf(Plot, Step, Stem, ErrorBar, Parametric, Polar, Ecdf, HLine, VLine, Scatter, Contour, Quiver, Stream, Annotate, Fit, Kde)
+        val lined get() = this in setOf(Plot, Step, Stem, Parametric, Polar, Ecdf, HLine, VLine, Scatter, Contour, Quiver, Stream, Annotate, Fit, Kde)
 
         companion object {
             fun named(name: String): Kind? = entries.firstOrNull { it.name == name }
+            /** Kinds that take ± errors (a y error and an x error input). */
+            val ERRORS = mapOf(Plot to (2 to 3), Scatter to (3 to 4))
         }
     }
 
@@ -100,12 +101,14 @@ object Figure {
         val cbar: String = "",
         /** A fitted curve's own model as plain text in x and its parameters: a*e^(-b*x) + c. */
         val formula: String = "",
+        /** Error bars: their caps' half width (0: none), thickness, and drawn as a shaded band rather than bars. */
+        val errCap: Double = 3.0, val errWidth: Double = 0.9, val errBand: Boolean = false,
     ) {
         fun copy(color: Int = this.color, line: Int = this.line, marker: Int = this.marker, width: Double = this.width, alpha: Double = this.alpha,
                  label: String = this.label, bins: Int = this.bins, levels: Int = this.levels, cmap: String = this.cmap,
                  density: Boolean = this.density, cumulative: Boolean = this.cumulative, size: Double = this.size, argb: Int = this.argb, model: Int = this.model,
-                 cbar: String = this.cbar, formula: String = this.formula) =
-            Style(color, line, marker, width, alpha, label, bins, levels, cmap, density, cumulative, size, argb, model, cbar, formula)
+                 cbar: String = this.cbar, formula: String = this.formula, errCap: Double = this.errCap, errWidth: Double = this.errWidth, errBand: Boolean = this.errBand) =
+            Style(color, line, marker, width, alpha, label, bins, levels, cmap, density, cumulative, size, argb, model, cbar, formula, errCap, errWidth, errBand)
     }
 
     /** [Style.model] for a fitted curve's own formula, after the ready-made [FitModel]s. */
@@ -127,11 +130,16 @@ object Figure {
         val title: String = "", val xLabel: String = "", val yLabel: String = "",
         val xMin: Double? = null, val xMax: Double? = null, val yMin: Double? = null, val yMax: Double? = null,
         val xLog: Boolean = false, val yLog: Boolean = false, val grid: Int = 1, val legend: Int = 0, val spines: Int = 0, val equal: Boolean = false,
+        /** The numbers on each axis shown; each axis turned round (high to low); ticks pointing in; the legend in a box. */
+        val xNumbers: Boolean = true, val yNumbers: Boolean = true, val xInvert: Boolean = false, val yInvert: Boolean = false,
+        val ticksIn: Boolean = false, val legendFrame: Boolean = true,
     ) {
         fun copy(layers: List<Layer> = this.layers, title: String = this.title, xLabel: String = this.xLabel, yLabel: String = this.yLabel,
                  xMin: Double? = this.xMin, xMax: Double? = this.xMax, yMin: Double? = this.yMin, yMax: Double? = this.yMax,
-                 xLog: Boolean = this.xLog, yLog: Boolean = this.yLog, grid: Int = this.grid, legend: Int = this.legend, spines: Int = this.spines, equal: Boolean = this.equal) =
-            Axes(layers, title, xLabel, yLabel, xMin, xMax, yMin, yMax, xLog, yLog, grid, legend, spines, equal)
+                 xLog: Boolean = this.xLog, yLog: Boolean = this.yLog, grid: Int = this.grid, legend: Int = this.legend, spines: Int = this.spines, equal: Boolean = this.equal,
+                 xNumbers: Boolean = this.xNumbers, yNumbers: Boolean = this.yNumbers, xInvert: Boolean = this.xInvert, yInvert: Boolean = this.yInvert,
+                 ticksIn: Boolean = this.ticksIn, legendFrame: Boolean = this.legendFrame) =
+            Axes(layers, title, xLabel, yLabel, xMin, xMax, yMin, yMax, xLog, yLog, grid, legend, spines, equal, xNumbers, yNumbers, xInvert, yInvert, ticksIn, legendFrame)
     }
 
     /**
@@ -189,40 +197,81 @@ object Figure {
         // symbol of its own, which the row's run of letters is turned into before it's worked out.
         private val aliases: Map<String, String> = given.keys.filter { it.length > 1 && isColumnName(it) }.sortedByDescending { it.length }
             .mapIndexed { k, n -> n to (ALIAS_BASE + k).toString() }.toMap()
-        private val vars: Map<String, Expr> = given.mapKeys { (k, _) -> aliases[k] ?: k }
-        private val free = vars - PLOT_LETTERS
-        private val columns = vars.filterValues { it is Mat && it.cols == 1 && it.rows > 1 }.mapValues { it.value as Mat }
+        private val base: Map<String, Expr> = given.mapKeys { (k, _) -> aliases[k] ?: k }
+        /** Parts of columns (Signal[3:10]) met so far, each with its own symbol. */
+        private val slices = LinkedHashMap<String, Pair<String, Expr>>()
+        private val vars: Map<String, Expr> get() = if (slices.isEmpty()) base else base + slices.values.toMap()
+        private val free get() = vars - PLOT_LETTERS
+        private val columns get() = vars.filterValues { it is Mat && it.cols == 1 && it.rows > 1 }.mapValues { it.value as Mat }
 
         override fun invoke(row: MathRow): Expr = named(row).let { r ->
-            try { eval(vars, r) } catch (e: Exception) {
-                rowwise(r) ?: if (free.size == vars.size) throw e else eval(free, r)
+            val all = vars; val f = free
+            try { eval(all, r) } catch (e: Exception) {
+                rowwise(r) ?: if (f.size == all.size) throw e else eval(f, r)
             }
         }
 
         /** As a function of the plotting letters where it can be one. */
-        fun asFunction(row: MathRow): Expr = if (free.size == vars.size) invoke(row) else try { eval(free, named(row)) } catch (e: Exception) { invoke(row) }
+        fun asFunction(row: MathRow): Expr { val r = named(row); val f = free; return if (f.size == vars.size) invoke(row) else try { eval(f, r) } catch (e: Exception) { invoke(row) } }
 
-        /** [row] with each long column name, spelled out in letters, as its one symbol. */
+        /**
+         * [row] with each long column name, spelled out in letters, as its one symbol; and a
+         * column followed by rows in brackets ([3:10] rows 3 to 10 as the table numbers them,
+         * [5] row 5's number, [:20], [-10:] the last ten) as that part of it.
+         */
         private fun named(row: MathRow): MathRow {
-            if (aliases.isEmpty()) return row
             val out = MathCodec.copy(row)
             fun letter(n: com.example.cas.editor.Node?) = n is Sym && n.text.length == 1 && (n.text[0].isLetterOrDigit() || n.text[0] == '_')
+            val short = base.keys.filter { it.length == 1 && base[it] is Mat }.toSet()
             fun walk(r: MathRow) {
                 var k = 0
                 while (k < r.items.size) {
                     val prev = r.items.getOrNull(k - 1)
-                    val hit = if (prev is Sym && prev.text.length == 1 && prev.text[0].isLetter()) null else aliases.entries.firstOrNull { (name, _) ->
+                    val afterLetter = prev is Sym && prev.text.length == 1 && prev.text[0].isLetter()
+                    val hit = if (afterLetter) null else aliases.entries.firstOrNull { (name, _) ->
                         k + name.length <= r.items.size && name.indices.all { j -> (r.items[k + j] as? Sym)?.text == name[j].toString() } && !letter(r.items.getOrNull(k + name.length))
                     }
                     if (hit != null) {
                         repeat(hit.key.length) { r.removeAt(k) }
                         r.add(k, Sym(hit.value))
-                    } else r.items[k].slots.forEach(::walk)
+                    }
+                    val here = (r.items[k] as? Sym)?.text
+                    if (here != null && (hit != null || (here in short && !afterLetter)) && (r.items.getOrNull(k + 1) as? Sym)?.text == "[") {
+                        val end = (k + 2 until r.items.size).firstOrNull { (r.items[it] as? Sym)?.text == "]" }
+                        val inside = end?.let { e -> (k + 2 until e).map { (r.items[it] as? Sym)?.text ?: "?" }.joinToString("") }
+                        val part = inside?.let { slice(here, it) }
+                        if (end != null && part != null) {
+                            repeat(end - k + 1) { r.removeAt(k) }
+                            r.add(k, Sym(part))
+                        }
+                    }
+                    r.items.getOrNull(k)?.slots?.forEach(::walk)
                     k++
                 }
             }
             walk(out)
             return out
+        }
+
+        /** The symbol for rows [spec] ("3:10", "5", ":20", "-10:") of the column whose symbol is [col]; null if it isn't one. */
+        private fun slice(col: String, spec: String): String? {
+            val m = base[col] as? Mat ?: return null
+            val t = spec.replace("−", "-")
+            val n = m.cells.size
+            fun at(s: String, def: Int): Int? = if (s.isBlank()) def else s.toIntOrNull()?.let { if (it < 0) n + it + 1 else it }
+            val key = "$col[$t]"
+            slices[key]?.let { return it.first }
+            val value: Expr = if (':' in t) {
+                val a = at(t.substringBefore(':'), 1) ?: return null; val b = at(t.substringAfter(':'), n) ?: return null
+                val lo = a.coerceIn(1, n); val hi = b.coerceIn(lo, n)
+                Mat(hi - lo + 1, 1, m.cells.subList(lo - 1, hi))
+            } else {
+                val i = at(t, 0) ?: return null
+                m.cells.getOrNull(i - 1) ?: return null
+            }
+            val symbol = (ALIAS_BASE + 200 + slices.size).toString()
+            slices[key] = symbol to value
+            return symbol
         }
 
         private fun uses(row: MathRow, name: String): Boolean = row.items.any { n -> (n is Sym && n.text == name) || n.slots.any { uses(it, name) } }
@@ -407,12 +456,13 @@ object Figure {
         if (d.widths.isNotEmpty() || d.heights.isNotEmpty()) appendLine("ratios\t" + d.widths.joinToString(",") + "\t" + d.heights.joinToString(","))
         for (a in d.axes) {
             appendLine(listOf("A", esc(a.title), esc(a.xLabel), esc(a.yLabel), num(a.xMin), num(a.xMax), num(a.yMin), num(a.yMax),
-                if (a.xLog) "1" else "0", if (a.yLog) "1" else "0", a.grid, a.legend, a.spines, if (a.equal) "1" else "0").joinToString("\t"))
+                if (a.xLog) "1" else "0", if (a.yLog) "1" else "0", a.grid, a.legend, a.spines, if (a.equal) "1" else "0",
+                listOf(a.xNumbers, a.yNumbers, a.xInvert, a.yInvert, a.ticksIn, a.legendFrame).joinToString("") { if (it) "1" else "0" }).joinToString("\t"))
             for (l in a.layers) {
                 val s = l.style
                 val flags = (if (s.density) 1 else 0) or (if (s.cumulative) 2 else 0)
                 appendLine((listOf("L", l.kind.name, if (l.visible) "1" else "0", s.color, s.line, s.marker, s.width, s.alpha, s.bins, s.levels, esc(s.cmap), flags, s.size,
-                    esc(s.label), esc(l.text), l.inputs.size) + l.inputs.map { esc(MathCodec.encode(it)) } + listOf(s.argb, s.model, esc(s.cbar), esc(s.formula))).joinToString("\t"))
+                    esc(s.label), esc(l.text), l.inputs.size) + l.inputs.map { esc(MathCodec.encode(it)) } + listOf(s.argb, s.model, esc(s.cbar), esc(s.formula), s.errCap, s.errWidth, if (s.errBand) "1" else "0")).joinToString("\t"))
             }
         }
     }
@@ -441,18 +491,25 @@ object Figure {
                 "data" -> data = DataTable.decode(s(1)) ?: emptyData()
                 "ratios" -> { widths = s(1).split(',').mapNotNull { it.toDoubleOrNull() }; heights = s(2).split(',').mapNotNull { it.toDoubleOrNull() } }
                 "A" -> {
-                    axes += Axes(emptyList(), s(1), s(2), s(3), d(4), d(5), d(6), d(7), f.getOrNull(8) == "1", f.getOrNull(9) == "1", i(10, 1), i(11, 0), i(12, 0), f.getOrNull(13) == "1")
+                    val opts = f.getOrNull(14) ?: "110001"
+                    fun o(k: Int, def: Boolean) = opts.getOrNull(k)?.let { it == '1' } ?: def
+                    axes += Axes(emptyList(), s(1), s(2), s(3), d(4), d(5), d(6), d(7), f.getOrNull(8) == "1", f.getOrNull(9) == "1", i(10, 1), i(11, 0), i(12, 0), f.getOrNull(13) == "1",
+                        o(0, true), o(1, true), o(2, false), o(3, false), o(4, false), o(5, true))
                     layers.add(ArrayList())
                 }
                 "L" -> {
-                    val kind = Kind.named(f.getOrElse(1) { "" }) ?: continue
+                    val kindName = f.getOrElse(1) { "" }
+                    // Error bars were a kind of their own: now points with a y error.
+                    val kind = (if (kindName == "ErrorBar") Kind.Scatter else Kind.named(kindName)) ?: continue
                     if (layers.isEmpty()) { axes += Axes(); layers.add(ArrayList()) }
                     val flags = i(11, 0)
                     val style = Style(i(3, -1), i(4, 0), i(5, -1), d(6) ?: 1.5, d(7) ?: 1.0, s(13), i(8, 0), i(9, 10), s(10).ifBlank { "viridis" }, flags and 1 != 0, flags and 2 != 0, d(12) ?: 3.0)
                     val n = i(15, 0)
                     val inputs = (0 until n).map { k -> runCatching { MathCodec.decode(s(16 + k)) }.getOrDefault(MathRow()) }
-                    val style2 = style.copy(argb = i(16 + n, 0), model = i(17 + n, 0), cbar = s(18 + n), formula = s(19 + n))
-                    layers.last() += Layer(kind, inputs, s(14), style2, f.getOrNull(2) != "0")
+                    val style2 = style.copy(argb = i(16 + n, 0), model = i(17 + n, 0), cbar = s(18 + n), formula = s(19 + n),
+                        errCap = d(20 + n) ?: 3.0, errWidth = d(21 + n) ?: 0.9, errBand = f.getOrNull(22 + n) == "1")
+                    val ins = if (kindName == "ErrorBar") listOf(inputs.getOrElse(0) { MathRow() }, inputs.getOrElse(1) { MathRow() }, MathRow(), inputs.getOrElse(2) { MathRow() }) else inputs
+                    layers.last() += Layer(kind, ins, s(14), style2, f.getOrNull(2) != "0")
                 }
             }
         }
@@ -564,8 +621,10 @@ object Figure {
         val values: DoubleArray = DoubleArray(0), val labels: List<String> = emptyList(),
         val boxes: List<BoxStats> = emptyList(), val shapes: List<Pair<DoubleArray, DoubleArray>> = emptyList(), val shade: DoubleArray = DoubleArray(0),
         val raw: List<DoubleArray> = emptyList(), val offset: Double = 0.0, val barWidth: Double = 0.8,
+        /** ± errors of the points in y and in x (empty: none). */
+        val errY: DoubleArray = DoubleArray(0), val errX: DoubleArray = DoubleArray(0),
     ) {
-        fun copy(color: Int = this.color, error: String? = this.error) = Drawn(layer, color, error, series, lower, grid, grid2, values, labels, boxes, shapes, shade, raw, offset, barWidth)
+        fun copy(color: Int = this.color, error: String? = this.error) = Drawn(layer, color, error, series, lower, grid, grid2, values, labels, boxes, shapes, shade, raw, offset, barWidth, errY, errX)
     }
 
     /** An axes worked out: each layer drawn, the ranges shown, and its category ticks (bars, boxes). */
@@ -656,6 +715,13 @@ object Figure {
         fun data(v: Value): DoubleArray? = when (v) { is Value.Data -> v.v; is Value.Num -> doubleArrayOf(v.v); is Value.Matrix -> v.v; else -> null }
         fun firstBad(vs: List<Value>) = vs.firstOrNull { it is Value.Bad } as Value.Bad?
         fun labels(l: Layer) = l.text.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+        fun DoubleArray.at(k: Int) = if (isEmpty()) 0.0 else this[k % size].let { if (it.isFinite()) it else 0.0 }
+        /** A layer's ± errors in y and x for its [n] points, from its error inputs (a number or a list; empty: none). */
+        fun errors(l: Layer, vs: List<Value>, n: Int): Pair<DoubleArray, DoubleArray> {
+            val (ky, kx) = Kind.ERRORS[l.kind] ?: return DoubleArray(0) to DoubleArray(0)
+            fun e(k: Int) = data(vs.getOrElse(k) { Value.Empty })?.let { s -> if (s.isEmpty()) DoubleArray(0) else DoubleArray(n) { abs(s[it % s.size]) } } ?: DoubleArray(0)
+            return e(ky) to e(kx)
+        }
 
         fun sampleT(v: Value, t: DoubleArray): DoubleArray? = when (v) {
             is Value.Fn -> DoubleArray(t.size) { v.f(t[it]) }
@@ -678,25 +744,44 @@ object Figure {
                     val x = data(v(1)) ?: (value(MathRow(mutableListOf(Sym("x"))), eval) as? Value.Data)?.v?.takeIf { it.size == y.size } ?: seq(y.size)
                     val n = min(x.size, y.size)
                     val xs = x.copyOf(n); val ys = y.copyOf(n)
-                    xs.forEach(b::x); ys.forEach(b::y)
-                    drawn[l] = Drawn(l, color, series = listOf(xs to ys))
+                    val (ey, ex) = errors(l, vs, n)
+                    xs.indices.forEach { k -> b.x(xs[k] - ex.at(k)); b.x(xs[k] + ex.at(k)); b.y(ys[k] - ey.at(k)); b.y(ys[k] + ey.at(k)) }
+                    drawn[l] = Drawn(l, color, series = listOf(xs to ys), errY = ey, errX = ex)
                 }
                 Kind.Scatter, Kind.Fill -> {
                     val x = data(v(0)); val y = data(v(1))
                     if (x == null || y == null) { bad(l, "Give x and y as lists (or table columns)"); continue }
                     val n = min(x.size, y.size)
                     val xs = x.copyOf(n); val ys = y.copyOf(n)
-                    xs.forEach(b::x); ys.forEach(b::y)
-                    val sizes = data(v(2))?.let { s -> DoubleArray(n) { s[it % s.size] } } ?: DoubleArray(0)
-                    drawn[l] = Drawn(l, color, series = listOf(xs to ys), shade = sizes)
+                    val (ey, ex) = errors(l, vs, n)
+                    xs.indices.forEach { k -> b.x(xs[k] - ex.at(k)); b.x(xs[k] + ex.at(k)); b.y(ys[k] - ey.at(k)); b.y(ys[k] + ey.at(k)) }
+                    val sizes = if (l.kind == Kind.Scatter) data(v(2))?.let { s -> DoubleArray(n) { s[it % s.size] } } ?: DoubleArray(0) else DoubleArray(0)
+                    drawn[l] = Drawn(l, color, series = listOf(xs to ys), shade = sizes, errY = ey, errX = ex)
                 }
-                Kind.ErrorBar -> {
-                    val x = data(v(0)); val y = data(v(1))
-                    if (x == null || y == null) { bad(l, "Give x and y as lists (or table columns)"); continue }
-                    val n = min(x.size, y.size)
-                    val e = data(v(2))?.let { s -> DoubleArray(n) { abs(s[it % s.size]) } } ?: DoubleArray(n)
-                    for (k in 0 until n) { b.x(x[k]); b.y(y[k] - e[k]); b.y(y[k] + e[k]) }
-                    drawn[l] = Drawn(l, color, series = listOf(x.copyOf(n) to y.copyOf(n)), lower = listOf(e))
+                Kind.FillBetween -> {
+                    // Columns (or lists): against the x input, else the table's x column, else 1, 2, 3, …
+                    val d1 = v(0) as? Value.Data; val d2 = v(1) as? Value.Data
+                    if (d1 == null && d2 == null && v(2) !is Value.Data) continue
+                    val n = listOfNotNull(d1?.v?.size, d2?.v?.size, (v(2) as? Value.Data)?.v?.size).min()
+                    val x = (v(2) as? Value.Data)?.v ?: (value(MathRow(mutableListOf(Sym("x"))), eval) as? Value.Data)?.v?.takeIf { it.size >= n } ?: seq(n)
+                    fun col(w: Value): DoubleArray? = when (w) {
+                        is Value.Data -> w.v
+                        is Value.Num -> DoubleArray(n) { w.v }
+                        is Value.Empty -> DoubleArray(n)
+                        is Value.Fn -> DoubleArray(n) { k -> w.f(x[k]) }
+                        else -> null
+                    }
+                    val y1 = col(v(0)); val y2 = col(v(1))
+                    if (y1 == null || y2 == null) { bad(l, "Give two columns, lists, functions or numbers"); continue }
+                    val m = minOf(n, x.size, y1.size, y2.size)
+                    val xs = x.copyOf(m); val a1 = y1.copyOf(m); val a2 = y2.copyOf(m)
+                    xs.forEach(b::x); a1.forEach(b::y); a2.forEach(b::y)
+                    drawn[l] = Drawn(l, color, series = listOf(xs to a1), lower = listOf(a2))
+                }
+                Kind.HLine, Kind.VLine -> {
+                    val d = (v(0) as? Value.Data)?.v ?: continue
+                    if (l.kind == Kind.HLine) d.forEach(b::y) else d.forEach(b::x)
+                    drawn[l] = Drawn(l, color, values = d.filter { it.isFinite() }.toDoubleArray())
                 }
                 Kind.Hist -> {
                     val d = data(v(0)) ?: run { bad(l, "Give the data as a list or a table column"); null } ?: continue
@@ -860,7 +945,7 @@ object Figure {
                 Kind.FillBetween -> {
                     val x = xs()
                     val y1 = sample(v(0), x); val y2 = sample(v(1), x)
-                    if (y1 == null || y2 == null || v(0) is Value.Empty) { bad(l, "Give two functions (or numbers)"); continue }
+                    if (y1 == null || y2 == null || v(0) is Value.Empty) { bad(l, "Give two functions, numbers or columns"); continue }
                     y1.forEach(sampled::y); y2.forEach(sampled::y)
                     drawn[l] = Drawn(l, color, series = listOf(x to y1), lower = listOf(y2))
                 }
@@ -896,8 +981,8 @@ object Figure {
                     val r2 = if (r.rSquared.isFinite()) ",\\; R^2 = " + String.format(java.util.Locale.ROOT, "%.4f", r.rSquared) else ""
                     drawn[l] = Drawn(l, color, series = listOf(x to y), raw = listOf(px, py), labels = listOf("$" + eq + r2 + "$"), values = r.parameters)
                 }
-                Kind.HLine -> (v(0) as? Value.Num)?.let { sampled.y(it.v); drawn[l] = Drawn(l, color, values = doubleArrayOf(it.v)) } ?: bad(l, "Give a number")
-                Kind.VLine -> (v(0) as? Value.Num)?.let { drawn[l] = Drawn(l, color, values = doubleArrayOf(it.v)) } ?: bad(l, "Give a number")
+                Kind.HLine -> (v(0) as? Value.Num)?.let { sampled.y(it.v); drawn[l] = Drawn(l, color, values = doubleArrayOf(it.v)) } ?: bad(l, "Give a number or a list")
+                Kind.VLine -> (v(0) as? Value.Num)?.let { drawn[l] = Drawn(l, color, values = doubleArrayOf(it.v)) } ?: bad(l, "Give a number or a list")
                 Kind.HSpan, Kind.VSpan -> {
                     val lo = (v(0) as? Value.Num)?.v; val hi = (v(1) as? Value.Num)?.v
                     if (lo == null || hi == null) { bad(l, "Give two numbers"); continue }
@@ -1205,8 +1290,8 @@ object Figure {
         }
         val lx0 = if (a.xLog) log10(x0) else x0; val lx1 = if (a.xLog) log10(x1) else x1
         val ly0 = if (a.yLog) log10(y0) else y0; val ly1 = if (a.yLog) log10(y1) else y1
-        fun px(x: Double): Double = left + ((if (a.xLog) (if (x > 0) log10(x) else Double.NaN) else x) - lx0) / (lx1 - lx0) * (right - left)
-        fun py(y: Double): Double = bottom - ((if (a.yLog) (if (y > 0) log10(y) else Double.NaN) else y) - ly0) / (ly1 - ly0) * (bottom - top)
+        fun px(x: Double): Double = ((if (a.xLog) (if (x > 0) log10(x) else Double.NaN) else x) - lx0) / (lx1 - lx0) * (right - left).let { d -> if (a.xInvert) -d else d } + if (a.xInvert) right else left
+        fun py(y: Double): Double = ((if (a.yLog) (if (y > 0) log10(y) else Double.NaN) else y) - ly0) / (ly1 - ly0) * (bottom - top).let { d -> if (a.yInvert) d else -d } + if (a.yInvert) top else bottom
 
         scene.add(Scene.Fill(listOf(doubleArrayOf(left, top, right, top, right, bottom, left, bottom)), t.face))
         val xt = if (w.xCategories != null) DoubleArray(w.xCategories.size) { if (w.drawn.any { it.layer.kind == Kind.Bar }) it.toDouble() else it + 1.0 } else if (a.xLog) logTicks(x0, x1) else ticks(x0, x1, max(3, ((right - left) / 55).toInt()))
@@ -1244,16 +1329,16 @@ object Figure {
         xt.forEachIndexed { k, v ->
             if (v < x0 - 1e-9 || v > x1 + 1e-9) return@forEachIndexed
             val x = px(v)
-            if (a.spines != 3) tickMarks += doubleArrayOf(x, zeroX, x, zeroX + 3.5)
+            if (a.spines != 3) tickMarks += doubleArrayOf(x, zeroX, x, zeroX + if (a.ticksIn) -3.5 else 3.5)
             val text = w.xCategories?.getOrNull(k) ?: if (a.xLog) "10^${log10(v).roundToInt()}".let { s -> "$" + s.replace("^", "^{") + "}$" } else tickText(v)
-            label(t, scene, x, zeroX + 11, text, TICK, t.muted)
+            if (a.xNumbers) label(t, scene, x, zeroX + 11, text, TICK, t.muted)
         }
         yt.forEachIndexed { k, v ->
             if (v < y0 - 1e-9 || v > y1 + 1e-9) return@forEachIndexed
             val y = py(v)
-            if (a.spines != 3) tickMarks += doubleArrayOf(zeroY - 3.5, y, zeroY, y)
+            if (a.spines != 3) tickMarks += doubleArrayOf(zeroY + if (a.ticksIn) 3.5 else -3.5, y, zeroY, y)
             val text = w.yCategories?.getOrNull(k) ?: if (a.yLog) "$10^{${log10(v).roundToInt()}}$" else tickText(v)
-            label(t, scene, zeroY - 6, y, text, TICK, t.muted, Scene.Anchor.End)
+            if (a.yNumbers) label(t, scene, zeroY - 6, y, text, TICK, t.muted, Scene.Anchor.End)
         }
         scene.add(Scene.Stroke(tickMarks, ink, 0.7))
         if (t.gridOnTop) grid()
@@ -1294,6 +1379,26 @@ object Figure {
             for (k in xs.indices) { val X = px(xs[k]); val Y = py(ys[k]); if (X.isFinite() && Y.isFinite()) mk.addTo(scene, X, Y, if (sizes.isNotEmpty()) sqrt(abs(sizes[k])).coerceIn(0.5, 30.0) else s.size, color) }
         }
         fun rect(xa: Double, ya: Double, xb: Double, yb: Double, c: Int) = scene.add(Scene.Fill(listOf(doubleArrayOf(xa, ya, xb, ya, xb, yb, xa, yb)), c))
+        // ± errors under the points: bars with caps, or a shaded band.
+        if (dr.errY.isNotEmpty() || dr.errX.isNotEmpty()) dr.series.firstOrNull()?.let { (xs, ys) ->
+            val ew = max(0.4, s.errWidth); val cap = s.errCap
+            val ec = withAlpha(dr.color, s.alpha * 0.9)
+            fun e(a: DoubleArray, k: Int) = if (a.isEmpty()) 0.0 else a[k]
+            if (s.errBand && dr.errY.isNotEmpty()) {
+                val ks = xs.indices.filter { xs[it].isFinite() && ys[it].isFinite() }.sortedBy { xs[it] }
+                if (ks.size >= 2) scene.add(Scene.Fill(listOf((ks.flatMap { listOf(px(xs[it]), py(ys[it] + e(dr.errY, it))) } + ks.reversed().flatMap { listOf(px(xs[it]), py(ys[it] - e(dr.errY, it))) }).toDoubleArray()), withAlpha(dr.color, s.alpha * 0.25)))
+            } else {
+                val bars = ArrayList<DoubleArray>()
+                for (k in xs.indices) {
+                    if (!xs[k].isFinite() || !ys[k].isFinite()) continue
+                    val X = px(xs[k]); val Y = py(ys[k])
+                    val ey = e(dr.errY, k); val ex = e(dr.errX, k)
+                    if (ey > 0) { val a = py(ys[k] - ey); val b = py(ys[k] + ey); bars += doubleArrayOf(X, a, X, b); if (cap > 0) { bars += doubleArrayOf(X - cap, a, X + cap, a); bars += doubleArrayOf(X - cap, b, X + cap, b) } }
+                    if (ex > 0) { val a = px(xs[k] - ex); val b = px(xs[k] + ex); bars += doubleArrayOf(a, Y, b, Y); if (cap > 0) { bars += doubleArrayOf(a, Y - cap, a, Y + cap); bars += doubleArrayOf(b, Y - cap, b, Y + cap) } }
+                }
+                scene.add(Scene.Stroke(bars, ec, ew))
+            }
+        }
         when (l.kind) {
             Kind.Plot, Kind.Parametric, Kind.Polar -> dr.series.forEach { (xs, ys) ->
                 scene.add(Scene.Stroke(polyline(xs, ys), color, s.width, dash))
@@ -1325,17 +1430,6 @@ object Figure {
                 val poly = DoubleArray(xs.size * 2) { k -> if (k % 2 == 0) px(xs[k / 2]) else py(ys[k / 2]) }
                 scene.add(Scene.Fill(listOf(poly), withAlpha(dr.color, s.alpha * 0.6)))
                 scene.add(Scene.Stroke(listOf(poly + poly.copyOf(2)), color, s.width * 0.7))
-            }
-            Kind.ErrorBar -> {
-                val (xs, ys) = dr.series.single(); val e = dr.lower.single()
-                val bars = ArrayList<DoubleArray>()
-                for (k in xs.indices) {
-                    if (e[k] <= 0) continue
-                    val X = px(xs[k]); val a = py(ys[k] - e[k]); val b = py(ys[k] + e[k])
-                    bars += doubleArrayOf(X, a, X, b); bars += doubleArrayOf(X - 3, a, X + 3, a); bars += doubleArrayOf(X - 3, b, X + 3, b)
-                }
-                scene.add(Scene.Stroke(bars, color, max(0.8, s.width * 0.7)))
-                markers(xs, ys, def = Marker.Circle.ordinal)
             }
             Kind.FillBetween -> {
                 val (xs, a) = dr.series.single(); val b = dr.lower.single()
@@ -1498,8 +1592,8 @@ object Figure {
                     }
                 }
             }
-            Kind.HLine -> scene.add(Scene.Stroke(listOf(doubleArrayOf(left, py(dr.values[0]), right, py(dr.values[0]))), color, s.width, dash))
-            Kind.VLine -> scene.add(Scene.Stroke(listOf(doubleArrayOf(px(dr.values[0]), top, px(dr.values[0]), bottom)), color, s.width, dash))
+            Kind.HLine -> scene.add(Scene.Stroke(dr.values.map { v -> doubleArrayOf(left, py(v), right, py(v)) }, color, s.width, dash))
+            Kind.VLine -> scene.add(Scene.Stroke(dr.values.map { v -> doubleArrayOf(px(v), top, px(v), bottom) }, color, s.width, dash))
             Kind.HSpan -> rect(left, py(dr.values[1]), right, py(dr.values[0]), withAlpha(dr.color, s.alpha * 0.22))
             Kind.VSpan -> rect(px(dr.values[0]), top, px(dr.values[1]), bottom, withAlpha(dr.color, s.alpha * 0.22))
             Kind.Text -> label(t, scene, px(dr.values[0]), py(dr.values[1]), l.text, LABEL, if (s.color >= 0) color else t.ink)
@@ -1585,8 +1679,10 @@ object Figure {
         val col = (place - 1) % 3; val row = (place - 1) / 3
         val x = when (col) { 0 -> left + 6; 1 -> (left + right - boxW) / 2; else -> right - 6 - boxW }
         val y = when (row) { 0 -> top + 6; 1 -> (top + bottom - boxH) / 2; else -> bottom - 6 - boxH }
-        scene.add(Scene.Fill(listOf(doubleArrayOf(x, y, x + boxW, y, x + boxW, y + boxH, x, y + boxH)), withAlpha(t.face, 0.85)))
-        scene.add(Scene.Stroke(listOf(doubleArrayOf(x, y, x + boxW, y, x + boxW, y + boxH, x, y + boxH, x, y)), withAlpha(t.muted, 0.5), 0.5))
+        if (w.axes.legendFrame) {
+            scene.add(Scene.Fill(listOf(doubleArrayOf(x, y, x + boxW, y, x + boxW, y + boxH, x, y + boxH)), withAlpha(t.face, 0.85)))
+            scene.add(Scene.Stroke(listOf(doubleArrayOf(x, y, x + boxW, y, x + boxW, y + boxH, x, y + boxH, x, y)), withAlpha(t.muted, 0.5), 0.5))
+        }
         entries.forEachIndexed { k, dr ->
             val cy = y + 3 + line * (k + 0.5)
             val s = dr.layer.style
@@ -1599,7 +1695,7 @@ object Figure {
                 dr.layer.kind.mapped -> scene.add(Scene.Image(sx, cy - 4, sample, 8.0, IntArray(8) { k2 -> cmapColor(s.cmap, k2 / 7.0) }, 8, 1))
                 else -> {
                     scene.add(Scene.Stroke(listOf(doubleArrayOf(sx, cy, sx + sample, cy)), c, s.width, LineStyle.of(s.line).pattern(s.width)))
-                    if (s.marker >= 0 || dr.layer.kind == Kind.ErrorBar) Marker.of(if (s.marker >= 0) s.marker else 0).addTo(scene, sx + sample / 2, cy, 2.6, c)
+                    if (s.marker >= 0) Marker.of(if (s.marker >= 0) s.marker else 0).addTo(scene, sx + sample / 2, cy, 2.6, c)
                 }
             }
             scene.add(Scene.Label(sx + sample + 5, cy, texts[k].joinToString("") { it.text }, size, t.ink, Scene.Anchor.Start, if (t.sans) Scene.Font.Sans else Scene.Font.Roman, spans = texts[k]))

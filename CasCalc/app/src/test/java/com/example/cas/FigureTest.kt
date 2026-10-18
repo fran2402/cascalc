@@ -73,7 +73,7 @@ class FigureTest {
     @Test fun everyKindDraws() {
         val inputs = mapOf(
             Kind.Plot to listOf(m(f("sin", "x"))), Kind.Scatter to listOf(m("h"), m("w")), Kind.Step to listOf(m("w")), Kind.Stem to listOf(m("w")),
-            Kind.ErrorBar to listOf(m("g"), m("w"), m("2")), Kind.FillBetween to listOf(m(f("sin", "x")), m(f("cos", "x"))), Kind.Stack to listOf(m("g,g")),
+            Kind.FillBetween to listOf(m(f("sin", "x")), m(f("cos", "x"))), Kind.Stack to listOf(m("g,g")),
             Kind.Parametric to listOf(m(f("cos", "t")), m(f("sin", "t"))), Kind.Polar to listOf(m("1+", f("cos", "θ"))), Kind.Fill to listOf(m("g"), m("w")),
             Kind.Hist to listOf(m("h")), Kind.Box to listOf(m("h,w")), Kind.Violin to listOf(m("h,w")), Kind.Ecdf to listOf(m("h")),
             Kind.Hist2D to listOf(m("h"), m("w")), Kind.Hexbin to listOf(m("h"), m("w")), Kind.Bar to listOf(m("g")), Kind.BarH to listOf(m("g")),
@@ -162,6 +162,36 @@ class FigureTest {
         assertNull(w.drawn.single().error)
         assertEquals("Noise_dB", Figure.columnName("Noise (dB)"))
         assertEquals("c2nd", Figure.columnName("2nd"))
+    }
+
+    @Test fun rowsOfColumnsErrorsAndFillsFromColumns() {
+        val t = DataTable(listOf("freq", "Signal", "x"), listOf(listOf("1", "2", "3", "4"), listOf("2", "4", "6", "8"), listOf("0", "1", "2", "3")), null, null)
+        val ev = Figure.withFallback(Figure.tableVariables(t)) { v, r -> Evaluator(variables = v).evaluate(com.example.cas.editor.MathCodec.copy(r)) }
+        fun p(s: String) = com.example.cas.engine.PlainMath.parse(s)
+        fun data(s: String) = (Figure.value(p(s), ev) as Figure.Value.Data).v.toList()
+        assertEquals(listOf(4.0, 6.0), data("Signal[2:3]"))
+        assertEquals(listOf(6.0, 8.0), data("Signal[-2:]"))
+        assertEquals(listOf(1.0, 2.0), data("x[2:]").take(2))
+        assertEquals(6.0, (Figure.value(p("Signal[3]"), ev) as Figure.Value.Num).v, 1e-12)
+        assertEquals(5.0, (Figure.value(p("mean(Signal[1:4])"), ev) as Figure.Value.Num).v, 1e-12)
+        assertEquals("Signal[2:3]", com.example.cas.engine.PlainMath.text(p("Signal[2:3]")))
+        // Fill between two columns, against the x column.
+        val w = Figure.build(doc(Figure.Layer(Kind.FillBetween, listOf(p("Signal+2"), p("Signal-1")))), ev, app).worked.single()
+        val d = w.drawn.single()
+        assertNull(d.error)
+        assertEquals(listOf(0.0, 1.0, 2.0, 3.0), d.series.single().first.toList())
+        // Points with ± errors in y and x; a list of lines.
+        val e = Figure.build(doc(Figure.Layer(Kind.Scatter, listOf(p("freq"), p("Signal"), MathRow(), p("0.5"), p("freq/10"))), Figure.Layer(Kind.HLine, listOf(p("[1, 2]")))), ev, app).worked.single()
+        assertEquals(4, e.drawn[0].errY.size); assertEquals(0.4, e.drawn[0].errX[3], 1e-12)
+        assertEquals(2, e.drawn[1].values.size)
+        // An old error bar layer opens as points with a y error.
+        val old = Figure.encode(doc(Figure.Layer(Kind.Scatter, listOf(m("a"), m("b"), m("e"))))).replace("\tScatter\t", "\tErrorBar\t")
+        val back = Figure.decode("t", old).axes[0].layers[0]
+        assertEquals(Kind.Scatter, back.kind); assertEquals("e", back.inputs[3].plainText())
+        // Axes options survive saving.
+        val ax = Figure.Doc("f", "", listOf(Figure.Axes(xNumbers = false, yInvert = true, ticksIn = true, legendFrame = false)))
+        val a2 = Figure.decode("f", Figure.encode(ax)).axes[0]
+        assertTrue(!a2.xNumbers && a2.yNumbers && a2.yInvert && !a2.xInvert && a2.ticksIn && !a2.legendFrame)
     }
 
     @Test fun ownFitModelsColorbarLabelsAndCellSizes() {

@@ -63,8 +63,12 @@ object FigurePython {
             if (w.pie) { appendLine("ax.set_aspect(\"equal\")"); return@forEach }
             if (a.xLog) appendLine("ax.set_xscale(\"log\")")
             if (a.yLog) appendLine("ax.set_yscale(\"log\")")
-            appendLine("ax.set_xlim(${n(w.x0)}, ${n(w.x1)})")
-            appendLine("ax.set_ylim(${n(w.y0)}, ${n(w.y1)})")
+            // Turned round: the limits given high to low.
+            appendLine(if (a.xInvert) "ax.set_xlim(${n(w.x1)}, ${n(w.x0)})" else "ax.set_xlim(${n(w.x0)}, ${n(w.x1)})")
+            appendLine(if (a.yInvert) "ax.set_ylim(${n(w.y1)}, ${n(w.y0)})" else "ax.set_ylim(${n(w.y0)}, ${n(w.y1)})")
+            if (!a.xNumbers) appendLine("ax.tick_params(axis=\"x\", labelbottom=False)")
+            if (!a.yNumbers) appendLine("ax.tick_params(axis=\"y\", labelleft=False)")
+            if (a.ticksIn) appendLine("ax.tick_params(direction=\"in\", which=\"both\")")
             w.xCategories?.let { c ->
                 val pos = if (w.drawn.any { it.layer.kind == Figure.Kind.Bar }) c.indices.map { it.toDouble() } else c.indices.map { it + 1.0 }
                 appendLine("ax.set_xticks([${pos.joinToString(", ") { n(it) }}], [${c.joinToString(", ") { str(it) }}])")
@@ -79,7 +83,7 @@ object FigurePython {
             }
             if (a.legend >= 0 && w.drawn.any { it.error == null && Figure.legendName(it).isNotBlank() }) {
                 appendLine("handles, labels = ax.get_legend_handles_labels()")
-                appendLine("ax.legend(handles[::-1], labels[::-1], loc=\"${LOC[a.legend.coerceIn(0, 9)]}\")")
+                appendLine("ax.legend(handles[::-1], labels[::-1], loc=\"${LOC[a.legend.coerceIn(0, 9)]}\"${if (a.legendFrame) "" else ", frameon=False"})")
             }
         }
         appendLine()
@@ -101,6 +105,13 @@ object FigurePython {
             out.appendLine("X, Y = np.meshgrid(np.linspace(${n(g.x0)}, ${n(g.x1)}, ${g.nx}), np.linspace(${n(g.y0)}, ${n(g.y1)}, ${g.ny}))")
             out.appendLine("$name = np.array([" + g.z.joinToString(",\n    ") { r -> "[" + r.joinToString(", ") { n(it) } + "]" } + "])")
         }
+        // ± errors first, under the points: bars (errorbar with no line of its own) or a band.
+        if (dr.errY.isNotEmpty() || dr.errX.isNotEmpty()) {
+            val (ex, ey) = dr.series[0]
+            if (s.errBand && dr.errY.isNotEmpty()) out.appendLine("ax.fill_between(${arr(ex)}, ${arr(DoubleArray(ey.size) { ey[it] - dr.errY[it] })}, ${arr(DoubleArray(ey.size) { ey[it] + dr.errY[it] })}, $color, alpha=${n(s.alpha * 0.25)}, linewidth=0)")
+            else out.appendLine("ax.errorbar(${xy()}" + (if (dr.errY.isNotEmpty()) ", yerr=${arr(dr.errY)}" else "") + (if (dr.errX.isNotEmpty()) ", xerr=${arr(dr.errX)}" else "") +
+                ", fmt=\"none\", capsize=${n(s.errCap)}, elinewidth=${n(s.errWidth)}, $color$alpha)")
+        }
         out.append(when (l.kind) {
             Figure.Kind.Plot, Figure.Kind.Parametric, Figure.Kind.Polar -> "ax.plot(${xy()}, $color$line$mk$alpha$label)"
             Figure.Kind.Fit -> {
@@ -114,7 +125,6 @@ object FigurePython {
                 "ax.scatter(${xy()}$sizes, $color${marker(s.marker)?.let { ", marker=\"$it\"" } ?: ""}$alpha$label)"
             }
             Figure.Kind.Fill -> "ax.fill(${xy()}, $color, alpha=${n(s.alpha * 0.6)}$label)"
-            Figure.Kind.ErrorBar -> "ax.errorbar(${xy()}, yerr=${arr(dr.lower[0])}, fmt=\"${marker(s.marker) ?: "o"}\", capsize=3, $color$alpha$label)"
             Figure.Kind.FillBetween -> "ax.fill_between(${arr(dr.series[0].first)}, ${arr(dr.series[0].second)}, ${arr(dr.lower[0])}, $color, alpha=${n(s.alpha * 0.35)}$label)"
             Figure.Kind.Stack -> {
                 val x = dr.series[0].first
@@ -144,8 +154,8 @@ object FigurePython {
             }
             Figure.Kind.Quiver -> { grid(dr.grid!!, "U"); out.appendLine("V = np.array([" + dr.grid2!!.z.joinToString(",\n    ") { r -> "[" + r.joinToString(", ") { n(it) } + "]" } + "])"); "ax.quiver(X, Y, U, V, $color$alpha)" }
             Figure.Kind.Stream -> { grid(dr.grid!!, "U"); out.appendLine("V = np.array([" + dr.grid2!!.z.joinToString(",\n    ") { r -> "[" + r.joinToString(", ") { n(it) } + "]" } + "])"); "ax.streamplot(X, Y, U, V, $color, linewidth=${n(s.width * 0.7)})" }
-            Figure.Kind.HLine -> "ax.axhline(${n(dr.values[0])}, $color$line$alpha$label)"
-            Figure.Kind.VLine -> "ax.axvline(${n(dr.values[0])}, $color$line$alpha$label)"
+            Figure.Kind.HLine -> if (dr.values.size == 1) "ax.axhline(${n(dr.values[0])}, $color$line$alpha$label)" else "for k, v in enumerate(${arr(dr.values)}):\n    ax.axhline(v, $color$line$alpha${if (label.isNotEmpty()) ", label=${str(Figure.legendName(dr))} if k == 0 else None" else ""})"
+            Figure.Kind.VLine -> if (dr.values.size == 1) "ax.axvline(${n(dr.values[0])}, $color$line$alpha$label)" else "for k, v in enumerate(${arr(dr.values)}):\n    ax.axvline(v, $color$line$alpha${if (label.isNotEmpty()) ", label=${str(Figure.legendName(dr))} if k == 0 else None" else ""})"
             Figure.Kind.HSpan -> "ax.axhspan(${n(dr.values[0])}, ${n(dr.values[1])}, $color, alpha=${n(s.alpha * 0.22)}$label)"
             Figure.Kind.VSpan -> "ax.axvspan(${n(dr.values[0])}, ${n(dr.values[1])}, $color, alpha=${n(s.alpha * 0.22)}$label)"
             Figure.Kind.Text -> "ax.text(${n(dr.values[0])}, ${n(dr.values[1])}, ${str(l.text)}, ha=\"center\", va=\"center\")"

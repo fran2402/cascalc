@@ -52,10 +52,6 @@ object FigureIcons {
                 val tips = listOf(dot(7f, 7.5f), dot(11f, 17f), dot(15f, 5.5f), dot(19f, 15.5f))
                 tableIcon(n, stroke = listOf("M7 12V7.5", "M11 12v5", "M15 12V5.5", "M19 12v3.5"), thin = listOf("M3.5 12h17.5"), fill = tips, accent = tips.toSet())
             }
-            Figure.Kind.ErrorBar -> {
-                val d = listOf(dot(7.5f, 14f), dot(12.5f, 10f), dot(17.5f, 7f))
-                tableIcon(n, stroke = listOf("M7.5 10.5v7M6 10.5h3M6 17.5h3", "M12.5 6v8M11 6h3M11 14h3", "M17.5 4v6M16 4h3M16 10h3"), thin = listOf(AXES), fill = d, accent = d.toSet())
-            }
             Figure.Kind.FillBetween -> tableIcon(n, stroke = listOf("M5 9c3-3 6 2 9-1s4-3 6-2", "M5 16c3-2 6 1 9-1s4-2 6-1"), thin = listOf(AXES), shade = listOf("M5 9c3-3 6 2 9-1s4-3 6-2v10c-2-1-3-1-6 1s-6-1-9 1z"), accent = setOf("M5 9c3-3 6 2 9-1s4-3 6-2v10c-2-1-3-1-6 1s-6-1-9 1z"))
             Figure.Kind.Stack -> tableIcon(n, stroke = listOf("M4.5 13c3-2 5 1 8-1s5-3 8-1", "M4.5 8c3-3 5 1 8-1.5s5-2 8-.5"), thin = listOf(AXES), shade = listOf("M4.5 13c3-2 5 1 8-1s5-3 8-1v8.5h-16z"), accent = setOf("M4.5 13c3-2 5 1 8-1s5-3 8-1v8.5h-16z", "M4.5 8c3-3 5 1 8-1.5s5-2 8-.5"))
             Figure.Kind.Parametric -> tableIcon(n, stroke = listOf("M12 12c2.5-4 7.5-4 7.5 0s-5 4-7.5 0-7.5-4-7.5 0 5 4 7.5 0z"), accent = setOf("M12 12c2.5-4 7.5-4 7.5 0s-5 4-7.5 0-7.5-4-7.5 0 5 4 7.5 0z"))

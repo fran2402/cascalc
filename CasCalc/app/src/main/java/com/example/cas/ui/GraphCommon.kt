@@ -463,6 +463,11 @@ fun ColorPickerDialog(
     title: String = "Color",
     /** Above the colors: a folder's name and moving it, so one dialog does all of a folder. */
     header: (@Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit)? = null,
+    /**
+     * Done with the color as it was (only the style or other options changed): the color isn't
+     * picked, so a default color keeps following the theme. Null: [onPick] as always.
+     */
+    onKeep: (() -> Unit)? = null,
 ) {
     var style by remember { mutableStateOf(lineStyle ?: 0) }
     var width by remember { mutableStateOf(thickness) }
@@ -672,7 +677,10 @@ fun ColorPickerDialog(
                     TextButton(onClick = { if (lineStyle != null) onStyle(0, 3f); onPick(null) }) { Text(tr("Default")) }
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = onDismiss) { Text(tr("Cancel")) }
-                    TextButton(onClick = { if (lineStyle != null) onStyle(style, width); onPick(picked) }) { Text(tr("Done")) }
+                    TextButton(onClick = {
+                        if (lineStyle != null) onStyle(style, width)
+                        if (onKeep != null && picked.toArgb() == initial.toArgb()) onKeep() else onPick(picked)
+                    }) { Text(tr("Done")) }
                 }
             }
         }
@@ -921,6 +929,8 @@ private fun FunctionRow(vm: GraphViewModel, f: PlotFunction, outputLabel: String
             thickness = f.thickness,
             onStyle = { st, w -> vm.setStyle(f, st, w) },
             extra = lineOptions(vm, f),
+            // Only the style changed: the line keeps following the palette.
+            onKeep = { picking = false },
         )
     }
     // A list of points (a data set) isn't edited here: its table (the button on the row) edits it.

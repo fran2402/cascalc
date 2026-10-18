@@ -203,6 +203,18 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (18 October, Plots: column chips, error bars in points and lines, rows of columns)
+
+- Column names in a layer's inputs are rounded chips in the theme's primary tone instead of a highlight. The same chips, with a small table icon, show the input under each field and under each layer in the list, instead of italic letters. The column buttons under the inputs are chips too.
+- Error bars are no longer a layer type of their own. Lines and scatters have a y error and an x error input (a number, a list or a column), so you can draw both at once; with both empty, a table plots without error bars. Saved figures with the old error bar layers open as scatters with a y error.
+- Error bars can be customized: bars or a shaded band, the cap size (or no caps) and the thickness. The Python export uses errorbar or fill_between to match.
+- For a scatter, the Look dialog sets the point size instead of line style and thickness.
+- Changing only a line's style, thickness or other options no longer locks its color: a color that follows the palette keeps following it. This applies to figure layers and to lines in the 2D graph, 3D graph and complex plane.
+- Axes can hide the numbers on x and on y, turn either axis round (high to low), point the ticks in, and drop the legend's box. All of these carry into the Python export.
+- Fill between works with columns and lists: y1 and y2 can be columns, numbers or functions, drawn against an x input, the table's x column, or 1, 2, 3, ….
+- Horizontal and vertical lines take a list or a column and draw one line at each value.
+- Rows of a column: Signal[3:10] is rows 3 to 10 as the table numbers them, Signal[5] is row 5's number, and Signal[:20] and Signal[-10:] (the last ten) also work. Ranges can go anywhere a number or a list can, such as mean(Signal[1:50]) or a line at x = freq[12].
+
 ## Latest changes (18 October, Plots: column buttons, keypad for your own fit, layer order)
 
 - Under a layer's inputs, each column of the table is a button with its name. Tapping one puts the name in at the cursor, with a space or comma where needed.
