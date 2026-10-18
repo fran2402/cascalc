@@ -125,6 +125,24 @@ class Editor(initial: MathRow = MathRow()) {
 
     fun clearSelection() { if (anchor != null) { anchor = null; changed() } }
 
+    /**
+     * Selects from (ra, ia) to (rb, ib), places in rows anywhere in the expression: the
+     * selection is made in the innermost row holding both, a structure (fraction, root…) taken
+     * whole when an end lies inside it. The anchor stays at (ra, ia)'s side.
+     */
+    fun selectBetween(ra: MathRow, ia: Int, rb: MathRow, ib: Int) {
+        val (r, from, to) = Selection.between(ra, ia, rb, ib) ?: return
+        this.row = r
+        anchor = from; index = to
+        changed()
+    }
+
+    /** Selects the "word" at [i] in [r]: a run of digits, a letter, or one structure. */
+    fun selectWord(r: MathRow, i: Int) {
+        val (from, to) = Selection.word(r, i)
+        select(r, from, to)
+    }
+
     /** A copy of what's selected (empty when nothing is). */
     fun selected(): MathRow = if (!hasSelection) MathRow() else MathCodec.decode(MathCodec.encode(row.items.subList(selectionStart, selectionEnd).toList()))
 
@@ -532,5 +550,53 @@ class Editor(initial: MathRow = MathRow()) {
             }
             return i
         }
+    }
+}
+
+
+/** Working out selections across the tree of rows. */
+object Selection {
+    /** The rows from [r] up to the root. */
+    private fun chain(r: MathRow): List<MathRow> {
+        val out = ArrayList<MathRow>()
+        var cur: MathRow? = r
+        while (cur != null) { out += cur; cur = cur.parent?.parent }
+        return out
+    }
+
+    /** The item of [c] that holds [r] (somewhere inside it), or -1. */
+    private fun holder(c: MathRow, r: MathRow): Int {
+        var cur = r
+        while (true) {
+            val node = cur.parent ?: return -1
+            val up = node.parent ?: return -1
+            if (up === c) return c.items.indexOf(node)
+            cur = up
+        }
+    }
+
+    /** The innermost row holding both places, and the range there covering them (start, end); null if they're in different trees. */
+    fun between(ra: MathRow, ia: Int, rb: MathRow, ib: Int): Triple<MathRow, Int, Int>? {
+        val cb = chain(rb).toHashSet()
+        val c = chain(ra).firstOrNull { it in cb } ?: return null
+        fun span(r: MathRow, i: Int): Pair<Int, Int> =
+            if (r === c) i.coerceIn(0, c.items.size).let { it to it } else holder(c, r).let { k -> if (k < 0) 0 to 0 else k to k + 1 }
+        val (a0, a1) = span(ra, ia); val (b0, b1) = span(rb, ib)
+        val from = minOf(a0, b0); val to = maxOf(a1, b1)
+        // The anchor on A's side: when A comes first it's the start, else the end.
+        return if (a0 <= b0) Triple(c, from, to) else Triple(c, to, from)
+    }
+
+    private fun digit(n: Node?) = n is Sym && n.text.length == 1 && (n.text[0].isDigit() || n.text == ".")
+
+    /** The word at [i] in [r]: the digits around it, or the one item there (the one before it at the end). */
+    fun word(r: MathRow, i: Int): Pair<Int, Int> {
+        if (r.items.isEmpty()) return 0 to 0
+        val k = i.coerceIn(0, r.items.size - 1).let { if (i >= r.items.size) r.items.size - 1 else it }
+        if (!digit(r.items[k])) return k to k + 1
+        var a = k; var b = k + 1
+        while (a > 0 && digit(r.items[a - 1])) a--
+        while (b < r.items.size && digit(r.items[b])) b++
+        return a to b
     }
 }

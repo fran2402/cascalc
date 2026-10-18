@@ -22,6 +22,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
@@ -40,21 +41,22 @@ import com.example.cas.ui.theme.CasFonts
 @Composable
 internal fun GraphSettingsFrame(kind: String, valid: Boolean, onDone: () -> Unit, onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val tablet = isTabletLayout()
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(shape = RoundedCornerShape(32.dp), color = colors.surface, modifier = Modifier.padding(16.dp).widthIn(max = 560.dp).fillMaxWidth()) {
-            Column(Modifier.padding(top = 24.dp, bottom = 16.dp)) {
-                Column(Modifier.padding(horizontal = 24.dp)) {
-                    Text(tr("Graph settings"), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface)
-                    Text(tr(kind), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+        // As the color and colormap dialogs: the same card, title, flat rows and text buttons.
+        Surface(shape = RoundedCornerShape(28.dp), color = colors.surfaceContainerHigh, modifier = if (tablet) Modifier.width(560.dp) else Modifier.fillMaxWidth(0.94f)) {
+            Column(Modifier.padding(top = 20.dp, bottom = 12.dp)) {
+                Text(tr("Graph settings"), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.padding(horizontal = 24.dp))
+                Text(tr(kind), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(horizontal = 24.dp))
+                CompositionLocalProvider(LocalCompactRows provides true) {
+                    Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
+                        content()
+                        Spacer(Modifier.padding(top = 4.dp))
+                    }
                 }
-                Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp)) {
-                    content()
-                    Spacer(Modifier.padding(top = 8.dp))
-                }
-                Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 12.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = onDismiss) { Text(tr("Cancel")) }
-                    Spacer(Modifier.width(8.dp))
-                    Button(enabled = valid, onClick = onDone) { Text(tr("Done")) }
+                    TextButton(enabled = valid, onClick = onDone) { Text(tr("Done")) }
                 }
             }
         }
@@ -64,9 +66,10 @@ internal fun GraphSettingsFrame(kind: String, valid: Boolean, onDone: () -> Unit
 /** One axis's limits in a card: from, the axis's letter (in the math font), to. */
 @Composable
 internal fun LimitRow(math: String, lo: String, hi: String, onLo: (String) -> Unit, onHi: (String) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+    val compact = LocalCompactRows.current
+    Row(Modifier.fillMaxWidth().padding(horizontal = if (compact) 0.dp else 16.dp, vertical = if (compact) 2.dp else 12.dp), verticalAlignment = Alignment.CenterVertically) {
         OutlinedTextField(lo, onLo, singleLine = true, label = { Text(tr("from")) }, modifier = Modifier.weight(1f))
-        Box(Modifier.width(64.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.width(if (compact) 52.dp else 64.dp), contentAlignment = Alignment.Center) {
             MathText("\$$math\$", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 20.sp), color = MaterialTheme.colorScheme.onSurface, mathScale = 1f, maxLines = 1)
         }
         OutlinedTextField(hi, onHi, singleLine = true, label = { Text(tr("to")) }, modifier = Modifier.weight(1f))
@@ -102,11 +105,15 @@ internal fun RangeAndAxesSections(state: RangeFields, xMath: String, yMath: Stri
 /** A card row that opens something: a title, a line, and a trailing icon. */
 @Composable
 internal fun PxActionRow(title: String, detail: String?, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    val compact = LocalCompactRows.current
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 72.dp).clickable(onClickLabel = tr(title), onClick = onClick).then(PxRowPadding),
+        Modifier.fillMaxWidth().heightIn(min = if (compact) 48.dp else 72.dp).clickable(onClickLabel = tr(title), onClick = onClick).then(if (compact) Modifier.padding(vertical = 4.dp) else PxRowPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PxRowTexts(title, detail, Modifier.weight(1f))
+        if (compact) Column(Modifier.weight(1f)) {
+            MathText(tr(title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+            if (detail != null) MathText(tr(detail), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else PxRowTexts(title, detail, Modifier.weight(1f))
         Spacer(Modifier.width(16.dp))
         AppIcon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
     }

@@ -178,25 +178,5 @@ object ModeGuides {
         ),
     )
 
-    val plots = Guide(
-        "plots", "Plots",
-        "Figures as matplotlib makes them: axes holding layers (lines, points, histograms, box plots, bars, contours, arrows), from functions or data, ready to export.",
-        listOf(
-            Example("A function", m(fn("sin", m("x"))), "A line layer: \$\\sin x\$ across the axes"),
-            Example("A bell curve", m("e", Pow(m("−x", sq()))), "Then + adds more: a histogram, a band…"),
-            Example("Exponential growth", m("e", Pow(m("x"))), "Axes › Logarithmic y turns it into a straight line"),
-            Example("Data", m("[1,4,9,16,25]"), "A list is drawn against 1, 2, 3…; a table's columns by their letters"),
-            Example("Damped wave", m("e", Pow(m("−", Frac(m("x"), m("6")))), fn("sin", m("2x"))), "Name it in its page to show it in the legend", advanced = true),
-        ),
-        listOf(
-            Tip("tap", "Tap a layer", "Its inputs on the keypad, and its color, line, marker and more"),
-            Tip("hold", "The + button", "Every layer type: lines, distributions, categories, fields, guides and text"),
-        ),
-        listOf(
-            Tip("axes", "Axes and figure", "Titles, limits, log scales, the grid and legend; layouts of several axes and styles like SciencePlots"),
-            Tip("export", "Export", "PDF, PNG, SVG, or the figure as a Python script for matplotlib"),
-        ),
-    )
-
-    val all = listOf(calculator, graph2D, graph3D, complex, plots)
+    val all = listOf(calculator, graph2D, graph3D, complex)
 }

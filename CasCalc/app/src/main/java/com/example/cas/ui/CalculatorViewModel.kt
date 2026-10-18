@@ -254,16 +254,35 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
     private var clipCode: String? = null
     private var clipText: String? = null
 
-    fun startSelection() { editor.selectAll(); selecting = true; skipTapUntil = System.currentTimeMillis() + 1500 }
-    fun selectAll() { editor.selectAll(); selecting = true }
-    fun endSelection() { editor.clearSelection(); selecting = false }
+    /** The selection's two ends as placed (by holding, or by dragging a handle), anywhere in the expression. */
+    private var selA: Pair<MathRow, Int>? = null
+    private var selB: Pair<MathRow, Int>? = null
 
-    /** The selection as text for the clipboard (kept in full for pasting back here), or null if nothing is selected. */
+    /** Holding the input at (row, index): that word (a number, a letter, a fraction…) selected, with handles to change it. */
+    fun startSelection(row: MathRow? = null, index: Int = 0) {
+        if (row == null || editor.root.isEmpty) editor.selectAll() else editor.selectWord(row, index)
+        selA = editor.row to editor.selectionStart; selB = editor.row to editor.selectionEnd
+        selecting = true; skipTapUntil = System.currentTimeMillis() + 800
+    }
+    fun selectAll() { editor.selectAll(); selA = editor.root to 0; selB = editor.root to editor.root.items.size; selecting = true }
+    fun endSelection() { editor.clearSelection(); selecting = false; selA = null; selB = null }
+
+    /** A handle dragged to (row, index): [start] true for the selection's start handle. */
+    fun dragHandle(start: Boolean, row: MathRow, index: Int) {
+        if (selA == null || selB == null) return
+        // The editor's anchor is always on A's side (selections are made from A to B).
+        val aFirst = (editor.anchor ?: editor.selectionStart) == editor.selectionStart
+        if (start == aFirst) selA = row to index else selB = row to index
+        val a = selA!!; val b = selB!!
+        editor.selectBetween(a.first, a.second, b.first, b.second)
+    }
+
+    /** The selection as LaTeX for the clipboard (kept in full for pasting back here), or null if nothing is selected. */
     fun copySelection(): String? {
         if (!editor.hasSelection) return null
         val sel = editor.selected()
         clipCode = MathCodec.encode(sel)
-        clipText = Formatter.plain(sel)
+        clipText = runCatching { com.example.cas.engine.Latex.of(sel) }.getOrElse { Formatter.plain(sel) }
         return clipText
     }
 
@@ -272,12 +291,14 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
     /** Pastes [text]: what was copied here comes back exactly; other text is read as math (LaTeX or plain). */
     fun paste(text: String?) {
         if (text.isNullOrBlank()) return
+        // LaTeX as copied from anywhere: with or without $…$, \(…\) or \[…\] around it.
+        val latex = text.trim().removeSurrounding("$$").removeSurrounding("$").removeSurrounding("\\(", "\\)").removeSurrounding("\\[", "\\]").trim()
         val row = if (text == clipText && clipCode != null) MathCodec.decode(clipCode!!)
-        else runCatching { com.example.cas.engine.LatexParser.parse(text.trim()) }.getOrNull()?.takeIf { !it.isEmpty }
+        else runCatching { com.example.cas.engine.LatexParser.parse(latex) }.getOrNull()?.takeIf { !it.isEmpty }
             ?: MathRow(text.trim().map { Sym(it.toString()) }.toMutableList())
         editor.deleteSelection()
         editor.insertRow(row)
-        selecting = false
+        selecting = false; selA = null; selB = null
     }
 
     override fun press(action: KeyAction) {
@@ -314,8 +335,9 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
     fun tapAt(row: MathRow, index: Int) {
         // The release of the long press that started selecting isn't a tap.
         if (System.currentTimeMillis() < skipTapUntil) { skipTapUntil = 0L; return }
-        if (selecting && row === editor.row) editor.extendTo(index)
-        else { selecting = false; editor.setCursor(row, index) }
+        // A tap ends selecting and puts the cursor there, as in any text field.
+        selecting = false; selA = null; selB = null
+        editor.setCursor(row, index)
     }
 
     override fun toggleAngle() {

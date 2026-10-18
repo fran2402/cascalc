@@ -6,6 +6,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.boundsInRoot
 
 import androidx.compose.ui.input.pointer.PointerEventPass
 
@@ -118,6 +121,8 @@ class MathEnv(
     val version: Int = 0,
     /** Selected items, highlighted: a row and the range in it. */
     val selection: Triple<MathRow, Int, Int>? = null,
+    /** Where each row is on screen, for selection handles (null when not needed). */
+    val geometry: MathGeometry? = null,
 ) {
     fun scale(level: Int) = when (level) { 0 -> 1f; 1 -> 0.7f; 2 -> 0.56f; else -> 0.5f }
     fun size(level: Int): TextUnit = size * scale(level)
@@ -139,6 +144,7 @@ fun MathView(
     computerModern: Boolean = true,
     onTap: ((MathRow, Int) -> Unit)? = null,
     selection: Triple<MathRow, Int, Int>? = null,
+    geometry: MathGeometry? = null,
 ) {
     val env = MathEnv(
         size = fontSize,
@@ -154,6 +160,7 @@ fun MathView(
         onTap = onTap,
         version = version,
         selection = selection,
+        geometry = geometry,
     )
     CompositionLocalProvider(LocalMath provides env) {
         Box(modifier) { RowView(row, 0) }
@@ -266,8 +273,11 @@ fun RowView(row: MathRow, level: Int) {
         val x0 = edges[2 * a].toFloat(); val x1 = edges[2 * b + 1].toFloat()
         drawRoundRect(env.accent.copy(alpha = 0.28f), Offset(x0, 0f), Size(x1 - x0, size.height), CornerRadius(4.dp.toPx()))
     }
+    val geo = env.geometry
+    if (geo != null) androidx.compose.runtime.DisposableEffect(row) { onDispose { geo.forget(row) } }
+    val placed = if (geo == null) Modifier else Modifier.onGloballyPositioned { geo.place(row, it, edges, edgeCount[0]) }
     Layout(
-        modifier = besideTaps.then(highlight),
+        modifier = besideTaps.then(highlight).then(placed),
         content = {
             // The top-level input shows just the cursor when empty; inner slots show a box.
             if (items.isEmpty() && row.parent != null) Placeholder(row, level, active)
@@ -1360,5 +1370,65 @@ private fun AccentedLetter(base: String, accent: com.example.cas.cas.Accent?, it
             b.place((w - b.width) / 2, top)
             a.place((w - a.width) / 2 + shift, top - (a.height - overlap))
         }
+    }
+}
+
+
+/**
+ * Where the rows of an expression are on screen (each row's box and its items' left and right
+ * edges), so a point can be turned into a place in the expression and back: for dragging
+ * selection handles. [tick] changes when anything moves.
+ */
+class MathGeometry {
+    private class Entry(var coords: androidx.compose.ui.layout.LayoutCoordinates, var edges: IntArray, var count: Int, var sig: Long = 0)
+    private val rows = java.util.IdentityHashMap<MathRow, Entry>()
+    var tick by androidx.compose.runtime.mutableIntStateOf(0)
+        private set
+
+    fun place(row: MathRow, coords: androidx.compose.ui.layout.LayoutCoordinates, edges: IntArray, count: Int) {
+        val e = rows.getOrPut(row) { Entry(coords, edges, count) }
+        e.coords = coords; e.edges = edges; e.count = count
+        // Bumped only when this row really moved or changed (the handles are placed from it).
+        val p = coords.positionInRoot()
+        var sig = (p.x.toLong() shl 32) xor (p.y.toLong() shl 16) xor coords.size.width.toLong() xor (count * 7919L)
+        for (k in 0 until minOf(2 * count, edges.size)) sig = sig * 31 + edges[k]
+        if (sig != e.sig) { e.sig = sig; tick++ }
+    }
+
+    fun forget(row: MathRow) { rows.remove(row) }
+
+    /** The place nearest [p] (root coordinates): in the innermost row under it, else the nearest row. */
+    fun hit(p: Offset): Pair<MathRow, Int>? {
+        var best: Map.Entry<MathRow, Entry>? = null; var bestScore = Float.MAX_VALUE
+        for (en in rows.entries) {
+            val c = en.value.coords
+            if (!c.isAttached) continue
+            val r = c.boundsInRoot()
+            val inside = r.contains(p)
+            // Inside: the smallest box wins; outside: the nearest one, behind any inside.
+            val score = if (inside) r.width * r.height else 1e9f + kotlin.math.abs(p.y - r.center.y) * 1e3f + maxOf(0f, r.left - p.x, p.x - r.right)
+            if (score < bestScore) { bestScore = score; best = en }
+        }
+        val en = best ?: return null
+        val x = p.x - en.value.coords.positionInRoot().x
+        val e = en.value
+        var index = 0
+        for (k in 0 until minOf(e.count, en.key.items.size)) if ((e.edges[2 * k] + e.edges[2 * k + 1]) / 2f < x) index = k + 1
+        if (e.count < en.key.items.size && x > (if (e.count > 0) e.edges[2 * e.count - 1] else 0)) index = en.key.items.size
+        return en.key to index
+    }
+
+    /** The bottom of the gap before item [index] of [row], in root coordinates. */
+    fun caret(row: MathRow, index: Int): Offset? {
+        val e = rows[row] ?: return null
+        if (!e.coords.isAttached) return null
+        val n = minOf(e.count, row.items.size)
+        val x = when {
+            n == 0 -> 0
+            index < n -> e.edges[2 * index]
+            else -> e.edges[2 * n - 1]
+        }
+        val p = e.coords.positionInRoot()
+        return Offset(p.x + x, p.y + e.coords.size.height)
     }
 }

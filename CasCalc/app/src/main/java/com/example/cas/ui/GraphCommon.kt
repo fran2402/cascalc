@@ -2767,11 +2767,6 @@ internal fun DataTableEditor(start: com.example.cas.graph.DataTable, key: Any, o
                                     TableTool(TableIcons.DateFunctions, "=TODAY()", large = false) { stamp("=TODAY()") },
                                 )),
                                 ToolGroup("Function", listOf(TableTool(TableIcons.InsertFunction, "Insert function") { functionsOpen = "" })),
-                                // A figure of the table in the Plots mode (its columns stand for their values there).
-                                ToolGroup("Charts", listOf(TableTool(FigureIcons.Mode, "Chart", menu = listOf(
-                                    "Scatter" to com.example.cas.graph.Figure.Kind.Scatter, "Line" to com.example.cas.graph.Figure.Kind.Plot, "Bars" to com.example.cas.graph.Figure.Kind.Bar,
-                                    "Histogram" to com.example.cas.graph.Figure.Kind.Hist, "Box plot" to com.example.cas.graph.Figure.Kind.Box,
-                                ).map { (name, kind) -> name to { val t = table(); onSave(t); PlotsNav.request = FigureFactory.fromTable(t, kind); onDismiss() } }))),
                             )
                             TableTab.Formulas -> listOf(
                                 ToolGroup("Function Library", listOf(

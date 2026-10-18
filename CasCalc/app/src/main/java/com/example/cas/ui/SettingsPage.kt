@@ -27,6 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -432,11 +433,19 @@ internal fun DetailCards(only: Int? = null) {
 
 // ---- Building blocks ---------------------------------------------------------------------
 
+/**
+ * Inside a dialog (the graphs' settings) the building blocks are drawn compact and flat, as the
+ * color and colormap dialogs are: section names as small labels, rows without cards, choices as
+ * segmented buttons and steps as a plain slider.
+ */
+internal val LocalCompactRows = androidx.compose.runtime.staticCompositionLocalOf { false }
+
 /** A group of cards: the first and last have large outer corners, the ones between small, with thin gaps. Null rows are left out. */
 @Composable
 internal fun PxCards(vararg rows: (@Composable () -> Unit)?) {
     val shown = rows.filterNotNull()
     val colors = MaterialTheme.colorScheme
+    if (LocalCompactRows.current) { Column(verticalArrangement = Arrangement.spacedBy(2.dp)) { shown.forEach { it() } }; return }
     Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
         shown.forEachIndexed { k, row ->
             val big = 26.dp; val small = 5.dp
@@ -451,8 +460,10 @@ internal fun PxCards(vararg rows: (@Composable () -> Unit)?) {
 
 /** A section's name, in the accent color. */
 @Composable
-internal fun PxHeader(text: String) =
-    Text(tr(text), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp, top = 24.dp, bottom = 10.dp))
+internal fun PxHeader(text: String) {
+    if (LocalCompactRows.current) Text(tr(text), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 16.dp, bottom = 6.dp))
+    else Text(tr(text), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 8.dp, top = 24.dp, bottom = 10.dp))
+}
 
 @Composable
 private fun Intro(text: String) =
@@ -503,6 +514,17 @@ internal fun PxRowTexts(title: String, detail: String?, modifier: Modifier = Mod
 /** A setting that's on or off: the whole card toggles it. */
 @Composable
 internal fun PxToggleRow(title: String, detail: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
+    if (LocalCompactRows.current) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Switch) { onChange(!checked) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                MathText(tr(title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                if (detail != null) MathText(tr(detail), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Spacer(Modifier.width(12.dp))
+            PxSwitch(checked, onChange)
+        }
+        return
+    }
     Row(
         Modifier.fillMaxWidth().heightIn(min = 72.dp).clickable(role = Role.Switch) { onChange(!checked) }.then(PxRowPadding),
         verticalAlignment = Alignment.CenterVertically,
@@ -553,6 +575,27 @@ private fun LinkRow(title: String, detail: String?, icon: ImageVector?, tone: In
 @Composable
 internal fun PxChoiceRow(title: String, options: List<String>, selected: Int, onChange: (Int) -> Unit) {
     val colors = MaterialTheme.colorScheme
+    if (LocalCompactRows.current) {
+        // Two options sit beside the name; more go under it, across.
+        @Composable fun buttons(modifier: Modifier) = androidx.compose.material3.SingleChoiceSegmentedButtonRow(modifier) {
+            options.forEachIndexed { k, name ->
+                SegmentedButton(
+                    selected = k == selected, onClick = { onChange(k) },
+                    shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(k, options.size), icon = {},
+                    label = { MathText(tr(name), style = MaterialTheme.typography.labelLarge, color = if (k == selected) colors.onSecondaryContainer else colors.onSurface, maxLines = 1) },
+                )
+            }
+        }
+        if (options.size <= 2) Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            MathText(tr(title), style = MaterialTheme.typography.bodyLarge, color = colors.onSurface, modifier = Modifier.weight(1f))
+            Spacer(Modifier.width(12.dp))
+            buttons(Modifier.width(200.dp))
+        } else Column(Modifier.padding(vertical = 4.dp)) {
+            MathText(tr(title), style = MaterialTheme.typography.bodyLarge, color = colors.onSurface)
+            buttons(Modifier.fillMaxWidth().padding(top = 6.dp))
+        }
+        return
+    }
     Column(PxRowPadding) {
         PxRowTexts(title, null)
         Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -576,6 +619,22 @@ internal fun PxChoiceRow(title: String, options: List<String>, selected: Int, on
 /** A setting with a few steps: a slider with a dot at each step, and − and + at its ends. */
 @Composable
 internal fun PxSteppedRow(title: String, detail: String?, value: Int, range: IntRange, onChange: (Int) -> Unit) {
+    if (LocalCompactRows.current) {
+        Column(Modifier.padding(vertical = 4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                MathText(tr(title), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                if (detail != null) MathText(tr(detail), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            ExpressiveSlider(
+                value = value.toFloat(),
+                onValueChange = { v -> v.roundToInt().let { if (it != value) onChange(it) } },
+                valueRange = range.first.toFloat()..range.last.toFloat(),
+                steps = range.last - range.first - 1,
+                modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr(title) },
+            )
+        }
+        return
+    }
     Column(PxRowPadding) {
         PxRowTexts(title, detail)
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {

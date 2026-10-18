@@ -104,6 +104,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.ui.semantics.Role
@@ -410,20 +413,29 @@ private fun InputPanel(vm: CalculatorViewModel) {
     LaunchedEffect(vm.version) {
         if (vm.editor.row === vm.editor.root && vm.editor.index == vm.editor.root.items.size) scroll.animateScrollTo(scroll.maxValue)
     }
+    // Where every row of the input is on screen: for holding to select at a place, and the handles.
+    val geometry = remember { MathGeometry() }
+    var boxCoords by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
+    var areaCoords by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
     Column(Modifier.fillMaxWidth().tourTarget("input").padding(horizontal = 24.dp, vertical = 8.dp), horizontalAlignment = Alignment.End) {
         if (vm.selecting) SelectionBar(vm)
         // Where the math sits in its box, so a tap beside it (the space to its left, or just past
         // its end) puts the cursor at the start or the end of the line.
         var mathLeft by remember { mutableStateOf(0f) }
         var mathRight by remember { mutableStateOf(0f) }
+        Box(Modifier.fillMaxWidth().onGloballyPositioned { areaCoords = it }) {
         Box(
             Modifier
                 .fillMaxWidth()
                 .horizontalScroll(scroll)
+                .onGloballyPositioned { boxCoords = it }
                 .pointerInput(Unit) {
                     detectTapGestures(
-                        // Hold the input to select it all: then cut, copy or paste from the bar above.
-                        onLongPress = { vm.startSelection() },
+                        // Hold the input to select the number, letter or piece there (handles then change it).
+                        onLongPress = { o ->
+                            val hit = boxCoords?.takeIf { it.isAttached }?.let { geometry.hit(it.localToRoot(o)) }
+                            vm.startSelection(hit?.first, hit?.second ?: 0)
+                        },
                     ) { o ->
                         val root = vm.editor.root
                         vm.tapAt(root, if (o.x < mathLeft || (o.x <= mathRight && o.x < (mathLeft + mathRight) / 2)) 0 else root.items.size)
@@ -442,11 +454,12 @@ private fun InputPanel(vm: CalculatorViewModel) {
                     fontSize = MathSizes.input,
                     color = colors.onSurface,
                     accent = colors.primary,
-                    cursorRow = vm.editor.row,
+                    cursorRow = if (vm.editor.hasSelection) null else vm.editor.row,
                     cursorIndex = vm.editor.index,
                     version = vm.version,
                     onTap = vm::tapAt,
                     selection = if (vm.editor.hasSelection) Triple(vm.editor.row, vm.editor.selectionStart, vm.editor.selectionEnd) else null,
+                    geometry = geometry,
                     modifier = Modifier
                         .padding(vertical = 8.dp)
                         .semantics { contentDescription = tr("Expression") },
@@ -454,6 +467,8 @@ private fun InputPanel(vm: CalculatorViewModel) {
                 // Room past the end: a tap here reaches the end of the line.
                 Spacer(Modifier.width(16.dp))
             }
+        }
+        if (vm.selecting && vm.editor.hasSelection) SelectionHandles(vm, geometry, areaCoords)
         }
         Box(Modifier.heightIn(min = 36.dp).horizontalScroll(rememberScrollState()), contentAlignment = Alignment.CenterEnd) {
             val error = vm.error
@@ -468,6 +483,54 @@ private fun InputPanel(vm: CalculatorViewModel) {
                     MathView(if (decimal) preview.approx!! else preview.exact, MathSizes.preview, colors.onSurfaceVariant)
                 }
             }
+        }
+    }
+}
+
+/**
+ * The two teardrop handles under the selection's ends, as in any Android text field: drag one
+ * to move that end anywhere in the expression (into a fraction, past a root…); the selection
+ * takes in whole structures as it needs to.
+ */
+@Composable
+private fun SelectionHandles(vm: CalculatorViewModel, geometry: MathGeometry, area: androidx.compose.ui.layout.LayoutCoordinates?) {
+    val colors = MaterialTheme.colorScheme
+    val density = LocalDensity.current
+    val size = 22.dp
+    val sizePx = with(density) { size.toPx() }
+    @Suppress("UNUSED_EXPRESSION") geometry.tick
+    val a = area?.takeIf { it.isAttached } ?: return
+    val origin = a.positionInRoot()
+    val ed = vm.editor
+    listOf(true, false).forEach { start ->
+        val caret = geometry.caret(ed.row, if (start) ed.selectionStart else ed.selectionEnd) ?: return@forEach
+        val local = caret - origin
+        if (local.x < -sizePx || local.x > a.size.width + sizePx) return@forEach
+        // Dragged from where it was grabbed; the place is read just above the handle's tip.
+        var drag by remember(start) { mutableStateOf(Offset.Zero) }
+        var grab by remember(start) { mutableStateOf<Offset?>(null) }
+        Canvas(
+            Modifier
+                .offset { androidx.compose.ui.unit.IntOffset((local.x - if (start) sizePx else 0f).toInt(), local.y.toInt()) }
+                .size(size)
+                .pointerInput(start) {
+                    detectDragGestures(
+                        onDragStart = { grab = caret; drag = Offset.Zero },
+                        onDragEnd = { grab = null },
+                        onDragCancel = { grab = null },
+                    ) { change, d ->
+                        change.consume()
+                        drag += d
+                        val tip = (grab ?: caret) + drag - Offset(0f, with(density) { 14.dp.toPx() })
+                        geometry.hit(tip)?.let { (row, index) -> vm.dragHandle(start, row, index) }
+                    }
+                },
+        ) {
+            // A circle with one square corner pointing up at the selection's edge.
+            val r = this.size.width / 2
+            drawCircle(colors.primary, r, Offset(r, r))
+            if (start) drawRect(colors.primary, Offset(r, 0f), androidx.compose.ui.geometry.Size(r, r))
+            else drawRect(colors.primary, Offset(0f, 0f), androidx.compose.ui.geometry.Size(r, r))
         }
     }
 }

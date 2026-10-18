@@ -67,7 +67,7 @@ class ModeGuidesTest {
     }
 
     @Test fun everyGuideHasContent() {
-        assertEquals(5, ModeGuides.all.size)
+        assertEquals(4, ModeGuides.all.size)
         ModeGuides.all.forEach { assertTrue(it.examples.size >= 5 && it.gestures.isNotEmpty()) }
     }
 }

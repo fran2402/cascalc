@@ -66,7 +66,6 @@ fun AppScreen() {
                 Mode.Graph2D -> graph2d.show(listOf(row))
                 Mode.Graph3D -> graph3d.show(listOf(row))
                 Mode.Complex -> complex.show(listOf(row))
-                Mode.Plots -> FigureFactory.fromRow(row).let { d -> FigureStore.save(context, d); PlotsNav.openId = d.id }
             }
             switchTo(m)
         }, onDismiss = { guide = null })
@@ -79,17 +78,6 @@ fun AppScreen() {
         Shortcuts.target = null
         if (shortcut == "converter") { switchTo(Mode.Calculator); Shortcuts.openConverter = true }
         else runCatching { Mode.valueOf(shortcut) }.getOrNull()?.let { switchTo(it) }
-    }
-
-    // A figure asked for elsewhere (a table's Chart, the 2D graph's Open as figure): saved, opened in Plots.
-    val figureRequest = PlotsNav.request
-    androidx.compose.runtime.LaunchedEffect(figureRequest) {
-        val d = figureRequest ?: return@LaunchedEffect
-        PlotsNav.request = null
-        runCatching { FigureStore.save(context, d) }
-        PlotsNav.openId = d.id
-        NotebookNav.open = false
-        switchTo(Mode.Plots)
     }
 
     // A graph file the app was opened with: imported, opened, and its mode shown.
@@ -107,10 +95,6 @@ fun AppScreen() {
                 // Graphs have no button here: double-tap a graph to reset its view.
                 when (mode) {
                     Mode.Calculator -> CalculatorLeadingAction(calculator)
-                    // The figures' library (from a figure open in it).
-                    Mode.Plots -> IconButton(onClick = { PlotsNav.openId = null }, enabled = PlotsNav.openId != null) {
-                        AppIcon(TableIcons.Folder, contentDescription = tr("Saved figures"), tint = if (PlotsNav.openId != null) colors.onSurfaceVariant else colors.outline)
-                    }
                     // Saved graphs of every graph mode; opening one switches to its mode.
                     else -> ProjectsButton(mode, graphs, onSwitch = switchTo)
                 }
@@ -121,10 +105,7 @@ fun AppScreen() {
             Box(Modifier.size(48.dp).tourTarget("more"), contentAlignment = Alignment.Center) {
                 // The ⋮ menu (settings, acknowledgements) is in every mode; the calculator's own
                 // entries (copy, clear history) come with it there.
-                if (mode == Mode.Calculator) CalculatorTrailingAction(calculator)
-                else GraphMenuAction(onOpenAsFigure = if (mode == Mode.Graph2D) ({
-                    PlotsNav.request = FigureFactory.fromGraph(graph2d.functions.filter { it.visible }.map { com.example.cas.editor.MathCodec.copy(it.editor.root) }, graph2d.view)
-                }) else null)
+                if (mode == Mode.Calculator) CalculatorTrailingAction(calculator) else GraphMenuAction()
             }
         }
         AnimatedContent(targetState = mode, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "mode", modifier = Modifier.weight(1f)) { m ->
@@ -144,7 +125,6 @@ fun AppScreen() {
                 })
                 Mode.Graph3D -> Graph3DScreen(graph3d, onUseValue = { v -> calculator.insertNumber(v); switchTo(Mode.Calculator) })
                 Mode.Complex -> ComplexScreen(complex, onUseValue = { v -> calculator.insertComplex(v); switchTo(Mode.Calculator) })
-                Mode.Plots -> PlotsScreen()
             }
         }
     }
@@ -160,7 +140,7 @@ fun AppScreen() {
 
 /** The ⋮ menu in the graph modes: settings and acknowledgements. */
 @Composable
-private fun GraphMenuAction(onOpenAsFigure: (() -> Unit)? = null) {
+private fun GraphMenuAction() {
     val colors = MaterialTheme.colorScheme
     var menu by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(false) }
@@ -175,7 +155,6 @@ private fun GraphMenuAction(onOpenAsFigure: (() -> Unit)? = null) {
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             DropdownMenuItem(text = { Text(tr("Notebooks")) }, leadingIcon = { AppIcon(TableIcons.Document, null) }, onClick = { menu = false; NotebookNav.open = true })
-            if (onOpenAsFigure != null) DropdownMenuItem(text = { Text(tr("Open as figure")) }, leadingIcon = { AppIcon(FigureIcons.Mode, null) }, onClick = { menu = false; onOpenAsFigure() })
             if (AppSettings.unitConverter) DropdownMenuItem(
                 text = { Text(tr("Unit converter")) }, leadingIcon = { AppIcon(TableIcons.Converter, null) },
                 onClick = { menu = false; converter = true },

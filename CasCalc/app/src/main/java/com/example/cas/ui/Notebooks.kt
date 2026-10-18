@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import com.example.cas.engine.Formatter
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -234,9 +233,6 @@ private fun NotebookRow(d: Notebook.Doc, onOpen: () -> Unit, onRename: () -> Uni
                     is Block.Math -> Box(Modifier.fillMaxWidth(0.55f).height(4.dp).clip(CircleShape).background(colors.primary))
                     is Block.Text -> Box(Modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(colors.outlineVariant))
                     is Block.Table -> Box(Modifier.fillMaxWidth().height(10.dp).border(1.dp, colors.primary, RoundedCornerShape(2.dp)))
-                    is Block.Figure -> Row(Modifier.fillMaxWidth().height(12.dp), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Bottom) {
-                        listOf(0.5f, 1f, 0.7f, 0.35f).forEach { h -> Box(Modifier.weight(1f).fillMaxHeight(h).background(colors.primary)) }
-                    }
                 }
             }
         }
@@ -305,8 +301,7 @@ private fun shareNotebookFile(context: Context, d: Notebook.Doc) = share(context
  */
 private class EditBlock(
     val id: Long, val kind: Char, text: String = "", row: MathRow = MathRow(), from: MathRow = MathRow(), to: MathRow = MathRow(),
-    table: com.example.cas.graph.DataTable = Notebook.emptyTable(), plot: Boolean = false,
-    figure: com.example.cas.graph.Figure.Doc? = null, private val onChange: () -> Unit,
+    table: com.example.cas.graph.DataTable = Notebook.emptyTable(), plot: Boolean = false, private val onChange: () -> Unit,
 ) {
     var text by mutableStateOf(TextFieldValue(text))
     var version by mutableIntStateOf(0)
@@ -316,7 +311,6 @@ private class EditBlock(
     val to = ed(to)
     var table by mutableStateOf(table)
     var plot by mutableStateOf(plot)
-    var figure by mutableStateOf(figure ?: FigureFactory.blank("Figure"))
     var focus by mutableStateOf<Editor?>(null)
 
     fun target(): Editor = focus ?: editor
@@ -326,7 +320,6 @@ private class EditBlock(
         'T' -> Block.Text(id, text.text)
         'G' -> Block.Graph(id, com.example.cas.editor.trimMatrices(MathCodec.copy(editor.root)), MathCodec.copy(from.root), MathCodec.copy(to.root))
         'D' -> Block.Table(id, table, plot)
-        'F' -> Block.Figure(id, figure)
         else -> Block.Math(id, MathCodec.copy(editor.root))
     }
 
@@ -336,7 +329,6 @@ private class EditBlock(
             is Block.Math -> EditBlock(b.id, 'M', row = b.row, onChange = onChange)
             is Block.Graph -> EditBlock(b.id, 'G', row = b.row, from = b.from, to = b.to, onChange = onChange)
             is Block.Table -> EditBlock(b.id, 'D', table = b.table, plot = b.plot, onChange = onChange)
-            is Block.Figure -> EditBlock(b.id, 'F', figure = b.doc, onChange = onChange)
         }
 
         /** A copy of [b] with the id [id]. */
@@ -345,7 +337,6 @@ private class EditBlock(
             is Block.Math -> Block.Math(id, b.row)
             is Block.Graph -> Block.Graph(id, b.row, b.from, b.to)
             is Block.Table -> Block.Table(id, b.table, b.plot)
-            is Block.Figure -> Block.Figure(id, com.example.cas.graph.Figure.decode("nb$id", com.example.cas.graph.Figure.encode(b.doc)))
         }
     }
 }
@@ -465,7 +456,6 @@ private fun NotebookEditor(doc: Notebook.Doc, onClose: () -> Unit, onGraph: (Gra
         FabItem("Math", TableIcons.ModeCalculator, "Add math") { add('M') },
         FabItem("Graph", TableIcons.Mode2D, "Add a graph") { add('G') },
         FabItem("Table", TableIcons.Table, "Add a table") { add('D') },
-        FabItem("Figure", FigureIcons.Mode, "Add a figure") { add('F') },
     )
 
     /** The page: the title, then every block. */
@@ -522,7 +512,7 @@ private fun NotebookEditor(doc: Notebook.Doc, onClose: () -> Unit, onGraph: (Gra
                             if (a != null) BlockActionsBar(onUp, onDown, onDuplicate, onDelete, labels = true, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 20.dp))
                         }
                         // The keypad's column for math and graphs, the Markdown tools for text.
-                        if (a != null && a.kind != 'T' && a.kind != 'D' && a.kind != 'F') Keypad(keys, Modifier.width(tabletKeypadWidth()).fillMaxHeight().background(colors.surfaceContainerLow), tablet = true)
+                        if (a != null && a.kind != 'T' && a.kind != 'D') Keypad(keys, Modifier.width(tabletKeypadWidth()).fillMaxHeight().background(colors.surfaceContainerLow), tablet = true)
                         else if (a != null && a.kind == 'T') Column(Modifier.width(tabletKeypadWidth()).fillMaxHeight().background(colors.surfaceContainerLow).padding(16.dp)) {
                             Text(tr("Formatting"), style = MaterialTheme.typography.titleSmall, color = colors.primary, modifier = Modifier.padding(bottom = 10.dp))
                             MarkdownToolbar(a.text, { a.text = it; bump() }, wrap = true)
@@ -536,7 +526,7 @@ private fun NotebookEditor(doc: Notebook.Doc, onClose: () -> Unit, onGraph: (Gra
                         }
                     }
                     Page(Modifier.weight(1f).fillMaxWidth(), 24.dp)
-                    val typing = a != null && a.kind != 'T' && a.kind != 'D' && a.kind != 'F'
+                    val typing = a != null && a.kind != 'T' && a.kind != 'D'
                     if (typing && !keys.keypadHidden) {
                         // The keypad, with the block's actions on a slim row over it.
                         BlockActionsBar(onUp, onDown, onDuplicate, onDelete, labels = false, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
@@ -610,7 +600,6 @@ private fun NotebookOutline(blocks: List<EditBlock>, active: EditBlock?, modifie
                 'T' -> TableIcons.Note to (firstLine.trimStart('#').trim().ifEmpty { tr("Text") })
                 'G' -> TableIcons.Mode2D to (tr("Graph") + " " + Formatter.plain(b.editor.root)).trim()
                 'D' -> TableIcons.Table to (tr("Table") + " " + b.table.names.joinToString(", "))
-                'F' -> FigureIcons.Mode to (tr("Figure") + " " + b.figure.name).trim()
                 else -> TableIcons.ModeCalculator to Formatter.plain(b.editor.root).ifEmpty { tr("Math") }
             }
             val on = b === active
@@ -672,7 +661,6 @@ private fun BlockView(
                 }
             }
             'D' -> DataTableView(b, isActive, run, shape, outline, onActivate)
-            'F' -> FigureBlockView(b, run, shape, outline, onActivate)
             else -> {
                 val p = run?.plots?.get(b.id)
                 Column(Modifier.fillMaxWidth().clip(shape).background(colors.surfaceContainerHigh).then(outline).clickable(onClick = onActivate)) {
@@ -767,38 +755,6 @@ private fun DataTableView(b: EditBlock, isActive: Boolean, run: Notebook.Run?, s
             Spacer(Modifier.width(8.dp))
         }
         if (b.plot && p != null && p.points.isNotEmpty()) NotebookPlot(p, Modifier.fillMaxWidth().height(190.dp).padding(top = 8.dp))
-    }
-}
-
-/**
- * A figure: drawn with the definitions above it (and its own table), in the app's colors or its
- * style. Tapping it opens the Plots mode's editor full screen.
- */
-@Composable
-private fun FigureBlockView(b: EditBlock, run: Notebook.Run?, shape: RoundedCornerShape, outline: Modifier, onActivate: () -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    var editing by remember { mutableStateOf(false) }
-    val d = b.figure
-    val theme = appFigureTheme()
-    var scene by remember { mutableStateOf<com.example.cas.graph.Scene?>(null) }
-    val block = Block.Figure(b.id, d)
-    val scope = run?.scopes?.get(b.id)
-    LaunchedEffect(d, run, theme) {
-        val eval = run?.figureEval(block, KeypadState.angle) ?: figureEval(d)
-        scene = withContext(Dispatchers.Default) { runCatching { com.example.cas.graph.Figure.build(d, eval, theme).scene }.getOrNull() }
-    }
-    if (editing) FigureEditorDialog(d, scope?.first ?: emptyMap(), scope?.second ?: emptyMap(), onSave = { b.figure = it; b.changed() }, onDismiss = { editing = false })
-    Column(Modifier.fillMaxWidth().clip(shape).background(colors.surfaceContainerHigh).then(outline).clickable { onActivate(); editing = true }.padding(10.dp)) {
-        Row(Modifier.padding(start = 6.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            AppIcon(FigureIcons.Mode, contentDescription = null, tint = colors.onSurface, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(d.name.ifBlank { tr("Figure") }, style = MaterialTheme.typography.titleSmall, color = colors.onSurface, modifier = Modifier.weight(1f))
-            TextButton(onClick = { onActivate(); editing = true }) { AppIcon(TableIcons.Edit, contentDescription = null, modifier = Modifier.size(18.dp)); Spacer(Modifier.width(6.dp)); Text(tr("Edit figure")) }
-        }
-        Box(Modifier.fillMaxWidth().aspectRatio((1 / d.aspect).toFloat().coerceIn(0.5f, 3f)).clip(RoundedCornerShape(14.dp)).background(Color(theme.background))) {
-            FigureCanvas(scene, Modifier.fillMaxSize())
-        }
-        if (d.axes.all { it.layers.isEmpty() }) Text(tr("Empty: Edit figure adds lines, histograms, box plots… of anything defined above."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(6.dp))
     }
 }
 

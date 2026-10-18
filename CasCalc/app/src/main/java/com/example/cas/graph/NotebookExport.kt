@@ -238,15 +238,6 @@ object NotebookExport {
                 y += 8
             }
             is Notebook.Block.Graph -> run.plots[b.id]?.let { figure(it) }
-            is Notebook.Block.Figure -> runCatching {
-                // Drawn in its own style, or SciencePlots' for one in the app's colors.
-                val doc = if (b.doc.theme == 0) b.doc.copy(theme = 1) else b.doc
-                val src = Figure.build(doc, run.figureEval(b), Figure.THEMES[1], 480.0).scene
-                val scale = width / src.width
-                room(src.height * scale + 12)
-                Figure.embed(scene, src, MARGIN, y, scale)
-                y += src.height * scale + 12
-            }
         }
         out += scene
         return out
