@@ -121,15 +121,21 @@ object FigureStore {
     fun load(c: Context, id: String): Figure.Doc? = runCatching { Figure.decode(id, File(dir(c), "$id.casfig").readText()) }.getOrNull()
     fun save(c: Context, d: Figure.Doc) { File(dir(c), d.id + ".casfig").writeText(Figure.encode(d)) }
     fun delete(c: Context, id: String) { File(dir(c), "$id.casfig").delete() }
+    fun exists(c: Context, id: String) = File(dir(c), "$id.casfig").exists()
     fun newId(): String = java.lang.Long.toString(System.currentTimeMillis(), 36) + (100..999).random()
 }
 
-/** Whether Plots is open (from the 2D graph's ⋮ menu), which figure, and a figure asked for from elsewhere (a table's Chart, the 2D graph). */
+/**
+ * The figure open in Plots (from the 2D graph's Open as figure, a table's Chart, or the saved
+ * graphs' Plots), and one asked for from elsewhere, opened by the app.
+ */
 object PlotsNav {
     var open by mutableStateOf(false)
-    var openId by mutableStateOf<String?>(null)
-    /** A new figure to save and open in the Plots mode; the app switches there when this is set. */
+    /** The figure being edited: a saved one, or a new one not saved yet. */
+    var doc by mutableStateOf<Figure.Doc?>(null)
     var request by mutableStateOf<Figure.Doc?>(null)
+
+    fun show(d: Figure.Doc) { doc = d; open = true }
 }
 
 /** New figures: blank, from templates, from a table, from the 2D graph's lines. */
@@ -160,20 +166,50 @@ object FigureFactory {
         return Figure.Doc(FigureStore.newId(), "", listOf(Figure.Axes(listOf(l), xLabel = "\$x\$", legend = 0)), name = "Figure", edited = System.currentTimeMillis())
     }
 
-    /** The 2D graph's curves y = f(x) as line layers, over its view. */
-    fun fromGraph(rows: List<MathRow>, view: com.example.cas.graph.Viewport?): Figure.Doc {
-        val layers = rows.mapNotNull { r ->
+    /**
+     * The 2D graph as a figure, over its view: curves y = f(x) as lines and r = f(θ) as polar
+     * curves, points and lists of points as scatters (their numbers in the figure's table), each
+     * in its line's color, style, thickness and point shape.
+     */
+    fun fromGraph(functions: List<PlotFunction>, view: com.example.cas.graph.Viewport?): Figure.Doc {
+        val names = ArrayList<String>(); val columns = ArrayList<List<String>>()
+        val pairs = listOf("x" to "y", "u" to "v", "p" to "q", "s" to "w") + ('a'..'h').map { "x$it" to "y$it" }
+        val layers = ArrayList<Figure.Layer>()
+        fun style(f: PlotFunction, label: String) = Figure.Style(color = f.colorIndex, argb = f.customColor ?: 0, line = f.lineStyle, width = (f.thickness * 0.6).toDouble().coerceIn(0.5, 4.0), marker = -1, label = label)
+        fun rhs(r: MathRow, left: String): MathRow? {
             val items = r.items
             val eq = items.indexOfFirst { it is Sym && it.text == "=" }
-            val rhs = if (eq >= 0) {
-                val left = items.take(eq)
-                if (left.size != 1 || (left[0] as? Sym)?.text != "y") return@mapNotNull null
-                MathCodec.decode(MathCodec.encode(items.drop(eq + 1)))
-            } else MathCodec.copy(r)
-            if (rhs.items.isEmpty()) null else Figure.Layer(Figure.Kind.Plot, listOf(rhs), style = Figure.Style(label = "$" + com.example.cas.engine.Latex.of(rhs) + "$"))
+            if (eq < 0) return MathCodec.copy(r)
+            val l = items.take(eq)
+            if (l.size != 1 || (l[0] as? Sym)?.text != left) return null
+            return MathCodec.decode(MathCodec.encode(items.drop(eq + 1)))
         }
+        fun num(v: Double) = com.example.cas.graph.DataTable.text(v)
+        for (f in functions) when (val k = f.plot) {
+            is Plot2DKind.Explicit -> rhs(f.editor.root, "y")?.takeIf { it.items.isNotEmpty() }?.let { r ->
+                layers += Figure.Layer(Figure.Kind.Plot, listOf(r), style = style(f, "$" + com.example.cas.engine.Latex.of(r) + "$"))
+            }
+            is Plot2DKind.Polar -> rhs(f.editor.root, "r")?.takeIf { it.items.isNotEmpty() }?.let { r ->
+                layers += Figure.Layer(Figure.Kind.Polar, listOf(r), style = style(f, "\$r = " + com.example.cas.engine.Latex.of(r) + "\$"))
+            }
+            is Plot2DKind.PointList, is Plot2DKind.Point -> {
+                val (xs, ys) = when (k) {
+                    is Plot2DKind.PointList -> k.xs to k.ys
+                    is Plot2DKind.Point -> runCatching { doubleArrayOf(k.x(DoubleArray(8))) to doubleArrayOf(k.y(DoubleArray(8))) }.getOrNull() ?: continue
+                    else -> continue
+                }
+                val (a, b) = pairs.getOrNull(names.size / 2) ?: continue
+                names += a; names += b
+                columns += xs.map(::num); columns += ys.map(::num)
+                val label = if (xs.size == 1) "(${num(xs[0])}, ${num(ys[0])})" else "Data"
+                layers += Figure.Layer(Figure.Kind.Scatter, listOf(m(a), m(b)), style = style(f, label).copy(marker = f.pointShape, size = 3.0))
+            }
+            else -> Unit
+        }
+        val n = columns.maxOfOrNull { it.size } ?: 0
+        val table = if (names.isEmpty()) Figure.emptyData() else DataTable(names, columns.map { c -> c + List(n - c.size) { "" } }, null, null)
         val axes = Figure.Axes(layers, xLabel = "\$x\$", yLabel = "\$y\$", xMin = view?.xMin, xMax = view?.xMax, yMin = view?.yMin, yMax = view?.yMax, legend = 0)
-        return Figure.Doc(FigureStore.newId(), "", listOf(axes), name = "From 2D graph", edited = System.currentTimeMillis())
+        return Figure.Doc(FigureStore.newId(), "", listOf(axes), data = table, name = "From 2D graph", edited = System.currentTimeMillis())
     }
 
     class Template(val name: String, val detail: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val make: () -> Figure.Doc)
@@ -224,7 +260,13 @@ fun FigureCanvas(scene: Scene?, modifier: Modifier = Modifier) {
     val fonts = remember { SceneExport.font(context) }
     Canvas(modifier) {
         val s = scene ?: return@Canvas
-        drawIntoCanvas { c -> SceneExport.draw(c.nativeCanvas as Any as android.graphics.Canvas, s, (size.width / s.width).toFloat(), fonts) }
+        // Fitted into the box, in the middle (a short box shows the whole figure, smaller).
+        val k = minOf(size.width / s.width.toFloat(), size.height / s.height.toFloat())
+        val dx = (size.width - s.width.toFloat() * k) / 2; val dy = (size.height - s.height.toFloat() * k) / 2
+        drawIntoCanvas { c ->
+            val nc = c.nativeCanvas as Any as android.graphics.Canvas
+            nc.save(); nc.translate(dx, dy); SceneExport.draw(nc, s, k, fonts); nc.restore()
+        }
     }
 }
 
@@ -242,134 +284,26 @@ private fun shareBytes(context: Context, name: String, mime: String, bytes: Byte
 // ---- The page -----------------------------------------------------------------------------------
 
 /**
- * Plots, full screen (from the 2D graph's ⋮ menu, or a table's Chart): the library of saved
- * figures, or the one open in it. Turned on in Settings › Graphs.
+ * Plots, full screen (from the 2D graph's Open as figure, a table's Chart, or the saved
+ * graphs): the figure being edited. Back returns to where it came from, asking first whether
+ * to save changes. Turned on in Settings › Graphs.
  */
 @Composable
 fun PlotsPage(onBack: () -> Unit) {
     val context = LocalContext.current
     val colors = MaterialTheme.colorScheme
     val page = rememberPageMotion(onBack)
-    Dialog(onDismissRequest = page.close, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+    val start = PlotsNav.doc ?: run { LaunchedEffect(Unit) { onBack() }; return }
+    Dialog(onDismissRequest = {}, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         page.Content {
             Surface(Modifier.fillMaxSize(), color = colors.surface) {
                 Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
-                    val open = PlotsNav.openId
-                    if (open == null) {
-                        BackHandler(onBack = page.close)
-                        PlotsHome(onOpen = { PlotsNav.openId = it }, onBack = page.close)
-                    } else key(open) {
-                        val doc = remember { FigureStore.load(context, open) }
-                        if (doc == null) LaunchedEffect(Unit) { PlotsNav.openId = null }
-                        else FigureEditor(doc, eval = { figureEval(it) }, onSave = { runCatching { FigureStore.save(context, it) } }, onClose = { PlotsNav.openId = null })
+                    key(start.id) {
+                        FigureEditor(start, eval = { figureEval(it) }, autosave = false,
+                            onSave = { d -> runCatching { FigureStore.save(context, d) }; PlotsNav.doc = d },
+                            onClose = page.close)
                     }
                 }
-            }
-        }
-    }
-}
-
-/** The library: new figures from templates, an opened file, and the saved figures with thumbnails. */
-@Composable
-private fun PlotsHome(onOpen: (String) -> Unit, onBack: () -> Unit) {
-    val context = LocalContext.current
-    val colors = MaterialTheme.colorScheme
-    var docs by remember { mutableStateOf(FigureStore.list(context)) }
-    var renaming by remember { mutableStateOf<Figure.Doc?>(null) }
-    val theme = appFigureTheme()
-    fun create(d: Figure.Doc) { FigureStore.save(context, d); onOpen(d.id) }
-    val opener = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        runCatching {
-            val text = context.contentResolver.openInputStream(uri)!!.use { it.readBytes().toString(Charsets.UTF_8) }
-            val d = Figure.decode(FigureStore.newId(), text)
-            create(d.copy(edited = System.currentTimeMillis()))
-        }.onFailure { Toast.makeText(context, tr("That isn't a figure file"), Toast.LENGTH_LONG).show() }
-    }
-    renaming?.let { d ->
-        var name by remember(d.id) { mutableStateOf(d.name) }
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { renaming = null },
-            title = { Text(tr("Rename figure")) },
-            text = { OutlinedTextField(name, { name = it }, singleLine = true, label = { Text(tr("Name")) }) },
-            confirmButton = { TextButton(onClick = { FigureStore.save(context, d.copy(name = name)); docs = FigureStore.list(context); renaming = null }) { Text(tr("Rename")) } },
-            dismissButton = { TextButton(onClick = { renaming = null }) { Text(tr("Cancel")) } },
-        )
-    }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-                Box(Modifier.size(48.dp).clip(CircleShape).background(colors.surfaceContainerHigh).clickable(onClick = onBack), contentAlignment = Alignment.Center) {
-                    AppIcon(TableIcons.Back, contentDescription = tr("Back"), tint = colors.onSurface)
-                }
-                Spacer(Modifier.width(16.dp))
-                Text(tr("Plots"), style = MaterialTheme.typography.headlineMedium, color = colors.onSurface)
-            }
-            Text(tr("Figures from functions and data, after matplotlib: lines, histograms, box plots, contours and more."), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 6.dp, top = 2.dp, bottom = 8.dp))
-            PxHeader("New figure")
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                FigureFactory.templates.forEach { t ->
-                    Column(
-                        Modifier.width(132.dp).clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainerHigh).clickable(onClickLabel = tr(t.name)) { create(t.make()) }.padding(14.dp),
-                    ) {
-                        Box(Modifier.size(44.dp).clip(CircleShape).background(colors.primaryContainer), contentAlignment = Alignment.Center) {
-                            AppIcon(t.icon, contentDescription = null, tint = colors.onPrimaryContainer, accent = colors.primary)
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        Text(tr(t.name), style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
-                        Text(tr(t.detail), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-                Column(
-                    Modifier.width(132.dp).clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainerHigh).clickable { opener.launch(arrayOf("*/*")) }.padding(14.dp),
-                ) {
-                    Box(Modifier.size(44.dp).clip(CircleShape).background(colors.secondaryContainer), contentAlignment = Alignment.Center) {
-                        AppIcon(TableIcons.ImportData, contentDescription = null, tint = colors.onSecondaryContainer)
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    Text(tr("Open file"), style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
-                    Text(tr("A .casfig figure"), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, minLines = 2, maxLines = 2)
-                }
-            }
-            PxHeader("Saved")
-            if (docs.isEmpty()) PxFootnote("Figures you make are saved here as you go. Tables (Insert › Chart) and the 2D graph (⋮ › Open as figure) can start one too.")
-        }
-        itemsIndexed(docs, key = { _, d -> d.id }) { _, d ->
-            FigureRow(d, theme, onOpen = { onOpen(d.id) }, onRename = { renaming = d },
-                onDuplicate = { FigureStore.save(context, d.copy(edited = System.currentTimeMillis()).let { c -> Figure.decode(FigureStore.newId(), Figure.encode(c)).copy(name = d.name + " " + tr("copy")) }); docs = FigureStore.list(context) },
-                onShare = { shareBytes(context, safeFileName(d.name) + ".casfig", "application/octet-stream", Figure.encode(d).toByteArray()) },
-                onDelete = { FigureStore.delete(context, d.id); docs = FigureStore.list(context) })
-        }
-    }
-}
-
-@Composable
-private fun FigureRow(d: Figure.Doc, theme: Figure.Theme, onOpen: () -> Unit, onRename: () -> Unit, onDuplicate: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    var scene by remember(d.id, d.edited) { mutableStateOf<Scene?>(null) }
-    LaunchedEffect(d.id, d.edited, theme) {
-        val eval = figureEval(d)
-        scene = withContext(Dispatchers.Default) { runCatching { Figure.build(d, eval, theme, 320.0).scene }.getOrNull() }
-    }
-    var menu by remember { mutableStateOf(false) }
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainerHigh).clickable(onClick = onOpen).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.width(112.dp).aspectRatio((1 / d.aspect).toFloat().coerceIn(0.6f, 2.2f)).clip(RoundedCornerShape(14.dp)).background(Color(theme.background))) {
-            FigureCanvas(scene, Modifier.fillMaxSize())
-        }
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(d.name.ifBlank { d.title.ifBlank { tr("Untitled figure") } }, style = MaterialTheme.typography.titleMedium, color = colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val layers = d.axes.sumOf { it.layers.size }
-            Text(tr("{0} layers", layers) + " · " + java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(d.edited)),
-                style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
-        }
-        Box {
-            IconButton(onClick = { menu = true }) { AppIcon(TableIcons.More, contentDescription = tr("More options"), tint = colors.onSurfaceVariant) }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(text = { Text(tr("Rename")) }, leadingIcon = { AppIcon(TableIcons.Edit, null) }, onClick = { menu = false; onRename() })
-                DropdownMenuItem(text = { Text(tr("Duplicate")) }, leadingIcon = { AppIcon(TableIcons.Copy, null) }, onClick = { menu = false; onDuplicate() })
-                DropdownMenuItem(text = { Text(tr("Share file")) }, leadingIcon = { AppIcon(TableIcons.Share, null) }, onClick = { menu = false; onShare() })
-                DropdownMenuItem(text = { Text(tr("Delete")) }, leadingIcon = { AppIcon(TableIcons.Delete, null) }, onClick = { menu = false; onDelete() })
             }
         }
     }
@@ -429,7 +363,7 @@ private enum class FigurePage { None, Gallery, Axes, Figure, Python }
  * after they're made ([onSave]); [eval] works the inputs out.
  */
 @Composable
-fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onSave: (Figure.Doc) -> Unit, onClose: () -> Unit) {
+fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onSave: (Figure.Doc) -> Unit, onClose: () -> Unit, autosave: Boolean = true) {
     val context = LocalContext.current
     val colors = MaterialTheme.colorScheme
     var doc by remember { mutableStateOf(start) }
@@ -457,12 +391,30 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
         val d = doc; val ev = eval(d)
         built = withContext(Dispatchers.Default) { runCatching { Figure.build(d, ev, theme) }.getOrNull() }
     }
-    LaunchedEffect(doc) { delay(500); withContext(Dispatchers.IO) { onSave(doc) } }
-    // And when the editor goes (the library button, another mode), whatever was last changed.
-    val latest = androidx.compose.runtime.rememberUpdatedState(doc)
-    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { onSave(latest.value) } }
-    val close = { onSave(doc); onClose() }
+    // In a notebook: saved with it as it changes. In Plots: saved when asked (Save, or on leaving).
+    var savedDoc by remember { mutableStateOf(if (autosave) null else start.takeIf { FigureStore.exists(context, it.id) }) }
+    var asking by remember { mutableStateOf(false) }
+    val dirty = !autosave && savedDoc?.let { Figure.encode(it.copy(edited = 0)) != Figure.encode(doc.copy(edited = 0)) } != false
+    if (autosave) {
+        LaunchedEffect(doc) { delay(500); withContext(Dispatchers.IO) { onSave(doc) } }
+        val latest = androidx.compose.runtime.rememberUpdatedState(doc)
+        androidx.compose.runtime.DisposableEffect(Unit) { onDispose { onSave(latest.value) } }
+    }
+    val save = { onSave(doc); savedDoc = doc }
+    val close = { if (autosave) { onSave(doc); onClose() } else if (dirty) asking = true else onClose() }
     BackHandler { if (selected != null) selected = null else close() }
+    if (asking) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { asking = false },
+        title = { Text(tr(if (savedDoc == null) "Save this figure?" else "Save changes?")) },
+        text = { Text(tr(if (savedDoc == null) "It goes into Saved graphs, under Plots." else "Your changes to this figure aren't saved yet.")) },
+        confirmButton = { TextButton(onClick = { asking = false; save(); onClose() }) { Text(tr("Save")) } },
+        dismissButton = {
+            Row {
+                TextButton(onClick = { asking = false; onClose() }) { Text(tr("Discard"), color = colors.error) }
+                TextButton(onClick = { asking = false }) { Text(tr("Cancel")) }
+            }
+        },
+    )
 
     // The open layer's inputs, each an editor the keypad types into.
     val sel = selected?.takeIf { it in axes.layers.indices }
@@ -515,8 +467,8 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
     val ratio = (1 / doc.aspect).toFloat().coerceIn(0.5f, 3f)
 
     @Composable
-    fun Preview(modifier: Modifier) {
-        Box(modifier.aspectRatio(ratio).clip(RoundedCornerShape(20.dp)).background(Color(if (doc.theme == 0) theme.background else Figure.THEMES.getOrElse(doc.theme) { theme }.background))) {
+    fun Preview(modifier: Modifier, compact: Boolean = false) {
+        Box((if (compact) modifier.height(170.dp) else modifier.aspectRatio(ratio)).clip(RoundedCornerShape(20.dp)).background(Color(if (doc.theme == 0) theme.background else Figure.THEMES.getOrElse(doc.theme) { theme }.background))) {
             FigureCanvas(built?.scene, Modifier.fillMaxSize())
             // The current axes' cell outlined, when there are several.
             val (cells, cols, rows) = Figure.cells(doc.layout)
@@ -601,6 +553,9 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
             IconButton(enabled = canUndo, onClick = { undo.removeLastOrNull()?.let { doc = it; undoCount = undo.size; selected = null } }) {
                 AppIcon(TableIcons.Undo, contentDescription = tr("Undo"), tint = if (canUndo) colors.onSurface else colors.outline)
             }
+            if (!autosave) IconButton(enabled = dirty, onClick = save) {
+                AppIcon(TableIcons.Check, contentDescription = tr("Save"), tint = if (dirty) colors.primary else colors.outline)
+            }
             ExportMenu(doc, built)
         }
         if (tablet) {
@@ -613,7 +568,8 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                 if (typing) Keypad(fieldKeys, Modifier.width(tabletKeypadWidth()).fillMaxHeight().background(colors.surfaceContainerLow), tablet = true)
             }
         } else {
-            Preview(Modifier.padding(horizontal = 12.dp).fillMaxWidth().then(if (typing) Modifier.heightIn(max = 200.dp) else Modifier))
+            // While typing, a short strip, so the inputs stay in view.
+            Preview(Modifier.padding(horizontal = 12.dp).fillMaxWidth(), compact = typing)
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 Controls(Modifier.fillMaxSize())
                 if (layer == null) AddLayerButton(Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(16.dp)) { page = FigurePage.Gallery }
@@ -1022,7 +978,7 @@ private fun FigureSettings(d: Figure.Doc, onChange: (Figure.Doc) -> Unit) {
     }
     PxHeader("Shape")
     val shapes = listOf(0.5, 0.667, 0.75, 1.0, 1.3)
-    PxCards({ PxChoiceRow("Height", listOf("Wide", "3 : 2", "4 : 3", "Square", "Tall"), nearest(shapes, d.aspect)) { onChange(d.copy(aspect = shapes[it])) } })
+    PxCards({ PxChoiceRow("Height", listOf("2 : 1", "3 : 2", "4 : 3", "1 : 1", "3 : 4"), nearest(shapes, d.aspect)) { onChange(d.copy(aspect = shapes[it])) } })
     PxHeader("Style")
     // As the colormaps: a card each, a little plot in the style's colors over its name.
     val app = appFigureTheme()

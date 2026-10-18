@@ -5,8 +5,6 @@
 Graph this	
 More options	
 Notebooks	
-Plots	
-Open as figure	
 Unit converter	
 Settings	
 Acknowledgements	
@@ -90,6 +88,7 @@ Close
 Graph. Drag to move, pinch to zoom, tap a curve to read a point, double-tap to reset.	
 Import points from a CSV, Excel or Google Sheets file	
 Import data	
+Open as figure	
 Square zoom: equal scales	
 Import sheets	
 Each sheet becomes its own line.	
@@ -371,14 +370,8 @@ Add math
 Add a graph	
 Add a figure	
 Share figure	
-That isn't a figure file	
-Rename figure	
-Figures from functions and data, after matplotlib: lines, histograms, box plots, contours and more.	
-Open file	
-A .casfig figure	
-copy	
+Discard	
 Untitled figure	
-{0} layers	
 Add a layer	
 Tap to set its inputs	
 Search: histogram, violin, contour…	
@@ -397,7 +390,12 @@ Figure file
 Saved graphs	
 Close the search	
 Import a graph file (.g2d, .g3d, .gcp)	
+Plots	
+copy	
 Nothing to save	
+Delete {0}?	
+this figure	
+The saved figure will be removed.	
 The saved graph will be removed. The graph on screen isn't affected.	
 Save a graph to keep its lines, colors and sliders, and open it again later.	
 No lines	
@@ -653,6 +651,10 @@ Complex plotting
 Maximum	
 Minimum	
 Zero	
+Save this figure?	
+Save changes?	
+It goes into Saved graphs, under Plots.	
+Your changes to this figure aren't saved yet.	
 Hide	
 Show	
 Split by commas	

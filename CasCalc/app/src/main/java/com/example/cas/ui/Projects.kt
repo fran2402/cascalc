@@ -94,17 +94,22 @@ private enum class Order(val label: String) { Newest("Newest first"), Oldest("Ol
 @Composable
 private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwitch: (Mode) -> Unit, onClose: () -> Unit) {
     val colors = MaterialTheme.colorScheme
+    val context = androidx.compose.ui.platform.LocalContext.current
     val vm = graphs.getValue(current)
     var naming by remember { mutableStateOf<Saved?>(null) }
     var saving by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf<Saved?>(null) }
     var filter by remember { mutableStateOf<Mode?>(null) }
+    // Figures from Plots (Settings › Graphs), shown under their own filter.
+    var plotsOnly by remember { mutableStateOf(false) }
+    var figures by remember { mutableStateOf(FigureStore.list(context)) }
+    var figureNaming by remember { mutableStateOf<com.example.cas.graph.Figure.Doc?>(null) }
+    var figureDeleting by remember { mutableStateOf<com.example.cas.graph.Figure.Doc?>(null) }
     var query by remember { mutableStateOf("") }
     var searching by remember { mutableStateOf(false) }
     var order by remember { mutableStateOf(Order.Newest) }
     var orderMenu by remember { mutableStateOf(false) }
     val tablet = isTabletLayout()
-    val context = androidx.compose.ui.platform.LocalContext.current
     val writeFile = rememberGraphFileWriter()
     // A graph file from elsewhere joins the saved graphs of its mode, at the top.
     val importFile = rememberGraphFileReader { c ->
@@ -118,8 +123,10 @@ private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwi
         }
     }
     val modes = graphs.keys.toList()
+    val showPlots = AppSettings.plots || figures.isNotEmpty()
     val all = graphs.flatMap { (m, g) -> g.projects.map { Saved(m, g, it) } }
-    val shown = all
+    val shownFigures = if (plotsOnly || filter == null) figures.filter { query.isBlank() || it.name.contains(query.trim(), ignoreCase = true) } else emptyList()
+    val shown = (if (plotsOnly) emptyList() else all)
         .filter { filter == null || it.mode == filter }
         .filter { query.isBlank() || it.project.name.contains(query.trim(), ignoreCase = true) }
         .let { list ->
@@ -164,14 +171,18 @@ private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwi
                     // Which modes: all, or one; counts in brackets.
                     Box(Modifier.padding(horizontal = 16.dp).widthIn(max = 720.dp)) {
                         ConnectedButtonGroup(
-                            modes.size + 1,
-                            selected = if (filter == null) 0 else modes.indexOf(filter) + 1,
-                            onSelect = { k -> filter = if (k == 0) null else modes[k - 1] },
-                            description = { k -> if (k == 0) "All saved graphs, ${all.size}" else "${modes[k - 1].label}, ${all.count { it.mode == modes[k - 1] }}" },
+                            modes.size + 1 + (if (showPlots) 1 else 0),
+                            selected = if (plotsOnly) modes.size + 1 else if (filter == null) 0 else modes.indexOf(filter) + 1,
+                            onSelect = { k -> plotsOnly = k == modes.size + 1; filter = if (k == 0 || plotsOnly) null else modes[k - 1] },
+                            description = { k -> if (k == 0) "All saved graphs, ${all.size + figures.size}" else if (k == modes.size + 1) "Plots, ${figures.size}" else "${modes[k - 1].label}, ${all.count { it.mode == modes[k - 1] }}" },
                         ) { k, on ->
                             val fg = if (on) colors.onPrimary else colors.onSurface
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                if (k == 0) Text("All (${all.size})", color = fg, style = MaterialTheme.typography.labelLarge)
+                                if (k == 0) Text("All (${all.size + figures.size})", color = fg, style = MaterialTheme.typography.labelLarge)
+                                else if (k == modes.size + 1) {
+                                    AppIcon(FigureIcons.Mode, contentDescription = null, tint = fg, accent = fg, modifier = Modifier.size(18.dp))
+                                    Text((if (tablet) tr("Plots") + " " else "") + "(${figures.size})", color = fg, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                                }
                                 else {
                                     val m = modes[k - 1]
                                     Icon(m.icon, contentDescription = null, tint = fg, modifier = Modifier.size(18.dp))
@@ -183,7 +194,7 @@ private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwi
                             }
                         }
                     }
-                    if (shown.isEmpty()) {
+                    if (shown.isEmpty() && shownFigures.isEmpty()) {
                         EmptyProjects(searching = query.isNotBlank(), modifier = Modifier.weight(1f).fillMaxWidth())
                     } else {
                         LazyVerticalGrid(
@@ -193,6 +204,16 @@ private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwi
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.weight(1f).fillMaxWidth(),
                         ) {
+                            if (shownFigures.isNotEmpty()) {
+                                if (!plotsOnly) item(span = { GridItemSpan(maxLineSpan) }, contentType = "header") {
+                                    Text(tr("Plots"), style = MaterialTheme.typography.titleSmall, color = colors.primary, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
+                                }
+                                items(shownFigures, key = { "fig" + it.id }, contentType = { "figure" }) { d ->
+                                    FigureCard(d, onOpen = { PlotsNav.show(d); onClose() }, onRename = { figureNaming = d },
+                                        onDuplicate = { FigureStore.save(context, com.example.cas.graph.Figure.decode(FigureStore.newId(), com.example.cas.graph.Figure.encode(d)).copy(name = d.name + " " + tr("copy"), edited = System.currentTimeMillis())); figures = FigureStore.list(context) },
+                                        onDelete = { figureDeleting = d })
+                                }
+                            }
                             groups.forEach { (label, list) ->
                                 if (label.isNotEmpty()) item(span = { GridItemSpan(maxLineSpan) }, contentType = "header") {
                                     Text(tr(label), style = MaterialTheme.typography.titleSmall, color = colors.primary, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
@@ -234,6 +255,16 @@ private fun ProjectsPage(current: Mode, graphs: Map<Mode, GraphViewModel>, onSwi
                 confirmButton = { TextButton(onClick = { saving = false }) { Text(tr("OK")) } },
             )
         } else NameDialog("Save graph", "Graph ${vm.projects.size + 1}", onDone = { vm.saveProject(it); saving = false }, onDismiss = { saving = false })
+    }
+    figureNaming?.let { d -> NameDialog("Rename", d.name, onDone = { FigureStore.save(context, d.copy(name = it)); figures = FigureStore.list(context); figureNaming = null }, onDismiss = { figureNaming = null }) }
+    figureDeleting?.let { d ->
+        AlertDialog(
+            onDismissRequest = { figureDeleting = null },
+            title = { Text(tr("Delete {0}?", d.name.ifBlank { tr("this figure") })) },
+            text = { Text(tr("The saved figure will be removed.")) },
+            confirmButton = { TextButton(onClick = { FigureStore.delete(context, d.id); figures = FigureStore.list(context); figureDeleting = null }) { Text(tr("Delete"), color = colors.error) } },
+            dismissButton = { TextButton(onClick = { figureDeleting = null }) { Text(tr("Cancel")) } },
+        )
     }
     naming?.let { s -> NameDialog("Rename", s.project.name, onDone = { s.vm.renameProject(s.project, it); naming = null }, onDismiss = { naming = null }) }
     deleting?.let { s ->
@@ -365,4 +396,36 @@ private fun NameDialog(title: String, initial: String, onDone: (String) -> Unit,
         confirmButton = { TextButton(onClick = { onDone(name) }, enabled = name.isNotBlank()) { Text(tr("Save")) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(tr("Cancel")) } },
     )
+}
+
+
+/** A saved figure from Plots: its picture, name and when it was saved, and a menu. */
+@Composable
+private fun FigureCard(d: com.example.cas.graph.Figure.Doc, onOpen: () -> Unit, onRename: () -> Unit, onDuplicate: () -> Unit, onDelete: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val theme = appFigureTheme()
+    var scene by remember(d.id, d.edited) { mutableStateOf<com.example.cas.graph.Scene?>(null) }
+    androidx.compose.runtime.LaunchedEffect(d.id, d.edited, theme) {
+        val eval = figureEval(d)
+        scene = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { runCatching { com.example.cas.graph.Figure.build(d, eval, theme, 320.0).scene }.getOrNull() }
+    }
+    var menu by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainerHigh).clickable(onClick = onOpen).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(width = 112.dp, height = 80.dp).clip(RoundedCornerShape(14.dp)).background(Color(if (d.theme == 0) theme.background else com.example.cas.graph.Figure.THEMES.getOrElse(d.theme) { theme }.background))) {
+            FigureCanvas(scene, Modifier.fillMaxSize())
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(d.name.ifBlank { tr("Untitled figure") }, style = MaterialTheme.typography.titleMedium, color = colors.onSurface, maxLines = 1)
+            Text(whenSaved(d.edited), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        }
+        Box {
+            IconButton(onClick = { menu = true }) { AppIcon(TableIcons.More, contentDescription = tr("More options"), tint = colors.onSurfaceVariant) }
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(text = { Text(tr("Rename")) }, onClick = { menu = false; onRename() })
+                DropdownMenuItem(text = { Text(tr("Duplicate")) }, onClick = { menu = false; onDuplicate() })
+                DropdownMenuItem(text = { Text(tr("Delete")) }, onClick = { menu = false; onDelete() })
+            }
+        }
+    }
 }

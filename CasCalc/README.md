@@ -203,6 +203,23 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (18 October, Plots from the 2D graph and saved graphs)
+
+- **Open as figure from the 2D graph's toolbar**: with Plots on, the button between the polar
+  grid and the settings turns the graph on screen into a figure (square zoom stays when Plots
+  is off). The ⋮ menu no longer has Plots entries.
+- **The figure keeps the graph as it is**: points and lists of points become scatters (their
+  numbers go into the figure's table, so no more "Missing )"), curves y = f(x) become lines and
+  r = f(θ) polar curves, each in its line's color, style, thickness and point shape, over the
+  same view.
+- **Back goes back to the 2D graph**, and nothing is saved behind your back: leaving with
+  changes asks to Save, Discard or Cancel, and the ✓ in the top bar saves at any time.
+- **Saved figures live in Saved graphs**, with a Plots filter next to 2D, 3D and complex (and
+  in All, under their own heading); open, rename, duplicate or delete them there.
+- **The preview shrinks while you type** a layer's input, so the field and the keypad stay in
+  view; the whole figure still shows, smaller. Figure shapes read 2 : 1, 3 : 2, 4 : 3, 1 : 1 and
+  3 : 4, so none are cut off.
+
 ## Latest changes (18 October, selecting in graph lines, Plots back as a setting)
 
 - **Select in graph lines too**: in 2D, 3D and the complex plane, hold a line's math to select
