@@ -362,8 +362,21 @@ object Figure {
     /** A fitted curve's own model: its parameters (its letters other than x), as a function of x and them, and the formula. */
     class CustomModel(val params: List<String>, val f: (Double, DoubleArray) -> Double, val row: MathRow)
 
+    /**
+     * A fitted curve's own model kept exactly as typed on the keypad (symbols you build, x₀,
+     * included): the calculator's own encoding after a marker. Plain text (a*e^(-b*x) + c) is
+     * still read, as before.
+     */
+    private const val EXACT = "\u0001"
+    fun formulaOf(row: MathRow): String = EXACT + MathCodec.encode(row)
+    fun formulaRow(formula: String): MathRow =
+        if (formula.startsWith(EXACT)) runCatching { MathCodec.decode(formula.removePrefix(EXACT)) }.getOrDefault(MathRow())
+        else com.example.cas.engine.PlainMath.parse(formula.substringAfter('=').trim())
+    /** The formula as plain text (for the Python export). */
+    fun formulaText(formula: String): String = com.example.cas.engine.PlainMath.text(formulaRow(formula))
+
     fun customModel(formula: String): CustomModel? {
-        val row = com.example.cas.engine.PlainMath.parse(formula.substringAfter('=').trim())
+        val row = formulaRow(formula)
         if (row.items.isEmpty()) return null
         val e = runCatching { com.example.cas.engine.Evaluator().evaluate(MathCodec.copy(row)) }.getOrNull() ?: return null
         val params = e.freeVars().filter { it != "i" && it != "x" }.distinct().sorted()

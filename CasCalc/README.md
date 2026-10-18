@@ -203,6 +203,11 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (18 October, fixes: own fit models with built symbols, saving a figure's table)
+
+- Your own fit model keeps exactly what's typed on the keypad, including symbols from the symbol builder such as x₀. These used to turn into a broken "▯x0" when the model was opened again, and then the fit failed. Such symbols now count as parameters to fit, like a or b. Models written as plain text before still work.
+- A figure's data table can be saved again after adding rows or columns. Done waited for a y column, which a figure's table doesn't have.
+
 ## Latest changes (18 October, Plots: tables from Excel and several files, chips in Maple Mono, drag notes, keypad for curves)
 
 - Rotation is gone: both the whole-figure rotation and the turned tick numbers.

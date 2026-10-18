@@ -438,7 +438,7 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
     var formulaVersion by remember { mutableIntStateOf(0) }
     val formulaEditor = remember(mathEdit, axesAt) {
         mathEdit?.let { (k, i) ->
-            axes.layers.getOrNull(k)?.let { l -> com.example.cas.editor.Editor(if (i < 0) com.example.cas.engine.PlainMath.parse(l.style.formula.substringAfter('=').trim()) else MathCodec.copy(l.input(i))) }
+            axes.layers.getOrNull(k)?.let { l -> com.example.cas.editor.Editor(if (i < 0) Figure.formulaRow(l.style.formula) else MathCodec.copy(l.input(i))) }
         }
     }
     formulaEditor?.onChange = {
@@ -446,7 +446,7 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
         val m = mathEdit; val l = m?.let { axes.layers.getOrNull(it.first) }
         if (m != null && l != null) {
             val (k, i) = m
-            if (i < 0) setLayer(k, l.copy(style = l.style.copy(formula = com.example.cas.engine.PlainMath.text(formulaEditor.root))), record = false)
+            if (i < 0) setLayer(k, l.copy(style = l.style.copy(formula = Figure.formulaOf(formulaEditor.root))), record = false)
             else setLayer(k, l.copy(inputs = List(maxOf(l.inputs.size, i + 1)) { j -> if (j == i) MathCodec.copy(formulaEditor.root) else l.input(j) }), record = false)
         }
     }
@@ -1512,7 +1512,7 @@ private fun LayerEditor(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
-                        MathView(remember(s.formula) { MathRow(mutableListOf<com.example.cas.editor.Node>(Sym("y"), Sym("=")).apply { addAll(com.example.cas.engine.PlainMath.parse(s.formula.substringAfter('=')).items) }) }, 20.sp, colors.onSurface)
+                        MathView(remember(s.formula) { MathRow(mutableListOf<com.example.cas.editor.Node>(Sym("y"), Sym("=")).apply { addAll(Figure.formulaRow(s.formula).items) }) }, 20.sp, colors.onSurface)
                     }
                     AppIcon(TableIcons.Edit, contentDescription = null, tint = colors.onSurfaceVariant)
                 }

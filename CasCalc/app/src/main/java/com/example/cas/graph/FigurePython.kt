@@ -119,7 +119,7 @@ object FigurePython {
         out.append(when (l.kind) {
             Figure.Kind.Plot, Figure.Kind.Parametric, Figure.Kind.Polar -> "ax.plot(${xy()}, $color$line$mk$alpha$label)"
             Figure.Kind.Fit -> {
-                "ax.plot(${xy()}, $color$line$alpha, label=${str(Figure.legendName(dr))})  # least squares: ${if (s.model >= Figure.CUSTOM_FIT) "y = " + s.formula.substringAfter('=').trim() else FitModel.entries.getOrElse(s.model) { FitModel.Linear }.latex}"
+                "ax.plot(${xy()}, $color$line$alpha, label=${str(Figure.legendName(dr))})  # least squares: ${if (s.model >= Figure.CUSTOM_FIT) "y = " + Figure.formulaText(s.formula) else FitModel.entries.getOrElse(s.model) { FitModel.Linear }.latex}"
             }
             Figure.Kind.Kde -> "ax.plot(${xy()}, $color$line$alpha$label)  # Gaussian KDE (scipy.stats.gaussian_kde)"
             Figure.Kind.Step -> "ax.step(${xy()}, where=\"post\", $color$line$mk$alpha$label)"

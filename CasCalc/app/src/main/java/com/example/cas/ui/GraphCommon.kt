@@ -2657,7 +2657,8 @@ private fun DataTableEditorBody(start: com.example.cas.graph.DataTable, key: Any
                         }
                         Spacer(Modifier.width(4.dp))
                         Button(
-                            enabled = roleY != null && points > 0,
+                            // A figure's table has no y to pick: it can always be saved.
+                            enabled = !roles || (roleY != null && points > 0),
                             onClick = { onSave(table()); onDismiss() },
                             shape = RoundedCornerShape(16.dp),
                             contentPadding = PaddingValues(start = 16.dp, end = 20.dp),

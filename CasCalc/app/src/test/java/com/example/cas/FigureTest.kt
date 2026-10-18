@@ -1,5 +1,6 @@
 package com.example.cas
 
+import com.example.cas.editor.Frac
 import com.example.cas.editor.Func
 import com.example.cas.editor.MathRow
 import com.example.cas.editor.Node
@@ -238,6 +239,18 @@ class FigureTest {
         val (fx, fy) = w.toFigure(3.0, 2.0)!!
         val (x, y) = w.toData(fx, fy)!!
         assertEquals(3.0, x, 1e-9); assertEquals(2.0, y, 1e-9)
+    }
+
+    @Test fun ownModelWithABuiltSymbolSurvives() {
+        // y = (1 − x/x₀)^(−a), with x₀ a symbol from the builder: kept exactly, and fitted.
+        val x0 = Sym(com.example.cas.cas.CustomSymbol("x", sub = "0").encode())
+        val base = MathRow(mutableListOf(Sym("("), Sym("1"), Sym("−"), Frac(m("x"), MathRow(mutableListOf(x0))), Sym(")"), Pow(m("−a"))))
+        val formula = Figure.formulaOf(base)
+        assertEquals(com.example.cas.editor.MathCodec.encode(base), com.example.cas.editor.MathCodec.encode(Figure.formulaRow(formula)))
+        val model = Figure.customModel(formula)
+        assertNotNull(model); assertEquals(2, model!!.params.size)
+        // Old plain-text formulas still read.
+        assertNotNull(Figure.customModel("a*e^(-b*x) + c"))
     }
 
     @Test fun ownFitModelsColorbarLabelsAndCellSizes() {
