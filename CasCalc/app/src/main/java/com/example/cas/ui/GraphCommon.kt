@@ -3178,7 +3178,8 @@ private fun DataTableEditorBody(start: com.example.cas.graph.DataTable, key: Any
                             // The summary pill, bottom left (over the toolbar when it shows): the picked range's numbers, else the selected column's.
                             val pa = selA
                             val pillBottom = if (picked != null) 88.dp else 24.dp
-                            if (wide) Unit
+                            // While typing on a phone (the keyboard up, function suggestions over the cells) the pill steps aside.
+                            if (wide || keyboardUp) Unit
                             else if (pa != null) {
                                 val pb = selB ?: pa
                                 StatusPill("", com.example.cas.graph.SheetTools.summary(current, pa.first, pa.second, pb.first, pb.second), all = wide,
@@ -3190,7 +3191,7 @@ private fun DataTableEditorBody(start: com.example.cas.graph.DataTable, key: Any
                             }
                             // One button, bottom right: + opens to add a row or a column, or paste (on a phone the selection's toolbar takes its place).
                             // On a tablet it sits above the status bar, clear of its zoom slider.
-                            if (picked == null) Box(Modifier.align(Alignment.BottomEnd).padding(end = if (wide) 32.dp else 24.dp, bottom = if (wide) 80.dp else 20.dp)) {
+                            if (picked == null && (wide || !keyboardUp)) Box(Modifier.align(Alignment.BottomEnd).padding(end = if (wide) 32.dp else 24.dp, bottom = if (wide) 80.dp else 20.dp)) {
                                 FabMenu(
                                     listOf(
                                         FabItem("Row", TableIcons.RowBelow, "Add a row") {
