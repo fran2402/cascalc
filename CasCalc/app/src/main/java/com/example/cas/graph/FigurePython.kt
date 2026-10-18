@@ -69,6 +69,10 @@ object FigurePython {
             if (!a.xNumbers) appendLine("ax.tick_params(axis=\"x\", labelbottom=False)")
             if (!a.yNumbers) appendLine("ax.tick_params(axis=\"y\", labelleft=False)")
             if (a.ticksIn) appendLine("ax.tick_params(direction=\"in\", which=\"both\")")
+            if (a.xTickAngle != 0 && a.xNumbers) appendLine("ax.tick_params(axis=\"x\", labelrotation=${a.xTickAngle})")
+            if (a.yTickAngle != 0 && a.yNumbers) appendLine("ax.tick_params(axis=\"y\", labelrotation=${a.yTickAngle})")
+            if (!a.xNumbers) appendLine("ax.tick_params(axis=\"x\", length=0)")
+            if (!a.yNumbers) appendLine("ax.tick_params(axis=\"y\", length=0)")
             w.xCategories?.let { c ->
                 val pos = if (w.drawn.any { it.layer.kind == Figure.Kind.Bar }) c.indices.map { it.toDouble() } else c.indices.map { it + 1.0 }
                 appendLine("ax.set_xticks([${pos.joinToString(", ") { n(it) }}], [${c.joinToString(", ") { str(it) }}])")
@@ -152,7 +156,13 @@ object FigurePython {
                 val extent = if (dr.offset == 1.0) "[-0.5, ${n(g.nx - 0.5)}, -0.5, ${n(g.ny - 0.5)}]" else "[${n(g.x0)}, ${n(g.x1)}, ${n(g.y0)}, ${n(g.y1)}]"
                 "im = ax.imshow(Z, origin=\"lower\", extent=$extent, aspect=\"auto\"$cmap$alpha)\nfig.colorbar(im, ax=ax$cbar)"
             }
-            Figure.Kind.Quiver -> { grid(dr.grid!!, "U"); out.appendLine("V = np.array([" + dr.grid2!!.z.joinToString(",\n    ") { r -> "[" + r.joinToString(", ") { n(it) } + "]" } + "])"); "ax.quiver(X, Y, U, V, $color$alpha)" }
+            Figure.Kind.Quiver -> {
+                val by = if (s.arrowByLength) ", np.hypot(U, V), cmap=\"${s.cmap.removeSuffix("_r").ifBlank { "viridis" }}${if (s.cmap.endsWith("_r")) "_r" else ""}\"" else ", $color"
+                val scale = when (s.arrowLength) { 1 -> "U, V = U / np.hypot(U, V), V / np.hypot(U, V)\n"; else -> "" }
+                if (dr.raw.size == 4) { out.appendLine("X, Y = ${arr(dr.raw[0])}, ${arr(dr.raw[1])}"); out.appendLine("U, V = ${arr(dr.raw[2])}, ${arr(dr.raw[3])}") }
+                else { grid(dr.grid!!, "U"); out.appendLine("V = np.array([" + dr.grid2!!.z.joinToString(",\n    ") { r -> "[" + r.joinToString(", ") { n(it) } + "]" } + "])") }
+                scale + "ax.quiver(X, Y, U, V$by, pivot=\"mid\"$alpha)"
+            }
             Figure.Kind.Stream -> { grid(dr.grid!!, "U"); out.appendLine("V = np.array([" + dr.grid2!!.z.joinToString(",\n    ") { r -> "[" + r.joinToString(", ") { n(it) } + "]" } + "])"); "ax.streamplot(X, Y, U, V, $color, linewidth=${n(s.width * 0.7)})" }
             Figure.Kind.HLine -> if (dr.values.size == 1) "ax.axhline(${n(dr.values[0])}, $color$line$alpha$label)" else "for k, v in enumerate(${arr(dr.values)}):\n    ax.axhline(v, $color$line$alpha${if (label.isNotEmpty()) ", label=${str(Figure.legendName(dr))} if k == 0 else None" else ""})"
             Figure.Kind.VLine -> if (dr.values.size == 1) "ax.axvline(${n(dr.values[0])}, $color$line$alpha$label)" else "for k, v in enumerate(${arr(dr.values)}):\n    ax.axvline(v, $color$line$alpha${if (label.isNotEmpty()) ", label=${str(Figure.legendName(dr))} if k == 0 else None" else ""})"

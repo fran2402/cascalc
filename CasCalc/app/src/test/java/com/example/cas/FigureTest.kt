@@ -73,12 +73,12 @@ class FigureTest {
     @Test fun everyKindDraws() {
         val inputs = mapOf(
             Kind.Plot to listOf(m(f("sin", "x"))), Kind.Scatter to listOf(m("h"), m("w")), Kind.Step to listOf(m("w")), Kind.Stem to listOf(m("w")),
-            Kind.FillBetween to listOf(m(f("sin", "x")), m(f("cos", "x"))), Kind.Stack to listOf(m("g,g")),
+            Kind.FillBetween to listOf(MathRow(), m(f("sin", "x")), m(f("cos", "x"))), Kind.Stack to listOf(m("g,g")),
             Kind.Parametric to listOf(m(f("cos", "t")), m(f("sin", "t"))), Kind.Polar to listOf(m("1+", f("cos", "θ"))), Kind.Fill to listOf(m("g"), m("w")),
             Kind.Hist to listOf(m("h")), Kind.Box to listOf(m("h,w")), Kind.Violin to listOf(m("h,w")), Kind.Ecdf to listOf(m("h")),
             Kind.Hist2D to listOf(m("h"), m("w")), Kind.Hexbin to listOf(m("h"), m("w")), Kind.Bar to listOf(m("g")), Kind.BarH to listOf(m("g")),
             Kind.Pie to listOf(m("g")), Kind.Events to listOf(m("h,w")), Kind.Contour to listOf(m("x", Pow(m("2")), "+y", Pow(m("2")))),
-            Kind.ContourF to listOf(m("x", Pow(m("2")), "−y")), Kind.Heatmap to listOf(m(f("sin", "xy"))), Kind.Quiver to listOf(m("−y"), m("x")),
+            Kind.ContourF to listOf(m("x", Pow(m("2")), "−y")), Kind.Heatmap to listOf(m(f("sin", "xy"))), Kind.Quiver to listOf(MathRow(), MathRow(), m("−y"), m("x")),
             Kind.Stream to listOf(m("−y"), m("x")), Kind.HLine to listOf(m("1")), Kind.VLine to listOf(m("2")), Kind.HSpan to listOf(m("0"), m("1")),
             Kind.VSpan to listOf(m("0"), m("1")), Kind.Text to listOf(m("0"), m("0")), Kind.Annotate to listOf(m("0"), m("0"), m("1"), m("1")),
             Kind.Fit to listOf(m("h"), m("w")), Kind.Kde to listOf(m("h")),
@@ -176,22 +176,43 @@ class FigureTest {
         assertEquals(5.0, (Figure.value(p("mean(Signal[1:4])"), ev) as Figure.Value.Num).v, 1e-12)
         assertEquals("Signal[2:3]", com.example.cas.engine.PlainMath.text(p("Signal[2:3]")))
         // Fill between two columns, against the x column.
-        val w = Figure.build(doc(Figure.Layer(Kind.FillBetween, listOf(p("Signal+2"), p("Signal-1")))), ev, app).worked.single()
+        val w = Figure.build(doc(Figure.Layer(Kind.FillBetween, listOf(MathRow(), p("Signal+2"), p("Signal-1")))), ev, app).worked.single()
         val d = w.drawn.single()
         assertNull(d.error)
         assertEquals(listOf(0.0, 1.0, 2.0, 3.0), d.series.single().first.toList())
         // Points with ± errors in y and x; a list of lines.
-        val e = Figure.build(doc(Figure.Layer(Kind.Scatter, listOf(p("freq"), p("Signal"), MathRow(), p("0.5"), p("freq/10"))), Figure.Layer(Kind.HLine, listOf(p("[1, 2]")))), ev, app).worked.single()
+        val e = Figure.build(doc(Figure.Layer(Kind.Scatter, listOf(p("freq"), p("Signal"), p("freq/10"), p("0.5"))), Figure.Layer(Kind.HLine, listOf(p("[1, 2]")))), ev, app).worked.single()
         assertEquals(4, e.drawn[0].errY.size); assertEquals(0.4, e.drawn[0].errX[3], 1e-12)
         assertEquals(2, e.drawn[1].values.size)
         // An old error bar layer opens as points with a y error.
-        val old = Figure.encode(doc(Figure.Layer(Kind.Scatter, listOf(m("a"), m("b"), m("e"))))).replace("\tScatter\t", "\tErrorBar\t")
+        val old = Figure.encode(doc(Figure.Layer(Kind.Scatter, listOf(m("a"), m("b"), m("e"))))).replace("\tScatter\t", "\tErrorBar\t").replace("format\t2\n", "")
         val back = Figure.decode("t", old).axes[0].layers[0]
         assertEquals(Kind.Scatter, back.kind); assertEquals("e", back.inputs[3].plainText())
         // Axes options survive saving.
         val ax = Figure.Doc("f", "", listOf(Figure.Axes(xNumbers = false, yInvert = true, ticksIn = true, legendFrame = false)))
         val a2 = Figure.decode("f", Figure.encode(ax)).axes[0]
         assertTrue(!a2.xNumbers && a2.yNumbers && a2.yInvert && !a2.xInvert && a2.ticksIn && !a2.legendFrame)
+    }
+
+    @Test fun fieldsFromColumnsAndColumnsSideBySide() {
+        // A 3 × 3 grid of points with z = x + y: heat map, contours and arrows from columns.
+        val xs = listOf(0, 1, 2, 0, 1, 2, 0, 1, 2); val ys = listOf(0, 0, 0, 1, 1, 1, 2, 2, 2)
+        val t = DataTable(listOf("px", "py", "height"), listOf(xs.map { "$it" }, ys.map { "$it" }, xs.indices.map { "${xs[it] + ys[it]}" }), null, null)
+        val ev = Figure.withFallback(Figure.tableVariables(t)) { v, r -> Evaluator(variables = v).evaluate(com.example.cas.editor.MathCodec.copy(r)) }
+        fun p(s: String) = com.example.cas.engine.PlainMath.parse(s)
+        for (k in listOf(Kind.Heatmap, Kind.Contour, Kind.ContourF)) {
+            val d = Figure.build(doc(Figure.Layer(k, listOf(p("px"), p("py"), p("height")))), ev, app).worked.single().drawn.single()
+            assertNull("$k", d.error)
+            assertEquals(3, d.grid!!.nx); assertEquals(4.0, d.grid!!.z[2][2], 1e-12)
+        }
+        val q = Figure.build(doc(Figure.Layer(Kind.Quiver, listOf(p("px"), p("py"), p("height"), p("1")))), ev, app).worked.single().drawn.single()
+        assertNull(q.error); assertEquals(4, q.raw.size)
+        // Columns next to each other multiply.
+        assertEquals(listOf(0.0, 0.0, 0.0, 0.0, 1.0, 2.0, 0.0, 2.0, 4.0), (Figure.value(p("pxpy"), ev) as Figure.Value.Data).v.toList())
+        assertEquals(listOf(0.0, 1.0, 4.0), (Figure.value(p("px height"), ev) as Figure.Value.Data).v.toList().take(3))
+        // x first: a line through columns.
+        val l = Figure.build(doc(Figure.Layer(Kind.Plot, listOf(p("px"), p("height")))), ev, app).worked.single().drawn.single()
+        assertEquals(xs.map { it.toDouble() }, l.series.single().first.toList())
     }
 
     @Test fun ownFitModelsColorbarLabelsAndCellSizes() {

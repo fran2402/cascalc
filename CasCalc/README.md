@@ -203,6 +203,18 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (18 October, Plots: colored split chips, x first everywhere, fields from columns, finer sliders, arrows)
+
+- Each table column has its own color, used everywhere. A column shows as a split chip: its color with a small table icon, then its name on a tone of that color. The same chips appear in input fields, in the read-as line, in the layer list, as the column buttons, and as the table's column headers.
+- Inputs are in the same order for every layer: x first, then y, then x error and y error. Fill between is x, y1, y2; stacked areas are x, then the curves; fields are x, y, then z (or u and v). A line with only its first input filled is drawn as a function of x. Saved figures are converted when opened.
+- The scatter's size input is gone. Point size is in the Look dialog.
+- Heat maps, contour lines, filled contours, arrows and stream lines take table columns: x, y and z (or u, v) columns are made into a grid. A grid of points is used as it is, and scattered points are averaged into cells. Typing f(x, y) with x and y columns works it out at each point. A function of x and y with x and y left empty still draws over the view.
+- Column names next to each other multiply: freqSignal or freq Signal is freq × Signal, both when worked out and in the chips.
+- Sliders are linear with fine steps: contour levels (2 to 60), bins (Auto to 120), opacity (1 % steps), point and marker size, and error bar caps and thickness. The value follows your finger and the contour levels slider now works.
+- Axes can turn the tick numbers on x and on y (0°, 30°, 45°, 60°, 90°), and the Python export uses labelrotation to match.
+- With the numbers on an axis hidden, its ticks go too, and the plot widens or grows into the space they used.
+- Arrows use the same options as the 2D graph's vector fields: colored by length along a colormap or in one color, same length / scaled / true length, scale, arrowhead shape and size, and how many arrows across. Arrows from columns are drawn at each point.
+
 ## Latest changes (18 October, Plots: column chips, error bars in points and lines, rows of columns)
 
 - Column names in a layer's inputs are rounded chips in the theme's primary tone instead of a highlight. The same chips, with a small table icon, show the input under each field and under each layer in the list, instead of italic letters. The column buttons under the inputs are chips too.

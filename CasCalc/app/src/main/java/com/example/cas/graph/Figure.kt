@@ -18,6 +18,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -39,12 +40,12 @@ object Figure {
      * order can change.
      */
     enum class Kind(val py: String, val title: String, val group: Group, val inputs: List<String>, val text: String? = null, val about: String) {
-        Plot("plot", "Line", Group.Lines, listOf("y", "x", "y error", "x error"), about = "A function of x, or data: y against x (or against 1, 2, 3…); errors as ± bars"),
-        Scatter("scatter", "Scatter", Group.Lines, listOf("x", "y", "size", "y error", "x error"), about = "Points; size a number or a list; errors as ± bars"),
-        Step("step", "Steps", Group.Lines, listOf("y", "x"), about = "A staircase through the values"),
-        Stem("stem", "Stems", Group.Lines, listOf("y", "x"), about = "A stem from the axis to each value"),
-        FillBetween("fill_between", "Fill between", Group.Lines, listOf("y₁", "y₂", "x"), about = "The region between two curves or columns (y₂ is 0 when empty; x for columns)"),
-        Stack("stackplot", "Stacked areas", Group.Lines, listOf("y₁, y₂, …", "x"), about = "Several curves or lists, stacked"),
+        Plot("plot", "Line", Group.Lines, listOf("x", "y", "x error", "y error"), about = "y against x: a function of x (x left empty), or columns; errors as ± bars"),
+        Scatter("scatter", "Scatter", Group.Lines, listOf("x", "y", "x error", "y error"), about = "Points (x, y); errors as ± bars"),
+        Step("step", "Steps", Group.Lines, listOf("x", "y"), about = "A staircase through the values"),
+        Stem("stem", "Stems", Group.Lines, listOf("x", "y"), about = "A stem from the axis to each value"),
+        FillBetween("fill_between", "Fill between", Group.Lines, listOf("x", "y₁", "y₂"), about = "The region between two curves or columns (y₂ is 0 when empty)"),
+        Stack("stackplot", "Stacked areas", Group.Lines, listOf("x", "y₁, y₂, …"), about = "Several curves or columns, stacked"),
         Parametric("plot", "Parametric", Group.Lines, listOf("x(t)", "y(t)", "from", "to"), about = "A curve (x(t), y(t)); t from 0 to 2π unless given"),
         Polar("plot", "Polar curve", Group.Lines, listOf("r(θ)", "from", "to"), about = "r as a function of θ, from 0 to 2π unless given"),
         Fill("fill", "Polygon", Group.Lines, listOf("x", "y"), about = "A filled shape through the points"),
@@ -60,11 +61,11 @@ object Figure {
         BarH("barh", "Horizontal bars", Group.Categorical, listOf("widths"), text = "Labels", about = "Bars lying along x"),
         Pie("pie", "Pie", Group.Categorical, listOf("values"), text = "Labels", about = "Each value's share of the whole"),
         Events("eventplot", "Events", Group.Categorical, listOf("positions, positions, …"), about = "A tick at each position; one row per list"),
-        Contour("contour", "Contour lines", Group.Fields, listOf("f(x, y)"), about = "Lines where f(x, y) is constant"),
-        ContourF("contourf", "Filled contours", Group.Fields, listOf("f(x, y)"), about = "Bands of f(x, y), with a color bar"),
-        Heatmap("imshow", "Heat map", Group.Fields, listOf("f(x, y) or a matrix"), about = "f(x, y) as colors, or a matrix's entries"),
-        Quiver("quiver", "Arrows", Group.Fields, listOf("u(x, y)", "v(x, y)"), about = "The vector (u, v) as arrows on a grid"),
-        Stream("streamplot", "Stream lines", Group.Fields, listOf("u(x, y)", "v(x, y)"), about = "Paths that follow the vector (u, v)"),
+        Contour("contour", "Contour lines", Group.Fields, listOf("x", "y", "z or f(x, y)"), about = "Lines where z is constant: f(x, y), or columns x, y, z"),
+        ContourF("contourf", "Filled contours", Group.Fields, listOf("x", "y", "z or f(x, y)"), about = "Bands of z, with a color bar: f(x, y), or columns x, y, z"),
+        Heatmap("imshow", "Heat map", Group.Fields, listOf("x", "y", "z, f(x, y) or a matrix"), about = "z as colors: f(x, y), columns x, y, z, or a matrix's entries"),
+        Quiver("quiver", "Arrows", Group.Fields, listOf("x", "y", "u", "v"), about = "The vector (u, v) as arrows: functions of x and y on a grid, or columns at points (x, y)"),
+        Stream("streamplot", "Stream lines", Group.Fields, listOf("x", "y", "u", "v"), about = "Paths that follow the vector (u, v): functions of x and y, or columns"),
         HLine("axhline", "Horizontal line", Group.Guides, listOf("y"), about = "A line across at this y (a list: one at each)"),
         VLine("axvline", "Vertical line", Group.Guides, listOf("x"), about = "A line up at this x (a list: one at each)"),
         HSpan("axhspan", "Horizontal band", Group.Guides, listOf("from", "to"), about = "A shaded band between two y values"),
@@ -79,8 +80,8 @@ object Figure {
 
         companion object {
             fun named(name: String): Kind? = entries.firstOrNull { it.name == name }
-            /** Kinds that take ± errors (a y error and an x error input). */
-            val ERRORS = mapOf(Plot to (2 to 3), Scatter to (3 to 4))
+            /** Kinds that take ± errors: where their y error and x error inputs are. */
+            val ERRORS = mapOf(Plot to (3 to 2), Scatter to (3 to 2))
         }
     }
 
@@ -103,12 +104,17 @@ object Figure {
         val formula: String = "",
         /** Error bars: their caps' half width (0: none), thickness, and drawn as a shaded band rather than bars. */
         val errCap: Double = 3.0, val errWidth: Double = 0.9, val errBand: Boolean = false,
+        /** Arrows (as the 2D graph's vector fields): colored by length along [cmap], [VectorField.Length] and scale, [VectorField.Tip] and its size, how many across. */
+        val arrowByLength: Boolean = true, val arrowLength: Int = 0, val arrowScale: Double = 0.9, val arrowTip: Int = 0, val arrowTipSize: Double = 0.8, val arrows: Int = 17,
     ) {
         fun copy(color: Int = this.color, line: Int = this.line, marker: Int = this.marker, width: Double = this.width, alpha: Double = this.alpha,
                  label: String = this.label, bins: Int = this.bins, levels: Int = this.levels, cmap: String = this.cmap,
                  density: Boolean = this.density, cumulative: Boolean = this.cumulative, size: Double = this.size, argb: Int = this.argb, model: Int = this.model,
-                 cbar: String = this.cbar, formula: String = this.formula, errCap: Double = this.errCap, errWidth: Double = this.errWidth, errBand: Boolean = this.errBand) =
-            Style(color, line, marker, width, alpha, label, bins, levels, cmap, density, cumulative, size, argb, model, cbar, formula, errCap, errWidth, errBand)
+                 cbar: String = this.cbar, formula: String = this.formula, errCap: Double = this.errCap, errWidth: Double = this.errWidth, errBand: Boolean = this.errBand,
+                 arrowByLength: Boolean = this.arrowByLength, arrowLength: Int = this.arrowLength, arrowScale: Double = this.arrowScale, arrowTip: Int = this.arrowTip,
+                 arrowTipSize: Double = this.arrowTipSize, arrows: Int = this.arrows) =
+            Style(color, line, marker, width, alpha, label, bins, levels, cmap, density, cumulative, size, argb, model, cbar, formula, errCap, errWidth, errBand,
+                arrowByLength, arrowLength, arrowScale, arrowTip, arrowTipSize, arrows)
     }
 
     /** [Style.model] for a fitted curve's own formula, after the ready-made [FitModel]s. */
@@ -133,13 +139,15 @@ object Figure {
         /** The numbers on each axis shown; each axis turned round (high to low); ticks pointing in; the legend in a box. */
         val xNumbers: Boolean = true, val yNumbers: Boolean = true, val xInvert: Boolean = false, val yInvert: Boolean = false,
         val ticksIn: Boolean = false, val legendFrame: Boolean = true,
+        /** The tick numbers turned, in degrees (0 flat, 90 upright), on x and on y. */
+        val xTickAngle: Int = 0, val yTickAngle: Int = 0,
     ) {
         fun copy(layers: List<Layer> = this.layers, title: String = this.title, xLabel: String = this.xLabel, yLabel: String = this.yLabel,
                  xMin: Double? = this.xMin, xMax: Double? = this.xMax, yMin: Double? = this.yMin, yMax: Double? = this.yMax,
                  xLog: Boolean = this.xLog, yLog: Boolean = this.yLog, grid: Int = this.grid, legend: Int = this.legend, spines: Int = this.spines, equal: Boolean = this.equal,
                  xNumbers: Boolean = this.xNumbers, yNumbers: Boolean = this.yNumbers, xInvert: Boolean = this.xInvert, yInvert: Boolean = this.yInvert,
-                 ticksIn: Boolean = this.ticksIn, legendFrame: Boolean = this.legendFrame) =
-            Axes(layers, title, xLabel, yLabel, xMin, xMax, yMin, yMax, xLog, yLog, grid, legend, spines, equal, xNumbers, yNumbers, xInvert, yInvert, ticksIn, legendFrame)
+                 ticksIn: Boolean = this.ticksIn, legendFrame: Boolean = this.legendFrame, xTickAngle: Int = this.xTickAngle, yTickAngle: Int = this.yTickAngle) =
+            Axes(layers, title, xLabel, yLabel, xMin, xMax, yMin, yMax, xLog, yLog, grid, legend, spines, equal, xNumbers, yNumbers, xInvert, yInvert, ticksIn, legendFrame, xTickAngle, yTickAngle)
     }
 
     /**
@@ -228,8 +236,12 @@ object Figure {
                 while (k < r.items.size) {
                     val prev = r.items.getOrNull(k - 1)
                     val afterLetter = prev is Sym && prev.text.length == 1 && prev.text[0].isLetter()
-                    val hit = if (afterLetter) null else aliases.entries.firstOrNull { (name, _) ->
-                        k + name.length <= r.items.size && name.indices.all { j -> (r.items[k + j] as? Sym)?.text == name[j].toString() } && !letter(r.items.getOrNull(k + name.length))
+                    // A name, then not a letter, or straight away another column (freqSignal is freq · Signal).
+                    fun spells(at: Int, name: String) = at + name.length <= r.items.size && name.indices.all { j -> (r.items[at + j] as? Sym)?.text == name[j].toString() }
+                    fun startsColumn(at: Int): Boolean = aliases.keys.any { spells(at, it) } || ((r.items.getOrNull(at) as? Sym)?.text in short && !letter(r.items.getOrNull(at + 1)))
+                    val afterColumn = (prev as? Sym)?.text?.let { it.length == 1 && (it[0] >= ALIAS_BASE || it in short) } == true
+                    val hit = if (afterLetter && !afterColumn) null else aliases.entries.firstOrNull { (name, _) ->
+                        spells(k, name) && (!letter(r.items.getOrNull(k + name.length)) || startsColumn(k + name.length))
                     }
                     if (hit != null) {
                         repeat(hit.key.length) { r.removeAt(k) }
@@ -305,8 +317,6 @@ object Figure {
     /** Where the stand-in symbols for long column names start (letters nobody types). */
     private const val ALIAS_BASE = '\u3041'
 
-    /** Layers that draw functions of the plotting letters rather than columns. */
-    private val FUNCTION_KINDS = setOf(Kind.Contour, Kind.ContourF, Kind.Heatmap, Kind.Quiver, Kind.Stream, Kind.Parametric, Kind.Polar)
 
     /** A fitted curve's own model: its parameters (its letters other than x), as a function of x and them, and the formula. */
     class CustomModel(val params: List<String>, val f: (Double, DoubleArray) -> Double, val row: MathRow)
@@ -446,6 +456,7 @@ object Figure {
 
     fun encode(d: Doc): String = buildString {
         appendLine(MAGIC)
+        appendLine("format\t2")
         appendLine("title\t" + esc(d.title))
         appendLine("name\t" + esc(d.name))
         appendLine("layout\t" + esc(d.layout))
@@ -457,12 +468,13 @@ object Figure {
         for (a in d.axes) {
             appendLine(listOf("A", esc(a.title), esc(a.xLabel), esc(a.yLabel), num(a.xMin), num(a.xMax), num(a.yMin), num(a.yMax),
                 if (a.xLog) "1" else "0", if (a.yLog) "1" else "0", a.grid, a.legend, a.spines, if (a.equal) "1" else "0",
-                listOf(a.xNumbers, a.yNumbers, a.xInvert, a.yInvert, a.ticksIn, a.legendFrame).joinToString("") { if (it) "1" else "0" }).joinToString("\t"))
+                listOf(a.xNumbers, a.yNumbers, a.xInvert, a.yInvert, a.ticksIn, a.legendFrame).joinToString("") { if (it) "1" else "0" }, a.xTickAngle, a.yTickAngle).joinToString("\t"))
             for (l in a.layers) {
                 val s = l.style
                 val flags = (if (s.density) 1 else 0) or (if (s.cumulative) 2 else 0)
                 appendLine((listOf("L", l.kind.name, if (l.visible) "1" else "0", s.color, s.line, s.marker, s.width, s.alpha, s.bins, s.levels, esc(s.cmap), flags, s.size,
-                    esc(s.label), esc(l.text), l.inputs.size) + l.inputs.map { esc(MathCodec.encode(it)) } + listOf(s.argb, s.model, esc(s.cbar), esc(s.formula), s.errCap, s.errWidth, if (s.errBand) "1" else "0")).joinToString("\t"))
+                    esc(s.label), esc(l.text), l.inputs.size) + l.inputs.map { esc(MathCodec.encode(it)) } + listOf(s.argb, s.model, esc(s.cbar), esc(s.formula), s.errCap, s.errWidth, if (s.errBand) "1" else "0",
+                    if (s.arrowByLength) "1" else "0", s.arrowLength, s.arrowScale, s.arrowTip, s.arrowTipSize, s.arrows)).joinToString("\t"))
             }
         }
     }
@@ -473,6 +485,8 @@ object Figure {
         var title = ""; var name = ""; var layout = "A"; var theme = 0; var aspect = 0.75; var edited = 0L
         var data = emptyData()
         var widths = emptyList<Double>(); var heights = emptyList<Double>()
+        // Files before format 2 had y before x and the fields' functions first.
+        var format = 1
         val axes = ArrayList<Axes>()
         val layers = ArrayList<ArrayList<Layer>>()
         for (line in lines.drop(1)) {
@@ -482,6 +496,7 @@ object Figure {
             fun d(k: Int) = f.getOrNull(k)?.toDoubleOrNull()
             fun i(k: Int, def: Int) = f.getOrNull(k)?.toIntOrNull() ?: def
             when (f[0]) {
+                "format" -> format = i(1, 1)
                 "title" -> title = s(1)
                 "name" -> name = s(1)
                 "layout" -> layout = s(1).ifBlank { "A" }
@@ -494,7 +509,7 @@ object Figure {
                     val opts = f.getOrNull(14) ?: "110001"
                     fun o(k: Int, def: Boolean) = opts.getOrNull(k)?.let { it == '1' } ?: def
                     axes += Axes(emptyList(), s(1), s(2), s(3), d(4), d(5), d(6), d(7), f.getOrNull(8) == "1", f.getOrNull(9) == "1", i(10, 1), i(11, 0), i(12, 0), f.getOrNull(13) == "1",
-                        o(0, true), o(1, true), o(2, false), o(3, false), o(4, false), o(5, true))
+                        o(0, true), o(1, true), o(2, false), o(3, false), o(4, false), o(5, true), i(15, 0), i(16, 0))
                     layers.add(ArrayList())
                 }
                 "L" -> {
@@ -507,8 +522,19 @@ object Figure {
                     val n = i(15, 0)
                     val inputs = (0 until n).map { k -> runCatching { MathCodec.decode(s(16 + k)) }.getOrDefault(MathRow()) }
                     val style2 = style.copy(argb = i(16 + n, 0), model = i(17 + n, 0), cbar = s(18 + n), formula = s(19 + n),
-                        errCap = d(20 + n) ?: 3.0, errWidth = d(21 + n) ?: 0.9, errBand = f.getOrNull(22 + n) == "1")
-                    val ins = if (kindName == "ErrorBar") listOf(inputs.getOrElse(0) { MathRow() }, inputs.getOrElse(1) { MathRow() }, MathRow(), inputs.getOrElse(2) { MathRow() }) else inputs
+                        errCap = d(20 + n) ?: 3.0, errWidth = d(21 + n) ?: 0.9, errBand = f.getOrNull(22 + n) == "1",
+                        arrowByLength = f.getOrNull(23 + n) != "0", arrowLength = i(24 + n, 0), arrowScale = d(25 + n) ?: 0.9, arrowTip = i(26 + n, 0), arrowTipSize = d(27 + n) ?: 0.8, arrows = i(28 + n, 17))
+                    fun at(k: Int) = inputs.getOrElse(k) { MathRow() }
+                    val ins = if (format >= 2) inputs else when (kindName) {
+                        "ErrorBar" -> listOf(at(0), at(1), MathRow(), at(2))
+                        "Plot", "Step", "Stem" -> listOf(at(1), at(0), at(3), at(2))
+                        "Scatter" -> listOf(at(0), at(1), at(4), at(3))
+                        "FillBetween" -> listOf(at(2), at(0), at(1))
+                        "Stack" -> listOf(at(1), at(0))
+                        "Contour", "ContourF", "Heatmap" -> listOf(MathRow(), MathRow(), at(0))
+                        "Quiver", "Stream" -> listOf(MathRow(), MathRow(), at(0), at(1))
+                        else -> inputs
+                    }.let { list -> list.dropLastWhile { it.items.isEmpty() } }
                     layers.last() += Layer(kind, ins, s(14), style2, f.getOrNull(2) != "0")
                 }
             }
@@ -625,6 +651,7 @@ object Figure {
         val errY: DoubleArray = DoubleArray(0), val errX: DoubleArray = DoubleArray(0),
     ) {
         fun copy(color: Int = this.color, error: String? = this.error) = Drawn(layer, color, error, series, lower, grid, grid2, values, labels, boxes, shapes, shade, raw, offset, barWidth, errY, errX)
+        fun withLayer(l: Layer) = Drawn(l, color, error, series, lower, grid, grid2, values, labels, boxes, shapes, shade, raw, offset, barWidth, errY, errX)
     }
 
     /** An axes worked out: each layer drawn, the ranges shown, and its category ticks (bars, boxes). */
@@ -695,8 +722,78 @@ object Figure {
      * Works out every layer of [a]: values from [eval], ranges fitted to what's drawn (unless
      * set), functions sampled across the x range. [palette] is the color cycle.
      */
+    /**
+     * A layer's inputs in the order the working-out reads them. People type x first, then y, then
+     * the errors (x error, y error), and a field's x and y columns before its z (or u, v); a line
+     * with only its first input filled takes it as y (a function of x).
+     */
+    private fun internal(l: Layer): Layer {
+        fun i(k: Int) = l.input(k)
+        val ins = when (l.kind) {
+            Kind.Plot, Kind.Step, Kind.Stem -> {
+                val (x, y) = if (i(1).items.isEmpty() && i(0).items.isNotEmpty()) MathRow() to i(0) else i(0) to i(1)
+                listOf(y, x, i(3), i(2))
+            }
+            Kind.Scatter -> listOf(i(0), i(1), MathRow(), i(3), i(2))
+            Kind.FillBetween -> listOf(i(1), i(2), i(0))
+            // Only the first input filled: it's what's drawn (the curves, the field, the vector), not x.
+            Kind.Stack -> if (i(1).items.isEmpty()) listOf(i(0), MathRow()) else listOf(i(1), i(0))
+            Kind.Contour, Kind.ContourF, Kind.Heatmap -> if (i(2).items.isEmpty() && i(1).items.isEmpty()) listOf(i(0), MathRow(), MathRow()) else listOf(i(2), i(0), i(1))
+            Kind.Quiver, Kind.Stream -> if (i(2).items.isEmpty() && i(3).items.isEmpty()) listOf(i(0), i(1), MathRow(), MathRow()) else listOf(i(2), i(3), i(0), i(1))
+            else -> return l
+        }
+        return l.copy(inputs = ins)
+    }
+
+    /** Where the errors are in [internal]'s order. */
+    private val INTERNAL_ERRORS = mapOf(Kind.Plot to (2 to 3), Kind.Scatter to (3 to 4))
+
+    /** Inputs (in [internal]'s order) that are functions of the plotting letters rather than columns. */
+    private val FUNCTION_INPUTS = mapOf(Kind.Contour to setOf(0), Kind.ContourF to setOf(0), Kind.Heatmap to setOf(0), Kind.Quiver to setOf(0, 1), Kind.Stream to setOf(0, 1), Kind.Parametric to setOf(0, 1), Kind.Polar to setOf(0))
+
+    /**
+     * Columns x, y, z as a grid: as they are when they make one (every x with every y), else
+     * averaged into cells, with empty cells filled from their neighbors.
+     */
+    fun gridOf(x: DoubleArray, y: DoubleArray, z: DoubleArray): Grid? {
+        val ks = (0 until minOf(x.size, y.size, z.size)).filter { x[it].isFinite() && y[it].isFinite() && z[it].isFinite() }
+        if (ks.size < 4) return null
+        fun key(v: Double) = (v * 1e9).roundToLong()
+        val ux = ks.map { key(x[it]) }.distinct().sorted(); val uy = ks.map { key(y[it]) }.distinct().sorted()
+        if (ux.size >= 2 && uy.size >= 2 && ux.size * uy.size == ks.size) {
+            val ix = ux.withIndex().associate { it.value to it.index }; val iy = uy.withIndex().associate { it.value to it.index }
+            val z2 = Array(uy.size) { DoubleArray(ux.size) { Double.NaN } }
+            ks.forEach { z2[iy.getValue(key(y[it]))][ix.getValue(key(x[it]))] = z[it] }
+            // Evenly spaced columns and rows are drawn as they are; uneven ones are close enough for a picture.
+            return Grid(ux.first() / 1e9, ux.last() / 1e9, uy.first() / 1e9, uy.last() / 1e9, ux.size, uy.size, z2)
+        }
+        val x0 = ks.minOf { x[it] }; val x1 = ks.maxOf { x[it] }; val y0 = ks.minOf { y[it] }; val y1 = ks.maxOf { y[it] }
+        if (x1 <= x0 || y1 <= y0) return null
+        val n = sqrt(ks.size.toDouble()).roundToInt().coerceIn(6, 60)
+        val sum = Array(n) { DoubleArray(n) }; val cnt = Array(n) { IntArray(n) }
+        ks.forEach { k ->
+            val i = ((x[k] - x0) / (x1 - x0) * (n - 1)).roundToInt().coerceIn(0, n - 1); val j = ((y[k] - y0) / (y1 - y0) * (n - 1)).roundToInt().coerceIn(0, n - 1)
+            sum[j][i] += z[k]; cnt[j][i]++
+        }
+        var g = Array(n) { j -> DoubleArray(n) { i -> if (cnt[j][i] > 0) sum[j][i] / cnt[j][i] else Double.NaN } }
+        repeat(n) {
+            var gaps = false
+            g = Array(n) { j -> DoubleArray(n) { i ->
+                if (g[j][i].isFinite()) g[j][i] else {
+                    val near = listOf(j - 1 to i, j + 1 to i, j to i - 1, j to i + 1).mapNotNull { (a, b) -> g.getOrNull(a)?.getOrNull(b)?.takeIf { it.isFinite() } }
+                    if (near.isEmpty()) { gaps = true; Double.NaN } else near.average()
+                }
+            } }
+            if (!gaps) return Grid(x0, x1, y0, y1, n, n, g)
+        }
+        return Grid(x0, x1, y0, y1, n, n, g)
+    }
+
     fun work(a: Axes, eval: (MathRow) -> Expr, palette: List<Int>): Worked {
-        val layers = a.layers.filter { it.visible }
+        // Worked out in their own order; the drawn layers handed back are the ones given.
+        val given = a.layers.filter { it.visible }
+        val layers = given.map { internal(it) }
+        val original = HashMap<Layer, Layer>().apply { layers.indices.forEach { put(layers[it], given[it]) } }
         var auto = 0
         val colorOf = HashMap<Layer, Int>()
         for (l in layers) {
@@ -705,7 +802,7 @@ object Figure {
             colorOf[l] = if (l.style.argb != 0) l.style.argb else palette[Math.floorMod(idx, palette.size)]
         }
         val ce = eval as? ColumnEval
-        val values = layers.associateWith { l -> l.inputs.map { value(it, if (ce != null && l.kind in FUNCTION_KINDS) ce::asFunction else eval) } }
+        val values = layers.associateWith { l -> l.inputs.mapIndexed { k, row -> value(row, if (ce != null && k in FUNCTION_INPUTS[l.kind].orEmpty()) ce::asFunction else eval) } }
         val b = Bounds()
         val drawn = LinkedHashMap<Layer, Drawn>()
         var xCats: List<String>? = null; var yCats: List<String>? = null
@@ -718,7 +815,7 @@ object Figure {
         fun DoubleArray.at(k: Int) = if (isEmpty()) 0.0 else this[k % size].let { if (it.isFinite()) it else 0.0 }
         /** A layer's ± errors in y and x for its [n] points, from its error inputs (a number or a list; empty: none). */
         fun errors(l: Layer, vs: List<Value>, n: Int): Pair<DoubleArray, DoubleArray> {
-            val (ky, kx) = Kind.ERRORS[l.kind] ?: return DoubleArray(0) to DoubleArray(0)
+            val (ky, kx) = INTERNAL_ERRORS[l.kind] ?: return DoubleArray(0) to DoubleArray(0)
             fun e(k: Int) = data(vs.getOrElse(k) { Value.Empty })?.let { s -> if (s.isEmpty()) DoubleArray(0) else DoubleArray(n) { abs(s[it % s.size]) } } ?: DoubleArray(0)
             return e(ky) to e(kx)
         }
@@ -853,12 +950,48 @@ object Figure {
                     sets.forEach { s -> s.forEach(b::x) }; b.y(0.5); b.y(sets.size + 0.5)
                     drawn[l] = Drawn(l, color, raw = sets)
                 }
-                Kind.Heatmap -> {
+                Kind.Heatmap, Kind.Contour, Kind.ContourF -> {
                     val m = v(0)
+                    val xd = (v(1) as? Value.Data)?.v; val yd = (v(2) as? Value.Data)?.v
                     if (m is Value.Matrix) {
                         val z = Array(m.rows) { r -> DoubleArray(m.cols) { cc -> m.v[(m.rows - 1 - r) * m.cols + cc] } }
                         b.x(-0.5); b.x(m.cols - 0.5); b.y(-0.5); b.y(m.rows - 0.5)
-                        drawn[l] = Drawn(l, color, grid = Grid(0.0, (m.cols - 1).toDouble(), 0.0, (m.rows - 1).toDouble(), m.cols, m.rows, z), offset = 1.0)
+                        drawn[l] = Drawn(l, color, grid = Grid(0.0, (m.cols - 1).toDouble(), 0.0, (m.rows - 1).toDouble(), m.cols, m.rows, z), offset = if (l.kind == Kind.Heatmap) 1.0 else 0.0)
+                    } else if (xd != null && yd != null) {
+                        // Columns x, y and z (or f(x, y) at each point): made into a grid.
+                        val n = min(xd.size, yd.size)
+                        val zd = when (m) {
+                            is Value.Data -> m.v
+                            is Value.Fn2 -> DoubleArray(n) { m.f(xd[it], yd[it]) }
+                            is Value.Fn -> DoubleArray(n) { if (m.letter == "y") m.f(yd[it]) else m.f(xd[it]) }
+                            is Value.Num -> DoubleArray(n) { m.v }
+                            else -> null
+                        }
+                        val g = zd?.let { gridOf(xd, yd, it) } ?: run { bad(l, "Give z as a column (or f(x, y)) with columns x and y: at least 4 points"); null } ?: continue
+                        b.x(g.x0); b.x(g.x1); b.y(g.y0); b.y(g.y1)
+                        drawn[l] = Drawn(l, color, grid = g)
+                    } else if (m is Value.Data) bad(l, "A column for z needs columns for x and y too")
+                }
+                Kind.Quiver, Kind.Stream -> {
+                    val xd = (v(2) as? Value.Data)?.v; val yd = (v(3) as? Value.Data)?.v
+                    if (xd == null || yd == null) continue
+                    val n = min(xd.size, yd.size)
+                    fun at(w: Value): DoubleArray? = when (w) {
+                        is Value.Data -> w.v
+                        is Value.Fn2 -> DoubleArray(n) { w.f(xd[it], yd[it]) }
+                        is Value.Fn -> DoubleArray(n) { if (w.letter == "y") w.f(yd[it]) else w.f(xd[it]) }
+                        is Value.Num -> DoubleArray(n) { w.v }
+                        else -> null
+                    }
+                    val ud = at(v(0)); val vd = at(v(1))
+                    if (ud == null || vd == null) { bad(l, "Give u and v: columns, numbers or functions of x and y"); continue }
+                    val m2 = minOf(n, ud.size, vd.size)
+                    xd.copyOf(m2).forEach(b::x); yd.copyOf(m2).forEach(b::y)
+                    if (l.kind == Kind.Quiver) drawn[l] = Drawn(l, color, raw = listOf(xd.copyOf(m2), yd.copyOf(m2), ud.copyOf(m2), vd.copyOf(m2)))
+                    else {
+                        val gu = gridOf(xd, yd, ud); val gv = gridOf(xd, yd, vd)
+                        if (gu == null || gv == null || gu.nx != gv.nx || gu.ny != gv.ny) { bad(l, "Not enough points for stream lines"); continue }
+                        drawn[l] = Drawn(l, color, grid = gu, grid2 = gv, series = streamlines(gu, gv))
                     }
                 }
                 Kind.Parametric, Kind.Polar -> {
@@ -1034,7 +1167,7 @@ object Figure {
                     drawn[l] = Drawn(l, color, grid = g)
                 }
                 Kind.Quiver, Kind.Stream -> {
-                    val n = if (l.kind == Kind.Quiver) 17 else 60
+                    val n = if (l.kind == Kind.Quiver) l.style.arrows.coerceIn(4, 60) else 60
                     val u = field(v(0), n); val w = field(v(1), n)
                     if (u == null || w == null) { bad(l, "Give u and v as functions of x and y"); continue }
                     val lines = if (l.kind == Kind.Stream) streamlines(u, w) else emptyList()
@@ -1058,7 +1191,7 @@ object Figure {
         }
 
         val pie = drawn.values.any { it.layer.kind == Kind.Pie } && drawn.values.all { it.layer.kind == Kind.Pie || it.error != null }
-        return Worked(a, layers.mapNotNull { drawn[it] }, xLo, xHi, yLo, yHi, xCats, yCats, pie, zMin, zMax, mapped)
+        return Worked(a, layers.mapNotNull { l -> drawn[l]?.withLayer(original.getValue(l)) }, xLo, xHi, yLo, yHi, xCats, yCats, pie, zMin, zMax, mapped?.let { it.withLayer(original.getValue(it.layer)) })
     }
 
     private fun binsOf(l: Layer, def: Int) = if (l.style.bins > 0) l.style.bins else def
@@ -1271,10 +1404,13 @@ object Figure {
     private fun drawAxes(scene: Scene, w: Worked, t: Theme, bx: Double, by: Double, bw: Double, bh: Double) {
         val a = w.axes
         val bar = w.mapped != null
-        var left = bx + 40 + if (a.yLabel.isNotBlank()) 13 else 0
+        // Without numbers the ticks go too, and the axes take the room they had.
+        val xTurn = if (a.xNumbers) a.xTickAngle.coerceIn(0, 90) else 0
+        val xTickRoom = if (!a.xNumbers) 6.0 else 22.0 + if (xTurn > 0) 4.5 * 6 * sin(Math.toRadians(xTurn.toDouble())) else 0.0
+        var left = bx + (if (a.yNumbers) 40 else 10) + if (a.yLabel.isNotBlank()) 13 else 0
         var right = bx + bw - 10 - if (bar) 46 + (if (w.mapped?.layer?.style?.cbar?.isNotBlank() == true) 14 else 0) else 0
         var top = by + 8 + if (a.title.isNotBlank()) 16 else 0
-        var bottom = by + bh - 22 - if (a.xLabel.isNotBlank()) 14 else 0
+        var bottom = by + bh - xTickRoom - if (a.xLabel.isNotBlank()) 14 else 0
         if (w.yCategories != null) left += (w.yCategories.maxOfOrNull { it.length } ?: 0).coerceAtMost(12) * 3.5
         if (right - left < 30) { right = left + 30 }
         if (bottom - top < 30) { bottom = top + 30 }
@@ -1329,21 +1465,21 @@ object Figure {
         xt.forEachIndexed { k, v ->
             if (v < x0 - 1e-9 || v > x1 + 1e-9) return@forEachIndexed
             val x = px(v)
-            if (a.spines != 3) tickMarks += doubleArrayOf(x, zeroX, x, zeroX + if (a.ticksIn) -3.5 else 3.5)
+            if (a.spines != 3 && a.xNumbers) tickMarks += doubleArrayOf(x, zeroX, x, zeroX + if (a.ticksIn) -3.5 else 3.5)
             val text = w.xCategories?.getOrNull(k) ?: if (a.xLog) "10^${log10(v).roundToInt()}".let { s -> "$" + s.replace("^", "^{") + "}$" } else tickText(v)
-            if (a.xNumbers) label(t, scene, x, zeroX + 11, text, TICK, t.muted)
+            if (a.xNumbers) { if (xTurn == 0) label(t, scene, x, zeroX + 11, text, TICK, t.muted) else label(t, scene, x + 2, zeroX + 7, text, TICK, t.muted, Scene.Anchor.End, xTurn.toDouble()) }
         }
         yt.forEachIndexed { k, v ->
             if (v < y0 - 1e-9 || v > y1 + 1e-9) return@forEachIndexed
             val y = py(v)
-            if (a.spines != 3) tickMarks += doubleArrayOf(zeroY + if (a.ticksIn) 3.5 else -3.5, y, zeroY, y)
+            if (a.spines != 3 && a.yNumbers) tickMarks += doubleArrayOf(zeroY + if (a.ticksIn) 3.5 else -3.5, y, zeroY, y)
             val text = w.yCategories?.getOrNull(k) ?: if (a.yLog) "$10^{${log10(v).roundToInt()}}$" else tickText(v)
-            if (a.yNumbers) label(t, scene, zeroY - 6, y, text, TICK, t.muted, Scene.Anchor.End)
+            if (a.yNumbers) label(t, scene, zeroY - 6, y, text, TICK, t.muted, if (a.yTickAngle >= 60) Scene.Anchor.Middle else Scene.Anchor.End, a.yTickAngle.coerceIn(0, 90).toDouble())
         }
         scene.add(Scene.Stroke(tickMarks, ink, 0.7))
         if (t.gridOnTop) grid()
-        if (a.xLabel.isNotBlank()) label(t, scene, (left + right) / 2, bottom + 30, a.xLabel, LABEL, ink)
-        if (a.yLabel.isNotBlank()) label(t, scene, left - 36 - (w.yCategories?.let { c -> (c.maxOfOrNull { it.length } ?: 0).coerceAtMost(12) * 3.5 } ?: 0.0), (top + bottom) / 2, a.yLabel, LABEL, ink, angle = 90.0)
+        if (a.xLabel.isNotBlank()) label(t, scene, (left + right) / 2, bottom + xTickRoom + 8, a.xLabel, LABEL, ink)
+        if (a.yLabel.isNotBlank()) label(t, scene, left - (if (a.yNumbers) 36 else 8) - (w.yCategories?.let { c -> (c.maxOfOrNull { it.length } ?: 0).coerceAtMost(12) * 3.5 } ?: 0.0), (top + bottom) / 2, a.yLabel, LABEL, ink, angle = 90.0)
         if (bar) drawColorbar(scene, w, t, right + 10, top, bottom)
         if (a.legend >= 0) drawLegend(scene, w, t, left, top, right, bottom)
     }
@@ -1564,22 +1700,38 @@ object Figure {
                 }
             }
             Kind.Quiver -> {
-                val u = dr.grid ?: return; val v = dr.grid2 ?: return
-                var m = 0.0
-                for (j in 0 until u.ny) for (i in 0 until u.nx) { val h = hypot(u.z[j][i], v.z[j][i]); if (h.isFinite()) m = max(m, h) }
-                if (m <= 0) return
-                val cell = min((right - left) / u.nx, (bottom - top) / u.ny) * 0.9
-                val strokes = ArrayList<DoubleArray>()
-                for (j in 0 until u.ny) for (i in 0 until u.nx) {
-                    val a = u.z[j][i]; val b = v.z[j][i]; if (!a.isFinite() || !b.isFinite()) continue
-                    val len = hypot(a, b) / m * cell; if (len < 0.5) continue
-                    val X = px(u.x(i)); val Y = py(u.y(j)); val ang = atan2(-b * (1.0), a)
-                    val ex = X + len * cos(ang); val ey = Y + len * sin(ang)
-                    strokes += doubleArrayOf(X, Y, ex, ey)
-                    val hl = min(3.5, len * 0.4)
-                    strokes += doubleArrayOf(ex - hl * cos(ang - 0.45), ey - hl * sin(ang - 0.45), ex, ey, ex - hl * cos(ang + 0.45), ey - hl * sin(ang + 0.45))
+                // As the 2D graph's vector fields: each arrow centered on its point, its length by
+                // the style (in proportion, all the same, or true), its head, colored by length or not.
+                val pts = ArrayList<DoubleArray>()
+                if (dr.raw.size == 4) { val (xs, ys, us, vs) = dr.raw; for (k in xs.indices) pts += doubleArrayOf(xs[k], ys[k], us[k], vs[k]) }
+                else { val u = dr.grid ?: return; val v = dr.grid2 ?: return; for (j in 0 until u.ny) for (i in 0 until u.nx) pts += doubleArrayOf(u.x(i), u.y(j), u.z[j][i], v.z[j][i]) }
+                val good = pts.filter { p -> p.all { it.isFinite() } }
+                if (good.isEmpty()) return
+                val mags = good.map { hypot(it[2], it[3]) }
+                val largest = VectorField.robustMax(mags)
+                val range = (mags.minOrNull() ?: 0.0) to largest.let { if (it > (mags.minOrNull() ?: 0.0)) it else (mags.minOrNull() ?: 0.0) + 1 }
+                val kx = (px(x1) - px(x0)) / (x1 - x0); val ky = (py(y1) - py(y0)) / (y1 - y0)
+                val cols = if (dr.raw.size == 4) sqrt(good.size.toDouble()).coerceAtLeast(4.0) else (dr.grid?.nx ?: 17).toDouble()
+                val cell = (right - left) / cols
+                val full = 0.86 * cell * s.arrowScale
+                val length = VectorField.Length.entries.getOrElse(s.arrowLength) { VectorField.Length.Scaled }
+                val tip = VectorField.Tip.entries.getOrElse(s.arrowTip) { VectorField.Tip.Triangle }
+                val lw = max(0.5, s.width * 0.7)
+                good.forEachIndexed { k, p ->
+                    val m = mags[k]; if (m == 0.0) return@forEachIndexed
+                    val sx = p[2] * kx; val sy = p[3] * ky; val sl = hypot(sx, sy); if (sl == 0.0) return@forEachIndexed
+                    val len = when (length) { VectorField.Length.Equal -> full; VectorField.Length.True -> sl * s.arrowScale; else -> full * min(m / largest, 1.0) }
+                    if (len < 0.5) return@forEachIndexed
+                    val ux = sx / sl; val uy = sy / sl
+                    val cx = px(p[0]); val cy = py(p[1])
+                    val ax = cx - ux * len / 2; val ay = cy - uy * len / 2; val bx = cx + ux * len / 2; val by = cy + uy * len / 2
+                    val c = if (s.arrowByLength) withAlpha(cmapColor(s.cmap, VectorField.position(m, range)), s.alpha) else color
+                    val head = VectorField.head(tip, bx, by, ux, uy, (2.5 + lw * 2.2) * s.arrowTipSize * 1.6)
+                    scene.add(Scene.Stroke(listOf(doubleArrayOf(ax, ay, head.shaftEndX, head.shaftEndY)), c, lw))
+                    if (head.fills.isNotEmpty()) scene.add(Scene.Fill(head.fills, c))
+                    if (head.strokes.isNotEmpty()) scene.add(Scene.Stroke(head.strokes, c, lw))
+                    head.dot?.let { d -> scene.add(Scene.Fill(listOf(DoubleArray(24) { q -> val t = q / 2 * Math.PI / 6; if (q % 2 == 0) d[0] + d[2] * cos(t) else d[1] + d[2] * sin(t) }), c)) }
                 }
-                scene.add(Scene.Stroke(strokes, color, s.width * 0.7))
             }
             Kind.Stream -> dr.series.forEach { (xs, ys) ->
                 val line = polyline(xs, ys)

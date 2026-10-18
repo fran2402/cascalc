@@ -1269,7 +1269,7 @@ private fun androidx.compose.foundation.layout.ColumnScope.GeometryOptions(vm: G
 
 /** Choices in a row of segments, M3's single-choice segmented buttons. */
 @Composable
-private fun Segments(labels: List<String>, selected: Int, description: String, onSelect: (Int) -> Unit) {
+internal fun Segments(labels: List<String>, selected: Int, description: String, onSelect: (Int) -> Unit) {
     androidx.compose.material3.SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().semantics { contentDescription = tr(description) }) {
         labels.forEachIndexed { i, label ->
             SegmentedButton(

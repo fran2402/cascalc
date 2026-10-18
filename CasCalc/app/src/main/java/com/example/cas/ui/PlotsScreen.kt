@@ -4,6 +4,9 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlin.math.abs
+import kotlin.math.roundToInt
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
@@ -78,6 +81,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -162,7 +167,7 @@ object FigureFactory {
         val a = letters.getOrNull(0) ?: "x"; val b = letters.getOrNull(1) ?: a
         val layer = when (kind) {
             Figure.Kind.Scatter -> Figure.Layer(kind, listOf(m(a), m(b)))
-            Figure.Kind.Plot -> Figure.Layer(kind, listOf(m(b), m(a)), style = Figure.Style(marker = 0))
+            Figure.Kind.Plot -> Figure.Layer(kind, listOf(m(a), m(b)), style = Figure.Style(marker = 0))
             Figure.Kind.Bar -> Figure.Layer(kind, listOf(m(b)))
             Figure.Kind.Hist, Figure.Kind.Ecdf -> Figure.Layer(kind, listOf(m(a)))
             Figure.Kind.Box, Figure.Kind.Violin -> Figure.Layer(kind, listOf(m(letters.ifEmpty { listOf(a) }.joinToString(","))), text = letters.joinToString(", "))
@@ -174,7 +179,7 @@ object FigureFactory {
 
     /** One expression (a mode guide's example) as a line layer. */
     fun fromRow(row: MathRow): Figure.Doc {
-        val l = Figure.Layer(Figure.Kind.Plot, listOf(MathCodec.copy(row)), style = Figure.Style(label = "$" + com.example.cas.engine.Latex.of(row) + "$"))
+        val l = Figure.Layer(Figure.Kind.Plot, listOf(MathRow(), MathCodec.copy(row)), style = Figure.Style(label = "$" + com.example.cas.engine.Latex.of(row) + "$"))
         return Figure.Doc(FigureStore.newId(), "", listOf(Figure.Axes(listOf(l), xLabel = "\$x\$", legend = 0)), name = "Figure", edited = System.currentTimeMillis())
     }
 
@@ -219,7 +224,7 @@ object FigureFactory {
         }
         for (f in functions) when (val k = f.plot) {
             is Plot2DKind.Explicit -> rhs(f.editor.root, "y")?.takeIf { it.items.isNotEmpty() }?.let { r ->
-                layers += Figure.Layer(Figure.Kind.Plot, listOf(r), style = style(f, "$" + com.example.cas.engine.Latex.of(r) + "$"))
+                layers += Figure.Layer(Figure.Kind.Plot, listOf(MathRow(), r), style = style(f, "$" + com.example.cas.engine.Latex.of(r) + "$"))
             }
             is Plot2DKind.Polar -> rhs(f.editor.root, "r")?.takeIf { it.items.isNotEmpty() }?.let { r ->
                 layers += Figure.Layer(Figure.Kind.Polar, listOf(r), style = style(f, "\$r = " + com.example.cas.engine.Latex.of(r) + "\$"))
@@ -250,18 +255,18 @@ object FigureFactory {
         Template("Blank", "An empty figure", FigureIcons.NewFigure) { blank("Figure") },
         Template("Function", "A curve with its legend", Figure.Kind.Plot.let { FigureIcons.of(it) }) {
             val row = MathRow(mutableListOf(com.example.cas.editor.Func("sin", listOf(m("x")))))
-            Figure.Doc(FigureStore.newId(), "", listOf(Figure.Axes(listOf(Figure.Layer(Figure.Kind.Plot, listOf(row), style = Figure.Style(label = "\$\\sin x\$"))), xLabel = "\$x\$", yLabel = "\$y\$")), name = "Function", edited = System.currentTimeMillis())
+            Figure.Doc(FigureStore.newId(), "", listOf(Figure.Axes(listOf(Figure.Layer(Figure.Kind.Plot, listOf(MathRow(), row), style = Figure.Style(label = "\$\\sin x\$"))), xLabel = "\$x\$", yLabel = "\$y\$")), name = "Function", edited = System.currentTimeMillis())
         },
         Template("Data", "A table, as points and a histogram", FigureIcons.of(Figure.Kind.Hist)) {
             val t = DataTable(listOf("x", "y"), listOf(listOf("1", "2", "3", "4", "5", "6", "7", "8"), listOf("2.1", "3.9", "6.2", "7.8", "10.1", "12.2", "13.8", "16.1")), null, null)
             Figure.withLayout(Figure.Doc(FigureStore.newId(), "", listOf(
-                Figure.Axes(listOf(Figure.Layer(Figure.Kind.Scatter, listOf(m("x"), m("y")), style = Figure.Style(label = "data")), Figure.Layer(Figure.Kind.Plot, listOf(m("2x")), style = Figure.Style(line = 1, label = "\$y = 2x\$"))), xLabel = "\$x\$", yLabel = "\$y\$"),
+                Figure.Axes(listOf(Figure.Layer(Figure.Kind.Scatter, listOf(m("x"), m("y")), style = Figure.Style(label = "data")), Figure.Layer(Figure.Kind.Plot, listOf(MathRow(), m("2x")), style = Figure.Style(line = 1, label = "\$y = 2x\$"))), xLabel = "\$x\$", yLabel = "\$y\$"),
                 Figure.Axes(listOf(Figure.Layer(Figure.Kind.Hist, listOf(m("y")))), xLabel = "\$y\$", yLabel = "count"),
             ), "AB", aspect = 0.5, data = t, name = "Data", edited = System.currentTimeMillis()), "AB")
         },
         Template("Fields", "Contours and arrows of f(x, y)", FigureIcons.of(Figure.Kind.ContourF)) {
             val f = MathRow(mutableListOf(Sym("x"), com.example.cas.editor.Pow(m("2")), Sym("−"), Sym("y"), com.example.cas.editor.Pow(m("2"))))
-            Figure.Doc(FigureStore.newId(), "", listOf(Figure.Axes(listOf(Figure.Layer(Figure.Kind.ContourF, listOf(f), style = Figure.Style(levels = 12)), Figure.Layer(Figure.Kind.Quiver, listOf(m("2x"), m("−2y")), style = Figure.Style(color = 5))), equal = true, grid = 0)), name = "Fields", edited = System.currentTimeMillis())
+            Figure.Doc(FigureStore.newId(), "", listOf(Figure.Axes(listOf(Figure.Layer(Figure.Kind.ContourF, listOf(MathRow(), MathRow(), f), style = Figure.Style(levels = 12)), Figure.Layer(Figure.Kind.Quiver, listOf(MathRow(), MathRow(), m("2x"), m("−2y")), style = Figure.Style(color = 5))), equal = true, grid = 0)), name = "Fields", edited = System.currentTimeMillis())
         },
         Template("Grid", "Four axes, 2 × 2", FigureIcons.Layout) { Figure.withLayout(blank("Grid"), "AB;CD").copy(aspect = 0.8) },
     )
@@ -456,7 +461,7 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
         val r = { n: String -> com.example.cas.engine.PlainMath.parse(n) }
         val l = when (kind) {
             Figure.Kind.Scatter, Figure.Kind.Fit, Figure.Kind.Hist2D, Figure.Kind.Hexbin -> Figure.Layer(kind, names.map(r))
-            Figure.Kind.Plot, Figure.Kind.Step, Figure.Kind.Stem -> Figure.Layer(kind, listOf(r(names.last()), r(names.first())), style = Figure.Style(label = names.last()))
+            Figure.Kind.Plot, Figure.Kind.Step, Figure.Kind.Stem -> Figure.Layer(kind, listOf(r(names.first()), r(names.last())), style = Figure.Style(label = names.last()))
             Figure.Kind.Box, Figure.Kind.Violin, Figure.Kind.Events -> Figure.Layer(kind, listOf(r(names.joinToString(","))), text = names.joinToString(", "))
             else -> Figure.Layer(kind, listOf(r(names.first())), style = Figure.Style(label = names.first()))
         }
@@ -679,6 +684,9 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
         }
     }
 
+    // Each column of the table keeps one color everywhere: its chips in inputs and lists, and its name in the table.
+    val columnColors = remember(doc.data.names, colors) { val pal = plotColors(colors); doc.data.names.mapIndexed { k, n -> n.trim() to pal[k % pal.size] }.toMap() }
+    androidx.compose.runtime.CompositionLocalProvider(LocalColumnColors provides columnColors) {
     Column(Modifier.fillMaxSize()) {
         // The bar: back to the library, the name, undo and export.
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -733,6 +741,24 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
             }
         }
     }
+    }
+}
+
+/** The table's columns' colors by name (set by the figure editor). */
+internal val LocalColumnColors = androidx.compose.runtime.compositionLocalOf { emptyMap<String, Color>() }
+
+/** A column's chip colors: its own color (the icon half), a tone of it (the name's half) and the ink on each. */
+private class ChipColors(val strong: Color, val onStrong: Color, val tonal: Color, val ink: Color)
+
+@Composable
+private fun chipColors(name: String): ChipColors {
+    val colors = MaterialTheme.colorScheme
+    val strong = LocalColumnColors.current[name.trim()] ?: colors.primary
+    val dark = colors.surface.luminance() < 0.5f
+    val onStrong = if (strong.luminance() > 0.45f) Color(0xFF1B1B12) else Color.White
+    val tonal = strong.copy(alpha = if (dark) 0.26f else 0.18f).compositeOver(colors.surfaceContainerHigh)
+    val ink = if (dark) androidx.compose.ui.graphics.lerp(strong, Color.White, 0.25f) else androidx.compose.ui.graphics.lerp(strong, Color.Black, 0.45f)
+    return ChipColors(strong, onStrong, tonal, ink)
 }
 
 /** Your own fitted model being typed on the keypad: y = its formula, with the cursor; any error under it. */
@@ -879,11 +905,13 @@ private fun columnSpans(text: String, names: List<String>): List<IntRange> {
     val out = ArrayList<IntRange>()
     var k = 0
     fun word(ch: Char?) = ch != null && (ch.isLetterOrDigit() || ch == '_')
+    // Side by side (freqSignal) they're two columns, multiplied.
+    fun startsAt(at: Int, depth: Int = 0): String? = if (depth > 8) null else names.filter { text.startsWith(it, at) && (!word(text.getOrNull(at + it.length)) || startsAt(at + it.length, depth + 1) != null) }.maxByOrNull { it.length }
+    var lastEnd = -1
     while (k < text.length) {
         val before = text.getOrNull(k - 1)
-        val hit = if (before != null && (before.isLetter() || before == '_')) null
-            else names.filter { text.startsWith(it, k) && !word(text.getOrNull(k + it.length)) }.maxByOrNull { it.length }
-        if (hit != null) { out += k until k + hit.length; k += hit.length } else k++
+        val hit = if (before != null && (before.isLetter() || before == '_') && k != lastEnd) null else startsAt(k)
+        if (hit != null) { out += k until k + hit.length; k += hit.length; lastEnd = k } else k++
     }
     return out
 }
@@ -901,11 +929,16 @@ private fun wholeColumns(old: TextFieldValue, new: TextFieldValue, names: List<S
  * them has room) and their letters in the chip's ink. [spans] says where the chips are in the
  * text as shown.
  */
-private class ColumnChips(val names: List<String>, val ink: Color) : androidx.compose.ui.text.input.VisualTransformation {
-    private val pad = "\u2009"
+private class ColumnChips(val names: List<String>, val ink: (String) -> Color) : androidx.compose.ui.text.input.VisualTransformation {
+    // Room in front for the chip's colored icon half, and a thin space after.
+    private val lead = "\u2002\u2009"
+    private val trail = "\u2009"
 
-    /** Each column's place in the shown text, thin spaces included. */
-    fun spans(text: String): List<IntRange> = columnSpans(text, names).mapIndexed { k, r -> (r.first + 2 * k) until (r.last + 1 + 2 * k + 2) }
+    /** Each column's place in the shown text, its spaces included, and its name. */
+    fun spans(text: String): List<Pair<IntRange, String>> = columnSpans(text, names).mapIndexed { k, r ->
+        val shift = k * (lead.length + trail.length)
+        ((r.first + shift) until (r.last + 1 + shift + lead.length + trail.length)) to text.substring(r.first, r.last + 1)
+    }
 
     override fun filter(text: androidx.compose.ui.text.AnnotatedString): androidx.compose.ui.text.input.TransformedText {
         val spans = columnSpans(text.text, names)
@@ -914,25 +947,26 @@ private class ColumnChips(val names: List<String>, val ink: Color) : androidx.co
             var at = 0
             for (r in spans) {
                 append(text.text.substring(at, r.first))
-                append(pad)
+                append(lead)
                 val st = length
-                append(text.text.substring(r.first, r.last + 1))
-                addStyle(androidx.compose.ui.text.SpanStyle(color = ink, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), st, length)
-                append(pad)
+                val name = text.text.substring(r.first, r.last + 1)
+                append(name)
+                addStyle(androidx.compose.ui.text.SpanStyle(color = ink(name), fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), st, length)
+                append(trail)
                 at = r.last + 1
             }
             append(text.text.substring(at))
         }
-        // Where each place in the typed text is in the shown text: a chip's start before its thin space, its end after the closing one.
+        // Where each place in the typed text is in the shown text: a chip's start before its spaces, its end after them.
         val n = text.text.length
-        val to = IntArray(n + 1) { o -> o + spans.count { it.first < o } + spans.count { it.last + 1 <= o } }
+        val to = IntArray(n + 1) { o -> o + lead.length * spans.count { it.first < o } + trail.length * spans.count { it.last + 1 <= o } }
         val map = object : androidx.compose.ui.text.input.OffsetMapping {
             override fun originalToTransformed(offset: Int) = to[offset.coerceIn(0, n)]
             override fun transformedToOriginal(offset: Int): Int { var o = 0; while (o < n && to[o + 1] <= offset) o++; return o }
         }
         return androidx.compose.ui.text.input.TransformedText(shown, map)
     }
-    override fun equals(other: Any?) = other is ColumnChips && other.names == names && other.ink == ink
+    override fun equals(other: Any?) = other is ColumnChips && other.names == names && other.ink === ink
     override fun hashCode() = names.hashCode()
 }
 
@@ -985,7 +1019,8 @@ private class FieldKeys(private val target: () -> com.example.cas.editor.Editor?
 private fun InputField(label: String, value: TextFieldValue, columns: List<String>, onText: (TextFieldValue) -> Unit, onFocus: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val text = value.text
-    val chips = remember(columns, colors) { ColumnChips(columns, colors.onPrimaryContainer) }
+    val palette = columns.associateWith { chipColors(it) }
+    val chips = remember(columns, palette.values.map { it.ink }) { ColumnChips(columns) { n -> palette[n]?.ink ?: colors.primary } }
     val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     var layout by remember { mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
     val style = TextStyle(fontFamily = CasFonts.Mono, fontSize = 16.sp, color = colors.onSurface)
@@ -1001,11 +1036,21 @@ private fun InputField(label: String, value: TextFieldValue, columns: List<Strin
                     // Each column name sits in a rounded chip, drawn under its letters.
                     Box(Modifier.drawBehind {
                         val lay = layout ?: return@drawBehind
-                        chips.spans(text).forEach { r ->
+                        chips.spans(text).forEach { (r, name) ->
                             if (r.last >= lay.layoutInput.text.length) return@forEach
-                            val a = lay.getBoundingBox(r.first); val b = lay.getBoundingBox(r.last)
-                            val h = b.bottom - a.top
-                            drawRoundRect(colors.primaryContainer, Offset(a.left, a.top - h * 0.08f), androidx.compose.ui.geometry.Size(b.right - a.left, h * 1.16f), androidx.compose.ui.geometry.CornerRadius(h, h))
+                            val c = palette[name] ?: return@forEach
+                            val a = lay.getBoundingBox(r.first); val lead = lay.getBoundingBox(r.first + 1); val b = lay.getBoundingBox(r.last)
+                            val h = (b.bottom - a.top) * 1.16f; val top = a.top - (b.bottom - a.top) * 0.08f
+                            val corner = androidx.compose.ui.geometry.CornerRadius(h / 2, h / 2)
+                            // The whole chip in the tone, then its front in the column's own color with a small table glyph.
+                            drawRoundRect(c.tonal, Offset(a.left, top), androidx.compose.ui.geometry.Size(b.right - a.left, h), corner)
+                            val capR = lead.right + 1.dp.toPx()
+                            clipRect(left = a.left, top = top, right = capR, bottom = top + h) { drawRoundRect(c.strong, Offset(a.left, top), androidx.compose.ui.geometry.Size(b.right - a.left, h), corner) }
+                            val gw = h * 0.42f; val gx = (a.left + capR) / 2 - gw / 2 + 1.dp.toPx(); val gy = top + h / 2 - gw * 0.4f
+                            val sw = 1.2.dp.toPx()
+                            drawRoundRect(c.onStrong, Offset(gx, gy), androidx.compose.ui.geometry.Size(gw, gw * 0.8f), androidx.compose.ui.geometry.CornerRadius(sw, sw), style = Stroke(sw))
+                            drawLine(c.onStrong, Offset(gx, gy + gw * 0.32f), Offset(gx + gw, gy + gw * 0.32f), sw)
+                            drawLine(c.onStrong, Offset(gx + gw * 0.42f, gy), Offset(gx + gw * 0.42f, gy + gw * 0.8f), sw)
                         }
                     }) { inner() }
                 },
@@ -1043,11 +1088,15 @@ private fun ReadAs(text: String, columns: List<String>, size: androidx.compose.u
 /** A table column's name as a chip: a rounded container in the theme's primary tone. */
 @Composable
 private fun ColumnChip(name: String, size: androidx.compose.ui.unit.TextUnit = 14.sp) {
-    val colors = MaterialTheme.colorScheme
-    Row(Modifier.clip(CircleShape).background(colors.primaryContainer).padding(start = 6.dp, end = 10.dp, top = 2.dp, bottom = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-        AppIcon(TableIcons.Table, contentDescription = null, tint = colors.onPrimaryContainer, modifier = Modifier.size((size.value + 2).dp))
-        Spacer(Modifier.width(4.dp))
-        Text(name, style = TextStyle(fontSize = size, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium, color = colors.onPrimaryContainer), maxLines = 1)
+    // Split: the column's own color with a table glyph, then its name on a tone of that color.
+    val c = chipColors(name)
+    Row(Modifier.height(androidx.compose.ui.unit.Dp(size.value * 1.75f)).clip(CircleShape), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.fillMaxHeight().background(c.strong).padding(start = 7.dp, end = 5.dp), contentAlignment = Alignment.Center) {
+            AppIcon(TableIcons.Table, contentDescription = null, tint = c.onStrong, modifier = Modifier.size((size.value + 1).dp))
+        }
+        Box(Modifier.fillMaxHeight().background(c.tonal).padding(start = 6.dp, end = 10.dp), contentAlignment = Alignment.Center) {
+            Text(name, style = TextStyle(fontSize = size, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, color = c.ink), maxLines = 1)
+        }
     }
 }
 
@@ -1090,7 +1139,7 @@ private fun DataGrid(t: com.example.cas.graph.DataTable, modifier: Modifier, onH
                             Modifier.size(cellW, 52.dp).clickable(enabled = onHeader != null || headerMenu != null) { if (headerMenu != null) menu = true else onHeader?.invoke(c) }.padding(horizontal = 8.dp, vertical = 4.dp),
                             horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.Center,
                         ) {
-                            Text(t.names[c].ifBlank { "—" }, style = mono.copy(color = colors.primary, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            if (t.names[c].isBlank()) Text("—", style = mono.copy(color = colors.outline)) else ColumnChip(t.names[c].trim(), 12.sp)
                             stats[c]?.let { st -> Text("x̄ " + com.example.cas.graph.Figure.tickText(st.mean) + (st.sd?.let { " ± " + com.example.cas.graph.Figure.tickText(it) } ?: ""), style = mono.copy(fontSize = 10.sp, color = colors.onSurfaceVariant), maxLines = 1) }
                         }
                         if (headerMenu != null) DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) { headerMenu(c) { menu = false } }
@@ -1167,6 +1216,34 @@ private val CAPS = listOf(0.0, 1.5, 3.0, 4.5, 6.0)
 private val ERR_WIDTHS = listOf(0.4, 0.6, 0.9, 1.2, 1.6, 2.2)
 private val LEVELS = listOf(4, 6, 8, 10, 12, 16, 20, 30)
 private val BINS = listOf(0, 5, 10, 20, 40)
+
+/**
+ * A setting on a straight (linear) slider with fine steps of [step]: its name and value above.
+ * The value follows the finger at once; [onChange] hears each step.
+ */
+@Composable
+private fun SliderRow(title: String, value: Double, range: ClosedFloatingPointRange<Double>, step: Double, shown: (Double) -> String, onChange: (Double) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    var v by remember(value) { mutableStateOf(value.coerceIn(range)) }
+    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(tr(title), style = MaterialTheme.typography.bodyLarge, color = colors.onSurface, modifier = Modifier.weight(1f))
+            Text(shown(v), style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
+        }
+        ExpressiveSlider(
+            value = v.toFloat(),
+            onValueChange = { f ->
+                val q = (Math.round((f - range.start) / step) * step + range.start).coerceIn(range)
+                if (q != v) { v = q; onChange(q) }
+            },
+            valueRange = range.start.toFloat()..range.endInclusive.toFloat(),
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr(title) },
+        )
+    }
+}
+
+/** How far tick numbers can be turned, as matplotlib's labelrotation. */
+private val ANGLES = listOf(0, 30, 45, 60, 90)
 
 private fun nearest(list: List<Double>, v: Double) = list.indices.minByOrNull { kotlin.math.abs(list[it] - v) } ?: 0
 
@@ -1275,11 +1352,11 @@ private fun LayerEditor(
                 AppIcon(TableIcons.ChevronRight, contentDescription = null, tint = colors.onSurfaceVariant)
             }
             if (l.kind == Figure.Kind.Contour || l.kind == Figure.Kind.ContourF)
-                PxSteppedRow("Levels", LEVELS[LEVELS.indexOf(s.levels).coerceAtLeast(0)].toString(), LEVELS.indexOf(s.levels).coerceAtLeast(3), LEVELS.indices) { onChange(l.copy(style = s.copy(levels = LEVELS[it]))) }
+                SliderRow("Levels", s.levels.toDouble(), 2.0..60.0, 1.0, { "${it.toInt()}" }) { onChange(l.copy(style = s.copy(levels = it.roundToInt()))) }
             if (l.kind == Figure.Kind.Hist2D || l.kind == Figure.Kind.Hexbin)
-                PxChoiceRow("Bins", BINS.map { if (it == 0) tr("Auto") else "$it" }, BINS.indexOf(s.bins).coerceAtLeast(0)) { onChange(l.copy(style = s.copy(bins = BINS[it]))) }
+                SliderRow("Bins", s.bins.toDouble(), 0.0..120.0, 1.0, { if (it < 1) tr("Auto") else "${it.toInt()}" }) { onChange(l.copy(style = s.copy(bins = it.roundToInt()))) }
             if (l.kind != Figure.Kind.Contour) {
-                PxSteppedRow("Opacity", "${(ALPHAS[nearest(ALPHAS, s.alpha)] * 100).toInt()} %", nearest(ALPHAS, s.alpha), ALPHAS.indices) { onChange(l.copy(style = s.copy(alpha = ALPHAS[it]))) }
+                SliderRow("Opacity", s.alpha, 0.05..1.0, 0.01, { "${(it * 100).roundToInt()} %" }) { onChange(l.copy(style = s.copy(alpha = it))) }
                 OutlinedTextField(s.cbar, { onChange(l.copy(style = s.copy(cbar = it))) }, label = { Text(tr("Colorbar label")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
                     supportingText = { Text(tr("\$math\$ between dollar signs, like \$T\$ (K)")) })
             }
@@ -1336,21 +1413,24 @@ private fun LayerLookDialog(l: Figure.Layer, current: Color, onApply: (Figure.St
         extra = {
             val k = l.kind
             androidx.compose.runtime.CompositionLocalProvider(LocalCompactRows provides true) {
-                if (k.lined && k != Figure.Kind.Contour && k != Figure.Kind.Quiver && k != Figure.Kind.Stream && k != Figure.Kind.Kde) MarkerChoice(draft.marker) { draft = draft.copy(marker = it) }
-                if (k == Figure.Kind.Scatter || k == Figure.Kind.Fit || draft.marker >= 0) PxSteppedRow(if (k == Figure.Kind.Scatter) "Point size" else "Marker size", "${SIZES[nearest(SIZES, draft.size)]}", nearest(SIZES, draft.size), SIZES.indices) { draft = draft.copy(size = SIZES[it]) }
+                // Arrows: the same options as the 2D graph's vector fields.
+                if (k == Figure.Kind.Quiver) ArrowChoices(draft) { draft = it }
+                if (k.lined && k != Figure.Kind.Contour && k != Figure.Kind.Quiver && k != Figure.Kind.Stream && k != Figure.Kind.Kde && k != Figure.Kind.Scatter) MarkerChoice(draft.marker) { draft = draft.copy(marker = it) }
+                if (k == Figure.Kind.Scatter) MarkerChoice(draft.marker.coerceAtLeast(0)) { draft = draft.copy(marker = it) }
+                if (k == Figure.Kind.Scatter || k == Figure.Kind.Fit || draft.marker >= 0) SliderRow(if (k == Figure.Kind.Scatter) "Point size" else "Marker size", draft.size, 0.5..15.0, 0.1, { String.format(java.util.Locale.US, "%.1f", it) }) { draft = draft.copy(size = it) }
                 // ± errors, when the layer has any: bars with caps, or a shaded band.
                 Figure.Kind.ERRORS[k]?.let { (ky, kx) ->
                     if (l.input(ky).items.isNotEmpty() || l.input(kx).items.isNotEmpty()) {
                         PxChoiceRow("Errors", listOf("Bars", "Band"), if (draft.errBand) 1 else 0) { draft = draft.copy(errBand = it == 1) }
                         if (!draft.errBand) {
-                            PxSteppedRow("Caps", if (draft.errCap == 0.0) "None" else "${CAPS[nearest(CAPS, draft.errCap)].toInt()}", nearest(CAPS, draft.errCap), CAPS.indices) { draft = draft.copy(errCap = CAPS[it]) }
-                            PxSteppedRow("Error bar thickness", "${ERR_WIDTHS[nearest(ERR_WIDTHS, draft.errWidth)]}", nearest(ERR_WIDTHS, draft.errWidth), ERR_WIDTHS.indices) { draft = draft.copy(errWidth = ERR_WIDTHS[it]) }
+                            SliderRow("Caps", draft.errCap, 0.0..10.0, 0.1, { if (it < 0.05) tr("None") else String.format(java.util.Locale.US, "%.1f", it) }) { draft = draft.copy(errCap = it) }
+                            SliderRow("Error bar thickness", draft.errWidth, 0.2..5.0, 0.05, { String.format(java.util.Locale.US, "%.2f", it) }) { draft = draft.copy(errWidth = it) }
                         }
                     }
                 }
-                PxSteppedRow("Opacity", "${(ALPHAS[nearest(ALPHAS, draft.alpha)] * 100).toInt()} %", nearest(ALPHAS, draft.alpha), ALPHAS.indices) { draft = draft.copy(alpha = ALPHAS[it]) }
+                SliderRow("Opacity", draft.alpha, 0.05..1.0, 0.01, { "${(it * 100).roundToInt()} %" }) { draft = draft.copy(alpha = it) }
                 if (k == Figure.Kind.Hist || k == Figure.Kind.Hist2D || k == Figure.Kind.Hexbin) {
-                    PxChoiceRow("Bins", BINS.map { if (it == 0) "Auto" else "$it" }, BINS.indexOf(draft.bins).coerceAtLeast(0)) { draft = draft.copy(bins = BINS[it]) }
+                    SliderRow("Bins", draft.bins.toDouble(), 0.0..120.0, 1.0, { if (it < 1) tr("Auto") else "${it.toInt()}" }) { draft = draft.copy(bins = it.roundToInt()) }
                     if (k == Figure.Kind.Hist) {
                         PxToggleRow("Density", "Areas add up to 1 (to compare with a density curve)", draft.density) { draft = draft.copy(density = it) }
                         PxToggleRow("Cumulative", "Running totals", draft.cumulative) { draft = draft.copy(cumulative = it) }
@@ -1360,6 +1440,55 @@ private fun LayerLookDialog(l: Figure.Layer, current: Color, onApply: (Figure.St
             }
         },
     )
+}
+
+/**
+ * Arrows as the 2D graph's vector fields have them: colored by length along a colormap (tap the
+ * strip to pick one) or in the layer's color, their length, scale, head and its size, and how many.
+ */
+@Composable
+private fun ArrowChoices(s: Figure.Style, onChange: (Figure.Style) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    var picking by remember { mutableStateOf(false) }
+    val (map, reversed) = com.example.cas.graph.Colormap.parse(s.cmap)
+    if (picking) ColormapPickerDialog(map, reversed, onPick = { m, r -> onChange(s.copy(cmap = com.example.cas.graph.Colormap.save(m, r))); picking = false }, onDismiss = { picking = false })
+    Text(tr("Arrows"), style = MaterialTheme.typography.labelLarge, color = colors.primary)
+    Text(tr("Color"), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    Segments(listOf("This color", "By length"), if (s.arrowByLength) 1 else 0, "Arrow color") { onChange(s.copy(arrowByLength = it == 1)) }
+    if (s.arrowByLength) Box(
+        Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(14.dp)).background(Brush.horizontalGradient(colormapStops(map, reversed = reversed)))
+            .clickable(onClickLabel = tr("Change the colormap")) { picking = true },
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        MathText(map.label + (if (reversed) " (reversed)" else "") + " · short \$\\to\$ long", style = MaterialTheme.typography.labelLarge, color = Color.White,
+            modifier = Modifier.padding(start = 10.dp).clip(RoundedCornerShape(8.dp)).background(Color.Black.copy(alpha = 0.35f)).padding(horizontal = 8.dp, vertical = 2.dp))
+    }
+    Text(tr("Length"), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    Segments(com.example.cas.graph.VectorField.Length.entries.map { it.label }, s.arrowLength, "Arrow length") { onChange(s.copy(arrowLength = it)) }
+    SliderRow("Scale", s.arrowScale, 0.2..3.0, 0.05, { "× " + String.format(java.util.Locale.US, "%.2f", it) }) { onChange(s.copy(arrowScale = it)) }
+    Text(tr("Arrowhead"), style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        com.example.cas.graph.VectorField.Tip.entries.forEach { tip ->
+            val chosen = s.arrowTip == tip.ordinal
+            Box(
+                Modifier.size(width = 52.dp, height = 36.dp).clip(RoundedCornerShape(10.dp)).background(if (chosen) colors.secondaryContainer else colors.surfaceContainerHigh)
+                    .clickable(onClickLabel = tip.label) { onChange(s.copy(arrowTip = tip.ordinal)) },
+                contentAlignment = Alignment.Center,
+            ) {
+                val tint = if (chosen) colors.onSecondaryContainer else colors.onSurfaceVariant
+                Canvas(Modifier.size(width = 34.dp, height = 20.dp)) {
+                    val y = size.height / 2
+                    val h = com.example.cas.graph.VectorField.head(tip, size.width.toDouble() - 2, y.toDouble(), 1.0, 0.0, 9.dp.toPx().toDouble())
+                    drawLine(tint, Offset(2f, y), Offset(h.shaftEndX.toFloat(), y), 1.8.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                    h.fills.forEach { pts -> drawPath(Path().apply { moveTo(pts[0].toFloat(), pts[1].toFloat()); var k = 2; while (k + 1 < pts.size) { lineTo(pts[k].toFloat(), pts[k + 1].toFloat()); k += 2 }; close() }, tint) }
+                    h.strokes.forEach { sg -> drawLine(tint, Offset(sg[0].toFloat(), sg[1].toFloat()), Offset(sg[2].toFloat(), sg[3].toFloat()), 1.8.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round) }
+                    h.dot?.let { d -> drawCircle(tint, d[2].toFloat(), Offset(d[0].toFloat(), d[1].toFloat())) }
+                }
+            }
+        }
+    }
+    if (s.arrowTip != com.example.cas.graph.VectorField.Tip.None.ordinal) SliderRow("Head size", s.arrowTipSize, 0.3..3.0, 0.05, { "× " + String.format(java.util.Locale.US, "%.2f", it) }) { onChange(s.copy(arrowTipSize = it)) }
+    SliderRow("Arrows across", s.arrows.toDouble(), 4.0..60.0, 1.0, { "${it.toInt()}" }) { onChange(s.copy(arrows = it.roundToInt())) }
 }
 
 @Composable
@@ -1445,6 +1574,8 @@ private fun AxesSettings(a: Figure.Axes, onChange: (Figure.Axes) -> Unit) {
         { PxToggleRow("Numbers on x", "The values under the ticks", a.xNumbers) { onChange(a.copy(xNumbers = it)) } },
         { PxToggleRow("Numbers on y", "The values beside the ticks", a.yNumbers) { onChange(a.copy(yNumbers = it)) } },
         { PxChoiceRow("Ticks", listOf("Out", "In"), if (a.ticksIn) 1 else 0) { onChange(a.copy(ticksIn = it == 1)) } },
+        if (a.xNumbers) ({ PxChoiceRow("Turn x numbers", ANGLES.map { "$it°" }, ANGLES.indexOf(a.xTickAngle).coerceAtLeast(0)) { onChange(a.copy(xTickAngle = ANGLES[it])) } }) else null,
+        if (a.yNumbers) ({ PxChoiceRow("Turn y numbers", ANGLES.map { "$it°" }, ANGLES.indexOf(a.yTickAngle).coerceAtLeast(0)) { onChange(a.copy(yTickAngle = ANGLES[it])) } }) else null,
     )
     PxHeader("Legend")
     PxCards(
