@@ -140,7 +140,7 @@ object Notebook {
         /** How a figure's inputs are worked out: its table's columns, then the definitions above it. */
         fun figureEval(b: Block.Figure, angle: AngleUnit = AngleUnit.Radians): (MathRow) -> Expr {
             val (vars, fns) = scopes[b.id] ?: (emptyMap<String, Expr>() to emptyMap())
-            val all = vars + com.example.cas.graph.Figure.tableVariables(b.doc.data)
+            val all = vars + com.example.cas.graph.Figure.variables(b.doc)
             return com.example.cas.graph.Figure.withFallback(all) { v, row -> Evaluator(angle, null, v, functions = fns).evaluate(com.example.cas.editor.trimMatrices(MathCodec.copy(row))) }
         }
     }

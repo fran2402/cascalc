@@ -76,46 +76,6 @@ class Scene(val width: Double, val height: Double, val background: Int) {
     val items = ArrayList<Item>()
 
     fun add(item: Item) { items += item }
-
-    /** Where ([x], [y]) goes when the scene is turned [quarters] quarter turns clockwise. */
-    fun turn(x: Double, y: Double, quarters: Int): Pair<Double, Double> = when (Math.floorMod(quarters, 4)) {
-        1 -> (height - y) to x
-        2 -> (width - x) to (height - y)
-        3 -> y to (width - x)
-        else -> x to y
-    }
-
-    /** The whole scene turned [quarters] quarter turns clockwise (a quarter or three: width and height swap). */
-    fun rotated(quarters: Int): Scene {
-        val q = Math.floorMod(quarters, 4)
-        if (q == 0) return this
-        val out = Scene(if (q % 2 == 1) height else width, if (q % 2 == 1) width else height, background)
-        fun pts(a: DoubleArray) = DoubleArray(a.size).also { o -> var k = 0; while (k + 1 < a.size) { val (x, y) = turn(a[k], a[k + 1], q); o[k] = x; o[k + 1] = y; k += 2 } }
-        fun rect(x: Double, y: Double, w: Double, h: Double): DoubleArray {
-            val (ax, ay) = turn(x, y, q); val (bx, by) = turn(x + w, y + h, q)
-            return doubleArrayOf(minOf(ax, bx), minOf(ay, by), kotlin.math.abs(bx - ax), kotlin.math.abs(by - ay))
-        }
-        for (item in items) out.add(when (item) {
-            is Stroke -> Stroke(item.paths.map(::pts), item.color, item.strokeWidth, item.dash)
-            is Fill -> Fill(item.polygons.map(::pts), item.color)
-            is Circle -> turn(item.cx, item.cy, q).let { (x, y) -> Circle(x, y, item.r, item.fill, item.stroke, item.strokeWidth) }
-            is Label -> turn(item.x, item.y, q).let { (x, y) -> Label(x, y, item.text, item.size, item.color, item.anchor, item.font, item.angle - 90.0 * q, item.italic, item.spans, item.baseline) }
-            is ClipStart -> rect(item.x, item.y, item.w, item.h).let { r -> ClipStart(r[0], r[1], r[2], r[3]) }
-            is ClipEnd -> ClipEnd
-            is Image -> {
-                // The pixels turned with it.
-                var px = item.pixels; var pw = item.pixelWidth; var ph = item.pixelHeight
-                repeat(q) {
-                    val src = px; val w0 = pw; val h0 = ph
-                    px = IntArray(src.size) { k -> val r = k / h0; val c = k % h0; src[(h0 - 1 - c) * w0 + r] }
-                    pw = h0; ph = w0
-                }
-                val r = rect(item.x, item.y, item.w, item.h)
-                Image(r[0], r[1], r[2], r[3], px, pw, ph)
-            }
-        })
-        return out
-    }
 }
 
 /** The export formats; PDF first, as the default. */

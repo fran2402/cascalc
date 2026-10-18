@@ -139,15 +139,13 @@ object Figure {
         /** The numbers on each axis shown; each axis turned round (high to low); ticks pointing in; the legend in a box. */
         val xNumbers: Boolean = true, val yNumbers: Boolean = true, val xInvert: Boolean = false, val yInvert: Boolean = false,
         val ticksIn: Boolean = false, val legendFrame: Boolean = true,
-        /** The tick numbers turned, in degrees (0 flat, 90 upright), on x and on y. */
-        val xTickAngle: Int = 0, val yTickAngle: Int = 0,
     ) {
         fun copy(layers: List<Layer> = this.layers, title: String = this.title, xLabel: String = this.xLabel, yLabel: String = this.yLabel,
                  xMin: Double? = this.xMin, xMax: Double? = this.xMax, yMin: Double? = this.yMin, yMax: Double? = this.yMax,
                  xLog: Boolean = this.xLog, yLog: Boolean = this.yLog, grid: Int = this.grid, legend: Int = this.legend, spines: Int = this.spines, equal: Boolean = this.equal,
                  xNumbers: Boolean = this.xNumbers, yNumbers: Boolean = this.yNumbers, xInvert: Boolean = this.xInvert, yInvert: Boolean = this.yInvert,
-                 ticksIn: Boolean = this.ticksIn, legendFrame: Boolean = this.legendFrame, xTickAngle: Int = this.xTickAngle, yTickAngle: Int = this.yTickAngle) =
-            Axes(layers, title, xLabel, yLabel, xMin, xMax, yMin, yMax, xLog, yLog, grid, legend, spines, equal, xNumbers, yNumbers, xInvert, yInvert, ticksIn, legendFrame, xTickAngle, yTickAngle)
+                 ticksIn: Boolean = this.ticksIn, legendFrame: Boolean = this.legendFrame) =
+            Axes(layers, title, xLabel, yLabel, xMin, xMax, yMin, yMax, xLog, yLog, grid, legend, spines, equal, xNumbers, yNumbers, xInvert, yInvert, ticksIn, legendFrame)
     }
 
     /**
@@ -161,13 +159,54 @@ object Figure {
         val aspect: Double = 0.75, val data: DataTable = emptyData(), val edited: Long = 0L, val name: String = "",
         /** The layout's columns' and rows' shares of the width and height (empty or mismatched: equal). */
         val widths: List<Double> = emptyList(), val heights: List<Double> = emptyList(),
-        /** The whole figure turned clockwise, in quarter turns (0 to 3). */
-        val rotation: Int = 0,
+        /** More tables after [data] (a workbook's other sheets, other files), and [data]'s own name. */
+        val more: List<Sheet> = emptyList(), val sheetName: String = "",
     ) {
         fun copy(title: String = this.title, axes: List<Axes> = this.axes, layout: String = this.layout, theme: Int = this.theme,
                  aspect: Double = this.aspect, data: DataTable = this.data, edited: Long = this.edited, name: String = this.name,
-                 widths: List<Double> = this.widths, heights: List<Double> = this.heights, rotation: Int = this.rotation) =
-            Doc(id, title, axes, layout, theme, aspect, data, edited, name, widths, heights, rotation)
+                 widths: List<Double> = this.widths, heights: List<Double> = this.heights, more: List<Sheet> = this.more, sheetName: String = this.sheetName) =
+            Doc(id, title, axes, layout, theme, aspect, data, edited, name, widths, heights, more, sheetName)
+
+        /** Every table of the figure, [data] first. */
+        val sheets: List<Sheet> get() = listOf(Sheet(sheetName, data)) + more
+
+        /** The figure with its tables [list] (at least one). */
+        fun withSheets(list: List<Sheet>): Doc = if (list.isEmpty()) copy(data = emptyData(), sheetName = "", more = emptyList()) else copy(data = list[0].table, sheetName = list[0].name, more = list.drop(1))
+
+        /** The figure with table [k] replaced by [t]. */
+        fun withTable(k: Int, t: DataTable): Doc = withSheets(sheets.mapIndexed { i, s -> if (i == k) Sheet(s.name, t) else s })
+    }
+
+    /** One of a figure's tables: its name (a file's or a sheet's) and its numbers. */
+    class Sheet(val name: String, val table: DataTable)
+
+    /** Every table's columns as variables (the first table's name wins when two share one). */
+    fun variables(d: Doc): Map<String, Expr> {
+        val out = LinkedHashMap<String, Expr>()
+        d.sheets.forEach { s -> tableVariables(s.table).forEach { (k, v) -> out.putIfAbsent(k, v) } }
+        return out
+    }
+
+    /**
+     * [added] tables put in the figure after its own. Column names are made typeable, and a
+     * name another table already has gets _2, _3 (so each column can be named on its own).
+     * An empty first table is replaced rather than kept.
+     */
+    fun addSheets(d: Doc, added: List<Sheet>): Doc {
+        val empty = d.more.isEmpty() && d.data.columns.all { c -> c.all { it.isBlank() } }
+        val kept = if (empty) emptyList() else d.sheets
+        val taken = HashSet<String>(kept.flatMap { s -> s.table.names.map { it.trim() } })
+        val fresh = added.map { s ->
+            val t = s.table
+            val names = t.names.mapIndexed { c, raw ->
+                var n = columnName(raw).ifEmpty { "c${c + 1}" }
+                if (n in taken || n == "e" || n == "i") n = (2..999).map { k -> "${n}_$k" }.first { it !in taken }
+                taken += n
+                n
+            }
+            Sheet(s.name, DataTable(names, t.columns, t.x, t.y, t.sigmaX, t.sigmaY, t.formats, t.frozen, t.styles))
+        }
+        return d.withSheets(kept + fresh)
     }
 
     /** Whether [name] can be typed as a column's name: a letter, then letters, digits or _ (x, freq, Signal, amp_2). */
@@ -464,14 +503,15 @@ object Figure {
         appendLine("layout\t" + esc(d.layout))
         appendLine("theme\t" + d.theme)
         appendLine("aspect\t" + d.aspect)
-        if (d.rotation != 0) appendLine("rotation\t" + d.rotation)
         appendLine("edited\t" + d.edited)
         appendLine("data\t" + esc(d.data.encode()))
+        if (d.sheetName.isNotEmpty()) appendLine("sheetname\t" + esc(d.sheetName))
+        d.more.forEach { appendLine("sheet\t" + esc(it.name) + "\t" + esc(it.table.encode())) }
         if (d.widths.isNotEmpty() || d.heights.isNotEmpty()) appendLine("ratios\t" + d.widths.joinToString(",") + "\t" + d.heights.joinToString(","))
         for (a in d.axes) {
             appendLine(listOf("A", esc(a.title), esc(a.xLabel), esc(a.yLabel), num(a.xMin), num(a.xMax), num(a.yMin), num(a.yMax),
                 if (a.xLog) "1" else "0", if (a.yLog) "1" else "0", a.grid, a.legend, a.spines, if (a.equal) "1" else "0",
-                listOf(a.xNumbers, a.yNumbers, a.xInvert, a.yInvert, a.ticksIn, a.legendFrame).joinToString("") { if (it) "1" else "0" }, a.xTickAngle, a.yTickAngle).joinToString("\t"))
+                listOf(a.xNumbers, a.yNumbers, a.xInvert, a.yInvert, a.ticksIn, a.legendFrame).joinToString("") { if (it) "1" else "0" }).joinToString("\t"))
             for (l in a.layers) {
                 val s = l.style
                 val flags = (if (s.density) 1 else 0) or (if (s.cumulative) 2 else 0)
@@ -487,7 +527,8 @@ object Figure {
         require(lines.firstOrNull()?.trim() == MAGIC) { "Not a figure file" }
         var title = ""; var name = ""; var layout = "A"; var theme = 0; var aspect = 0.75; var edited = 0L
         var data = emptyData()
-        var widths = emptyList<Double>(); var heights = emptyList<Double>(); var rotation = 0
+        var widths = emptyList<Double>(); var heights = emptyList<Double>()
+        var sheetName = ""; val more = ArrayList<Sheet>()
         // Files before format 2 had y before x and the fields' functions first.
         var format = 1
         val axes = ArrayList<Axes>()
@@ -505,15 +546,16 @@ object Figure {
                 "layout" -> layout = s(1).ifBlank { "A" }
                 "theme" -> theme = i(1, 0)
                 "aspect" -> aspect = d(1) ?: 0.75
-                "rotation" -> rotation = Math.floorMod(i(1, 0), 4)
                 "edited" -> edited = f.getOrNull(1)?.toLongOrNull() ?: 0L
                 "data" -> data = DataTable.decode(s(1)) ?: emptyData()
+                "sheetname" -> sheetName = s(1)
+                "sheet" -> DataTable.decode(s(2))?.let { more += Sheet(s(1), it) }
                 "ratios" -> { widths = s(1).split(',').mapNotNull { it.toDoubleOrNull() }; heights = s(2).split(',').mapNotNull { it.toDoubleOrNull() } }
                 "A" -> {
                     val opts = f.getOrNull(14) ?: "110001"
                     fun o(k: Int, def: Boolean) = opts.getOrNull(k)?.let { it == '1' } ?: def
                     axes += Axes(emptyList(), s(1), s(2), s(3), d(4), d(5), d(6), d(7), f.getOrNull(8) == "1", f.getOrNull(9) == "1", i(10, 1), i(11, 0), i(12, 0), f.getOrNull(13) == "1",
-                        o(0, true), o(1, true), o(2, false), o(3, false), o(4, false), o(5, true), i(15, 0), i(16, 0))
+                        o(0, true), o(1, true), o(2, false), o(3, false), o(4, false), o(5, true))
                     layers.add(ArrayList())
                 }
                 "L" -> {
@@ -544,7 +586,7 @@ object Figure {
             }
         }
         val all = axes.mapIndexed { k, a -> a.copy(layers = layers[k]) }
-        return withLayout(Doc(id, title, all, layout, theme, aspect, data, edited, name, widths, heights, rotation), layout)
+        return withLayout(Doc(id, title, all, layout, theme, aspect, data, edited, name, widths, heights, more, sheetName), layout)
     }
 
     // ---- Inputs as values ---------------------------------------------------------------------
@@ -660,7 +702,32 @@ object Figure {
 
     /** An axes worked out: each layer drawn, the ranges shown, and its category ticks (bars, boxes). */
     class Worked(val axes: Axes, val drawn: List<Drawn>, val x0: Double, val x1: Double, val y0: Double, val y1: Double,
-                 val xCategories: List<String>?, val yCategories: List<String>?, val pie: Boolean, val zMin: Double, val zMax: Double, val mapped: Drawn?)
+                 val xCategories: List<String>?, val yCategories: List<String>?, val pie: Boolean, val zMin: Double, val zMax: Double, val mapped: Drawn?) {
+        /** Where it was drawn: the plot's frame (left, top, right, bottom) in the figure and the x and y it shows there (x0, x1, y0, y1). */
+        var frame: DoubleArray = DoubleArray(0)
+
+        /** The data point at figure position ([sx], [sy]), or null before it's drawn (straight axes; log axes in their logarithms). */
+        fun toData(sx: Double, sy: Double): Pair<Double, Double>? {
+            if (frame.size < 8) return null
+            val (l, t, r, b) = frame.take(4)
+            var fx = (sx - l) / (r - l); var fy = (b - sy) / (b - t)
+            if (axes.xInvert) fx = 1 - fx
+            if (axes.yInvert) fy = 1 - fy
+            fun at(f: Double, lo: Double, hi: Double, log: Boolean) = if (log) 10.0.pow(log10(lo) + f * (log10(hi) - log10(lo))) else lo + f * (hi - lo)
+            return at(fx, frame[4], frame[5], axes.xLog) to at(fy, frame[6], frame[7], axes.yLog)
+        }
+
+        /** Where data point ([x], [y]) is in the figure. */
+        fun toFigure(x: Double, y: Double): Pair<Double, Double>? {
+            if (frame.size < 8) return null
+            val (l, t, r, b) = frame.take(4)
+            fun f(v: Double, lo: Double, hi: Double, log: Boolean) = if (log) (log10(v) - log10(lo)) / (log10(hi) - log10(lo)) else (v - lo) / (hi - lo)
+            var fx = f(x, frame[4], frame[5], axes.xLog); var fy = f(y, frame[6], frame[7], axes.yLog)
+            if (axes.xInvert) fx = 1 - fx
+            if (axes.yInvert) fy = 1 - fy
+            return (l + fx * (r - l)) to (b - fy * (b - t))
+        }
+    }
 
     private class Bounds {
         var x0 = Double.POSITIVE_INFINITY; var x1 = Double.NEGATIVE_INFINITY; var y0 = Double.POSITIVE_INFINITY; var y1 = Double.NEGATIVE_INFINITY
@@ -1328,7 +1395,8 @@ object Figure {
     private fun label(t: Theme, scene: Scene, x: Double, y: Double, text: String, size: Double, color: Int, anchor: Scene.Anchor = Scene.Anchor.Middle, angle: Double = 0.0) {
         if (text.isBlank()) return
         val sp = spans(text)
-        scene.add(Scene.Label(x, y, sp.joinToString("") { it.text }, size, color, anchor, if (t.sans) Scene.Font.Sans else Scene.Font.Roman, angle, spans = sp))
+        // Every style sets its labels in the same LaTeX font (styles change colors, not type).
+        scene.add(Scene.Label(x, y, sp.joinToString("") { it.text }, size, color, anchor, Scene.Font.Roman, angle, spans = sp))
     }
 
     /** Tick positions for a range: 1, 2 or 5 times a power of ten, about [count] of them. */
@@ -1372,8 +1440,7 @@ object Figure {
             worked += w
             drawAxes(scene, w, theme, box[0], box[1], box[2], box[3])
         }
-        // Turned as a whole: axes, labels and all.
-        return Built(scene.rotated(d.rotation), worked)
+        return Built(scene, worked)
     }
 
     /** Where the layout's columns and rows start and end, as shares (0 … 1) of the width and of the height under the title. */
@@ -1410,8 +1477,7 @@ object Figure {
         val a = w.axes
         val bar = w.mapped != null
         // Without numbers the ticks go too, and the axes take the room they had.
-        val xTurn = if (a.xNumbers) a.xTickAngle.coerceIn(0, 90) else 0
-        val xTickRoom = if (!a.xNumbers) 6.0 else 22.0 + if (xTurn > 0) 4.5 * 6 * sin(Math.toRadians(xTurn.toDouble())) else 0.0
+        val xTickRoom = if (!a.xNumbers) 6.0 else 22.0
         var left = bx + (if (a.yNumbers) 40 else 10) + if (a.yLabel.isNotBlank()) 13 else 0
         var right = bx + bw - 10 - if (bar) 46 + (if (w.mapped?.layer?.style?.cbar?.isNotBlank() == true) 14 else 0) else 0
         var top = by + 8 + if (a.title.isNotBlank()) 16 else 0
@@ -1429,6 +1495,7 @@ object Figure {
             if (sx > sy) { val c = (x0 + x1) / 2; val half = (right - left) / sy / 2; x0 = c - half; x1 = c + half }
             else { val c = (y0 + y1) / 2; val half = (bottom - top) / sx / 2; y0 = c - half; y1 = c + half }
         }
+        w.frame = doubleArrayOf(left, top, right, bottom, x0, x1, y0, y1)
         val lx0 = if (a.xLog) log10(x0) else x0; val lx1 = if (a.xLog) log10(x1) else x1
         val ly0 = if (a.yLog) log10(y0) else y0; val ly1 = if (a.yLog) log10(y1) else y1
         fun px(x: Double): Double = ((if (a.xLog) (if (x > 0) log10(x) else Double.NaN) else x) - lx0) / (lx1 - lx0) * (right - left).let { d -> if (a.xInvert) -d else d } + if (a.xInvert) right else left
@@ -1472,14 +1539,14 @@ object Figure {
             val x = px(v)
             if (a.spines != 3 && a.xNumbers) tickMarks += doubleArrayOf(x, zeroX, x, zeroX + if (a.ticksIn) -3.5 else 3.5)
             val text = w.xCategories?.getOrNull(k) ?: if (a.xLog) "10^${log10(v).roundToInt()}".let { s -> "$" + s.replace("^", "^{") + "}$" } else tickText(v)
-            if (a.xNumbers) { if (xTurn == 0) label(t, scene, x, zeroX + 11, text, TICK, t.muted) else label(t, scene, x + 2, zeroX + 7, text, TICK, t.muted, Scene.Anchor.End, xTurn.toDouble()) }
+            if (a.xNumbers) label(t, scene, x, zeroX + 11, text, TICK, t.muted)
         }
         yt.forEachIndexed { k, v ->
             if (v < y0 - 1e-9 || v > y1 + 1e-9) return@forEachIndexed
             val y = py(v)
             if (a.spines != 3 && a.yNumbers) tickMarks += doubleArrayOf(zeroY + if (a.ticksIn) 3.5 else -3.5, y, zeroY, y)
             val text = w.yCategories?.getOrNull(k) ?: if (a.yLog) "$10^{${log10(v).roundToInt()}}$" else tickText(v)
-            if (a.yNumbers) label(t, scene, zeroY - 6, y, text, TICK, t.muted, if (a.yTickAngle >= 60) Scene.Anchor.Middle else Scene.Anchor.End, a.yTickAngle.coerceIn(0, 90).toDouble())
+            if (a.yNumbers) label(t, scene, zeroY - 6, y, text, TICK, t.muted, Scene.Anchor.End)
         }
         scene.add(Scene.Stroke(tickMarks, ink, 0.7))
         if (t.gridOnTop) grid()
@@ -1525,9 +1592,15 @@ object Figure {
             val ew = max(0.4, s.errWidth); val cap = s.errCap
             val ec = withAlpha(dr.color, s.alpha * 0.9)
             fun e(a: DoubleArray, k: Int) = if (a.isEmpty()) 0.0 else a[k]
-            if (s.errBand && dr.errY.isNotEmpty()) {
-                val ks = xs.indices.filter { xs[it].isFinite() && ys[it].isFinite() }.sortedBy { xs[it] }
-                if (ks.size >= 2) scene.add(Scene.Fill(listOf((ks.flatMap { listOf(px(xs[it]), py(ys[it] + e(dr.errY, it))) } + ks.reversed().flatMap { listOf(px(xs[it]), py(ys[it] - e(dr.errY, it))) }).toDoubleArray()), withAlpha(dr.color, s.alpha * 0.25)))
+            if (s.errBand) {
+                // Shaded: y errors as a band along x, x errors as a band along y.
+                val ok = xs.indices.filter { xs[it].isFinite() && ys[it].isFinite() }
+                if (dr.errY.isNotEmpty()) ok.sortedBy { xs[it] }.takeIf { it.size >= 2 }?.let { ks ->
+                    scene.add(Scene.Fill(listOf((ks.flatMap { listOf(px(xs[it]), py(ys[it] + e(dr.errY, it))) } + ks.reversed().flatMap { listOf(px(xs[it]), py(ys[it] - e(dr.errY, it))) }).toDoubleArray()), withAlpha(dr.color, s.alpha * 0.25)))
+                }
+                if (dr.errX.isNotEmpty()) ok.sortedBy { ys[it] }.takeIf { it.size >= 2 }?.let { ks ->
+                    scene.add(Scene.Fill(listOf((ks.flatMap { listOf(px(xs[it] + e(dr.errX, it)), py(ys[it])) } + ks.reversed().flatMap { listOf(px(xs[it] - e(dr.errX, it)), py(ys[it])) }).toDoubleArray()), withAlpha(dr.color, s.alpha * 0.25)))
+                }
             } else {
                 val bars = ArrayList<DoubleArray>()
                 for (k in xs.indices) {
@@ -1855,7 +1928,7 @@ object Figure {
                     if (s.marker >= 0) Marker.of(if (s.marker >= 0) s.marker else 0).addTo(scene, sx + sample / 2, cy, 2.6, c)
                 }
             }
-            scene.add(Scene.Label(sx + sample + 5, cy, texts[k].joinToString("") { it.text }, size, t.ink, Scene.Anchor.Start, if (t.sans) Scene.Font.Sans else Scene.Font.Roman, spans = texts[k]))
+            scene.add(Scene.Label(sx + sample + 5, cy, texts[k].joinToString("") { it.text }, size, t.ink, Scene.Anchor.Start, Scene.Font.Roman, spans = texts[k]))
         }
     }
 

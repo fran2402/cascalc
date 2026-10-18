@@ -373,16 +373,23 @@ Share figure
 Discard	
 Column “{0}” is now {1}, so it can be typed	
 Delete this layer?	
+Couldn't read that file as a table	
+Added the table “{0}”	
+Added {0} tables	
 Layers	
 Data	
 Untitled figure	
 Your own model	
+Edit	
+empty	
+Rename table	
+Add tables from files	
 x is the variable; every other letter is a parameter to fit.	
+Enter goes to the next input.	
 Add a layer	
 Tap to set its inputs	
 Search: histogram, violin, contour…	
 e.g. sin(x), x^2/2, [1, 4, 9], a column, Signal[1:50]	
-Couldn't read that file as a table	
 Tap a column's name for a layer of it; double-tap the table to edit it.	
 Scatter against {0}	
 Line against {0}	
@@ -391,6 +398,7 @@ Bars
 Histogram	
 Density curve	
 Box plot	
+x and y appear when you use table columns.	
 Put in	
 Tap a column's name to put it in the input; double-tap the table to edit it.	
 Your own	
@@ -476,7 +484,6 @@ Double-tap a box to type into it with your keyboard (as upright text).
 Italic	
 Save and insert	
 Remove this symbol	
-empty	
 Written upright, as text (eff, max, ext…)	
 Welcome	
 A calculator that does algebra, calculus and graphs, and shows its working.	
@@ -808,7 +815,6 @@ Hide column
 Window	
 Freeze first column	
 Select all	
-Edit	
 Home	
 Sum	
 Average	

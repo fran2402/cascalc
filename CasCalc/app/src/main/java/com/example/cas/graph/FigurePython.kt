@@ -69,8 +69,6 @@ object FigurePython {
             if (!a.xNumbers) appendLine("ax.tick_params(axis=\"x\", labelbottom=False)")
             if (!a.yNumbers) appendLine("ax.tick_params(axis=\"y\", labelleft=False)")
             if (a.ticksIn) appendLine("ax.tick_params(direction=\"in\", which=\"both\")")
-            if (a.xTickAngle != 0 && a.xNumbers) appendLine("ax.tick_params(axis=\"x\", labelrotation=${a.xTickAngle})")
-            if (a.yTickAngle != 0 && a.yNumbers) appendLine("ax.tick_params(axis=\"y\", labelrotation=${a.yTickAngle})")
             if (!a.xNumbers) appendLine("ax.tick_params(axis=\"x\", length=0)")
             if (!a.yNumbers) appendLine("ax.tick_params(axis=\"y\", length=0)")
             w.xCategories?.let { c ->
@@ -91,7 +89,6 @@ object FigurePython {
             }
         }
         appendLine()
-        if (d.rotation != 0) appendLine("# Turned ${d.rotation * 90}° clockwise in the app: matplotlib draws it upright, so turn the saved file to match.")
         appendLine("fig.savefig(\"figure.pdf\")")
         appendLine("plt.show()")
     }
@@ -113,8 +110,10 @@ object FigurePython {
         // ± errors first, under the points: bars (errorbar with no line of its own) or a band.
         if (dr.errY.isNotEmpty() || dr.errX.isNotEmpty()) {
             val (ex, ey) = dr.series[0]
-            if (s.errBand && dr.errY.isNotEmpty()) out.appendLine("ax.fill_between(${arr(ex)}, ${arr(DoubleArray(ey.size) { ey[it] - dr.errY[it] })}, ${arr(DoubleArray(ey.size) { ey[it] + dr.errY[it] })}, $color, alpha=${n(s.alpha * 0.25)}, linewidth=0)")
-            else out.appendLine("ax.errorbar(${xy()}" + (if (dr.errY.isNotEmpty()) ", yerr=${arr(dr.errY)}" else "") + (if (dr.errX.isNotEmpty()) ", xerr=${arr(dr.errX)}" else "") +
+            if (s.errBand) {
+                if (dr.errY.isNotEmpty()) out.appendLine("ax.fill_between(${arr(ex)}, ${arr(DoubleArray(ey.size) { ey[it] - dr.errY[it] })}, ${arr(DoubleArray(ey.size) { ey[it] + dr.errY[it] })}, $color, alpha=${n(s.alpha * 0.25)}, linewidth=0)")
+                if (dr.errX.isNotEmpty()) out.appendLine("ax.fill_betweenx(${arr(ey)}, ${arr(DoubleArray(ex.size) { ex[it] - dr.errX[it] })}, ${arr(DoubleArray(ex.size) { ex[it] + dr.errX[it] })}, $color, alpha=${n(s.alpha * 0.25)}, linewidth=0)")
+            } else out.appendLine("ax.errorbar(${xy()}" + (if (dr.errY.isNotEmpty()) ", yerr=${arr(dr.errY)}" else "") + (if (dr.errX.isNotEmpty()) ", xerr=${arr(dr.errX)}" else "") +
                 ", fmt=\"none\", capsize=${n(s.errCap)}, elinewidth=${n(s.errWidth)}, $color$alpha)")
         }
         out.append(when (l.kind) {

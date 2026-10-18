@@ -203,11 +203,17 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
-## Latest changes (18 October, Plots: turn the whole figure)
+## Latest changes (18 October, Plots: tables from Excel and several files, chips in Maple Mono, drag notes, keypad for curves)
 
-- Figure settings have a Rotation choice: 0°, 90°, 180° or 270° clockwise. It turns the whole figure (axes, numbers, labels, legend, colorbar and heat map pixels), in the preview and in the image, SVG and PDF exports. A quarter turn swaps its width and height.
-- Tapping an axes in a turned figure still picks it, and the outline follows the turn. Cell sizes are resized with the figure upright.
-- The Python export draws the figure upright and says how far to turn the saved file.
+- Rotation is gone: both the whole-figure rotation and the turned tick numbers.
+- Tables come from CSV, Excel (.xlsx, .xls) and OpenDocument (.ods) files, as in the 2D graph, and you can pick several files at once. Each file, and each sheet of a workbook, becomes a table of its own, shown as tabs above the data. Hold a tab to rename or remove it, and use + to add more files. Every table's columns can be used in any layer; a column name another table already has gets _2, _3. Open as figure gives each 2D-graph table its own tab.
+- Column names are always shown in Maple Mono. The chip inside an input field is now drawn exactly like the chips elsewhere (same icon, colors and font), and only on an up-to-date layout of the text, so it no longer lands in the wrong place. Chips under fields, in the layer list, as buttons and in the table header are all the same size.
+- Axis numbers, labels and legends keep the same font in every style; styles change colors only.
+- Heat maps, contours, arrows and stream lines only show x and y inputs once z (or u, v) uses table columns. A function of x and y or a matrix doesn't need them.
+- Parametric and polar curves are typed on the calculator's keypad, like your own fitted model: tap an input and only that box shows over the keypad, and Enter moves to the next input.
+- Text and arrow notes can be dragged on the figure. Drag a note, or an arrow's tip, to where you want it, and its x and y follow (rounded to the axes' scale).
+- The selected axes' outline now follows the figure as drawn. On tablets the keyboard comes up for a figure's text inputs, and the dialog makes room for it.
+- The error band works for x errors too, as a band along y. Before, the setting did nothing when a layer only had x errors.
 
 ## Latest changes (18 October, Plots: colored split chips, x first everywhere, fields from columns, finer sliders, arrows)
 

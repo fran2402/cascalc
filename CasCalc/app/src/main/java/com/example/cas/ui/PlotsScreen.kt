@@ -18,6 +18,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -83,6 +84,7 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -191,7 +193,8 @@ object FigureFactory {
      * table has σ). The limits fit what's drawn.
      */
     fun fromGraph(all: List<PlotFunction>): Figure.Doc {
-        val names = ArrayList<String>(); val columns = ArrayList<List<String>>()
+        val names = ArrayList<String>()
+        val sheets = ArrayList<Figure.Sheet>()
         val layers = ArrayList<Figure.Layer>()
         // Names the expressions can use: a column's own when it's letters and free, else a free letter.
         val letters = listOf("x", "y", "u", "v", "p", "q", "s", "w", "a", "b", "c", "d", "f", "g", "h", "k", "m", "n", "r", "z", "j", "l", "o")
@@ -202,7 +205,7 @@ object FigureFactory {
             if (w.length > 1) return (2..999).map { "${w}_$it" }.first { it !in names }
             return letters.firstOrNull { it !in names } ?: "column${names.size + 1}"
         }
-        fun add(name: String, col: List<String>): String { val n = fresh(name); names += n; columns += col; return n }
+        fun add(name: String): String { val n = fresh(name); names += n; return n }
         val functions = all.filter { it.visible }
         fun style(f: PlotFunction, label: String) = Figure.Style(color = f.colorIndex, argb = f.customColor ?: 0, line = f.lineStyle, width = (f.thickness * 0.6).toDouble().coerceIn(0.5, 4.0), marker = -1, label = label)
         fun rhs(r: MathRow, left: String): MathRow? {
@@ -214,13 +217,14 @@ object FigureFactory {
             return MathCodec.decode(MathCodec.encode(items.drop(eq + 1)))
         }
         fun num(v: Double) = com.example.cas.graph.DataTable.text(v)
-        // Every list's table, visible or not, so the figure has the same data as the graph.
+        // Every list's table, visible or not, so the figure has the same data as the graph: each its own sheet.
         val tableRoles = HashMap<PlotFunction, Triple<String?, String?, String?>>()
         for (f in all) {
             val k = f.plot as? Plot2DKind.PointList ?: continue
             val t = f.table?.takeIf { it.points().size == k.xs.size } ?: DataTable.fromPoints(k.xs, k.ys)
-            t.names.indices.map { c -> add(t.names[c].ifBlank { if (c == t.x) "x" else if (c == t.y) "y" else "" }, t.columns[c]) }
-                .also { ns -> tableRoles[f] = Triple(t.x?.let { ns.getOrNull(it) }, t.y?.let { ns.getOrNull(it) }, t.sigmaY?.let { ns.getOrNull(it) }) }
+            val ns = t.names.indices.map { c -> add(t.names[c].ifBlank { if (c == t.x) "x" else if (c == t.y) "y" else "" }) }
+            tableRoles[f] = Triple(t.x?.let { ns.getOrNull(it) }, t.y?.let { ns.getOrNull(it) }, t.sigmaY?.let { ns.getOrNull(it) })
+            sheets += Figure.Sheet(f.name?.takeIf { it.isNotBlank() } ?: "Data ${sheets.size + 1}", DataTable(ns, t.columns, null, null))
         }
         for (f in functions) when (val k = f.plot) {
             is Plot2DKind.Explicit -> rhs(f.editor.root, "y")?.takeIf { it.items.isNotEmpty() }?.let { r ->
@@ -243,10 +247,8 @@ object FigureFactory {
             }
             else -> Unit
         }
-        val n = columns.maxOfOrNull { it.size } ?: 0
-        val table = if (names.isEmpty()) Figure.emptyData() else DataTable(names, columns.map { c -> c + List(n - c.size) { "" } }, null, null)
         val axes = Figure.Axes(layers, xLabel = "\$x\$", yLabel = "\$y\$", legend = 0)
-        return Figure.Doc(FigureStore.newId(), "", listOf(axes), data = table, name = "From 2D graph", edited = System.currentTimeMillis())
+        return Figure.Doc(FigureStore.newId(), "", listOf(axes), name = "From 2D graph", edited = System.currentTimeMillis()).withSheets(sheets)
     }
 
     class Template(val name: String, val detail: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val make: () -> Figure.Doc)
@@ -285,7 +287,7 @@ fun appFigureTheme(): Figure.Theme {
 
 /** Works a figure's inputs out: its own table's columns, then [variables] and [functions] (a notebook's, above it). */
 fun figureEval(d: Figure.Doc, variables: Map<String, Expr> = emptyMap(), functions: Map<String, UserFunction> = emptyMap()): (MathRow) -> Expr {
-    val vars = variables + Figure.tableVariables(d.data)
+    val vars = variables + Figure.variables(d)
     val angle = KeypadState.angle; val units = KeypadState.unitSystem; val coords = KeypadState.coordinates
     return Figure.withFallback(vars) { v, row -> Evaluator(angle, null, v, units, coords, functions).evaluate(com.example.cas.editor.trimMatrices(MathCodec.copy(row))) }
 }
@@ -332,6 +334,7 @@ fun PlotsPage(onBack: () -> Unit) {
     val page = rememberPageMotion(onBack)
     val start = PlotsNav.doc ?: run { LaunchedEffect(Unit) { onBack() }; return }
     Dialog(onDismissRequest = {}, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        KeyboardResizes()
         page.Content {
             Surface(Modifier.fillMaxSize(), color = colors.surface) {
                 Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
@@ -416,42 +419,60 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
         androidx.compose.runtime.mutableStateListOf(*(layer?.kind?.inputs?.indices?.map { k -> TextFieldValue(com.example.cas.engine.PlainMath.text(layer.input(k))) } ?: emptyList()).toTypedArray())
     }
     LaunchedEffect(texts) { focus = null }
-    // The table's column names, each shown in the inputs as one box and deleted as one.
-    val columnNames = remember(doc.data.names) { doc.data.names.map { it.trim() }.filter { Figure.isColumnName(it) } }
+    // The figure's tables (files, sheets) and the one shown.
+    val sheets = doc.sheets
+    var sheetAt by remember { mutableIntStateOf(0) }
+    if (sheetAt !in sheets.indices) sheetAt = 0
+    val sheet = sheets[sheetAt]
+    // Every table's column names, each shown in the inputs as one chip and deleted as one.
+    val columnNames = remember(sheets.map { it.table.names }) { sheets.flatMap { sh -> sh.table.names.map { it.trim() } }.filter { Figure.isColumnName(it) } }
     fun typed(k: Int, v: TextFieldValue) {
         if (k !in texts.indices) return
         texts[k] = wholeColumns(texts[k], v, columnNames)
         val s0 = selected; val l = s0?.let { axes.layers.getOrNull(it) } ?: return
         setLayer(s0, l.copy(inputs = texts.map { com.example.cas.engine.PlainMath.parse(it.text) }), record = false)
     }
-    // Your own fitted model, typed on the calculator's keypad with only its box in view.
-    var formulaFor by remember { mutableStateOf<Int?>(null) }
+    // Math typed on the calculator's keypad with only its box in view: your own fitted model
+    // (input −1), or a parametric or polar curve's inputs. (Layer, input.)
+    var mathEdit by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var formulaVersion by remember { mutableIntStateOf(0) }
-    val formulaEditor = remember(formulaFor, axesAt) {
-        formulaFor?.let { k -> axes.layers.getOrNull(k)?.let { com.example.cas.editor.Editor(com.example.cas.engine.PlainMath.parse(it.style.formula.substringAfter('=').trim())) } }
+    val formulaEditor = remember(mathEdit, axesAt) {
+        mathEdit?.let { (k, i) ->
+            axes.layers.getOrNull(k)?.let { l -> com.example.cas.editor.Editor(if (i < 0) com.example.cas.engine.PlainMath.parse(l.style.formula.substringAfter('=').trim()) else MathCodec.copy(l.input(i))) }
+        }
     }
     formulaEditor?.onChange = {
         formulaVersion++
-        val k = formulaFor; val l = k?.let { axes.layers.getOrNull(it) }
-        if (k != null && l != null) setLayer(k, l.copy(style = l.style.copy(formula = com.example.cas.engine.PlainMath.text(formulaEditor.root))), record = false)
+        val m = mathEdit; val l = m?.let { axes.layers.getOrNull(it.first) }
+        if (m != null && l != null) {
+            val (k, i) = m
+            if (i < 0) setLayer(k, l.copy(style = l.style.copy(formula = com.example.cas.engine.PlainMath.text(formulaEditor.root))), record = false)
+            else setLayer(k, l.copy(inputs = List(maxOf(l.inputs.size, i + 1)) { j -> if (j == i) MathCodec.copy(formulaEditor.root) else l.input(j) }), record = false)
+        }
     }
-    val formulaKeys = remember(formulaEditor) { FieldKeys(target = { formulaEditor }, version = { formulaVersion }, onEnter = { formulaFor = null }) }
-    BackHandler { if (formulaFor != null) formulaFor = null else if (selected != null) selected = null else close() }
+    // Enter: a curve's next input, or done.
+    val formulaKeys = remember(formulaEditor) {
+        FieldKeys(target = { formulaEditor }, version = { formulaVersion }, onEnter = {
+            val m = mathEdit; val l = m?.let { axes.layers.getOrNull(it.first) }
+            mathEdit = if (m != null && l != null && m.second >= 0 && m.second + 1 < l.kind.inputs.size) m.first to m.second + 1 else null
+        })
+    }
+    BackHandler { if (mathEdit != null) mathEdit = null else if (selected != null) selected = null else close() }
     // While the keyboard is up, the preview shrinks to a strip.
     val typing = focus != null && layer != null && androidx.compose.foundation.layout.WindowInsets.ime.getBottom(LocalDensity.current) > 0
     var tab by remember { mutableIntStateOf(0) }
 
-    /** A column put to use by its name (freq, Signal); a name that can't be typed (spaces, signs, none) is made into one first. */
-    fun useColumn(c: Int): String {
-        val t = doc.data
+    /** A column (of table [at]) put to use by its name (freq, Signal); a name that can't be typed (spaces, signs, none) is made into one first. */
+    fun useColumn(c: Int, at: Int = sheetAt): String {
+        val t = doc.sheets.getOrNull(at)?.table ?: return ""
         val name = t.names.getOrElse(c) { "" }.trim()
         if (Figure.isColumnName(name) && name != "e" && name != "i") return name
-        val taken = t.names.map { it.trim() }.toSet()
+        val taken = doc.sheets.flatMap { sh -> sh.table.names.map { it.trim() } }.toSet()
         val base = Figure.columnName(name)
         val letter = (listOfNotNull(base.takeIf { it.length > 1 }) + (if (base.length > 1) (2..99).map { "${base}_$it" } else emptyList()) +
             listOf("x", "y", "u", "v", "w", "a", "b", "c", "d", "f", "g", "h", "k", "m", "n", "p", "q", "r", "s", "z"))
             .first { it !in taken && it != "e" && it != "i" }
-        change(doc.copy(data = com.example.cas.graph.DataTable(t.names.mapIndexed { k, n -> if (k == c) letter else n }, t.columns, t.x, t.y, t.sigmaX, t.sigmaY, t.formats, t.frozen, t.styles)))
+        change(doc.withTable(at, com.example.cas.graph.DataTable(t.names.mapIndexed { k, n -> if (k == c) letter else n }, t.columns, t.x, t.y, t.sigmaX, t.sigmaY, t.formats, t.frozen, t.styles)))
         Toast.makeText(context, tr("Column “{0}” is now {1}, so it can be typed", name, letter), Toast.LENGTH_SHORT).show()
         return letter
     }
@@ -511,9 +532,49 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
         FigurePage.Python -> PythonPage(doc, built, onBack = pageDone)
         FigurePage.None -> Unit
     }
-    if (dataOpen) DataTableEditor(doc.data, key = doc.id + "data", onSave = { change(doc.copy(data = it)) }, onDismiss = { dataOpen = false }, roles = false)
+    if (dataOpen) DataTableEditor(sheet.table, key = doc.id + "data" + sheetAt, onSave = { change(doc.withTable(sheetAt, it)) }, onDismiss = { dataOpen = false }, roles = false)
 
-    val ratio = (if (doc.rotation % 2 == 1) doc.aspect.toFloat() else 1 / doc.aspect.toFloat()).coerceIn(0.33f, 3f)
+    // Tables from files: CSV, Excel (.xlsx, .xls), OpenDocument (.ods), several at once; each sheet of a workbook its own table.
+    val scope = rememberCoroutineScope()
+    val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        scope.launch {
+            val added = withContext(Dispatchers.IO) {
+                uris.flatMap { uri ->
+                    runCatching {
+                        val file = context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+                            ?.substringBeforeLast('.') ?: "Table"
+                        val bytes = context.contentResolver.openInputStream(uri)!!.use { it.readBytes() }
+                        val book = com.example.cas.graph.Spreadsheet.sheets(bytes)?.filter { it.table.columns.isNotEmpty() }
+                        book?.map { sh -> Figure.Sheet(if (book.size > 1) sh.name.ifBlank { file } else file, com.example.cas.graph.DataTable.fromCsv(sh.table)) }
+                            ?: listOf(Figure.Sheet(file, com.example.cas.graph.DataTable.fromCsv(com.example.cas.graph.Csv.parse(bytes.toString(Charsets.UTF_8)))))
+                    }.getOrDefault(emptyList())
+                }
+            }
+            if (added.isEmpty()) { Toast.makeText(context, tr("Couldn't read that file as a table"), Toast.LENGTH_LONG).show(); return@launch }
+            val before = doc.sheets.size
+            val next = Figure.addSheets(doc, added)
+            change(next)
+            sheetAt = (next.sheets.size - added.size).coerceAtLeast(0)
+            Toast.makeText(context, if (added.size == 1) tr("Added the table “{0}”", added[0].name) else tr("Added {0} tables", added.size), Toast.LENGTH_SHORT).show()
+            if (before == 0) sheetAt = 0
+        }
+    }
+    val importFiles = {
+        importer.launch(arrayOf(
+            "text/*", "application/csv", "application/vnd.ms-excel", "application/octet-stream", "application/zip",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel.sheet.macroEnabled.12",
+            "application/vnd.oasis.opendocument.spreadsheet", "application/x-msexcel",
+        ))
+    }
+    /** The tables as tabs: tap one to show it; hold it to rename or remove it; + for more files. */
+    val sheetTabs: @Composable () -> Unit = {
+        SheetTabs(sheets, sheetAt, onPick = { sheetAt = it }, onImport = importFiles,
+            onRename = { k, name -> change(doc.withSheets(doc.sheets.mapIndexed { i, sh -> if (i == k) Figure.Sheet(name, sh.table) else sh })) },
+            onRemove = { k -> change(doc.withSheets(doc.sheets.filterIndexed { i, _ -> i != k })); sheetAt = 0 })
+    }
+
+    val ratio = (1 / doc.aspect).toFloat().coerceIn(0.5f, 3f)
 
     /**
      * The figure, fitted into its box. With several axes: tap one to edit it (it's outlined), and
@@ -523,91 +584,123 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
     fun Preview(modifier: Modifier, compact: Boolean = false, fill: Boolean = false) {
         val density = LocalDensity.current
         val latest = androidx.compose.runtime.rememberUpdatedState(doc)
+        val latestBuilt = androidx.compose.runtime.rememberUpdatedState(built)
         Box((if (compact) modifier.height(170.dp) else if (fill) modifier.aspectRatio(ratio, matchHeightConstraintsFirst = true) else modifier.aspectRatio(ratio)).clip(RoundedCornerShape(20.dp)).background(Color(if (doc.theme == 0) theme.background else Figure.THEMES.getOrElse(doc.theme) { theme }.background))) {
             FigureCanvas(built?.scene, Modifier.fillMaxSize())
-            val (cells, cols, rows) = Figure.cells(doc.layout)
-            if (cells.size > 1) {
-                // Scene (480 wide) to screen, as FigureCanvas fits it.
-                class Fit(val k: Float, val dx: Float, val dy: Float, val sw: Float, val sh: Float) {
-                    // The figure as drawn upright (480 wide), and the turn it's shown with.
-                    val q = Math.floorMod(latest.value.rotation, 4)
-                    val w0 = 480.0; val h0 = 480.0 * latest.value.aspect.coerceIn(0.3, 2.0)
-                    /** A point of the upright figure where it shows on screen. */
-                    fun out(x: Double, y: Double): Offset { val (a, b) = when (q) { 1 -> (h0 - y) to x; 2 -> (w0 - x) to (h0 - y); 3 -> y to (w0 - x); else -> x to y }; return Offset(dx + a.toFloat() * k, dy + b.toFloat() * k) }
-                    /** A point on screen as a point of the upright figure. */
-                    fun back(p: Offset): Pair<Double, Double> { val a = ((p.x - dx) / k).toDouble(); val b = ((p.y - dy) / k).toDouble(); return when (q) { 1 -> b to (h0 - a); 2 -> (w0 - a) to (h0 - b); 3 -> (w0 - b) to a; else -> a to b } }
-                }
-                fun fit(w: Float, h: Float): Fit {
-                    // Turned a quarter: the box it's fitted into is the other way round.
-                    val sw0 = 480f; val sh0 = 480f * latest.value.aspect.coerceIn(0.3, 2.0).toFloat()
-                    val odd = latest.value.rotation % 2 == 1
-                    val sw = if (odd) sh0 else sw0; val sh = if (odd) sw0 else sh0
-                    val k = minOf(w / sw, h / sh)
-                    return Fit(k, (w - sw * k) / 2, (h - sh * k) / 2, sw, sh)
-                }
-                var dragging by remember { mutableStateOf<Pair<Boolean, Int>?>(null) }
-                Canvas(Modifier.fillMaxSize()
-                    .pointerInput(Unit) {
-                        detectTapGestures { p ->
-                            val f = fit(size.width.toFloat(), size.height.toFloat())
-                            val (sx, sy) = f.back(p)
-                            val hit = Figure.cellBoxes(latest.value).indexOfFirst { b -> sx >= b[0] && sx <= b[0] + b[2] && sy >= b[1] && sy <= b[1] + b[3] }
-                            if (hit >= 0) { axesAt = hit; selected = null }
-                        }
+            // The figure (as built, so it matches what's drawn) to the screen, as FigureCanvas fits it.
+            class Fit(val k: Float, val dx: Float, val dy: Float, val sw: Float, val sh: Float)
+            fun fit(w: Float, h: Float): Fit {
+                val sc = latestBuilt.value?.scene
+                val sw = sc?.width?.toFloat() ?: 480f; val sh = sc?.height?.toFloat() ?: (480f * latest.value.aspect.coerceIn(0.3, 2.0).toFloat())
+                val k = minOf(w / sw, h / sh)
+                return Fit(k, (w - sw * k) / 2, (h - sh * k) / 2, sw, sh)
+            }
+            var dragging by remember { mutableStateOf<Pair<Boolean, Int>?>(null) }
+            // A text or an arrow's note (or its tip) being moved: (layer, its x input), where it started on screen, and the axes' frame then.
+            class Moving(val layer: Int, val input: Int, val start: Offset, val worked: Figure.Worked, var moved: Offset = Offset.Zero)
+            var moving by remember { mutableStateOf<Moving?>(null) }
+            Canvas(Modifier.fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures { p ->
+                        if (Figure.axesCount(latest.value.layout) < 2) return@detectTapGestures
+                        val f = fit(size.width.toFloat(), size.height.toFloat())
+                        val sx = (p.x - f.dx) / f.k; val sy = (p.y - f.dy) / f.k
+                        val hit = Figure.cellBoxes(latest.value).indexOfFirst { b -> sx >= b[0] && sx <= b[0] + b[2] && sy >= b[1] && sy <= b[1] + b[3] }
+                        if (hit >= 0) { axesAt = hit; selected = null }
                     }
-                    .pointerInput(Unit) {
-                        val reach = with(density) { 22.dp.toPx() }
-                        detectDragGestures(
-                            onDragStart = start@{ p ->
-                                val d = latest.value
-                                // Turned figures keep their cell sizes (resize them upright).
-                                if (d.rotation % 4 != 0) { dragging = null; return@start }
-                                val f = fit(size.width.toFloat(), size.height.toFloat())
-                                val (xe, ye) = Figure.edges(d)
-                                val top = Figure.titleSpace(d).toFloat()
-                                val col = (1 until xe.size - 1).minByOrNull { abs(f.dx + xe[it].toFloat() * f.sw * f.k - p.x) }?.takeIf { abs(f.dx + xe[it].toFloat() * f.sw * f.k - p.x) < reach }
-                                val row = (1 until ye.size - 1).minByOrNull { abs(f.dy + (top + ye[it].toFloat() * (f.sh - top)) * f.k - p.y) }?.takeIf { abs(f.dy + (top + ye[it].toFloat() * (f.sh - top)) * f.k - p.y) < reach }
-                                dragging = when { col != null -> true to col; row != null -> false to row; else -> null }
-                                if (dragging != null) change(d, record = true)
-                            },
-                            onDragEnd = { dragging = null }, onDragCancel = { dragging = null },
-                        ) { ptr, delta ->
-                            val (across, j) = dragging ?: return@detectDragGestures
-                            ptr.consume()
+                }
+                .pointerInput(Unit) {
+                    val reach = with(density) { 22.dp.toPx() }
+                    val grab = with(density) { 36.dp.toPx() }
+                    detectDragGestures(
+                        onDragStart = start@{ p ->
                             val d = latest.value
                             val f = fit(size.width.toFloat(), size.height.toFloat())
+                            // A text or an arrow near the finger: it follows the finger.
+                            val w = latestBuilt.value?.worked?.getOrNull(axesAt)
+                            val ax = d.axes.getOrNull(axesAt)
+                            if (w != null && ax != null) {
+                                var best: Moving? = null; var bestD = grab
+                                ax.layers.forEachIndexed { k, l ->
+                                    if (l.kind != Figure.Kind.Text && l.kind != Figure.Kind.Annotate) return@forEachIndexed
+                                    val v = w.drawn.firstOrNull { it.layer === l }?.values ?: return@forEachIndexed
+                                    val points = if (l.kind == Figure.Kind.Text) listOf(0) else listOf(2, 0)
+                                    for (i in points) {
+                                        if (i + 1 >= v.size) continue
+                                        val (fx, fy) = w.toFigure(v[i], v[i + 1]) ?: continue
+                                        val q = Offset(f.dx + fx.toFloat() * f.k, f.dy + fy.toFloat() * f.k)
+                                        val dd = (q - p).getDistance()
+                                        if (dd < bestD) { bestD = dd; best = Moving(k, i, q, w) }
+                                    }
+                                }
+                                if (best != null) { moving = best; change(d, record = true); return@start }
+                            }
+                            if (Figure.axesCount(d.layout) < 2) return@start
                             val (xe, ye) = Figure.edges(d)
-                            val e = (if (across) xe else ye).copyOf()
-                            val span = if (across) f.sw * f.k else (f.sh - Figure.titleSpace(d).toFloat()) * f.k
-                            e[j] = (e[j] + (if (across) delta.x else delta.y) / span).coerceIn(e[j - 1] + 0.12, e[j + 1] - 0.12)
-                            val shares = (1 until e.size).map { e[it] - e[it - 1] }
-                            change(if (across) d.copy(widths = shares) else d.copy(heights = shares), record = false)
+                            val top = Figure.titleSpace(d).toFloat()
+                            val col = (1 until xe.size - 1).minByOrNull { abs(f.dx + xe[it].toFloat() * f.sw * f.k - p.x) }?.takeIf { abs(f.dx + xe[it].toFloat() * f.sw * f.k - p.x) < reach }
+                            val row = (1 until ye.size - 1).minByOrNull { abs(f.dy + (top + ye[it].toFloat() * (f.sh - top)) * f.k - p.y) }?.takeIf { abs(f.dy + (top + ye[it].toFloat() * (f.sh - top)) * f.k - p.y) < reach }
+                            dragging = when { col != null -> true to col; row != null -> false to row; else -> null }
+                            if (dragging != null) change(d, record = true)
+                        },
+                        onDragEnd = { dragging = null; moving = null }, onDragCancel = { dragging = null; moving = null },
+                    ) { ptr, delta ->
+                        val d = latest.value
+                        val f = fit(size.width.toFloat(), size.height.toFloat())
+                        moving?.let { m ->
+                            ptr.consume()
+                            m.moved += delta
+                            val q = m.start + m.moved
+                            val (x, y) = m.worked.toData(((q.x - f.dx) / f.k).toDouble(), ((q.y - f.dy) / f.k).toDouble()) ?: return@detectDragGestures
+                            val fr = m.worked.frame
+                            fun round(v: Double, lo: Double, hi: Double): String {
+                                val step = abs(hi - lo) / 400
+                                val places = if (step > 0) (-kotlin.math.floor(kotlin.math.log10(step))).toInt().coerceIn(0, 8) else 2
+                                return java.math.BigDecimal(v).setScale(places, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
+                            }
+                            val sx = round(x, fr[4], fr[5]); val sy = round(y, fr[6], fr[7])
+                            val ax = d.axes.getOrNull(axesAt) ?: return@detectDragGestures
+                            val l = ax.layers.getOrNull(m.layer) ?: return@detectDragGestures
+                            val ins = List(maxOf(l.inputs.size, m.input + 2)) { j -> when (j) { m.input -> com.example.cas.engine.PlainMath.parse(sx); m.input + 1 -> com.example.cas.engine.PlainMath.parse(sy); else -> l.input(j) } }
+                            change(d.copy(axes = d.axes.mapIndexed { k, a -> if (k == axesAt) a.copy(layers = a.layers.mapIndexed { i, x2 -> if (i == m.layer) l.copy(inputs = ins) else x2 }) else a }), record = false)
+                            // The open layer's fields follow.
+                            if (selected == m.layer && m.input + 1 < texts.size) { texts[m.input] = TextFieldValue(sx); texts[m.input + 1] = TextFieldValue(sy) }
+                            return@detectDragGestures
                         }
-                    }) {
-                    val f = fit(size.width, size.height)
-                    val d = doc
-                    // The open axes outlined, inside its cell so no edge is cut off.
-                    Figure.cellBoxes(d).getOrNull(axesAt)?.let { b ->
-                        val inset = 5.dp.toPx(); val sw = 2.dp.toPx()
-                        val p1 = f.out(b[0], b[1]); val p2 = f.out(b[0] + b[2], b[1] + b[3])
-                        val l = minOf(p1.x, p2.x) + inset; val t = minOf(p1.y, p2.y) + inset
-                        val r = maxOf(p1.x, p2.x) - inset; val btm = maxOf(p1.y, p2.y) - inset
-                        drawRoundRect(colors.primary, Offset(l, t), androidx.compose.ui.geometry.Size(r - l, btm - t),
-                            androidx.compose.ui.geometry.CornerRadius(14.dp.toPx(), 14.dp.toPx()), style = Stroke(sw, pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f))))
+                        val (across, j) = dragging ?: return@detectDragGestures
+                        ptr.consume()
+                        val (xe, ye) = Figure.edges(d)
+                        val e = (if (across) xe else ye).copyOf()
+                        val span = if (across) f.sw * f.k else (f.sh - Figure.titleSpace(d).toFloat()) * f.k
+                        e[j] = (e[j] + (if (across) delta.x else delta.y) / span).coerceIn(e[j - 1] + 0.12, e[j + 1] - 0.12)
+                        val shares = (1 until e.size).map { e[it] - e[it - 1] }
+                        change(if (across) d.copy(widths = shares) else d.copy(heights = shares), record = false)
                     }
-                    // While a line between cells is dragged, a mark on it (nothing otherwise: drag anywhere near the line).
-                    val (xe, ye) = Figure.edges(d)
-                    val top = Figure.titleSpace(d).toFloat()
-                    val long = 28.dp.toPx(); val thick = 5.dp.toPx()
-                    for (j in 1 until xe.size - 1) {
-                        val x = f.dx + xe[j].toFloat() * f.sw * f.k; val y = f.dy + (top + (f.sh - top) / 2) * f.k
-                        if (dragging == (true to j)) drawRoundRect(colors.primary, Offset(x - thick / 2, y - long / 2), androidx.compose.ui.geometry.Size(thick, long), androidx.compose.ui.geometry.CornerRadius(thick, thick))
-                    }
-                    for (j in 1 until ye.size - 1) {
-                        val y = f.dy + (top + ye[j].toFloat() * (f.sh - top)) * f.k; val x = f.dx + f.sw / 2 * f.k
-                        if (dragging == (false to j)) drawRoundRect(colors.primary, Offset(x - long / 2, y - thick / 2), androidx.compose.ui.geometry.Size(long, thick), androidx.compose.ui.geometry.CornerRadius(thick, thick))
-                    }
+                }) {
+                val f = fit(size.width, size.height)
+                val d = doc
+                // With several axes, the open one outlined, inside its cell so no edge is cut off.
+                if (Figure.axesCount(d.layout) > 1) Figure.cellBoxes(d, f.sw.toDouble()).getOrNull(axesAt)?.let { b ->
+                    val inset = 5.dp.toPx(); val sw = 2.dp.toPx()
+                    val l = f.dx + b[0].toFloat() * f.k + inset; val t = f.dy + b[1].toFloat() * f.k + inset
+                    val r = f.dx + (b[0] + b[2]).toFloat() * f.k - inset; val btm = f.dy + (b[1] + b[3]).toFloat() * f.k - inset
+                    if (r > l && btm > t) drawRoundRect(colors.primary, Offset(l, t), androidx.compose.ui.geometry.Size(r - l, btm - t),
+                        androidx.compose.ui.geometry.CornerRadius(14.dp.toPx(), 14.dp.toPx()), style = Stroke(sw, pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f))))
                 }
+                // While a line between cells is dragged, a mark on it (nothing otherwise: drag anywhere near the line).
+                val (xe, ye) = Figure.edges(d)
+                val top = Figure.titleSpace(d).toFloat()
+                val long = 28.dp.toPx(); val thick = 5.dp.toPx()
+                for (j in 1 until xe.size - 1) {
+                    val x = f.dx + xe[j].toFloat() * f.sw * f.k; val y = f.dy + (top + (f.sh - top) / 2) * f.k
+                    if (dragging == (true to j)) drawRoundRect(colors.primary, Offset(x - thick / 2, y - long / 2), androidx.compose.ui.geometry.Size(thick, long), androidx.compose.ui.geometry.CornerRadius(thick, thick))
+                }
+                for (j in 1 until ye.size - 1) {
+                    val y = f.dy + (top + ye[j].toFloat() * (f.sh - top)) * f.k; val x = f.dx + f.sw / 2 * f.k
+                    if (dragging == (false to j)) drawRoundRect(colors.primary, Offset(x - long / 2, y - thick / 2), androidx.compose.ui.geometry.Size(long, thick), androidx.compose.ui.geometry.CornerRadius(thick, thick))
+                }
+                // A text being moved, ringed.
+                moving?.let { m -> drawCircle(colors.primary, 14.dp.toPx(), m.start + m.moved, style = Stroke(2.dp.toPx())) }
             }
         }
     }
@@ -618,10 +711,10 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
             if (layer != null && sel != null) {
                 LayerEditor(
                     layer, built?.error(axesAt, layer), built?.worked?.getOrNull(axesAt)?.drawn?.firstOrNull { it.layer === layer }?.color,
-                    table = doc.data,
-                    onColumn = { c ->
+                    table = sheet.table, sheets = sheets, sheetAt = sheetAt, sheetTabs = sheetTabs,
+                    onColumn = { at, c ->
                         // Put in where the cursor is (the last input typed in, or the first empty one).
-                        val name = useColumn(c)
+                        val name = useColumn(c, at)
                         val k = focus ?: texts.indexOfFirst { it.text.isBlank() }.takeIf { it >= 0 } ?: 0
                         if (k in texts.indices) {
                             val v = texts[k]
@@ -635,9 +728,9 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                         }
                     },
                     columns = columnNames,
-                    onEditFormula = { formulaFor = sel },
+                    onEditMath = { i -> mathEdit = sel to i },
                     onEditData = { dataOpen = true },
-                    onImport = { t -> change(doc.copy(data = t)) },
+                    onImport = importFiles,
                     texts = texts, onText = ::typed, onFocus = { k -> focus = k },
                     onChange = { setLayer(sel, it) },
                     onClose = { selected = null },
@@ -660,16 +753,16 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                     }
                     // Layers, or the figure's whole table.
                     androidx.compose.material3.SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp)) {
-                        listOf(tr("Layers") + " (${axes.layers.size})", tr("Data") + " (${doc.data.rowCount} × ${doc.data.names.size})").forEachIndexed { k, name ->
+                        listOf(tr("Layers") + " (${axes.layers.size})", tr("Data") + if (sheets.size > 1) " (${sheets.size})" else " (${sheet.table.rowCount} × ${sheet.table.names.size})").forEachIndexed { k, name ->
                             SegmentedButton(selected = tab == k, onClick = { tab = k }, shape = androidx.compose.material3.SegmentedButtonDefaults.itemShape(k, 2), icon = {}, label = { Text(name, maxLines = 1) })
                         }
                     }
-                    if (tab == 1) DataPanel(doc.data, Modifier.weight(1f).fillMaxWidth(),
+                    if (tab == 1) DataPanel(sheet.table, Modifier.weight(1f).fillMaxWidth(), sheetTabs,
                         onEdit = { dataOpen = true },
-                        onImport = { t -> change(doc.copy(data = t)) },
+                        onImport = importFiles,
                         onAdd = ::addFromColumns,
                         onPlotAll = {
-                            val t = doc.data
+                            val t = sheet.table
                             val xs = useColumn(0)
                             val ys = (1 until t.names.size).map { useColumn(it) }
                             val ls = ys.map { y -> Figure.Layer(Figure.Kind.Scatter, listOf(com.example.cas.engine.PlainMath.parse(xs), com.example.cas.engine.PlainMath.parse(y)), style = Figure.Style(label = y)) }
@@ -699,7 +792,7 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
     }
 
     // Each column of the table keeps one color everywhere: its chips in inputs and lists, and its name in the table.
-    val columnColors = remember(doc.data.names, colors) { val pal = plotColors(colors); doc.data.names.mapIndexed { k, n -> n.trim() to pal[k % pal.size] }.toMap() }
+    val columnColors = remember(sheets.map { it.table.names }, colors) { val pal = plotColors(colors); sheets.flatMap { it.table.names }.mapIndexed { k, n -> n.trim() to pal[k % pal.size] }.toMap() }
     androidx.compose.runtime.CompositionLocalProvider(LocalColumnColors provides columnColors) {
     Column(Modifier.fillMaxSize()) {
         // The bar: back to the library, the name, undo and export.
@@ -724,17 +817,20 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
         }
         val fe = formulaEditor
         if (fe != null) {
-            // Your own model: the figure, the model's box, and the keypad; nothing else.
-            val fitLayer = formulaFor?.let { axes.layers.getOrNull(it) }
+            // Math on the keypad: the figure, the one box being typed in, and the keypad; nothing else.
+            val (mk, mi) = mathEdit ?: (0 to -1)
+            val mathLayer = axes.layers.getOrNull(mk)
+            val label = if (mi < 0) tr("Your own model") else mathLayer?.kind?.inputs?.getOrNull(mi) ?: ""
+            val prefix = if (mi < 0) "y =" else null
             if (tablet) Row(Modifier.weight(1f).fillMaxWidth()) {
                 Column(Modifier.weight(1f).fillMaxHeight().padding(12.dp), verticalArrangement = Arrangement.Center) {
                     Preview(Modifier.fillMaxWidth())
-                    FormulaBox(fe, formulaVersion, fitLayer?.let { built?.error(axesAt, it) }) { formulaFor = null }
+                    FormulaBox(fe, formulaVersion, label, prefix, mathLayer?.let { built?.error(axesAt, it) }) { mathEdit = null }
                 }
                 Keypad(formulaKeys, Modifier.width(tabletKeypadWidth()).fillMaxHeight().background(colors.surfaceContainerLow), tablet = true)
             } else {
                 Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp), contentAlignment = Alignment.Center) { Preview(Modifier.fillMaxWidth(), fill = true) }
-                FormulaBox(fe, formulaVersion, fitLayer?.let { built?.error(axesAt, it) }) { formulaFor = null }
+                FormulaBox(fe, formulaVersion, label, prefix, mathLayer?.let { built?.error(axesAt, it) }) { mathEdit = null }
                 if (formulaKeys.keypadHidden) Box(Modifier.fillMaxWidth()) { ShowKeypadButton(onClick = { formulaKeys.keypadHidden = false }, modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)) }
                 else Keypad(formulaKeys)
             }
@@ -775,13 +871,73 @@ private fun chipColors(name: String): ChipColors {
     return ChipColors(strong, onStrong, tonal, ink)
 }
 
+/** A math input shown as math; tapped, it's typed on the calculator's keypad. */
+@Composable
+private fun MathInputBox(label: String, row: MathRow, onEdit: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Column(Modifier.fillMaxWidth()) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 6.dp, bottom = 4.dp))
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainerHighest).clickable(onClickLabel = tr("Edit"), onClick = onEdit).padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
+                if (row.items.isEmpty()) Text(tr("empty"), style = MaterialTheme.typography.bodyMedium, color = colors.outline) else MathView(row, 20.sp, colors.onSurface)
+            }
+            AppIcon(TableIcons.Edit, contentDescription = null, tint = colors.onSurfaceVariant)
+        }
+    }
+}
+
+/** The figure's tables as tabs (a file's or a workbook sheet's name): tap to show one, hold to rename or remove it, + to add files. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun SheetTabs(sheets: List<Figure.Sheet>, at: Int, onPick: (Int) -> Unit, onImport: () -> Unit, onRename: (Int, String) -> Unit, onRemove: (Int) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    var menu by remember { mutableStateOf<Int?>(null) }
+    var renaming by remember { mutableStateOf<Int?>(null) }
+    renaming?.let { k ->
+        var name by remember(k) { mutableStateOf(sheets.getOrNull(k)?.name.orEmpty()) }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { renaming = null },
+            title = { Text(tr("Rename table")) },
+            text = { OutlinedTextField(name, { name = it }, singleLine = true, modifier = Modifier.fillMaxWidth()) },
+            confirmButton = { TextButton(onClick = { onRename(k, name.trim()); renaming = null }) { Text(tr("Done")) } },
+            dismissButton = { TextButton(onClick = { renaming = null }) { Text(tr("Cancel")) } },
+        )
+    }
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        sheets.forEachIndexed { k, sh ->
+            val on = k == at
+            Box {
+                Row(
+                    Modifier.height(36.dp).clip(RoundedCornerShape(12.dp)).background(if (on) colors.secondaryContainer else colors.surfaceContainerHigh)
+                        .combinedClickable(onClick = { onPick(k) }, onLongClick = { menu = k }).padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    AppIcon(TableIcons.Table, contentDescription = null, tint = if (on) colors.onSecondaryContainer else colors.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(sh.name.ifBlank { tr("Table") + " ${k + 1}" }, style = TextStyle(fontFamily = CasFonts.Maple, fontSize = 13.sp, color = if (on) colors.onSecondaryContainer else colors.onSurface), maxLines = 1)
+                }
+                DropdownMenu(expanded = menu == k, onDismissRequest = { menu = null }) {
+                    DropdownMenuItem(text = { Text(tr("Rename")) }, onClick = { menu = null; renaming = k })
+                    if (sheets.size > 1) DropdownMenuItem(text = { Text(tr("Remove"), color = colors.error) }, onClick = { menu = null; onRemove(k) })
+                }
+            }
+        }
+        Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(colors.surfaceContainerHigh).clickable(onClickLabel = tr("Add tables from files"), onClick = onImport), contentAlignment = Alignment.Center) {
+            AppIcon(TableIcons.Add, contentDescription = tr("Add tables from files"), tint = colors.onSurfaceVariant, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
 /** Your own fitted model being typed on the keypad: y = its formula, with the cursor; any error under it. */
 @Composable
-private fun FormulaBox(e: com.example.cas.editor.Editor, version: Int, error: String?, onDone: () -> Unit) {
+private fun FormulaBox(e: com.example.cas.editor.Editor, version: Int, label: String, prefix: String?, error: String?, onDone: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(tr("Your own model"), style = MaterialTheme.typography.labelLarge, color = colors.primary, modifier = Modifier.weight(1f))
+            Text(label, style = MaterialTheme.typography.labelLarge, color = colors.primary, modifier = Modifier.weight(1f))
             TextButton(onClick = onDone) { Text(tr("Done")) }
         }
         Row(
@@ -789,14 +945,30 @@ private fun FormulaBox(e: com.example.cas.editor.Editor, version: Int, error: St
                 .clickable { e.setCursor(e.root, e.root.items.size) }.padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            MathView(MathRow(mutableListOf(Sym("y"), Sym("="))), 22.sp, colors.onSurfaceVariant)
-            Spacer(Modifier.width(6.dp))
+            if (prefix != null) {
+                MathView(MathRow(prefix.split(" ").filter { it.isNotEmpty() }.map { Sym(it) }.toMutableList()), 22.sp, colors.onSurfaceVariant)
+                Spacer(Modifier.width(6.dp))
+            }
             Box(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
                 MathView(e.root, 22.sp, colors.onSurface, accent = colors.primary, cursorRow = e.row, cursorIndex = e.index, version = version, onTap = { r, i -> e.setCursor(r, i) })
             }
         }
-        Text(error?.let { tr(it) } ?: tr("x is the variable; every other letter is a parameter to fit."), style = MaterialTheme.typography.bodySmall,
+        Text(error?.let { tr(it) } ?: if (prefix != null) tr("x is the variable; every other letter is a parameter to fit.") else tr("Enter goes to the next input."), style = MaterialTheme.typography.bodySmall,
             color = if (error != null) colors.error else colors.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
+    }
+}
+
+/**
+ * The dialog's window makes room for the phone's keyboard and lets it come up: some tablets
+ * otherwise keep it hidden over a full-screen dialog.
+ */
+@Composable
+private fun KeyboardResizes() {
+    val view = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.SideEffect {
+        (view.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window?.setSoftInputMode(
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_UNSPECIFIED,
+        )
     }
 }
 
@@ -945,7 +1117,7 @@ private fun wholeColumns(old: TextFieldValue, new: TextFieldValue, names: List<S
  */
 private class ColumnChips(val names: List<String>, val ink: (String) -> Color) : androidx.compose.ui.text.input.VisualTransformation {
     // Room in front for the chip's colored icon half, and a thin space after.
-    private val lead = "\u2002\u2009"
+    private val lead = "\u2003\u2009"
     private val trail = "\u2009"
 
     /** Each column's place in the shown text, its spaces included, and its name. */
@@ -965,7 +1137,7 @@ private class ColumnChips(val names: List<String>, val ink: (String) -> Color) :
                 val st = length
                 val name = text.text.substring(r.first, r.last + 1)
                 append(name)
-                addStyle(androidx.compose.ui.text.SpanStyle(color = ink(name), fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), st, length)
+                addStyle(androidx.compose.ui.text.SpanStyle(color = ink(name), fontFamily = CasFonts.Maple, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold), st, length)
                 append(trail)
                 at = r.last + 1
             }
@@ -1037,34 +1209,40 @@ private fun InputField(label: String, value: TextFieldValue, columns: List<Strin
     val chips = remember(columns, palette.values.map { it.ink }) { ColumnChips(columns) { n -> palette[n]?.ink ?: colors.primary } }
     val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     var layout by remember { mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
+    val tableIcon = androidx.compose.ui.graphics.vector.rememberVectorPainter(TableIcons.Table)
+    // On a tablet (and anywhere) the keyboard comes up when the field is tapped.
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val style = TextStyle(fontFamily = CasFonts.Mono, fontSize = 16.sp, color = colors.onSurface)
     Column(Modifier.fillMaxWidth()) {
         BasicTextField(
             value, onText, singleLine = true, visualTransformation = chips, textStyle = style, cursorBrush = SolidColor(colors.primary),
             keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Next),
             interactionSource = interaction, onTextLayout = { layout = it },
-            modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) onFocus() },
+            modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) { onFocus(); keyboard?.show() } },
         ) { inner ->
             androidx.compose.material3.OutlinedTextFieldDefaults.DecorationBox(
                 value = text, innerTextField = {
                     // Each column name sits in a rounded chip, drawn under its letters.
                     Box(Modifier.drawBehind {
                         val lay = layout ?: return@drawBehind
+                        // Only a layout of the text as it is now (a stale one would put chips in the wrong place).
+                        if (lay.layoutInput.text.text != chips.filter(androidx.compose.ui.text.AnnotatedString(text)).text.text) return@drawBehind
                         chips.spans(text).forEach { (r, name) ->
                             if (r.last >= lay.layoutInput.text.length) return@forEach
                             val c = palette[name] ?: return@forEach
-                            val a = lay.getBoundingBox(r.first); val lead = lay.getBoundingBox(r.first + 1); val b = lay.getBoundingBox(r.last)
-                            val h = (b.bottom - a.top) * 1.16f; val top = a.top - (b.bottom - a.top) * 0.08f
+                            // As the chips elsewhere: the column's color with the table icon, then the name on its tone.
+                            val first = lay.getBoundingBox(r.first); val lead = lay.getBoundingBox(r.first + 1); val last = lay.getBoundingBox(r.last)
+                            val line = lay.getLineForOffset(r.first)
+                            val top = lay.getLineTop(line) + 1.dp.toPx(); val h = lay.getLineBottom(line) - lay.getLineTop(line) - 2.dp.toPx()
                             val corner = androidx.compose.ui.geometry.CornerRadius(h / 2, h / 2)
-                            // The whole chip in the tone, then its front in the column's own color with a small table glyph.
-                            drawRoundRect(c.tonal, Offset(a.left, top), androidx.compose.ui.geometry.Size(b.right - a.left, h), corner)
-                            val capR = lead.right + 1.dp.toPx()
-                            clipRect(left = a.left, top = top, right = capR, bottom = top + h) { drawRoundRect(c.strong, Offset(a.left, top), androidx.compose.ui.geometry.Size(b.right - a.left, h), corner) }
-                            val gw = h * 0.42f; val gx = (a.left + capR) / 2 - gw / 2 + 1.dp.toPx(); val gy = top + h / 2 - gw * 0.4f
-                            val sw = 1.2.dp.toPx()
-                            drawRoundRect(c.onStrong, Offset(gx, gy), androidx.compose.ui.geometry.Size(gw, gw * 0.8f), androidx.compose.ui.geometry.CornerRadius(sw, sw), style = Stroke(sw))
-                            drawLine(c.onStrong, Offset(gx, gy + gw * 0.32f), Offset(gx + gw, gy + gw * 0.32f), sw)
-                            drawLine(c.onStrong, Offset(gx + gw * 0.42f, gy), Offset(gx + gw * 0.42f, gy + gw * 0.8f), sw)
+                            val left = first.left; val right = last.right
+                            drawRoundRect(c.tonal, Offset(left, top), androidx.compose.ui.geometry.Size(right - left, h), corner)
+                            val capR = lead.right
+                            clipRect(left = left, top = top, right = capR, bottom = top + h) { drawRoundRect(c.strong, Offset(left, top), androidx.compose.ui.geometry.Size(right - left, h), corner) }
+                            val sz = h * 0.62f
+                            translate(left + (capR - left - sz) / 2 + 1.dp.toPx(), top + (h - sz) / 2) {
+                                with(tableIcon) { draw(androidx.compose.ui.geometry.Size(sz, sz), colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(c.onStrong)) }
+                            }
                         }
                     }) { inner() }
                 },
@@ -1076,7 +1254,7 @@ private fun InputField(label: String, value: TextFieldValue, columns: List<Strin
         }
         // How it's read: math, with the table's columns as chips.
         if (text.isNotBlank()) Box(Modifier.padding(start = 12.dp, top = 4.dp).horizontalScroll(rememberScrollState())) {
-            ReadAs(text, columns, 16.sp, colors.onSurfaceVariant)
+            ReadAs(text, columns, 15.sp, colors.onSurfaceVariant)
         }
     }
 }
@@ -1092,7 +1270,7 @@ private fun ReadAs(text: String, columns: List<String>, size: androidx.compose.u
         fun rest(t: String) = t.replace("*", " · ").replace("-", " − ").replace("+", " + ").replace("/", " / ").replace(Regex(" +"), " ")
         for (r in spans) {
             if (r.first > at) Text(rest(text.substring(at, r.first)), style = TextStyle(fontSize = size, color = ink))
-            ColumnChip(text.substring(r.first, r.last + 1), size)
+            ColumnChip(text.substring(r.first, r.last + 1))
             at = r.last + 1
         }
         if (at < text.length) Text(rest(text.substring(at)), style = TextStyle(fontSize = size, color = ink))
@@ -1109,7 +1287,7 @@ private fun ColumnChip(name: String, size: androidx.compose.ui.unit.TextUnit = 1
             AppIcon(TableIcons.Table, contentDescription = null, tint = c.onStrong, modifier = Modifier.size((size.value + 1).dp))
         }
         Box(Modifier.fillMaxHeight().background(c.tonal).padding(start = 6.dp, end = 10.dp), contentAlignment = Alignment.Center) {
-            Text(name, style = TextStyle(fontSize = size, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, color = c.ink), maxLines = 1)
+            Text(name, style = TextStyle(fontFamily = CasFonts.Maple, fontSize = size, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, color = c.ink), maxLines = 1)
         }
     }
 }
@@ -1153,7 +1331,7 @@ private fun DataGrid(t: com.example.cas.graph.DataTable, modifier: Modifier, onH
                             Modifier.size(cellW, 52.dp).clickable(enabled = onHeader != null || headerMenu != null) { if (headerMenu != null) menu = true else onHeader?.invoke(c) }.padding(horizontal = 8.dp, vertical = 4.dp),
                             horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.Center,
                         ) {
-                            if (t.names[c].isBlank()) Text("—", style = mono.copy(color = colors.outline)) else ColumnChip(t.names[c].trim(), 12.sp)
+                            if (t.names[c].isBlank()) Text("—", style = mono.copy(color = colors.outline)) else ColumnChip(t.names[c].trim())
                             stats[c]?.let { st -> Text("x̄ " + com.example.cas.graph.Figure.tickText(st.mean) + (st.sd?.let { " ± " + com.example.cas.graph.Figure.tickText(it) } ?: ""), style = mono.copy(fontSize = 10.sp, color = colors.onSurfaceVariant), maxLines = 1) }
                         }
                         if (headerMenu != null) DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) { headerMenu(c) { menu = false } }
@@ -1188,20 +1366,13 @@ private fun DataGrid(t: com.example.cas.graph.DataTable, modifier: Modifier, onH
  * import a CSV, plot every column against the first, and, from a column's name, a layer of it.
  */
 @Composable
-private fun DataPanel(t: com.example.cas.graph.DataTable, modifier: Modifier, onEdit: () -> Unit, onImport: (com.example.cas.graph.DataTable) -> Unit, onAdd: (Figure.Kind, List<Int>) -> Unit, onPlotAll: () -> Unit) {
-    val context = LocalContext.current
+private fun DataPanel(t: com.example.cas.graph.DataTable, modifier: Modifier, sheetTabs: @Composable () -> Unit, onEdit: () -> Unit, onImport: () -> Unit, onAdd: (Figure.Kind, List<Int>) -> Unit, onPlotAll: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        runCatching {
-            val text = context.contentResolver.openInputStream(uri)!!.use { it.readBytes().toString(Charsets.UTF_8) }
-            onImport(com.example.cas.graph.DataTable.fromCsv(com.example.cas.graph.Csv.parse(text)))
-        }.onFailure { Toast.makeText(context, tr("Couldn't read that file as a table"), Toast.LENGTH_LONG).show() }
-    }
     Column(modifier.padding(horizontal = 12.dp)) {
+        sheetTabs()
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             EditorChip(TableIcons.Edit, "Edit", onEdit)
-            EditorChip(TableIcons.ImportData, "Import CSV") { importer.launch(arrayOf("text/*", "application/csv", "*/*")) }
+            EditorChip(TableIcons.ImportData, "Import files", onImport)
             if (t.names.size >= 2) EditorChip(FigureIcons.of(Figure.Kind.Scatter), "Plot all", onPlotAll)
         }
         Text(tr("Tap a column's name for a layer of it; double-tap the table to edit it."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp, bottom = 6.dp))
@@ -1256,9 +1427,6 @@ private fun SliderRow(title: String, value: Double, range: ClosedFloatingPointRa
     }
 }
 
-/** How far tick numbers can be turned, as matplotlib's labelrotation. */
-private val ANGLES = listOf(0, 30, 45, 60, 90)
-
 private fun nearest(list: List<Double>, v: Double) = list.indices.minByOrNull { kotlin.math.abs(list[it] - v) } ?: 0
 
 /**
@@ -1268,8 +1436,9 @@ private fun nearest(list: List<Double>, v: Double) = list.indices.minByOrNull { 
  */
 @Composable
 private fun LayerEditor(
-    l: Figure.Layer, error: String?, color: Int?, table: com.example.cas.graph.DataTable, onColumn: (Int) -> Unit, onEditData: () -> Unit, onImport: (com.example.cas.graph.DataTable) -> Unit,
-    texts: List<TextFieldValue>, onText: (Int, TextFieldValue) -> Unit, columns: List<String>, onEditFormula: () -> Unit,
+    l: Figure.Layer, error: String?, color: Int?, table: com.example.cas.graph.DataTable, sheets: List<Figure.Sheet>, sheetAt: Int, sheetTabs: @Composable () -> Unit,
+    onColumn: (Int, Int) -> Unit, onEditData: () -> Unit, onImport: () -> Unit,
+    texts: List<TextFieldValue>, onText: (Int, TextFieldValue) -> Unit, columns: List<String>, onEditMath: (Int) -> Unit,
     onFocus: (Int?) -> Unit, onChange: (Figure.Layer) -> Unit, onClose: () -> Unit, onMove: (Int) -> Unit, onDuplicate: () -> Unit, onDelete: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -1278,13 +1447,6 @@ private fun LayerEditor(
     var look by remember { mutableStateOf(false) }
     val tint = color?.let { Color(it) } ?: colors.primary
     if (look) LayerLookDialog(l, tint, onApply = { onChange(l.copy(style = it)); look = false }, onDismiss = { look = false })
-    val importer = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        runCatching {
-            val text = context.contentResolver.openInputStream(uri)!!.use { it.readBytes().toString(Charsets.UTF_8) }
-            onImport(com.example.cas.graph.DataTable.fromCsv(com.example.cas.graph.Csv.parse(text)))
-        }.onFailure { Toast.makeText(context, tr("Couldn't read that file as a table"), Toast.LENGTH_LONG).show() }
-    }
     androidx.compose.runtime.CompositionLocalProvider(LocalCompactRows provides true) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1300,14 +1462,23 @@ private fun LayerEditor(
         }
         MathText(tr(l.kind.about), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
         PxHeader("Inputs")
-        texts.forEachIndexed { k, t -> InputField(l.kind.inputs.getOrElse(k) { "" }, t, columns, { onText(k, it) }) { onFocus(k) } }
+        if (l.kind == Figure.Kind.Parametric || l.kind == Figure.Kind.Polar) {
+            // Curves are math: each input on the calculator's keypad, as your own fitted model is.
+            l.kind.inputs.forEachIndexed { k, name -> MathInputBox(name, l.input(k)) { onEditMath(k) } }
+        } else {
+            // A field's x and y show only when z (or u, v) uses table columns: a function or a matrix doesn't need them.
+            val field = l.kind in setOf(Figure.Kind.Contour, Figure.Kind.ContourF, Figure.Kind.Heatmap, Figure.Kind.Quiver, Figure.Kind.Stream)
+            val usesColumns = texts.drop(2).any { columnSpans(it.text, columns).isNotEmpty() } || texts.take(2).any { it.text.isNotBlank() }
+            texts.forEachIndexed { k, t -> if (!field || k >= 2 || usesColumns) InputField(l.kind.inputs.getOrElse(k) { "" }, t, columns, { onText(k, it) }) { onFocus(k) } }
+            if (field && !usesColumns) Text(tr("x and y appear when you use table columns."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+        }
         if (error != null) Text(tr(error), style = MaterialTheme.typography.bodyMedium, color = colors.error)
-        // The table's columns as buttons: tap one to put it in at the cursor.
-        val named = table.names.indices.filter { table.names[it].isNotBlank() }
-        if (named.isNotEmpty()) {
+        // Every table's columns as buttons: tap one to put it in at the cursor.
+        val named = sheets.flatMapIndexed { si, sh -> sh.table.names.indices.filter { sh.table.names[it].isNotBlank() }.map { si to it } }
+        if (named.isNotEmpty() && l.kind != Figure.Kind.Parametric && l.kind != Figure.Kind.Polar) {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                named.forEach { c ->
-                    Box(Modifier.clip(CircleShape).clickable(onClickLabel = tr("Put in")) { onColumn(c) }.padding(vertical = 4.dp)) { ColumnChip(table.names[c].trim(), 15.sp) }
+                named.forEach { (si, c) ->
+                    Box(Modifier.clip(CircleShape).clickable(onClickLabel = tr("Put in")) { onColumn(si, c) }.padding(vertical = 4.dp)) { ColumnChip(sheets[si].table.names[c].trim()) }
                 }
             }
         }
@@ -1316,12 +1487,13 @@ private fun LayerEditor(
                 supportingText = { Text(tr(if (name == "Labels") "Split by commas" else "\$math\$ between dollar signs")) })
         }
         PxHeader("Data")
-        // The whole table; a column's name puts it in the input being typed.
-        if (table.names.isNotEmpty() && table.rowCount > 0) DataGrid(table, Modifier.fillMaxWidth().heightIn(max = 280.dp), onHeader = onColumn, onDoubleTap = onEditData)
+        // The tables; a column's name puts it in the input being typed.
+        sheetTabs()
+        if (table.names.isNotEmpty() && table.rowCount > 0) DataGrid(table, Modifier.fillMaxWidth().heightIn(max = 280.dp), onHeader = { c -> onColumn(sheetAt, c) }, onDoubleTap = onEditData)
         Text(tr("Tap a column's name to put it in the input; double-tap the table to edit it."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             EditorChip(TableIcons.Table, "Edit table", onEditData)
-            EditorChip(TableIcons.ImportData, "Import CSV") { importer.launch(arrayOf("text/*", "application/csv", "*/*")) }
+            EditorChip(TableIcons.ImportData, "Import files", onImport)
         }
         // A fitted curve's model: a ready-made one, or its own formula.
         if (l.kind == Figure.Kind.Fit) {
@@ -1331,12 +1503,12 @@ private fun LayerEditor(
                 com.example.cas.graph.FitModel.entries.forEachIndexed { k, m ->
                     androidx.compose.material3.FilterChip(selected = !custom && s.model == k, onClick = { onChange(l.copy(style = s.copy(model = k))) }, label = { Text(tr(m.title)) })
                 }
-                androidx.compose.material3.FilterChip(selected = custom, onClick = { if (!custom) onChange(l.copy(style = s.copy(model = Figure.CUSTOM_FIT, formula = s.formula.ifBlank { "a*e^(-b*x) + c" }))); onEditFormula() }, label = { Text(tr("Your own")) })
+                androidx.compose.material3.FilterChip(selected = custom, onClick = { if (!custom) onChange(l.copy(style = s.copy(model = Figure.CUSTOM_FIT, formula = s.formula.ifBlank { "a*e^(-b*x) + c" }))); onEditMath(-1) }, label = { Text(tr("Your own")) })
             }
             if (custom) {
                 // Tapped: typed on the calculator's keypad.
                 Row(
-                    Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainerHighest).clickable(onClickLabel = tr("Edit the model"), onClick = onEditFormula).padding(horizontal = 14.dp, vertical = 8.dp),
+                    Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainerHighest).clickable(onClickLabel = tr("Edit the model")) { onEditMath(-1) }.padding(horizontal = 14.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
@@ -1588,8 +1760,6 @@ private fun AxesSettings(a: Figure.Axes, onChange: (Figure.Axes) -> Unit) {
         { PxToggleRow("Numbers on x", "The values under the ticks", a.xNumbers) { onChange(a.copy(xNumbers = it)) } },
         { PxToggleRow("Numbers on y", "The values beside the ticks", a.yNumbers) { onChange(a.copy(yNumbers = it)) } },
         { PxChoiceRow("Ticks", listOf("Out", "In"), if (a.ticksIn) 1 else 0) { onChange(a.copy(ticksIn = it == 1)) } },
-        if (a.xNumbers) ({ PxChoiceRow("Turn x numbers", ANGLES.map { "$it°" }, ANGLES.indexOf(a.xTickAngle).coerceAtLeast(0)) { onChange(a.copy(xTickAngle = ANGLES[it])) } }) else null,
-        if (a.yNumbers) ({ PxChoiceRow("Turn y numbers", ANGLES.map { "$it°" }, ANGLES.indexOf(a.yTickAngle).coerceAtLeast(0)) { onChange(a.copy(yTickAngle = ANGLES[it])) } }) else null,
     )
     PxHeader("Legend")
     PxCards(
@@ -1634,11 +1804,7 @@ private fun FigureSettings(d: Figure.Doc, onChange: (Figure.Doc) -> Unit) {
     }
     PxHeader("Shape")
     val shapes = listOf(0.5, 0.667, 0.75, 1.0, 1.3)
-    PxCards(
-        { PxChoiceRow("Height", listOf("2 : 1", "3 : 2", "4 : 3", "1 : 1", "3 : 4"), nearest(shapes, d.aspect)) { onChange(d.copy(aspect = shapes[it])) } },
-        // The whole figure turned, axes, labels and all (in the app and in every export).
-        { PxChoiceRow("Rotation", listOf("0°", "90°", "180°", "270°"), Math.floorMod(d.rotation, 4)) { onChange(d.copy(rotation = it)) } },
-    )
+    PxCards({ PxChoiceRow("Height", listOf("2 : 1", "3 : 2", "4 : 3", "1 : 1", "3 : 4"), nearest(shapes, d.aspect)) { onChange(d.copy(aspect = shapes[it])) } })
     PxHeader("Style")
     // As the colormaps: a card each, a little plot in the style's colors over its name.
     val app = appFigureTheme()
@@ -1724,6 +1890,7 @@ private fun ExportMenu(d: Figure.Doc, built: Figure.Built?) {
 fun FigureEditorDialog(start: Figure.Doc, variables: Map<String, Expr>, functions: Map<String, UserFunction>, onSave: (Figure.Doc) -> Unit, onDismiss: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        KeyboardResizes()
         Surface(Modifier.fillMaxSize(), color = colors.surface) {
             Column(Modifier.fillMaxSize().safeDrawingPadding()) {
                 FigureEditor(start, eval = { figureEval(it, variables, functions) }, onSave = onSave, onClose = onDismiss)

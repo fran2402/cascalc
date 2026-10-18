@@ -215,19 +215,29 @@ class FigureTest {
         assertEquals(xs.map { it.toDouble() }, l.series.single().first.toList())
     }
 
-    @Test fun wholeFigureTurns() {
-        val d = doc(Figure.Layer(Kind.Scatter, listOf(m("h"), m("w")))).copy(rotation = 1, aspect = 0.5)
-        val up = Figure.build(d.copy(rotation = 0), eval, app).scene
-        val turned = Figure.build(d, eval, app).scene
-        assertEquals(up.height, turned.width, 1e-9); assertEquals(up.width, turned.height, 1e-9)
-        // A label keeps its place on the figure, a quarter turn round.
-        val a = up.items.filterIsInstance<com.example.cas.graph.Scene.Label>().first()
-        val b = turned.items.filterIsInstance<com.example.cas.graph.Scene.Label>().first()
-        assertEquals(up.height - a.y, b.x, 1e-9); assertEquals(a.x, b.y, 1e-9); assertEquals(a.angle - 90, b.angle, 1e-9)
-        // Pixels turn too: 2 wide × 1 high [p, q] turned clockwise is 1 wide × 2 high [p; q].
-        val img = com.example.cas.graph.Scene(2.0, 1.0, 0).apply { add(com.example.cas.graph.Scene.Image(0.0, 0.0, 2.0, 1.0, intArrayOf(1, 2), 2, 1)) }.rotated(1).items.single() as com.example.cas.graph.Scene.Image
-        assertEquals(listOf(1, 2), img.pixels.toList()); assertEquals(1, img.pixelWidth); assertEquals(2, img.pixelHeight)
-        assertEquals(1, Figure.decode("t", Figure.encode(d)).rotation)
+    @Test fun bandsSheetsAndWhereThingsAre() {
+        fun p(s: String) = com.example.cas.engine.PlainMath.parse(s)
+        val bars = doc(Figure.Layer(Kind.Scatter, listOf(p("[1, 2, 3]"), p("[1, 4, 9]"), MathRow(), p("1"))))
+        val band = doc(Figure.Layer(Kind.Scatter, listOf(p("[1, 2, 3]"), p("[1, 4, 9]"), MathRow(), p("1")), style = Figure.Style(errBand = true)))
+        fun fills(d: Figure.Doc) = Figure.build(d, eval, app).scene.items.count { it is com.example.cas.graph.Scene.Fill }
+        assertTrue(fills(band) > fills(bars))
+        // A band for x errors too.
+        val bandX = doc(Figure.Layer(Kind.Scatter, listOf(p("[1, 2, 3]"), p("[1, 4, 9]"), p("0.2")), style = Figure.Style(errBand = true)))
+        assertTrue(fills(bandX) > fills(doc(Figure.Layer(Kind.Scatter, listOf(p("[1, 2, 3]"), p("[1, 4, 9]"), p("0.2"))))))
+        // Tables from several files: names kept apart, every column usable.
+        val a = DataTable(listOf("x", "y"), listOf(listOf("1", "2"), listOf("3", "4")), null, null)
+        val b = DataTable(listOf("x", "Noise (dB)"), listOf(listOf("5", "6"), listOf("7", "8")), null, null)
+        val d = Figure.addSheets(Figure.addSheets(Figure.Doc("s", "", listOf(Figure.Axes())), listOf(Figure.Sheet("one.csv", a))), listOf(Figure.Sheet("Sheet2", b)))
+        assertEquals(2, d.sheets.size); assertEquals("one.csv", d.sheets[0].name)
+        assertEquals(listOf("x_2", "Noise_dB"), d.sheets[1].table.names)
+        assertTrue(Figure.variables(d).keys.containsAll(listOf("x", "y", "x_2", "Noise_dB")))
+        val back = Figure.decode("s", Figure.encode(d))
+        assertEquals(2, back.sheets.size); assertEquals("Sheet2", back.sheets[1].name); assertEquals("one.csv", back.sheetName)
+        // Where a data point is drawn, and back.
+        val w = Figure.build(doc(Figure.Layer(Kind.Scatter, listOf(p("[0, 10]"), p("[0, 5]")))), eval, app).worked.single()
+        val (fx, fy) = w.toFigure(3.0, 2.0)!!
+        val (x, y) = w.toData(fx, fy)!!
+        assertEquals(3.0, x, 1e-9); assertEquals(2.0, y, 1e-9)
     }
 
     @Test fun ownFitModelsColorbarLabelsAndCellSizes() {
