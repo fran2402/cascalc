@@ -203,6 +203,17 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (18 October, holding and dragging to select, cursor handle)
+
+- **Holding the input works again**: the math's own taps were taking the touch, so a long press
+  never reached the input. Now holding selects the number, letter or piece under your finger
+  (with a little buzz) and shows Select all, Cut, Copy and Paste above it.
+- **Drag to select**: keep your finger down after the long press and drag; the selection grows
+  from that word to wherever you are, into or out of fractions and roots, as in Android's text
+  fields. The two handles still adjust it afterwards.
+- **Cursor handle**: a tap places the cursor with Android's teardrop under it; drag it to move
+  the cursor anywhere in the expression, or tap it for Paste. It fades after a few seconds.
+
 ## Latest changes (18 October, selecting math, LaTeX copy and paste, compact graph settings)
 
 - **Plots mode removed for now**, to focus on other features (it stays in the history for later).

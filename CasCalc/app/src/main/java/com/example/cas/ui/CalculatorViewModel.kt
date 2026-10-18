@@ -15,6 +15,7 @@ import com.example.cas.cas.Expr
 import com.example.cas.cas.MathError
 import com.example.cas.editor.Editor
 import com.example.cas.editor.MathCodec
+import com.example.cas.editor.Selection
 import com.example.cas.editor.MathRow
 import com.example.cas.editor.Matrix
 import com.example.cas.editor.Sym
@@ -262,10 +263,35 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
     fun startSelection(row: MathRow? = null, index: Int = 0) {
         if (row == null || editor.root.isEmpty) editor.selectAll() else editor.selectWord(row, index)
         selA = editor.row to editor.selectionStart; selB = editor.row to editor.selectionEnd
-        selecting = true; skipTapUntil = System.currentTimeMillis() + 800
+        word = editor.row to (editor.selectionStart to editor.selectionEnd)
+        selecting = true; cursorHandle = false
     }
+
+    /** The word the long press took: dragging on from it extends the selection a word at a time, as Android does. */
+    private var word: Pair<MathRow, Pair<Int, Int>>? = null
+
+    /** The finger, still down after the long press, at (row, index): the selection runs from the word to there. */
+    fun dragSelect(row: MathRow, index: Int) {
+        val (wr, range) = word ?: return
+        val (s0, s1) = range
+        // Past the word's end: from its start; before it: from its end.
+        val after = if (row === wr) index >= s1 else (Selection.between(wr, s0, row, index)?.let { (_, a, b) -> b >= a } ?: true)
+        if (row === wr && index in s0..s1) { editor.select(wr, s0, s1); selA = wr to s0; selB = wr to s1; return }
+        if (after) { selA = wr to s0; selB = row to index } else { selA = wr to s1; selB = row to index }
+        val a = selA!!; val b = selB!!
+        editor.selectBetween(a.first, a.second, b.first, b.second)
+    }
+
+    /** The teardrop under the cursor after a tap (drag it to move the cursor; tap it for Paste). */
+    var cursorHandle by mutableStateOf(false)
+
+    /** The cursor handle dragged to (row, index). */
+    fun moveCursorTo(row: MathRow, index: Int) { editor.setCursor(row, index); cursorHandle = true }
+
+    /** The cursor handle tapped: the bar with Paste (and Select all). */
+    fun showPasteBar() { selecting = true; cursorHandle = false }
     fun selectAll() { editor.selectAll(); selA = editor.root to 0; selB = editor.root to editor.root.items.size; selecting = true }
-    fun endSelection() { editor.clearSelection(); selecting = false; selA = null; selB = null }
+    fun endSelection() { editor.clearSelection(); selecting = false; selA = null; selB = null; word = null }
 
     /** A handle dragged to (row, index): [start] true for the selection's start handle. */
     fun dragHandle(start: Boolean, row: MathRow, index: Int) {
@@ -302,6 +328,7 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
     }
 
     override fun press(action: KeyAction) {
+        cursorHandle = false
         // With something selected, a key replaces it (Backspace just removes it).
         if (editor.hasSelection) {
             val removed = editor.deleteSelection()
@@ -335,9 +362,10 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
     fun tapAt(row: MathRow, index: Int) {
         // The release of the long press that started selecting isn't a tap.
         if (System.currentTimeMillis() < skipTapUntil) { skipTapUntil = 0L; return }
-        // A tap ends selecting and puts the cursor there, as in any text field.
-        selecting = false; selA = null; selB = null
+        // A tap ends selecting and puts the cursor there, with its handle, as in any text field.
+        selecting = false; selA = null; selB = null; word = null
         editor.setCursor(row, index)
+        cursorHandle = true
     }
 
     override fun toggleAngle() {

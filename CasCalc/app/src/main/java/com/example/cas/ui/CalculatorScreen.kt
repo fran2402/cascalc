@@ -102,6 +102,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -413,6 +416,9 @@ private fun InputPanel(vm: CalculatorViewModel) {
     LaunchedEffect(vm.version) {
         if (vm.editor.row === vm.editor.root && vm.editor.index == vm.editor.root.items.size) scroll.animateScrollTo(scroll.maxValue)
     }
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    // The cursor's handle fades after a few seconds untouched, as Android's does.
+    LaunchedEffect(vm.cursorHandle, vm.version) { if (vm.cursorHandle) { kotlinx.coroutines.delay(4000); vm.cursorHandle = false } }
     // Where every row of the input is on screen: for holding to select at a place, and the handles.
     val geometry = remember { MathGeometry() }
     var boxCoords by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
@@ -429,14 +435,37 @@ private fun InputPanel(vm: CalculatorViewModel) {
                 .fillMaxWidth()
                 .horizontalScroll(scroll)
                 .onGloballyPositioned { boxCoords = it }
+                // Holding: seen before the math's own taps (which would otherwise take the touch).
+                // Held still: the number, letter or piece there is selected; dragging on while
+                // still holding extends the selection, as in any Android text field.
                 .pointerInput(Unit) {
-                    detectTapGestures(
-                        // Hold the input to select the number, letter or piece there (handles then change it).
-                        onLongPress = { o ->
-                            val hit = boxCoords?.takeIf { it.isAttached }?.let { geometry.hit(it.localToRoot(o)) }
-                            vm.startSelection(hit?.first, hit?.second ?: 0)
-                        },
-                    ) { o ->
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        var released = false
+                        val held = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+                            while (true) {
+                                val c = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: run { released = true; return@withTimeoutOrNull }
+                                if (!c.pressed) { released = true; return@withTimeoutOrNull }
+                                if ((c.position - down.position).getDistance() > viewConfiguration.touchSlop) { released = true; return@withTimeoutOrNull }
+                            }
+                        }
+                        // A tap or a scroll: left to the math and the scrolling.
+                        if (released || held != null) return@awaitEachGesture
+                        fun place(p: Offset) = boxCoords?.takeIf { it.isAttached }?.let { geometry.hit(it.localToRoot(p)) }
+                        haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        val at = place(down.position)
+                        vm.startSelection(at?.first, at?.second ?: 0)
+                        down.consume()
+                        while (true) {
+                            val c = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id } ?: break
+                            c.consume()
+                            if (!c.pressed) break
+                            if (at != null) place(c.position)?.let { (r, i) -> vm.dragSelect(r, i) }
+                        }
+                    }
+                }
+                .pointerInput(Unit) {
+                    detectTapGestures { o ->
                         val root = vm.editor.root
                         vm.tapAt(root, if (o.x < mathLeft || (o.x <= mathRight && o.x < (mathLeft + mathRight) / 2)) 0 else root.items.size)
                     }
@@ -469,6 +498,7 @@ private fun InputPanel(vm: CalculatorViewModel) {
             }
         }
         if (vm.selecting && vm.editor.hasSelection) SelectionHandles(vm, geometry, areaCoords)
+        else if (vm.cursorHandle && !vm.editor.hasSelection) CursorHandle(vm, geometry, areaCoords)
         }
         Box(Modifier.heightIn(min = 36.dp).horizontalScroll(rememberScrollState()), contentAlignment = Alignment.CenterEnd) {
             val error = vm.error
@@ -532,6 +562,41 @@ private fun SelectionHandles(vm: CalculatorViewModel, geometry: MathGeometry, ar
             if (start) drawRect(colors.primary, Offset(r, 0f), androidx.compose.ui.geometry.Size(r, r))
             else drawRect(colors.primary, Offset(0f, 0f), androidx.compose.ui.geometry.Size(r, r))
         }
+    }
+}
+
+/** The teardrop under the cursor after a tap: drag it to move the cursor anywhere; tap it for Paste. */
+@Composable
+private fun CursorHandle(vm: CalculatorViewModel, geometry: MathGeometry, area: androidx.compose.ui.layout.LayoutCoordinates?) {
+    val colors = MaterialTheme.colorScheme
+    val density = LocalDensity.current
+    val size = 22.dp
+    val sizePx = with(density) { size.toPx() }
+    @Suppress("UNUSED_EXPRESSION") geometry.tick
+    val a = area?.takeIf { it.isAttached } ?: return
+    val caret = geometry.caret(vm.editor.row, vm.editor.index) ?: return
+    val local = caret - a.positionInRoot()
+    if (local.x < -sizePx || local.x > a.size.width + sizePx) return
+    var drag by remember { mutableStateOf(Offset.Zero) }
+    var grab by remember { mutableStateOf<Offset?>(null) }
+    Canvas(
+        Modifier
+            .offset { androidx.compose.ui.unit.IntOffset((local.x - sizePx / 2).toInt(), local.y.toInt()) }
+            .size(size)
+            .pointerInput(Unit) { detectTapGestures { vm.showPasteBar() } }
+            .pointerInput(Unit) {
+                detectDragGestures(onDragStart = { grab = caret; drag = Offset.Zero }, onDragEnd = { grab = null }, onDragCancel = { grab = null }) { change, d ->
+                    change.consume()
+                    drag += d
+                    val tip = (grab ?: caret) + drag - Offset(0f, with(density) { 14.dp.toPx() })
+                    geometry.hit(tip)?.let { (row, index) -> vm.moveCursorTo(row, index) }
+                }
+            },
+    ) {
+        // A circle with a point at the top: Android's insertion handle.
+        val r = this.size.width / 2
+        drawCircle(colors.primary, r, Offset(r, r * 1.1f))
+        drawPath(androidx.compose.ui.graphics.Path().apply { moveTo(r, 0f); lineTo(r * 1.75f, r * 0.75f); lineTo(r * 0.25f, r * 0.75f); close() }, colors.primary)
     }
 }
 
