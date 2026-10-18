@@ -203,6 +203,17 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (18 October, Plots: functions of columns, resizable cells, own fit models)
+
+- Functions of table columns work on each number: with a column y, sin(y), y^2 + 1 or x*y give a new column of values. Whole-column functions such as mean(y) still use the whole column. A line with no x given is drawn against the x column when the table has one. Contours, arrows, parametric and polar curves still treat x and y as variables.
+- Limits are automatic by default. Open as figure no longer copies the 2D graph's view, and Axes has an Automatic limits switch; when it is off, an empty field fits that end.
+- Open as figure brings in every table the 2D graph has, all columns included, also for hidden lines. Columns marked as σ in y become error bars. The From 2D graph and Send to 2D graph buttons are gone.
+- Swipe a layer either way to delete it. It asks first when Ask before deleting is on in Settings, as it does for graph lines.
+- The Data tab's table reaches the bottom of the screen. Each column is as wide as its numbers, and dragging the bar at the right edge of a column's name resizes it.
+- With several axes, tap one in the preview to edit it (no more A, B, C buttons). Its dashed outline sits inside the cell, so it isn't cut off. Drag the handles on the lines between cells to make columns wider or rows taller; the Python export uses the same width and height ratios.
+- Layers with a colorbar (filled contours, heatmaps, 2D histograms, hexbins) use the same colormap picker as the complex plane, including Reversed. Their levels, bins and opacity sit in the layer, and the colorbar can have a label (also in the Python export).
+- Fitted curves can use your own model: pick Your own and type it in x, for example a*e^(-b*x) + c or a*sin(b*x + c). Every other letter is a parameter to fit, and the legend shows the fitted equation with R².
+
 ## Latest changes (18 October, Plots inputs on the phone keyboard, the whole data table)
 
 - Layer inputs in Plots are now plain text fields that use the phone's own keyboard, the way you would type in a spreadsheet or Python: e^(-x/6)*sin(2x), x/2, sqrt(x), |x|, [1, 4, 9], pi, theta, 1.5e3, log(x, 2). A small rendered preview under each field shows how the text was read.

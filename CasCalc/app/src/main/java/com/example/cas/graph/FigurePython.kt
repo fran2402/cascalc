@@ -41,7 +41,13 @@ object FigurePython {
         val (cells, _, _) = Figure.cells(d.layout)
         val letters = d.layout.split(';').joinToString("") { it.trim() }.filter { it != '.' }.toList().distinct()
         val mosaic = d.layout.split(';').map { it.trim() }.filter { it.isNotEmpty() }.joinToString(";")
-        appendLine("fig, axs = plt.subplot_mosaic(\"$mosaic\", figsize=(6.4, ${n(6.4 * d.aspect)}), layout=\"constrained\")")
+        val (xe, ye) = Figure.edges(d)
+        fun ratios(e: DoubleArray) = (1 until e.size).joinToString(", ", "[", "]") { n(e[it] - e[it - 1]) }
+        val grid = buildString {
+            if (d.widths.isNotEmpty() && xe.size > 2) append(", width_ratios=" + ratios(xe))
+            if (d.heights.isNotEmpty() && ye.size > 2) append(", height_ratios=" + ratios(ye))
+        }
+        appendLine("fig, axs = plt.subplot_mosaic(\"$mosaic\", figsize=(6.4, ${n(6.4 * d.aspect)})$grid, layout=\"constrained\")")
         if (d.title.isNotBlank()) appendLine("fig.suptitle(${str(d.title)})")
         cells.indices.forEach { k ->
             val w = built.worked.getOrNull(k) ?: return@forEach
@@ -86,6 +92,7 @@ object FigurePython {
         val mk = marker(s.marker)?.let { ", marker=\"$it\"" } ?: ""
         fun xy(k: Int = 0) = dr.series[k].let { (x, y) -> "${arr(x)}, ${arr(y)}" }
         val cmap = ", cmap=\"${s.cmap.removePrefix("theme").ifBlank { "viridis" }.let { if (it.startsWith("_")) "viridis" else it }}\""
+        val cbar = if (s.cbar.isNotBlank()) ", label=" + str(s.cbar) else ""
         fun grid(g: Figure.Grid, name: String = "Z") {
             out.appendLine("X, Y = np.meshgrid(np.linspace(${n(g.x0)}, ${n(g.x1)}, ${g.nx}), np.linspace(${n(g.y0)}, ${n(g.y1)}, ${g.ny}))")
             out.appendLine("$name = np.array([" + g.z.joinToString(",\n    ") { r -> "[" + r.joinToString(", ") { n(it) } + "]" } + "])")
@@ -95,7 +102,7 @@ object FigurePython {
             Figure.Kind.Fit -> {
                 val (px, py) = dr.raw
                 out.appendLine("ax.scatter(${arr(px)}, ${arr(py)}, s=${n(s.size * s.size * 2)}, $color, alpha=${n(s.alpha * 0.55)})")
-                "ax.plot(${xy()}, $color$line$alpha, label=${str(Figure.legendName(dr))})  # least squares: ${FitModel.entries.getOrElse(s.model) { FitModel.Linear }.latex}"
+                "ax.plot(${xy()}, $color$line$alpha, label=${str(Figure.legendName(dr))})  # least squares: ${if (s.model >= Figure.CUSTOM_FIT) "y = " + s.formula.substringAfter('=').trim() else FitModel.entries.getOrElse(s.model) { FitModel.Linear }.latex}"
             }
             Figure.Kind.Kde -> "ax.plot(${xy()}, $color$line$alpha$label)  # Gaussian KDE (scipy.stats.gaussian_kde)"
             Figure.Kind.Step -> "ax.step(${xy()}, where=\"post\", $color$line$mk$alpha$label)"
@@ -119,19 +126,19 @@ object FigurePython {
             Figure.Kind.Box -> "ax.boxplot(${list(dr.raw)}, patch_artist=True, boxprops=dict(facecolor=${hex(dr.color)}, alpha=0.4)$label)"
             Figure.Kind.Violin -> "ax.violinplot(${list(dr.raw)}, showmedians=True)"
             Figure.Kind.Ecdf -> "ax.ecdf(${arr(dr.raw[0])}, $color$line$alpha$label)"
-            Figure.Kind.Hist2D -> "ax.hist2d(${arr(dr.raw[0])}, ${arr(dr.raw[1])}, bins=${if (s.bins > 0) s.bins else 24}$cmap)"
-            Figure.Kind.Hexbin -> "ax.hexbin(${arr(dr.raw[0])}, ${arr(dr.raw[1])}, gridsize=${if (s.bins > 0) s.bins else 18}$cmap)"
+            Figure.Kind.Hist2D -> "h = ax.hist2d(${arr(dr.raw[0])}, ${arr(dr.raw[1])}, bins=${if (s.bins > 0) s.bins else 24}$cmap)\nfig.colorbar(h[3], ax=ax$cbar)"
+            Figure.Kind.Hexbin -> "hb = ax.hexbin(${arr(dr.raw[0])}, ${arr(dr.raw[1])}, gridsize=${if (s.bins > 0) s.bins else 18}$cmap)\nfig.colorbar(hb, ax=ax$cbar)"
             Figure.Kind.Bar -> "ax.bar(np.arange(${dr.values.size}) + ${n(dr.offset)}, ${arr(dr.values)}, width=${n(dr.barWidth)}, $color$alpha$label)"
             Figure.Kind.BarH -> "ax.barh(np.arange(${dr.values.size}) + ${n(dr.offset)}, ${arr(dr.values)}, height=${n(dr.barWidth)}, $color$alpha$label)"
             Figure.Kind.Pie -> "ax.pie(${arr(dr.values)}${if (dr.labels.isNotEmpty()) ", labels=[" + dr.labels.joinToString(", ") { str(it) } + "]" else ""}, autopct=\"%1.0f%%\", startangle=90, counterclock=False)"
             Figure.Kind.Events -> "ax.eventplot(${list(dr.raw)}, lineoffsets=${dr.raw.indices.joinToString(", ", "[", "]") { "${it + 1}" }}, linelengths=0.7, linewidths=${n(s.width)})"
             Figure.Kind.Contour -> { grid(dr.grid!!); "cs = ax.contour(X, Y, Z, levels=${s.levels}${if (s.color >= 0) ", colors=${hex(dr.color)}" else cmap}, linewidths=${n(s.width * 0.8)})" }
-            Figure.Kind.ContourF -> { grid(dr.grid!!); "cs = ax.contourf(X, Y, Z, levels=${s.levels}$cmap$alpha)\nfig.colorbar(cs, ax=ax)" }
+            Figure.Kind.ContourF -> { grid(dr.grid!!); "cs = ax.contourf(X, Y, Z, levels=${s.levels}$cmap$alpha)\nfig.colorbar(cs, ax=ax$cbar)" }
             Figure.Kind.Heatmap -> {
                 val g = dr.grid!!
                 out.appendLine("Z = np.array([" + g.z.joinToString(",\n    ") { r -> "[" + r.joinToString(", ") { n(it) } + "]" } + "])")
                 val extent = if (dr.offset == 1.0) "[-0.5, ${n(g.nx - 0.5)}, -0.5, ${n(g.ny - 0.5)}]" else "[${n(g.x0)}, ${n(g.x1)}, ${n(g.y0)}, ${n(g.y1)}]"
-                "im = ax.imshow(Z, origin=\"lower\", extent=$extent, aspect=\"auto\"$cmap$alpha)\nfig.colorbar(im, ax=ax)"
+                "im = ax.imshow(Z, origin=\"lower\", extent=$extent, aspect=\"auto\"$cmap$alpha)\nfig.colorbar(im, ax=ax$cbar)"
             }
             Figure.Kind.Quiver -> { grid(dr.grid!!, "U"); out.appendLine("V = np.array([" + dr.grid2!!.z.joinToString(",\n    ") { r -> "[" + r.joinToString(", ") { n(it) } + "]" } + "])"); "ax.quiver(X, Y, U, V, $color$alpha)" }
             Figure.Kind.Stream -> { grid(dr.grid!!, "U"); out.appendLine("V = np.array([" + dr.grid2!!.z.joinToString(",\n    ") { r -> "[" + r.joinToString(", ") { n(it) } + "]" } + "])"); "ax.streamplot(X, Y, U, V, $color, linewidth=${n(s.width * 0.7)})" }

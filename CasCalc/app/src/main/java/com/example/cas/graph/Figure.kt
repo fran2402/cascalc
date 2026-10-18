@@ -94,14 +94,22 @@ object Figure {
         val density: Boolean = false, val cumulative: Boolean = false, val size: Double = 3.0,
         /** A color picked freely (ARGB), over [color]; 0 for none. */
         val argb: Int = 0,
-        /** A fitted curve's model ([FitModel] by position). */
+        /** A fitted curve's model ([FitModel] by position; [CUSTOM_FIT] for [formula]). */
         val model: Int = 0,
+        /** The colorbar's label (text with \$math\$), for layers drawn through a colormap. */
+        val cbar: String = "",
+        /** A fitted curve's own model as plain text in x and its parameters: a*e^(-b*x) + c. */
+        val formula: String = "",
     ) {
         fun copy(color: Int = this.color, line: Int = this.line, marker: Int = this.marker, width: Double = this.width, alpha: Double = this.alpha,
                  label: String = this.label, bins: Int = this.bins, levels: Int = this.levels, cmap: String = this.cmap,
-                 density: Boolean = this.density, cumulative: Boolean = this.cumulative, size: Double = this.size, argb: Int = this.argb, model: Int = this.model) =
-            Style(color, line, marker, width, alpha, label, bins, levels, cmap, density, cumulative, size, argb, model)
+                 density: Boolean = this.density, cumulative: Boolean = this.cumulative, size: Double = this.size, argb: Int = this.argb, model: Int = this.model,
+                 cbar: String = this.cbar, formula: String = this.formula) =
+            Style(color, line, marker, width, alpha, label, bins, levels, cmap, density, cumulative, size, argb, model, cbar, formula)
     }
+
+    /** [Style.model] for a fitted curve's own formula, after the ready-made [FitModel]s. */
+    val CUSTOM_FIT get() = FitModel.entries.size
 
     class Layer(val kind: Kind, val inputs: List<MathRow>, val text: String = "", val style: Style = Style(), val visible: Boolean = true) {
         fun input(k: Int): MathRow = inputs.getOrNull(k) ?: MathRow()
@@ -135,10 +143,13 @@ object Figure {
     class Doc(
         val id: String, val title: String, val axes: List<Axes>, val layout: String = "A", val theme: Int = 0,
         val aspect: Double = 0.75, val data: DataTable = emptyData(), val edited: Long = 0L, val name: String = "",
+        /** The layout's columns' and rows' shares of the width and height (empty or mismatched: equal). */
+        val widths: List<Double> = emptyList(), val heights: List<Double> = emptyList(),
     ) {
         fun copy(title: String = this.title, axes: List<Axes> = this.axes, layout: String = this.layout, theme: Int = this.theme,
-                 aspect: Double = this.aspect, data: DataTable = this.data, edited: Long = this.edited, name: String = this.name) =
-            Doc(id, title, axes, layout, theme, aspect, data, edited, name)
+                 aspect: Double = this.aspect, data: DataTable = this.data, edited: Long = this.edited, name: String = this.name,
+                 widths: List<Double> = this.widths, heights: List<Double> = this.heights) =
+            Doc(id, title, axes, layout, theme, aspect, data, edited, name, widths, heights)
     }
 
     /** A table's columns named with letters, each as a list (a column vector) of its numbers. */
@@ -155,10 +166,90 @@ object Figure {
     /** The letters functions are drawn against: a table column with one of these names gives way when it makes no sense there (sin of a column). */
     val PLOT_LETTERS = setOf("x", "y", "t", "θ")
 
-    /** [eval] with [vars]; if that fails, again without the plotting letters, so x is the variable rather than the column. */
-    fun withFallback(vars: Map<String, Expr>, eval: (Map<String, Expr>, MathRow) -> Expr): (MathRow) -> Expr {
-        val free = vars - PLOT_LETTERS
-        return { row -> try { eval(vars, row) } catch (e: Exception) { if (free.size == vars.size) throw e else eval(free, row) } }
+    /** [eval] with [vars], reading table columns as in a spreadsheet: see [ColumnEval]. */
+    fun withFallback(vars: Map<String, Expr>, eval: (Map<String, Expr>, MathRow) -> Expr): (MathRow) -> Expr = ColumnEval(vars, eval)
+
+    /**
+     * Inputs worked out with the table's columns: first as whole columns (mean(y), 2y); if that
+     * fails, row by row, so sin(y), y^2 or x·y give a column of their own (each row's value); and
+     * last without the plotting letters, so x is the variable. Layers that draw functions of x and
+     * y (contours, arrows) take x and y as variables first, through [asFunction].
+     */
+    class ColumnEval(private val vars: Map<String, Expr>, private val eval: (Map<String, Expr>, MathRow) -> Expr) : (MathRow) -> Expr {
+        private val free = vars - PLOT_LETTERS
+        private val columns = vars.filterValues { it is Mat && it.cols == 1 && it.rows > 1 }.mapValues { it.value as Mat }
+
+        override fun invoke(row: MathRow): Expr = try { eval(vars, row) } catch (e: Exception) {
+            rowwise(row) ?: if (free.size == vars.size) throw e else eval(free, row)
+        }
+
+        /** As a function of the plotting letters where it can be one. */
+        fun asFunction(row: MathRow): Expr = if (free.size == vars.size) invoke(row) else try { eval(free, row) } catch (e: Exception) { invoke(row) }
+
+        private fun uses(row: MathRow, name: String): Boolean = row.items.any { n -> (n is Sym && n.text == name) || n.slots.any { uses(it, name) } }
+
+        private fun rowwise(row: MathRow): Expr? {
+            val used = columns.keys.filter { uses(row, it) }
+            if (used.isEmpty()) return null
+            val n = used.minOf { columns.getValue(it).rows }
+            val cols = used.map { columns.getValue(it).cells }
+            // Quick: the columns left as letters, the rest compiled once, then each row's numbers put in.
+            val e = runCatching { eval(vars - used.toSet(), row) }.getOrNull()
+            val letters = e?.freeVars()?.filter { it != "i" }?.toSet()
+            if (e != null && letters != null && letters == used.toSet()) {
+                val f = runCatching { Compiler.compile(e, used) }.getOrNull()
+                if (f != null) {
+                    val arg = DoubleArray(used.size)
+                    return Mat(n, 1, List(n) { r -> for (k in used.indices) arg[k] = real(cols[k][r]); com.example.cas.cas.Flt(runCatching { f(arg) }.getOrDefault(Double.NaN)) })
+                }
+            }
+            // Otherwise each row worked out on its own.
+            var ok = 0
+            val out = List(n) { r ->
+                val v = runCatching { real(eval(vars + used.indices.associate { used[it] to cols[it][r] }, row)) }.getOrDefault(Double.NaN)
+                if (v.isFinite()) ok++
+                com.example.cas.cas.Flt(v)
+            }
+            return if (ok > 0) Mat(n, 1, out) else null
+        }
+    }
+
+    /** Layers that draw functions of the plotting letters rather than columns. */
+    private val FUNCTION_KINDS = setOf(Kind.Contour, Kind.ContourF, Kind.Heatmap, Kind.Quiver, Kind.Stream, Kind.Parametric, Kind.Polar)
+
+    /** A fitted curve's own model: its parameters (its letters other than x), as a function of x and them, and the formula. */
+    class CustomModel(val params: List<String>, val f: (Double, DoubleArray) -> Double, val row: MathRow)
+
+    fun customModel(formula: String): CustomModel? {
+        val row = com.example.cas.engine.PlainMath.parse(formula.substringAfter('=').trim())
+        if (row.items.isEmpty()) return null
+        val e = runCatching { com.example.cas.engine.Evaluator().evaluate(MathCodec.copy(row)) }.getOrNull() ?: return null
+        val params = e.freeVars().filter { it != "i" && it != "x" }.distinct().sorted()
+        if (params.isEmpty()) return null
+        val c = runCatching { Compiler.compile(e, listOf("x") + params) }.getOrNull() ?: return null
+        val arg = DoubleArray(params.size + 1)
+        return CustomModel(params, { x, p -> arg[0] = x; for (k in p.indices) arg[k + 1] = p[k]; runCatching { c(arg) }.getOrDefault(Double.NaN) }, row)
+    }
+
+    /** [row] with each of [params] replaced by its fitted number. */
+    private fun withNumbers(row: MathRow, params: List<String>, values: DoubleArray): MathRow {
+        val out = MathCodec.copy(row)
+        fun walk(r: MathRow) {
+            var k = 0
+            while (k < r.items.size) {
+                val n = r.items[k]
+                val at = (n as? Sym)?.let { params.indexOf(it.text) } ?: -1
+                if (at >= 0) {
+                    r.removeAt(k)
+                    val v = values[at]
+                    val digits = tickText(abs(v)).replace("−", "")
+                    val syms = (if (v < 0) listOf("(", "−") else emptyList()) + digits.map { it.toString() } + (if (v < 0) listOf(")") else emptyList())
+                    syms.forEach { r.add(k++, Sym(it)) }
+                } else { n.slots.forEach(::walk); k++ }
+            }
+        }
+        walk(out)
+        return out
     }
 
     fun emptyData() = DataTable(listOf("x", "y"), listOf(List(5) { "" }, List(5) { "" }), null, null)
@@ -189,7 +280,8 @@ object Figure {
     fun withLayout(d: Doc, layout: String): Doc {
         val n = axesCount(layout)
         val axes = List(n) { d.axes.getOrNull(it) ?: Axes() }
-        return d.copy(layout = layout, axes = axes)
+        val (_, cols, rows) = cells(layout)
+        return d.copy(layout = layout, axes = axes, widths = d.widths.takeIf { it.size == cols } ?: emptyList(), heights = d.heights.takeIf { it.size == rows } ?: emptyList())
     }
 
     // ---- Themes -------------------------------------------------------------------------------
@@ -270,6 +362,7 @@ object Figure {
         appendLine("aspect\t" + d.aspect)
         appendLine("edited\t" + d.edited)
         appendLine("data\t" + esc(d.data.encode()))
+        if (d.widths.isNotEmpty() || d.heights.isNotEmpty()) appendLine("ratios\t" + d.widths.joinToString(",") + "\t" + d.heights.joinToString(","))
         for (a in d.axes) {
             appendLine(listOf("A", esc(a.title), esc(a.xLabel), esc(a.yLabel), num(a.xMin), num(a.xMax), num(a.yMin), num(a.yMax),
                 if (a.xLog) "1" else "0", if (a.yLog) "1" else "0", a.grid, a.legend, a.spines, if (a.equal) "1" else "0").joinToString("\t"))
@@ -277,7 +370,7 @@ object Figure {
                 val s = l.style
                 val flags = (if (s.density) 1 else 0) or (if (s.cumulative) 2 else 0)
                 appendLine((listOf("L", l.kind.name, if (l.visible) "1" else "0", s.color, s.line, s.marker, s.width, s.alpha, s.bins, s.levels, esc(s.cmap), flags, s.size,
-                    esc(s.label), esc(l.text), l.inputs.size) + l.inputs.map { esc(MathCodec.encode(it)) } + listOf(s.argb, s.model)).joinToString("\t"))
+                    esc(s.label), esc(l.text), l.inputs.size) + l.inputs.map { esc(MathCodec.encode(it)) } + listOf(s.argb, s.model, esc(s.cbar), esc(s.formula))).joinToString("\t"))
             }
         }
     }
@@ -287,6 +380,7 @@ object Figure {
         require(lines.firstOrNull()?.trim() == MAGIC) { "Not a figure file" }
         var title = ""; var name = ""; var layout = "A"; var theme = 0; var aspect = 0.75; var edited = 0L
         var data = emptyData()
+        var widths = emptyList<Double>(); var heights = emptyList<Double>()
         val axes = ArrayList<Axes>()
         val layers = ArrayList<ArrayList<Layer>>()
         for (line in lines.drop(1)) {
@@ -303,6 +397,7 @@ object Figure {
                 "aspect" -> aspect = d(1) ?: 0.75
                 "edited" -> edited = f.getOrNull(1)?.toLongOrNull() ?: 0L
                 "data" -> data = DataTable.decode(s(1)) ?: emptyData()
+                "ratios" -> { widths = s(1).split(',').mapNotNull { it.toDoubleOrNull() }; heights = s(2).split(',').mapNotNull { it.toDoubleOrNull() } }
                 "A" -> {
                     axes += Axes(emptyList(), s(1), s(2), s(3), d(4), d(5), d(6), d(7), f.getOrNull(8) == "1", f.getOrNull(9) == "1", i(10, 1), i(11, 0), i(12, 0), f.getOrNull(13) == "1")
                     layers.add(ArrayList())
@@ -314,13 +409,13 @@ object Figure {
                     val style = Style(i(3, -1), i(4, 0), i(5, -1), d(6) ?: 1.5, d(7) ?: 1.0, s(13), i(8, 0), i(9, 10), s(10).ifBlank { "viridis" }, flags and 1 != 0, flags and 2 != 0, d(12) ?: 3.0)
                     val n = i(15, 0)
                     val inputs = (0 until n).map { k -> runCatching { MathCodec.decode(s(16 + k)) }.getOrDefault(MathRow()) }
-                    val style2 = style.copy(argb = i(16 + n, 0), model = i(17 + n, 0))
+                    val style2 = style.copy(argb = i(16 + n, 0), model = i(17 + n, 0), cbar = s(18 + n), formula = s(19 + n))
                     layers.last() += Layer(kind, inputs, s(14), style2, f.getOrNull(2) != "0")
                 }
             }
         }
         val all = axes.mapIndexed { k, a -> a.copy(layers = layers[k]) }
-        return withLayout(Doc(id, title, all, layout, theme, aspect, data, edited, name), layout)
+        return withLayout(Doc(id, title, all, layout, theme, aspect, data, edited, name, widths, heights), layout)
     }
 
     // ---- Inputs as values ---------------------------------------------------------------------
@@ -508,7 +603,8 @@ object Figure {
             val idx = if (l.style.color >= 0) l.style.color else if (wantsColor) auto++ else 0
             colorOf[l] = if (l.style.argb != 0) l.style.argb else palette[Math.floorMod(idx, palette.size)]
         }
-        val values = layers.associateWith { l -> l.inputs.map { value(it, eval) } }
+        val ce = eval as? ColumnEval
+        val values = layers.associateWith { l -> l.inputs.map { value(it, if (ce != null && l.kind in FUNCTION_KINDS) ce::asFunction else eval) } }
         val b = Bounds()
         val drawn = LinkedHashMap<Layer, Drawn>()
         var xCats: List<String>? = null; var yCats: List<String>? = null
@@ -536,7 +632,8 @@ object Figure {
                 Kind.Plot, Kind.Step, Kind.Stem -> {
                     val y = data(v(0)) ?: continue
                     if (v(0) is Value.Num && v(1) !is Value.Data) continue // a constant: drawn as a function below
-                    val x = data(v(1)) ?: seq(y.size)
+                    // No x given: the table's x column when it fits, else 0, 1, 2, …
+                    val x = data(v(1)) ?: (value(MathRow(mutableListOf(Sym("x"))), eval) as? Value.Data)?.v?.takeIf { it.size == y.size } ?: seq(y.size)
                     val n = min(x.size, y.size)
                     val xs = x.copyOf(n); val ys = y.copyOf(n)
                     xs.forEach(b::x); ys.forEach(b::y)
@@ -740,13 +837,20 @@ object Figure {
                     if (x0 == null || y0 == null) { bad(l, "Give x and y as lists (or table columns)"); continue }
                     val ks = (0 until min(x0.size, y0.size)).filter { x0[it].isFinite() && y0[it].isFinite() }
                     val px = DoubleArray(ks.size) { x0[ks[it]] }; val py = DoubleArray(ks.size) { y0[ks[it]] }
+                    val custom = if (l.style.model >= CUSTOM_FIT) customModel(l.style.formula) ?: run { bad(l, "Write the model in x and its parameters, like a*e^(-b*x) + c"); null } ?: continue else null
                     val model = FitModel.entries.getOrElse(l.style.model) { FitModel.Linear }
-                    val r = if (px.size > model.params.size) Fit.leastSquares(model::value, px, py, model.start(px, py)) else null
+                    val fn: (Double, DoubleArray) -> Double = custom?.f ?: model::value
+                    val count = custom?.params?.size ?: model.params.size
+                    // Its own model starts from a few guesses; the best fit is kept.
+                    val r = if (px.size <= count) null else if (custom == null) Fit.leastSquares(fn, px, py, model.start(px, py))
+                        else listOf(1.0, 0.5, -1.0, 0.1, 2.0).mapNotNull { g -> runCatching { Fit.leastSquares(fn, px, py, DoubleArray(count) { g }) }.getOrNull() }
+                            .filter { it.parameters.all { p -> p.isFinite() } }.maxByOrNull { if (it.rSquared.isFinite()) it.rSquared else -1e300 }
                     if (r == null) { bad(l, "Couldn't fit this model: more points, or another model"); continue }
                     val x = xs()
-                    val y = DoubleArray(x.size) { model.value(x[it], r.parameters) }
+                    val y = DoubleArray(x.size) { fn(x[it], r.parameters) }
                     y.filter { it.isFinite() }.let { f -> if (f.isNotEmpty()) { sampled.y(f.min()); sampled.y(f.max()) } }
-                    val eq = model.equation(r.parameters) { v -> tickText(v).replace("−", "-") }
+                    val eq = if (custom != null) "y = " + com.example.cas.engine.Latex.of(withNumbers(custom.row, custom.params, r.parameters))
+                        else model.equation(r.parameters) { v -> tickText(v).replace("−", "-") }
                     val r2 = if (r.rSquared.isFinite()) ",\\; R^2 = " + String.format(java.util.Locale.ROOT, "%.4f", r.rSquared) else ""
                     drawn[l] = Drawn(l, color, series = listOf(x to y), raw = listOf(px, py), labels = listOf("$" + eq + r2 + "$"), values = r.parameters)
                 }
@@ -995,18 +1099,45 @@ object Figure {
         val theme = if (d.theme == 0) app else THEMES.getOrElse(d.theme) { app }
         val height = width * d.aspect.coerceIn(0.3, 2.0)
         val scene = Scene(width, height, theme.background)
-        val (cells, cols, rows) = cells(d.layout)
-        val top = if (d.title.isNotBlank()) 24.0 else 4.0
-        val cw = width / cols; val ch = (height - top) / rows
+        val boxes = cellBoxes(d, width)
         val worked = ArrayList<Worked>()
         if (d.title.isNotBlank()) label(theme, scene, width / 2, 13.0, d.title, 13.0, theme.ink)
-        cells.forEachIndexed { k, cell ->
+        boxes.forEachIndexed { k, box ->
             val a = d.axes.getOrNull(k) ?: Axes()
             val w = runCatching { work(a, eval, theme.palette) }.getOrElse { Worked(a, emptyList(), -5.0, 5.0, -1.0, 1.0, null, null, false, 0.0, 1.0, null) }
             worked += w
-            drawAxes(scene, w, theme, cell[0] * cw, top + cell[1] * ch, cell[2] * cw, cell[3] * ch)
+            drawAxes(scene, w, theme, box[0], box[1], box[2], box[3])
         }
         return Built(scene, worked)
+    }
+
+    /** Where the layout's columns and rows start and end, as shares (0 … 1) of the width and of the height under the title. */
+    fun edges(d: Doc): Pair<DoubleArray, DoubleArray> {
+        val (_, cols, rows) = cells(d.layout)
+        fun of(r: List<Double>, n: Int): DoubleArray {
+            val w = if (r.size == n && r.all { it > 0 }) r else List(n) { 1.0 }
+            val sum = w.sum(); val out = DoubleArray(n + 1)
+            for (k in 0 until n) out[k + 1] = out[k] + w[k] / sum
+            out[n] = 1.0
+            return out
+        }
+        return of(d.widths, cols) to of(d.heights, rows)
+    }
+
+    /** The space above the axes: room for the figure's title. */
+    fun titleSpace(d: Doc) = if (d.title.isNotBlank()) 24.0 else 4.0
+
+    /** Each axes' box in a figure [width] wide, as (x, y, width, height). */
+    fun cellBoxes(d: Doc, width: Double = 480.0): List<DoubleArray> {
+        val height = width * d.aspect.coerceIn(0.3, 2.0)
+        val top = titleSpace(d)
+        val (cells, _, _) = cells(d.layout)
+        val (xe, ye) = edges(d)
+        return cells.map { c ->
+            val x0 = xe[c[0]] * width; val x1 = xe[c[0] + c[2]] * width
+            val y0 = top + ye[c[1]] * (height - top); val y1 = top + ye[c[1] + c[3]] * (height - top)
+            doubleArrayOf(x0, y0, x1 - x0, y1 - y0)
+        }
     }
 
     /** One axes inside the box at (bx, by), bw × bh. */
@@ -1014,7 +1145,7 @@ object Figure {
         val a = w.axes
         val bar = w.mapped != null
         var left = bx + 40 + if (a.yLabel.isNotBlank()) 13 else 0
-        var right = bx + bw - 10 - if (bar) 46 else 0
+        var right = bx + bw - 10 - if (bar) 46 + (if (w.mapped?.layer?.style?.cbar?.isNotBlank() == true) 14 else 0) else 0
         var top = by + 8 + if (a.title.isNotBlank()) 16 else 0
         var bottom = by + bh - 22 - if (a.xLabel.isNotBlank()) 14 else 0
         if (w.yCategories != null) left += (w.yCategories.maxOfOrNull { it.length } ?: 0).coerceAtMost(12) * 3.5
@@ -1095,8 +1226,8 @@ object Figure {
         return (a..b step step).map { 10.0.pow(it) }.filter { it in lo * 0.999..hi * 1.001 }.toDoubleArray()
     }
 
-    private fun cmap(name: String) = Colormap.byName(name)
-    private fun cmapColor(name: String, t: Double) = (0xFF shl 24) or cmap(name).rgb(t.coerceIn(0.0, 1.0))
+    private fun cmap(name: String) = Colormap.parse(name)
+    private fun cmapColor(name: String, t: Double) = cmap(name).let { (m, rev) -> (0xFF shl 24) or m.rgb((if (rev) 1 - t else t).coerceIn(0.0, 1.0)) }
 
     private fun drawLayer(scene: Scene, dr: Drawn, w: Worked, t: Theme, px: (Double) -> Double, py: (Double) -> Double,
                           left: Double, top: Double, right: Double, bottom: Double, x0: Double, x1: Double, y0: Double, y1: Double) {
@@ -1397,6 +1528,7 @@ object Figure {
             scene.add(Scene.Stroke(listOf(doubleArrayOf(x + 10, y, x + 13, y)), t.ink, 0.6))
             label(t, scene, x + 15, y, tickText(v), TICK, t.muted, Scene.Anchor.Start)
         }
+        d.layer.style.cbar.takeIf { it.isNotBlank() }?.let { label(t, scene, x + 46, (top + bottom) / 2, it, TICK, t.ink, Scene.Anchor.Middle, 90.0) }
     }
 
     private fun drawLegend(scene: Scene, w: Worked, t: Theme, left: Double, top: Double, right: Double, bottom: Double) {

@@ -372,6 +372,7 @@ Add a figure
 Share figure	
 Discard	
 Column “{0}” is now {1}, so it can be typed	
+Delete this layer?	
 Layers	
 Data	
 Untitled figure	
@@ -380,9 +381,6 @@ Tap to set its inputs
 Search: histogram, violin, contour…	
 e.g. sin(x), x^2/2, [1, 4, 9] or a column's letter	
 Couldn't read that file as a table	
-The 2D graph has no points or tables	
-Nothing to send: a column of x and at least one more	
-Added to the 2D graph: {0} sets of points	
 Tap a column's name for a layer of it.	
 Scatter against {0}	
 Line against {0}	
@@ -392,11 +390,17 @@ Histogram
 Density curve	
 Box plot	
 Tap a column's name to put it in the input.	
+Your own	
+In x; every other letter is a parameter to fit, like a*e^(-b*x) + c or a*sin(b*x + c)	
+Auto	
+Colorbar label	
+$math$ between dollar signs, like $T$ (K)	
 Look	
 Color, line and more	
 x label	
 y label	
 $math$ between dollar signs: $t$ (s), $\\sigma^2$	
+Leave one empty to fit that end to what's drawn.	
 Title over the figure	
 The same figure as a matplotlib script, with the numbers it was drawn from.	
 Copied	

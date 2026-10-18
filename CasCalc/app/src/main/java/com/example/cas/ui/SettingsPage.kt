@@ -223,7 +223,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
             PxHeader("Confirmations")
             PxCards(
                 { PxToggleRow("Ask before clearing history", "Pinned calculations and those in folders are always kept", AppSettings.confirmClearHistory, AppSettings::changeConfirmClearHistory) },
-                { PxToggleRow("Ask before deleting", "A calculation, or a line in a graph", AppSettings.confirmDeleteEntry, AppSettings::changeConfirmDeleteEntry) },
+                { PxToggleRow("Ask before deleting", "A calculation, a line in a graph, or a layer of a figure", AppSettings.confirmDeleteEntry, AppSettings::changeConfirmDeleteEntry) },
             )
         },
         Category("General", TableIcons.Settings, 3, 2,

@@ -1629,7 +1629,7 @@ internal fun folderColor(folder: PlotFunction, scheme: androidx.compose.material
 
 /** Swipe a line sideways (either way) to delete it; a red strip with a bin shows underneath. */
 @Composable
-private fun SwipeToRemove(onRemove: () -> Unit, asks: () -> Boolean = { false }, content: @Composable () -> Unit) {
+internal fun SwipeToRemove(onRemove: () -> Unit, asks: () -> Boolean = { false }, content: @Composable () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val state = androidx.compose.material3.rememberSwipeToDismissBoxState(
         // When it asks first, the row snaps back and the dialog decides.

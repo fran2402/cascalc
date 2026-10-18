@@ -1,5 +1,9 @@
 package com.example.cas.ui
 
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.math.abs
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
@@ -139,10 +143,6 @@ object PlotsNav {
     /** The figure being edited: a saved one, or a new one not saved yet. */
     var doc by mutableStateOf<Figure.Doc?>(null)
     var request by mutableStateOf<Figure.Doc?>(null)
-    /** The 2D graph's points and tables (set by the app), for a figure's table. */
-    var graphPoints: (() -> List<Pair<DoubleArray, DoubleArray>>)? = null
-    /** Adds sets of points to the 2D graph as lines (set by the app). */
-    var sendPoints: ((List<Pair<DoubleArray, DoubleArray>>) -> Unit)? = null
 
     fun show(d: Figure.Doc) { doc = d; open = true }
 }
@@ -176,14 +176,24 @@ object FigureFactory {
     }
 
     /**
-     * The 2D graph as a figure, over its view: curves y = f(x) as lines and r = f(θ) as polar
-     * curves, points and lists of points as scatters (their numbers in the figure's table), each
-     * in its line's color, style, thickness and point shape.
+     * The 2D graph as a figure: curves y = f(x) as lines and r = f(θ) as polar curves (the visible
+     * ones), each in its line's color, style, thickness and point shape. Every list of points
+     * brings its whole table (all its columns, not only the two it plots, hidden lines' too) into
+     * the figure's table, and its visible ones are drawn as scatters (with error bars when the
+     * table has σ). The limits fit what's drawn.
      */
-    fun fromGraph(functions: List<PlotFunction>, view: com.example.cas.graph.Viewport?): Figure.Doc {
+    fun fromGraph(all: List<PlotFunction>): Figure.Doc {
         val names = ArrayList<String>(); val columns = ArrayList<List<String>>()
-        val pairs = listOf("x" to "y", "u" to "v", "p" to "q", "s" to "w") + ('a'..'h').map { "x$it" to "y$it" }
         val layers = ArrayList<Figure.Layer>()
+        // Names the expressions can use: a column's own when it's letters and free, else a free letter.
+        val letters = listOf("x", "y", "u", "v", "p", "q", "s", "w", "a", "b", "c", "d", "f", "g", "h", "k", "m", "n", "r", "z", "j", "l", "o")
+        fun fresh(want: String): String {
+            val w = want.trim()
+            if (w.isNotEmpty() && w.all { it.isLetter() } && w != "e" && w != "i" && w !in names) return w
+            return letters.firstOrNull { it !in names } ?: "column${names.size + 1}"
+        }
+        fun add(name: String, col: List<String>): String { val n = fresh(name); names += n; columns += col; return n }
+        val functions = all.filter { it.visible }
         fun style(f: PlotFunction, label: String) = Figure.Style(color = f.colorIndex, argb = f.customColor ?: 0, line = f.lineStyle, width = (f.thickness * 0.6).toDouble().coerceIn(0.5, 4.0), marker = -1, label = label)
         fun rhs(r: MathRow, left: String): MathRow? {
             val items = r.items
@@ -194,6 +204,14 @@ object FigureFactory {
             return MathCodec.decode(MathCodec.encode(items.drop(eq + 1)))
         }
         fun num(v: Double) = com.example.cas.graph.DataTable.text(v)
+        // Every list's table, visible or not, so the figure has the same data as the graph.
+        val tableRoles = HashMap<PlotFunction, Triple<String?, String?, String?>>()
+        for (f in all) {
+            val k = f.plot as? Plot2DKind.PointList ?: continue
+            val t = f.table?.takeIf { it.points().size == k.xs.size } ?: DataTable.fromPoints(k.xs, k.ys)
+            t.names.indices.map { c -> add(t.names[c].ifBlank { if (c == t.x) "x" else if (c == t.y) "y" else "" }, t.columns[c]) }
+                .also { ns -> tableRoles[f] = Triple(t.x?.let { ns.getOrNull(it) }, t.y?.let { ns.getOrNull(it) }, t.sigmaY?.let { ns.getOrNull(it) }) }
+        }
         for (f in functions) when (val k = f.plot) {
             is Plot2DKind.Explicit -> rhs(f.editor.root, "y")?.takeIf { it.items.isNotEmpty() }?.let { r ->
                 layers += Figure.Layer(Figure.Kind.Plot, listOf(r), style = style(f, "$" + com.example.cas.engine.Latex.of(r) + "$"))
@@ -201,23 +219,23 @@ object FigureFactory {
             is Plot2DKind.Polar -> rhs(f.editor.root, "r")?.takeIf { it.items.isNotEmpty() }?.let { r ->
                 layers += Figure.Layer(Figure.Kind.Polar, listOf(r), style = style(f, "\$r = " + com.example.cas.engine.Latex.of(r) + "\$"))
             }
-            is Plot2DKind.PointList, is Plot2DKind.Point -> {
-                val (xs, ys) = when (k) {
-                    is Plot2DKind.PointList -> k.xs to k.ys
-                    is Plot2DKind.Point -> runCatching { doubleArrayOf(k.x(DoubleArray(8))) to doubleArrayOf(k.y(DoubleArray(8))) }.getOrNull() ?: continue
-                    else -> continue
-                }
-                val (a, b) = pairs.getOrNull(names.size / 2) ?: continue
-                names += a; names += b
-                columns += xs.map(::num); columns += ys.map(::num)
-                val label = if (xs.size == 1) "(${num(xs[0])}, ${num(ys[0])})" else "Data"
-                layers += Figure.Layer(Figure.Kind.Scatter, listOf(m(a), m(b)), style = style(f, label).copy(marker = f.pointShape, size = 3.0))
+            is Plot2DKind.PointList -> {
+                val (a, b, sy) = tableRoles[f] ?: continue
+                if (a == null || b == null) continue
+                val label = f.name.takeIf { !it.isNullOrBlank() } ?: "Data"
+                layers += if (sy != null) Figure.Layer(Figure.Kind.ErrorBar, listOf(m(a), m(b), m(sy)), style = style(f, label).copy(marker = f.pointShape, size = 3.0))
+                    else Figure.Layer(Figure.Kind.Scatter, listOf(m(a), m(b)), style = style(f, label).copy(marker = f.pointShape, size = 3.0))
+            }
+            is Plot2DKind.Point -> {
+                val (x, y) = runCatching { k.x(DoubleArray(8)) to k.y(DoubleArray(8)) }.getOrNull() ?: continue
+                layers += Figure.Layer(Figure.Kind.Scatter, listOf(com.example.cas.engine.PlainMath.parse("[${num(x)}]"), com.example.cas.engine.PlainMath.parse("[${num(y)}]")),
+                    style = style(f, "(${num(x)}, ${num(y)})").copy(marker = f.pointShape, size = 3.0))
             }
             else -> Unit
         }
         val n = columns.maxOfOrNull { it.size } ?: 0
         val table = if (names.isEmpty()) Figure.emptyData() else DataTable(names, columns.map { c -> c + List(n - c.size) { "" } }, null, null)
-        val axes = Figure.Axes(layers, xLabel = "\$x\$", yLabel = "\$y\$", xMin = view?.xMin, xMax = view?.xMax, yMin = view?.yMin, yMax = view?.yMax, legend = 0)
+        val axes = Figure.Axes(layers, xLabel = "\$x\$", yLabel = "\$y\$", legend = 0)
         return Figure.Doc(FigureStore.newId(), "", listOf(axes), data = table, name = "From 2D graph", edited = System.currentTimeMillis())
     }
 
@@ -426,6 +444,25 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
         tab = 0; selected = now.layers.size
     }
 
+    // Deleting a layer (swiped away, or its Delete): asks first when Settings say so.
+    var deleting by remember { mutableStateOf<Int?>(null) }
+    fun deleteLayer(k: Int) {
+        val now = doc.axes.getOrElse(axesAt) { Figure.Axes() }
+        if (k !in now.layers.indices) return
+        setAxes(now.copy(layers = now.layers.filterIndexed { i, _ -> i != k }))
+        selected = null
+    }
+    fun askDelete(k: Int) { if (AppSettings.confirmDeleteEntry) deleting = k else deleteLayer(k) }
+    deleting?.let { k ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { deleting = null },
+            title = { Text(tr("Delete this layer?")) },
+            text = { Text(tr(axes.layers.getOrNull(k)?.kind?.title ?: "Layer")) },
+            confirmButton = { TextButton(onClick = { deleting = null; deleteLayer(k) }) { Text(tr("Delete"), color = colors.error) } },
+            dismissButton = { TextButton(onClick = { deleting = null }) { Text(tr("Cancel")) } },
+        )
+    }
+
     val pageDone = { page = FigurePage.None }
     when (page) {
         FigurePage.Gallery -> LayerGallery(onPick = { kind ->
@@ -452,18 +489,87 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
 
     val ratio = (1 / doc.aspect).toFloat().coerceIn(0.5f, 3f)
 
+    /**
+     * The figure, fitted into its box. With several axes: tap one to edit it (it's outlined), and
+     * drag the handles on the lines between them to make columns or rows wider or taller.
+     */
     @Composable
     fun Preview(modifier: Modifier, compact: Boolean = false) {
+        val density = LocalDensity.current
+        val latest = androidx.compose.runtime.rememberUpdatedState(doc)
         Box((if (compact) modifier.height(170.dp) else modifier.aspectRatio(ratio)).clip(RoundedCornerShape(20.dp)).background(Color(if (doc.theme == 0) theme.background else Figure.THEMES.getOrElse(doc.theme) { theme }.background))) {
             FigureCanvas(built?.scene, Modifier.fillMaxSize())
-            // The current axes' cell outlined, when there are several.
             val (cells, cols, rows) = Figure.cells(doc.layout)
-            if (cells.size > 1) Canvas(Modifier.fillMaxSize()) {
-                val cell = cells.getOrNull(axesAt) ?: return@Canvas
-                val top = if (doc.title.isNotBlank()) size.height * 24f / (480f * doc.aspect.toFloat()) else 0f
-                val cw = size.width / cols; val ch = (size.height - top) / rows
-                drawRoundRect(colors.primary, Offset(cell[0] * cw + 3, top + cell[1] * ch + 3), androidx.compose.ui.geometry.Size(cell[2] * cw - 6, cell[3] * ch - 6),
-                    androidx.compose.ui.geometry.CornerRadius(14f, 14f), style = Stroke(2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f))))
+            if (cells.size > 1) {
+                // Scene (480 wide) to screen, as FigureCanvas fits it.
+                class Fit(val k: Float, val dx: Float, val dy: Float, val sw: Float, val sh: Float)
+                fun fit(w: Float, h: Float): Fit {
+                    val sw = 480f; val sh = 480f * latest.value.aspect.coerceIn(0.3, 2.0).toFloat()
+                    val k = minOf(w / sw, h / sh)
+                    return Fit(k, (w - sw * k) / 2, (h - sh * k) / 2, sw, sh)
+                }
+                var dragging by remember { mutableStateOf<Pair<Boolean, Int>?>(null) }
+                Canvas(Modifier.fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures { p ->
+                            val f = fit(size.width.toFloat(), size.height.toFloat())
+                            val sx = (p.x - f.dx) / f.k; val sy = (p.y - f.dy) / f.k
+                            val hit = Figure.cellBoxes(latest.value).indexOfFirst { b -> sx >= b[0] && sx <= b[0] + b[2] && sy >= b[1] && sy <= b[1] + b[3] }
+                            if (hit >= 0) { axesAt = hit; selected = null }
+                        }
+                    }
+                    .pointerInput(Unit) {
+                        val reach = with(density) { 22.dp.toPx() }
+                        detectDragGestures(
+                            onDragStart = { p ->
+                                val d = latest.value
+                                val f = fit(size.width.toFloat(), size.height.toFloat())
+                                val (xe, ye) = Figure.edges(d)
+                                val top = Figure.titleSpace(d).toFloat()
+                                val col = (1 until xe.size - 1).minByOrNull { abs(f.dx + xe[it].toFloat() * f.sw * f.k - p.x) }?.takeIf { abs(f.dx + xe[it].toFloat() * f.sw * f.k - p.x) < reach }
+                                val row = (1 until ye.size - 1).minByOrNull { abs(f.dy + (top + ye[it].toFloat() * (f.sh - top)) * f.k - p.y) }?.takeIf { abs(f.dy + (top + ye[it].toFloat() * (f.sh - top)) * f.k - p.y) < reach }
+                                dragging = when { col != null -> true to col; row != null -> false to row; else -> null }
+                                if (dragging != null) change(d, record = true)
+                            },
+                            onDragEnd = { dragging = null }, onDragCancel = { dragging = null },
+                        ) { ptr, delta ->
+                            val (across, j) = dragging ?: return@detectDragGestures
+                            ptr.consume()
+                            val d = latest.value
+                            val f = fit(size.width.toFloat(), size.height.toFloat())
+                            val (xe, ye) = Figure.edges(d)
+                            val e = (if (across) xe else ye).copyOf()
+                            val span = if (across) f.sw * f.k else (f.sh - Figure.titleSpace(d).toFloat()) * f.k
+                            e[j] = (e[j] + (if (across) delta.x else delta.y) / span).coerceIn(e[j - 1] + 0.12, e[j + 1] - 0.12)
+                            val shares = (1 until e.size).map { e[it] - e[it - 1] }
+                            change(if (across) d.copy(widths = shares) else d.copy(heights = shares), record = false)
+                        }
+                    }) {
+                    val f = fit(size.width, size.height)
+                    val d = doc
+                    // The open axes outlined, inside its cell so no edge is cut off.
+                    Figure.cellBoxes(d).getOrNull(axesAt)?.let { b ->
+                        val inset = 5.dp.toPx(); val sw = 2.dp.toPx()
+                        val l = f.dx + b[0].toFloat() * f.k + inset; val t = f.dy + b[1].toFloat() * f.k + inset
+                        val r = f.dx + (b[0] + b[2]).toFloat() * f.k - inset; val btm = f.dy + (b[1] + b[3]).toFloat() * f.k - inset
+                        drawRoundRect(colors.primary, Offset(l, t), androidx.compose.ui.geometry.Size(r - l, btm - t),
+                            androidx.compose.ui.geometry.CornerRadius(14.dp.toPx(), 14.dp.toPx()), style = Stroke(sw, pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f))))
+                    }
+                    // Handles on the lines between columns and rows.
+                    val (xe, ye) = Figure.edges(d)
+                    val top = Figure.titleSpace(d).toFloat()
+                    val long = 28.dp.toPx(); val thick = 5.dp.toPx()
+                    for (j in 1 until xe.size - 1) {
+                        val x = f.dx + xe[j].toFloat() * f.sw * f.k; val y = f.dy + (top + (f.sh - top) / 2) * f.k
+                        val on = dragging == (true to j)
+                        drawRoundRect(if (on) colors.primary else colors.outline, Offset(x - thick / 2, y - long / 2), androidx.compose.ui.geometry.Size(thick, long), androidx.compose.ui.geometry.CornerRadius(thick, thick))
+                    }
+                    for (j in 1 until ye.size - 1) {
+                        val y = f.dy + (top + ye[j].toFloat() * (f.sh - top)) * f.k; val x = f.dx + f.sw / 2 * f.k
+                        val on = dragging == (false to j)
+                        drawRoundRect(if (on) colors.primary else colors.outline, Offset(x - long / 2, y - thick / 2), androidx.compose.ui.geometry.Size(long, thick), androidx.compose.ui.geometry.CornerRadius(thick, thick))
+                    }
+                }
             }
         }
     }
@@ -493,18 +599,11 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                         }
                     },
                     onDuplicate = { setAxes(axes.copy(layers = axes.layers.toMutableList().apply { add(sel + 1, layer.copy()) })); selected = sel + 1 },
-                    onDelete = { setAxes(axes.copy(layers = axes.layers.filterIndexed { i, _ -> i != sel })); selected = null },
+                    onDelete = { askDelete(sel) },
                 )
             } else {
                 Column(Modifier.fillMaxSize()) {
                     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        val letters = doc.layout.split(';').joinToString("") { it.trim() }.filter { it != '.' }.toList().distinct()
-                        if (letters.size > 1) letters.forEachIndexed { k, ch ->
-                            val on = k == axesAt
-                            Box(Modifier.size(40.dp).clip(CircleShape).background(if (on) colors.primary else colors.surfaceContainerHighest).clickable { axesAt = k }, contentAlignment = Alignment.Center) {
-                                Text(ch.toString(), color = if (on) colors.onPrimary else colors.onSurface, style = MaterialTheme.typography.titleMedium)
-                            }
-                        }
                         EditorChip(FigureIcons.Axes, "Axes") { page = FigurePage.Axes }
                         EditorChip(FigureIcons.Layout, "Figure") { page = FigurePage.Figure }
                         EditorChip(FigureIcons.Python, "Python") { page = FigurePage.Python }
@@ -529,11 +628,14 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                         },
                     ) else
                     LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 96.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        itemsIndexed(axes.layers) { k, l ->
+                        // Swiped either way to delete.
+                        itemsIndexed(axes.layers, key = { k, l -> "$axesAt:$k:${System.identityHashCode(l)}" }) { k, l ->
                             val dr = built?.worked?.getOrNull(axesAt)?.drawn?.firstOrNull { it.layer === l }
-                            LayerRow(l, dr?.color, built?.error(axesAt, l), onOpen = { selected = k }, onToggle = { setLayer(k, l.copy(visible = !l.visible)) })
+                            SwipeToRemove(onRemove = { askDelete(k) }, asks = { AppSettings.confirmDeleteEntry }) {
+                                LayerRow(l, dr?.color, built?.error(axesAt, l), onOpen = { selected = k }, onToggle = { setLayer(k, l.copy(visible = !l.visible)) })
+                            }
                         }
-                        if (axes.layers.isEmpty()) item { PxFootnote("Add a layer with +: a line, points, bars, a histogram, a box plot, contours… Its inputs are math: an expression in \$x\$, a list like [1, 4, 9], or a column of the figure's table.") }
+                        if (axes.layers.isEmpty()) item { PxFootnote("Add a layer with +: a line, points, bars, a histogram, a box plot, contours… Its inputs are math: an expression in \$x\$, a list like [1, 4, 9], or a column of the figure's table (sin(y) takes the sine of each number in column y).") }
                     }
                 }
             }
@@ -711,21 +813,35 @@ private fun InputField(label: String, text: String, onText: (String) -> Unit, on
 
 /**
  * A table shown whole: the row numbers, each column's name with its mean and spread, and every
- * row (scrolled, as many as there are). Tapping a column's name: [onHeader].
+ * row (scrolled, as many as there are). Each column is as wide as its numbers; drag the bar at a
+ * column name's right edge to make it wider or narrower. Tapping a column's name: [onHeader].
  */
 @Composable
 private fun DataGrid(t: com.example.cas.graph.DataTable, modifier: Modifier, onHeader: ((Int) -> Unit)?, headerMenu: (@Composable (Int, () -> Unit) -> Unit)? = null) {
     val colors = MaterialTheme.colorScheme
+    val density = LocalDensity.current
     val mono = TextStyle(fontFamily = CasFonts.Mono, fontSize = 14.sp, color = colors.onSurface)
-    val cellW = 96.dp; val numW = 40.dp
+    val numW = 40.dp
     val n = t.names.size
     val stats = remember(t) { (0 until n).map { t.stats(it) } }
+    fun shown(c: Int, r: Int): String {
+        val raw = t.cell(c, r)
+        return if (com.example.cas.graph.Sheet.isFormula(raw)) t.value(c, r)?.let { com.example.cas.graph.DataTable.text(it) } ?: raw else raw
+    }
+    // Widths from the longest of the first rows (and the name), kept while the columns stay.
+    val widths = remember(n, t.names) {
+        androidx.compose.runtime.mutableStateListOf(*Array(n) { c ->
+            val chars = maxOf(t.names[c].length + 2, (0 until minOf(t.rowCount, 60)).maxOfOrNull { shown(c, it).length } ?: 0, 6)
+            (chars * 8.6f + 18f).coerceIn(64f, 200f).dp
+        })
+    }
     Box(modifier.clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainerHigh).horizontalScroll(rememberScrollState())) {
-        Column(Modifier.width(numW + cellW * n)) {
+        Column(Modifier.width(numW + widths.fold(0.dp) { a, b -> a + b })) {
             Row(Modifier.background(colors.surfaceContainerHighest)) {
                 Box(Modifier.size(numW, 52.dp))
                 (0 until n).forEach { c ->
                     var menu by remember { mutableStateOf(false) }
+                    val cellW = widths.getOrElse(c) { 96.dp }
                     Box {
                         Column(
                             Modifier.size(cellW, 52.dp).clickable(enabled = onHeader != null || headerMenu != null) { if (headerMenu != null) menu = true else onHeader?.invoke(c) }.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -735,6 +851,15 @@ private fun DataGrid(t: com.example.cas.graph.DataTable, modifier: Modifier, onH
                             stats[c]?.let { st -> Text("x̄ " + com.example.cas.graph.Figure.tickText(st.mean) + (st.sd?.let { " ± " + com.example.cas.graph.Figure.tickText(it) } ?: ""), style = mono.copy(fontSize = 10.sp, color = colors.onSurfaceVariant), maxLines = 1) }
                         }
                         if (headerMenu != null) DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) { headerMenu(c) { menu = false } }
+                        // The bar to drag for the column's width.
+                        Box(Modifier.align(Alignment.CenterEnd).width(16.dp).height(52.dp).pointerInput(c) {
+                            detectDragGestures { ptr, d ->
+                                ptr.consume()
+                                if (c in widths.indices) widths[c] = (widths[c] + with(density) { d.x.toDp() }).coerceIn(48.dp, 360.dp)
+                            }
+                        }, contentAlignment = Alignment.Center) {
+                            Box(Modifier.width(3.dp).height(22.dp).clip(RoundedCornerShape(2.dp)).background(colors.outlineVariant))
+                        }
                     }
                 }
             }
@@ -743,9 +868,7 @@ private fun DataGrid(t: com.example.cas.graph.DataTable, modifier: Modifier, onH
                     Row(Modifier.background(if (r % 2 == 1) colors.surfaceContainer else colors.surfaceContainerHigh)) {
                         Box(Modifier.size(numW, 32.dp), contentAlignment = Alignment.Center) { Text("${r + 1}", style = mono.copy(fontSize = 11.sp, color = colors.onSurfaceVariant)) }
                         (0 until n).forEach { c ->
-                            val raw = t.cell(c, r)
-                            val shown = if (com.example.cas.graph.Sheet.isFormula(raw)) t.value(c, r)?.let { com.example.cas.graph.DataTable.text(it) } ?: raw else raw
-                            Box(Modifier.size(cellW, 32.dp).padding(horizontal = 8.dp), contentAlignment = Alignment.CenterEnd) { Text(shown, style = mono, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                            Box(Modifier.size(widths.getOrElse(c) { 96.dp }, 32.dp).padding(start = 8.dp, end = 14.dp), contentAlignment = Alignment.CenterEnd) { Text(shown(c, r), style = mono, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                         }
                     }
                 }
@@ -756,8 +879,7 @@ private fun DataGrid(t: com.example.cas.graph.DataTable, modifier: Modifier, onH
 
 /**
  * The figure's table, whole, with what can be done with it: edit it (the full table editor),
- * import a CSV, bring in the 2D graph's points or send the columns there as points, plot every
- * column against the first, and, from a column's name, a layer of it.
+ * import a CSV, plot every column against the first, and, from a column's name, a layer of it.
  */
 @Composable
 private fun DataPanel(t: com.example.cas.graph.DataTable, modifier: Modifier, onEdit: () -> Unit, onImport: (com.example.cas.graph.DataTable) -> Unit, onAdd: (Figure.Kind, List<Int>) -> Unit, onPlotAll: () -> Unit) {
@@ -774,26 +896,11 @@ private fun DataPanel(t: com.example.cas.graph.DataTable, modifier: Modifier, on
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             EditorChip(TableIcons.Edit, "Edit", onEdit)
             EditorChip(TableIcons.ImportData, "Import CSV") { importer.launch(arrayOf("text/*", "application/csv", "*/*")) }
-            PlotsNav.graphPoints?.let { get ->
-                EditorChip(TableIcons.Mode2D, "From 2D graph") {
-                    val sets = get()
-                    if (sets.isEmpty()) Toast.makeText(context, tr("The 2D graph has no points or tables"), Toast.LENGTH_SHORT).show()
-                    else onImport(withPoints(t, sets))
-                }
-            }
-            PlotsNav.sendPoints?.let { send ->
-                EditorChip(TableIcons.External, "Send to 2D graph") {
-                    val xs = (0 until t.rowCount).map { t.value(0, it) ?: Double.NaN }
-                    val sets = (1 until t.names.size).map { c -> xs.indices.filter { xs[it].isFinite() && (t.value(c, it)?.isFinite() == true) }.let { k -> DoubleArray(k.size) { xs[k[it]] } to DoubleArray(k.size) { t.value(c, k[it])!! } } }.filter { it.first.isNotEmpty() }
-                    if (sets.isEmpty()) Toast.makeText(context, tr("Nothing to send: a column of x and at least one more"), Toast.LENGTH_SHORT).show()
-                    else { send(sets); Toast.makeText(context, tr("Added to the 2D graph: {0} sets of points", sets.size), Toast.LENGTH_SHORT).show() }
-                }
-            }
             if (t.names.size >= 2) EditorChip(FigureIcons.of(Figure.Kind.Scatter), "Plot all", onPlotAll)
         }
         Text(tr("Tap a column's name for a layer of it."), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp, bottom = 6.dp))
         val first = t.names.getOrElse(0) { "x" }.ifBlank { "1st column" }
-        DataGrid(t, Modifier.weight(1f).fillMaxWidth().padding(bottom = 88.dp), onHeader = null, headerMenu = { c, done ->
+        DataGrid(t, Modifier.weight(1f).fillMaxWidth().navigationBarsPadding().padding(bottom = 8.dp), onHeader = null, headerMenu = { c, done ->
             @Composable fun item(label: String, kind: Figure.Kind, cols: List<Int>) =
                 DropdownMenuItem(text = { Text(label) }, leadingIcon = { AppIcon(FigureIcons.of(kind), null) }, onClick = { done(); onAdd(kind, cols) })
             if (c > 0) {
@@ -810,27 +917,11 @@ private fun DataPanel(t: com.example.cas.graph.DataTable, modifier: Modifier, on
     }
 }
 
-/** [t] with each set of points added as two more columns. */
-private fun withPoints(t: com.example.cas.graph.DataTable, sets: List<Pair<DoubleArray, DoubleArray>>): com.example.cas.graph.DataTable {
-    val empty = t.columns.all { c -> c.all { it.isBlank() } }
-    val names = if (empty) ArrayList<String>() else ArrayList(t.names)
-    val cols = if (empty) ArrayList<List<String>>() else ArrayList(t.columns)
-    val pairs = listOf("x" to "y", "u" to "v", "p" to "q", "s" to "w") + ('a'..'h').map { "x$it" to "y$it" }
-    sets.forEach { (xs, ys) ->
-        val (a, b) = pairs.firstOrNull { (a, b) -> a !in names && b !in names } ?: return@forEach
-        names += a; names += b
-        cols += xs.map { com.example.cas.graph.DataTable.text(it) }; cols += ys.map { com.example.cas.graph.DataTable.text(it) }
-    }
-    val n = cols.maxOfOrNull { it.size } ?: 0
-    return com.example.cas.graph.DataTable(names, cols.map { it + List(n - it.size) { "" } }, null, null)
-}
-
 private val WIDTHS = listOf(0.5, 0.75, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0)
 private val ALPHAS = listOf(0.15, 0.3, 0.5, 0.7, 0.85, 1.0)
 private val SIZES = listOf(1.5, 2.0, 3.0, 4.0, 5.0, 7.0)
 private val LEVELS = listOf(4, 6, 8, 10, 12, 16, 20, 30)
 private val BINS = listOf(0, 5, 10, 20, 40)
-private val CMAPS = listOf("viridis", "plasma", "magma", "inferno", "cividis", "turbo", "coolwarm", "RdBu", "Spectral", "twilight", "gray", "theme")
 
 private fun nearest(list: List<Double>, v: Double) = list.indices.minByOrNull { kotlin.math.abs(list[it] - v) } ?: 0
 
@@ -887,8 +978,57 @@ private fun LayerEditor(
             EditorChip(TableIcons.Table, "Edit table", onEditData)
             EditorChip(TableIcons.ImportData, "Import CSV") { importer.launch(arrayOf("text/*", "application/csv", "*/*")) }
         }
+        // A fitted curve's model: a ready-made one, or its own formula.
+        if (l.kind == Figure.Kind.Fit) {
+            PxHeader("Model")
+            val custom = s.model >= Figure.CUSTOM_FIT
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                com.example.cas.graph.FitModel.entries.forEachIndexed { k, m ->
+                    androidx.compose.material3.FilterChip(selected = !custom && s.model == k, onClick = { onChange(l.copy(style = s.copy(model = k))) }, label = { Text(tr(m.title)) })
+                }
+                androidx.compose.material3.FilterChip(selected = custom, onClick = { onChange(l.copy(style = s.copy(model = Figure.CUSTOM_FIT, formula = s.formula.ifBlank { "a*e^(-b*x) + c" }))) }, label = { Text(tr("Your own")) })
+            }
+            if (custom) {
+                var formula by remember(l.kind) { mutableStateOf(s.formula) }
+                OutlinedTextField(formula, { formula = it; onChange(l.copy(style = s.copy(formula = it))) }, label = { Text("y =") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    textStyle = TextStyle(fontFamily = CasFonts.Mono, fontSize = 16.sp, color = colors.onSurface),
+                    keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Ascii, imeAction = ImeAction.Done),
+                    supportingText = { Text(tr("In x; every other letter is a parameter to fit, like a*e^(-b*x) + c or a*sin(b*x + c)")) })
+                if (formula.isNotBlank()) Box(Modifier.padding(start = 12.dp).horizontalScroll(rememberScrollState())) {
+                    MathView(remember(formula) { MathRow(mutableListOf<com.example.cas.editor.Node>(Sym("y"), Sym("=")).apply { addAll(com.example.cas.engine.PlainMath.parse(formula.substringAfter('=')).items) }) }, 16.sp, colors.onSurfaceVariant)
+                }
+            }
+        }
         PxHeader("Look")
-        Row(
+        // Layers drawn through a colormap: the colormap picker, and their colorbar's label.
+        if (l.kind.mapped) {
+            var picking by remember { mutableStateOf(false) }
+            val (map, reversed) = com.example.cas.graph.Colormap.parse(s.cmap)
+            if (picking) ColormapPickerDialog(map, reversed, onPick = { m, r -> onChange(l.copy(style = s.copy(cmap = com.example.cas.graph.Colormap.save(m, r)))); picking = false }, onDismiss = { picking = false })
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainerHigh).clickable(onClickLabel = tr("Colormap")) { picking = true }.padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.width(72.dp).height(24.dp).clip(RoundedCornerShape(8.dp)).background(Brush.horizontalGradient(colormapStops(map, reversed = reversed))))
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(tr("Colormap"), style = MaterialTheme.typography.bodyLarge, color = colors.onSurface)
+                    Text(map.label + if (reversed) " · " + tr("Reversed") else "", style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
+                }
+                AppIcon(TableIcons.ChevronRight, contentDescription = null, tint = colors.onSurfaceVariant)
+            }
+            if (l.kind == Figure.Kind.Contour || l.kind == Figure.Kind.ContourF)
+                PxSteppedRow("Levels", LEVELS[LEVELS.indexOf(s.levels).coerceAtLeast(0)].toString(), LEVELS.indexOf(s.levels).coerceAtLeast(3), LEVELS.indices) { onChange(l.copy(style = s.copy(levels = LEVELS[it]))) }
+            if (l.kind == Figure.Kind.Hist2D || l.kind == Figure.Kind.Hexbin)
+                PxChoiceRow("Bins", BINS.map { if (it == 0) tr("Auto") else "$it" }, BINS.indexOf(s.bins).coerceAtLeast(0)) { onChange(l.copy(style = s.copy(bins = BINS[it]))) }
+            if (l.kind != Figure.Kind.Contour) {
+                PxSteppedRow("Opacity", "${(ALPHAS[nearest(ALPHAS, s.alpha)] * 100).toInt()} %", nearest(ALPHAS, s.alpha), ALPHAS.indices) { onChange(l.copy(style = s.copy(alpha = ALPHAS[it]))) }
+                OutlinedTextField(s.cbar, { onChange(l.copy(style = s.copy(cbar = it))) }, label = { Text(tr("Colorbar label")) }, singleLine = true, modifier = Modifier.fillMaxWidth(),
+                    supportingText = { Text(tr("\$math\$ between dollar signs, like \$T\$ (K)")) })
+            }
+        }
+        // Contour lines also take one color; the rest of the colormapped layers take none.
+        if (!l.kind.mapped || l.kind == Figure.Kind.Contour) Row(
             Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(16.dp)).background(colors.surfaceContainerHigh).clickable(onClickLabel = tr("Look")) { look = true }.padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -918,7 +1058,7 @@ private fun LayerEditor(
 /**
  * A layer's look, in the same Color dialog as a graph's line: the color (Default is the next in
  * the theme's cycle), line style and thickness, then the layer's own options under them
- * (marker, size, opacity, bins, colormap, levels, fitted model). Nothing changes until Done.
+ * (marker, size, opacity, bins). Nothing changes until Done.
  */
 @Composable
 private fun LayerLookDialog(l: Figure.Layer, current: Color, onApply: (Figure.Style) -> Unit, onDismiss: () -> Unit) {
@@ -936,7 +1076,6 @@ private fun LayerLookDialog(l: Figure.Layer, current: Color, onApply: (Figure.St
         extra = {
             val k = l.kind
             androidx.compose.runtime.CompositionLocalProvider(LocalCompactRows provides true) {
-                if (k == Figure.Kind.Fit) PxChoiceRow("Model", com.example.cas.graph.FitModel.entries.map { it.title }, draft.model.coerceIn(0, com.example.cas.graph.FitModel.entries.lastIndex)) { draft = draft.copy(model = it) }
                 if (k.lined && k != Figure.Kind.Contour && k != Figure.Kind.Quiver && k != Figure.Kind.Stream && k != Figure.Kind.Kde) MarkerChoice(draft.marker) { draft = draft.copy(marker = it) }
                 if (k == Figure.Kind.Scatter || k == Figure.Kind.Fit || draft.marker >= 0) PxSteppedRow("Marker size", null, nearest(SIZES, draft.size), SIZES.indices) { draft = draft.copy(size = SIZES[it]) }
                 PxSteppedRow("Opacity", "${(ALPHAS[nearest(ALPHAS, draft.alpha)] * 100).toInt()} %", nearest(ALPHAS, draft.alpha), ALPHAS.indices) { draft = draft.copy(alpha = ALPHAS[it]) }
@@ -947,10 +1086,6 @@ private fun LayerLookDialog(l: Figure.Layer, current: Color, onApply: (Figure.St
                         PxToggleRow("Cumulative", "Running totals", draft.cumulative) { draft = draft.copy(cumulative = it) }
                         PxToggleRow("Outline only", "histtype=\"step\"", draft.line == 1) { draft = draft.copy(line = if (it) 1 else 0); line = if (it) 1 else 0 }
                     }
-                }
-                if (k.mapped) {
-                    ColormapChoice(draft.cmap) { draft = draft.copy(cmap = it) }
-                    if (k == Figure.Kind.Contour || k == Figure.Kind.ContourF) PxSteppedRow("Levels", LEVELS[LEVELS.indexOf(draft.levels).coerceAtLeast(0)].toString(), LEVELS.indexOf(draft.levels).coerceAtLeast(3), LEVELS.indices) { draft = draft.copy(levels = LEVELS[it]) }
                 }
             }
         },
@@ -989,24 +1124,6 @@ private fun MarkerChoice(selected: Int, onPick: (Int) -> Unit) {
     }
 }
 
-@Composable
-private fun ColormapChoice(selected: String, onPick: (String) -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    Column(Modifier.padding(vertical = 6.dp)) {
-        PxRowTexts("Colormap", com.example.cas.graph.Colormap.byName(selected).label)
-        Row(Modifier.fillMaxWidth().padding(top = 12.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CMAPS.forEach { name ->
-                val map = com.example.cas.graph.Colormap.byName(name)
-                val on = name == selected
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clip(RoundedCornerShape(12.dp)).clickable { onPick(name) }.padding(4.dp)) {
-                    Box(Modifier.width(64.dp).height(24.dp).clip(RoundedCornerShape(8.dp)).background(Brush.horizontalGradient((0..8).map { Color(0xFF000000.toInt() or map.rgb(it / 8.0)) }))
-                        .then(if (on) Modifier.border(3.dp, colors.primary, RoundedCornerShape(8.dp)) else Modifier))
-                    Text(map.label, style = MaterialTheme.typography.labelSmall, color = if (on) colors.primary else colors.onSurfaceVariant)
-                }
-            }
-        }
-    }
-}
 
 /** A number typed with the phone's keyboard; empty means automatic. */
 @Composable
@@ -1029,13 +1146,19 @@ private fun AxesSettings(a: Figure.Axes, onChange: (Figure.Axes) -> Unit) {
         Text(tr("\$math\$ between dollar signs: \$t\$ (s), \$\\sigma^2\$"), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant)
     }
     PxHeader("Limits")
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        NumberField("x from", a.xMin, Modifier.weight(1f)) { onChange(a.copy(xMin = it)) }
-        NumberField("x to", a.xMax, Modifier.weight(1f)) { onChange(a.copy(xMax = it)) }
-    }
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        NumberField("y from", a.yMin, Modifier.weight(1f)) { onChange(a.copy(yMin = it)) }
-        NumberField("y to", a.yMax, Modifier.weight(1f)) { onChange(a.copy(yMax = it)) }
+    // Automatic (fitted to what's drawn) unless limits are typed.
+    var manual by remember { mutableStateOf(listOf(a.xMin, a.xMax, a.yMin, a.yMax).any { it != null }) }
+    PxCards({ PxToggleRow("Automatic limits", "Fitted to what's drawn", !manual) { auto -> manual = !auto; if (auto) onChange(a.copy(xMin = null, xMax = null, yMin = null, yMax = null)) } })
+    if (manual) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            NumberField("x from", a.xMin, Modifier.weight(1f)) { onChange(a.copy(xMin = it)) }
+            NumberField("x to", a.xMax, Modifier.weight(1f)) { onChange(a.copy(xMax = it)) }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            NumberField("y from", a.yMin, Modifier.weight(1f)) { onChange(a.copy(yMin = it)) }
+            NumberField("y to", a.yMax, Modifier.weight(1f)) { onChange(a.copy(yMax = it)) }
+        }
+        Text(tr("Leave one empty to fit that end to what's drawn."), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     PxHeader("Scales")
     PxCards(

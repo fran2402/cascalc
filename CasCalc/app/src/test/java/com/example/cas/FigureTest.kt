@@ -130,6 +130,44 @@ class FigureTest {
         assertEquals(2, w.drawn.size)
     }
 
+    @Test fun functionsOfColumnsWorkRowByRow() {
+        val t = DataTable(listOf("x", "y"), listOf(listOf("1", "2", "3"), listOf("0", "1", "2")), null, null)
+        val ev = Figure.withFallback(Figure.tableVariables(t)) { v, r -> Evaluator(variables = v).evaluate(com.example.cas.editor.MathCodec.copy(r)) }
+        fun data(s: String) = (Figure.value(com.example.cas.engine.PlainMath.parse(s), ev) as Figure.Value.Data).v.toList()
+        assertEquals(listOf(kotlin.math.sin(0.0), kotlin.math.sin(1.0), kotlin.math.sin(2.0)), data("sin(y)"))
+        assertEquals(listOf(0.0, 2.0, 6.0), data("x*y"))
+        assertEquals(listOf(1.0, 2.0, 5.0), data("y^2 + 1"))
+        // A whole-column function still sees the whole column.
+        assertEquals(1.0, (Figure.value(com.example.cas.engine.PlainMath.parse("mean(y)"), ev) as Figure.Value.Num).v, 1e-12)
+        // A line of a function of a column is drawn against the x column.
+        val w = Figure.build(doc(Figure.Layer(Kind.Plot, listOf(com.example.cas.engine.PlainMath.parse("y^2")))), ev, app).worked.single()
+        assertEquals(listOf(1.0, 2.0, 3.0), w.drawn.single().series.single().first.toList())
+        // Contours still take x and y as variables.
+        val c = Figure.build(doc(Figure.Layer(Kind.ContourF, listOf(com.example.cas.engine.PlainMath.parse("x^2 + y^2")))), ev, app).worked.single()
+        assertNull(c.drawn.single().error)
+    }
+
+    @Test fun ownFitModelsColorbarLabelsAndCellSizes() {
+        val xs = (0..12).map { it * 0.5 }
+        val t = DataTable(listOf("a", "b"), listOf(xs.map { "$it" }, xs.map { "${3 * kotlin.math.exp(-0.7 * it) + 1}" }), null, null)
+        val ev = Figure.withFallback(Figure.tableVariables(t)) { v, r -> Evaluator(variables = v).evaluate(com.example.cas.editor.MathCodec.copy(r)) }
+        val l = Figure.Layer(Kind.Fit, listOf(m("a"), m("b")), style = Figure.Style(model = Figure.CUSTOM_FIT, formula = "y = p*e^(-k*x) + c"))
+        val d = Figure.build(doc(l), ev, app).worked.single().drawn.single()
+        assertNull(d.error)
+        // Parameters in alphabetical order: c, k, p.
+        assertEquals(1.0, d.values[0], 1e-4); assertEquals(0.7, d.values[1], 1e-4); assertEquals(3.0, d.values[2], 1e-4)
+        assertTrue(Figure.legendName(d), Figure.legendName(d).contains("R^2"))
+        val styled = Figure.Doc("f", "", listOf(Figure.Axes(listOf(l.copy(style = l.style.copy(cbar = "\$T\$ (K)")))), Figure.Axes()), "AB", widths = listOf(2.0, 1.0))
+        val back = Figure.decode("f", Figure.encode(styled))
+        assertEquals("\$T\$ (K)", back.axes[0].layers[0].style.cbar)
+        assertEquals("y = p*e^(-k*x) + c", back.axes[0].layers[0].style.formula)
+        assertEquals(listOf(2.0, 1.0), back.widths)
+        val boxes = Figure.cellBoxes(back, 480.0)
+        assertEquals(320.0, boxes[0][2], 1e-9); assertEquals(160.0, boxes[1][2], 1e-9)
+        // Another layout drops sizes that no longer fit.
+        assertTrue(Figure.withLayout(back, "A;B").widths.isEmpty())
+    }
+
     @Test fun badInputsSayWhy() {
         val d = doc(Figure.Layer(Kind.Hist, listOf(m(f("sin", "x")))), Figure.Layer(Kind.Plot, listOf(m("x+y+z"))))
         val w = Figure.build(d, eval, app).worked.single()

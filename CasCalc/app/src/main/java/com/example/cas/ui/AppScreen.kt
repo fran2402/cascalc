@@ -89,17 +89,6 @@ fun AppScreen() {
         PlotsNav.show(d)
     }
 
-    // The figure's table and the 2D graph: points read from it, and sent to it as lines.
-    androidx.compose.runtime.SideEffect {
-        PlotsNav.graphPoints = {
-            graph2d.functions.filter { it.visible }.mapNotNull { (it.plot as? com.example.cas.ui.Plot2DKind.PointList)?.let { k -> k.xs to k.ys } }
-        }
-        PlotsNav.sendPoints = { sets ->
-            fun num(v: Double) = if (v == Math.rint(v) && kotlin.math.abs(v) < 1e15) v.toLong().toString() else v.toBigDecimal().round(java.math.MathContext(10)).stripTrailingZeros().toPlainString()
-            graph2d.show(sets.map { (xs, ys) -> com.example.cas.engine.PlainMath.parse(xs.indices.joinToString(", ", "[", "]") { "(" + num(xs[it]) + ", " + num(ys[it]) + ")" }) })
-        }
-    }
-
     // A graph file the app was opened with: imported, opened, and its mode shown.
     OpenGraphFileEffect(graphs, onSwitch = switchTo)
 
