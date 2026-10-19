@@ -286,6 +286,32 @@ class FigureTest {
         assertTrue(py.contains("bbox_to_anchor=(0.4")); assertTrue(py.contains("shrinkA=14.5"))
     }
 
+    @Test fun ownModelInTheLegendIsSetAsMath() {
+        // y = a·e^(−(x + x₀)²/σ²) + b: stacked fraction in the exponent, the built x₀, as LaTeX lays them out.
+        val x0 = Sym(com.example.cas.cas.CustomSymbol("x", sub = "0").encode())
+        val expo = MathRow(mutableListOf(Sym("−"), Frac(MathRow(mutableListOf(Sym("("), Sym("x"), Sym("+"), x0, Sym(")"), Pow(m("2")))), MathRow(mutableListOf(Sym("σ"), Pow(m("2")))))))
+        val row = MathRow(mutableListOf(Sym("a"), Sym("e"), Pow(expo), Sym("+"), Sym("b")))
+        fun p(s: String) = com.example.cas.engine.PlainMath.parse(s)
+        val xs = (0..40).map { it * 0.25 - 5 }
+        val ys = xs.map { 2 * kotlin.math.exp(-(it + 1) * (it + 1) / 2.0) + 0.5 }
+        val d = Figure.Doc("m", "", listOf(Figure.Axes(listOf(Figure.Layer(Kind.Fit, listOf(p(xs.joinToString(",", "[", "]")), p(ys.joinToString(",", "[", "]"))),
+            style = Figure.Style(model = Figure.CUSTOM_FIT, formula = Figure.formulaOf(row)))))))
+        val b = Figure.build(d, eval, app)
+        assertNull(b.worked.single().drawn.single().error)
+        val labels = b.scene.items.filterIsInstance<Scene.Label>().filter { it.baseline }
+        // Set by MathScene (labels on baselines), with the R² and no flattened "/" for the fraction.
+        assertTrue(labels.any { it.text.contains("R") })
+        assertTrue(labels.none { it.text.contains("/") })
+        assertTrue(labels.any { it.text == "0" || it.text.endsWith("0") })
+        // Starting values: kept in the file, and the fit begins from them.
+        val params = Figure.customModel(Figure.formulaOf(row))!!.params
+        val starts = Figure.startsText(params.associateWith { 1.0 } + ("a" to 2.0))
+        val withStarts = Figure.Doc("m", "", listOf(Figure.Axes(listOf(d.axes[0].layers[0].copy(style = d.axes[0].layers[0].style.copy(starts = starts))))))
+        assertEquals(starts, Figure.decode("m", Figure.encode(withStarts)).axes[0].layers[0].style.starts)
+        assertEquals(2.0, Figure.startsOf(starts)["a"]!!, 0.0)
+        assertNull(Figure.build(withStarts, eval, app).worked.single().drawn.single().error)
+    }
+
     @Test fun ownModelWithABuiltSymbolSurvives() {
         // y = (1 − x/x₀)^(−a), with x₀ a symbol from the builder: kept exactly, and fitted.
         val x0 = Sym(com.example.cas.cas.CustomSymbol("x", sub = "0").encode())

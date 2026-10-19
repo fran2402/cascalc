@@ -203,6 +203,16 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (19 October, Plots: crash fix, rearranging, fit starts, new home)
+
+- Fixed a crash when dragging the line between axes after several had been added (the cells were too narrow for the minimum room each side keeps).
+- Hold an axes and drag it onto another: the two trade places. Let go without moving for the axes' menu.
+- The axes' and figure's settings are popups on tablets too: a wide dialog with the settings in two columns side by side.
+- Legends set math as LaTeX does: your own fitted model shows its fractions stacked, exponents of exponents raised, and built symbols such as x₀ as they're written.
+- Your own fitted model has a slider for each parameter's starting value, so the fit can start near the right answer (Reset goes back to automatic).
+- The column buttons for inputs are grouped under their table's name when the figure has several tables (an Excel workbook's sheets, several files).
+- A new Plots home: a large hero card with New figure and From 2D graph, the templates in shapes and colors of their own, and the saved figures as a grid of pictures.
+
 ## Latest changes (19 October, axes added from the figure, shortcuts, tablet settings)
 
 - Plots: tap an axes, then a small + on one of its sides to add new axes there. On the figure's outer edge the new axes span that whole side; inside, they sit beside the one you tapped. Hold an axes to move it left, right, up or down, duplicate it, or remove it (asked first when it has layers). This replaces the preset layouts.

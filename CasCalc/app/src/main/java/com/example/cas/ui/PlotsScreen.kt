@@ -5,9 +5,11 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.drag
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlin.math.abs
+import kotlin.math.pow
 import kotlin.math.roundToInt
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -352,7 +354,11 @@ fun PlotsScreen(fromGraph: () -> Figure.Doc) {
     }
 }
 
-/** The saved figures, and new ones: from templates, from the 2D graph, or from a .casfig file. */
+/**
+ * The Plots mode's home, in Material 3 Expressive: a large hero card to start a figure (blank or
+ * from the 2D graph), templates in shapes and colors of their own, and the saved figures as a
+ * grid of pictures.
+ */
 @Composable
 private fun PlotsHome(onOpen: (Figure.Doc) -> Unit, fromGraph: () -> Figure.Doc) {
     val context = LocalContext.current
@@ -387,74 +393,132 @@ private fun PlotsHome(onOpen: (Figure.Doc) -> Unit, fromGraph: () -> Figure.Doc)
             dismissButton = { TextButton(onClick = { deleting = null }) { Text(tr("Cancel")) } },
         )
     }
-    // A new figure's card: its icon in a circle, its name and what it starts with.
-    @Composable
-    fun NewCard(name: String, detail: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier, onClick: () -> Unit) {
-        Column(modifier.clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainerHigh).clickable(onClickLabel = tr(name), onClick = onClick).padding(14.dp)) {
-            Box(Modifier.size(44.dp).clip(CircleShape).background(colors.primaryContainer), contentAlignment = Alignment.Center) {
-                AppIcon(icon, contentDescription = null, tint = colors.onPrimaryContainer, accent = colors.primary)
-            }
-            Spacer(Modifier.height(10.dp))
-            Text(tr(name), style = MaterialTheme.typography.titleMedium, color = colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(tr(detail), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        }
-    }
-    val columns = if (tablet) 2 else 1
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item {
-            PxHeader("New figure")
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                NewCard("From 2D graph", "Its curves and data, as layers", FigureIcons.of(Figure.Kind.Plot), Modifier.width(140.dp)) { onOpen(fromGraph()) }
-                FigureFactory.templates.forEach { t -> NewCard(t.name, t.detail, t.icon, Modifier.width(140.dp)) { onOpen(t.make()) } }
-                NewCard("Open file", "A .casfig figure", TableIcons.ImportData, Modifier.width(140.dp)) { opener.launch(arrayOf("*/*")) }
-            }
-            PxHeader("Saved")
-            if (docs.isEmpty()) PxFootnote("Saved figures show here. A table's Chart and the 2D graph's ⋮ › Open as figure start one too.")
-        }
-        items(docs.chunked(columns), key = { row -> row.joinToString { it.id } }) { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                row.forEach { d ->
-                    Box(Modifier.weight(1f)) {
-                        SavedFigureRow(d, onOpen = { onOpen(d) }, onRename = { renaming = d },
-                            onDuplicate = { FigureStore.save(context, d.withId(FigureStore.newId()).copy(name = d.name + " " + tr("copy"), edited = System.currentTimeMillis())); docs = FigureStore.list(context) },
-                            onShare = { shareBytes(context, safeFileName(d.name) + ".casfig", "application/octet-stream", Figure.encode(d).toByteArray()) },
-                            onDelete = { deleting = d })
+    // Each template in its own container color and shape, round the expressive set.
+    val tones = listOf(colors.primaryContainer to colors.onPrimaryContainer, colors.tertiaryContainer to colors.onTertiaryContainer, colors.secondaryContainer to colors.onSecondaryContainer)
+    val shapes = listOf<androidx.compose.ui.graphics.Shape>(CookieShape(9), RoundedCornerShape(30), CircleShape, CookieShape(6), RoundedCornerShape(topStartPercent = 50, bottomEndPercent = 50, topEndPercent = 18, bottomStartPercent = 18))
+    val columns = if (tablet) 3 else 2
+    androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+        columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(columns),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 40.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        val full: androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope.() -> androidx.compose.foundation.lazy.grid.GridItemSpan = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }
+        // The hero: a big, bold card with a figure drawing itself in the corner, and the two main ways in.
+        item(span = full) {
+            Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(36.dp)).background(colors.primaryContainer)) {
+                Canvas(Modifier.align(Alignment.TopEnd).size(width = if (tablet) 360.dp else 170.dp, height = if (tablet) 200.dp else 150.dp)) {
+                    val ink = colors.onPrimaryContainer
+                    val w = size.width; val h = size.height
+                    // Bars, a curve over them and a scatter of points: a figure in the brand's tones.
+                    val n = 7
+                    for (k in 0 until n) {
+                        val bh = h * (0.18f + 0.5f * kotlin.math.sin((k + 1) / (n + 1f) * 3.1f).toFloat())
+                        drawRoundRect(colors.primary.copy(alpha = 0.28f), Offset(w * 0.12f + k * w * 0.11f, h - bh - 8), androidx.compose.ui.geometry.Size(w * 0.08f, bh), androidx.compose.ui.geometry.CornerRadius(10f, 10f))
+                    }
+                    val path = Path()
+                    for (q in 0..40) { val x = w * 0.08f + w * 0.84f * q / 40; val y = h * 0.62f - h * 0.38f * kotlin.math.sin(q / 40f * 3.1f).toFloat(); if (q == 0) path.moveTo(x, y) else path.lineTo(x, y) }
+                    drawPath(path, ink, style = Stroke(4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                    listOf(0.2f to 0.5f, 0.35f to 0.3f, 0.55f to 0.22f, 0.72f to 0.35f, 0.86f to 0.55f).forEach { (fx, fy) -> drawCircle(colors.tertiary, 5.dp.toPx(), Offset(w * fx, h * fy)) }
+                }
+                Column(Modifier.padding(24.dp)) {
+                    Text(tr("Plots"), style = MaterialTheme.typography.displaySmall, color = colors.onPrimaryContainer)
+                    Spacer(Modifier.height(6.dp))
+                    Text(tr("Figures from functions and data, ready for a paper."), style = MaterialTheme.typography.bodyLarge, color = colors.onPrimaryContainer.copy(alpha = 0.8f), modifier = Modifier.widthIn(max = if (tablet) 420.dp else 190.dp))
+                    Spacer(Modifier.height(if (tablet) 56.dp else 28.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                        Row(Modifier.height(56.dp).clip(RoundedCornerShape(18.dp)).background(colors.primary).clickable(onClickLabel = tr("New figure")) { onOpen(FigureFactory.blank("Figure")) }.padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically) {
+                            AppIcon(TableIcons.Add, contentDescription = null, tint = colors.onPrimary, modifier = Modifier.size(22.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Text(tr("New figure"), style = MaterialTheme.typography.titleMedium, color = colors.onPrimary)
+                        }
+                        Row(Modifier.height(56.dp).clip(RoundedCornerShape(18.dp)).background(colors.surfaceContainerLowest.copy(alpha = 0.6f)).clickable(onClickLabel = tr("From 2D graph")) { onOpen(fromGraph()) }.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                            AppIcon(TableIcons.Mode2D, contentDescription = null, tint = colors.onSurface, modifier = Modifier.size(22.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Text(tr("From 2D graph"), style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
+                        }
                     }
                 }
-                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
             }
+        }
+        item(span = full) { Text(tr("Start from"), style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.padding(start = 4.dp, top = 12.dp)) }
+        item(span = full) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                val starts = FigureFactory.templates.filter { it.name != "Blank" }.map { Triple(it.name, it.detail, it.icon) to { onOpen(it.make()) } } +
+                    listOf(Triple("Open file", "A .casfig figure", TableIcons.ImportData) to { opener.launch(arrayOf("*/*")) })
+                starts.forEachIndexed { k, (t, go) ->
+                    val (bg, fg) = tones[k % tones.size]
+                    Column(Modifier.width(156.dp).clip(RoundedCornerShape(28.dp)).background(colors.surfaceContainerHigh).clickable(onClickLabel = tr(t.first), onClick = go).padding(16.dp)) {
+                        Box(Modifier.size(64.dp).clip(shapes[k % shapes.size]).background(bg), contentAlignment = Alignment.Center) {
+                            AppIcon(t.third, contentDescription = null, tint = fg, accent = fg, modifier = Modifier.size(30.dp))
+                        }
+                        Spacer(Modifier.height(14.dp))
+                        Text(tr(t.first), style = MaterialTheme.typography.titleMedium, color = colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(tr(t.second), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
+        item(span = full) {
+            Row(Modifier.padding(start = 4.dp, top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(tr("Saved"), style = MaterialTheme.typography.titleLarge, color = colors.onSurface)
+                if (docs.isNotEmpty()) {
+                    Spacer(Modifier.width(10.dp))
+                    Box(Modifier.clip(CircleShape).background(colors.secondaryContainer).padding(horizontal = 10.dp, vertical = 2.dp)) {
+                        Text("${docs.size}", style = MaterialTheme.typography.labelLarge, color = colors.onSecondaryContainer)
+                    }
+                }
+            }
+        }
+        if (docs.isEmpty()) item(span = full) {
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(colors.surfaceContainerLow).padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.size(72.dp).clip(CookieShape(9)).background(colors.tertiaryContainer), contentAlignment = Alignment.Center) {
+                    AppIcon(FigureIcons.Mode, contentDescription = null, tint = colors.onTertiaryContainer, accent = colors.onTertiaryContainer, modifier = Modifier.size(34.dp))
+                }
+                Spacer(Modifier.height(12.dp))
+                Text(tr("No saved figures yet"), style = MaterialTheme.typography.titleMedium, color = colors.onSurface)
+                Text(tr("Save one with the disk button in the editor. A table's Chart and the 2D graph start one too."), style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            }
+        }
+        items(docs.size, key = { docs[it].id }) { i ->
+            val d = docs[i]
+            SavedFigureCard(d, onOpen = { onOpen(d) }, onRename = { renaming = d },
+                onDuplicate = { FigureStore.save(context, d.withId(FigureStore.newId()).copy(name = d.name + " " + tr("copy"), edited = System.currentTimeMillis())); docs = FigureStore.list(context) },
+                onShare = { shareBytes(context, safeFileName(d.name) + ".casfig", "application/octet-stream", Figure.encode(d).toByteArray()) },
+                onDelete = { deleting = d })
         }
     }
 }
 
-/** A saved figure: a picture of it, its name and when it was saved, and its menu. */
+/** A saved figure as a card: its picture large on top, then its name, when it was saved, and its menu. */
 @Composable
-private fun SavedFigureRow(d: Figure.Doc, onOpen: () -> Unit, onRename: () -> Unit, onDuplicate: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit) {
+private fun SavedFigureCard(d: Figure.Doc, onOpen: () -> Unit, onRename: () -> Unit, onDuplicate: () -> Unit, onShare: () -> Unit, onDelete: () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val theme = appFigureTheme()
     var scene by remember(d.id, d.edited) { mutableStateOf<Scene?>(null) }
     LaunchedEffect(d.id, d.edited, theme) {
         val eval = figureEval(d)
-        scene = withContext(Dispatchers.Default) { runCatching { Figure.build(d, eval, theme, 320.0).scene }.getOrNull() }
+        scene = withContext(Dispatchers.Default) { runCatching { Figure.build(d, eval, theme, 360.0).scene }.getOrNull() }
     }
     var menu by remember { mutableStateOf(false) }
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(colors.surfaceContainerHigh).clickable(onClick = onOpen).padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(width = 112.dp, height = 80.dp).clip(RoundedCornerShape(14.dp)).background(Color(if (d.theme == 0) theme.background else Figure.THEMES.getOrElse(d.theme) { theme }.background))) {
-            FigureCanvas(scene, Modifier.fillMaxSize())
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(colors.surfaceContainerHigh).clickable(onClickLabel = tr("Open"), onClick = onOpen).padding(8.dp)) {
+        Box(Modifier.fillMaxWidth().aspectRatio(4f / 3f).clip(RoundedCornerShape(22.dp)).background(Color(if (d.theme == 0) theme.background else Figure.THEMES.getOrElse(d.theme) { theme }.background))) {
+            FigureCanvas(scene, Modifier.fillMaxSize().padding(4.dp))
         }
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(d.name.ifBlank { tr("Untitled figure") }, style = MaterialTheme.typography.titleMedium, color = colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(tr("{0} layers", d.axes.sumOf { it.layers.size }) + " · " + java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(d.edited)),
-                style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1)
-        }
-        Box {
-            IconButton(onClick = { menu = true }) { AppIcon(TableIcons.More, contentDescription = tr("More options"), tint = colors.onSurfaceVariant) }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                DropdownMenuItem(text = { Text(tr("Rename")) }, leadingIcon = { AppIcon(TableIcons.Edit, null) }, onClick = { menu = false; onRename() })
-                DropdownMenuItem(text = { Text(tr("Duplicate")) }, leadingIcon = { AppIcon(TableIcons.Copy, null) }, onClick = { menu = false; onDuplicate() })
-                DropdownMenuItem(text = { Text(tr("Share file")) }, leadingIcon = { AppIcon(TableIcons.Share, null) }, onClick = { menu = false; onShare() })
-                DropdownMenuItem(text = { Text(tr("Delete"), color = colors.error) }, leadingIcon = { AppIcon(TableIcons.Delete, null, tint = colors.error) }, onClick = { menu = false; onDelete() })
+        Row(Modifier.padding(start = 10.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(d.name.ifBlank { tr("Untitled figure") }, style = MaterialTheme.typography.titleMedium, color = colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM).format(java.util.Date(d.edited)), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1)
+            }
+            Box {
+                IconButton(onClick = { menu = true }) { AppIcon(TableIcons.More, contentDescription = tr("More options"), tint = colors.onSurfaceVariant) }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(text = { Text(tr("Rename")) }, leadingIcon = { AppIcon(TableIcons.Edit, null) }, onClick = { menu = false; onRename() })
+                    DropdownMenuItem(text = { Text(tr("Duplicate")) }, leadingIcon = { AppIcon(TableIcons.Copy, null) }, onClick = { menu = false; onDuplicate() })
+                    DropdownMenuItem(text = { Text(tr("Share file")) }, leadingIcon = { AppIcon(TableIcons.Share, null) }, onClick = { menu = false; onShare() })
+                    DropdownMenuItem(text = { Text(tr("Delete"), color = colors.error) }, leadingIcon = { AppIcon(TableIcons.Delete, null, tint = colors.error) }, onClick = { menu = false; onDelete() })
+                }
             }
         }
     }
@@ -678,10 +742,14 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
             selected = axes.layers.size
         }, onDismiss = pageDone)
         // As the graphs' settings: changes show at once; Cancel puts back how it was.
-        // On a tablet they take the place of the layers, beside the figure (see Controls); on a phone, a dialog.
-        FigurePage.Axes -> if (!tablet) GraphSettingsFrame("", true, onDone = pageDone, onDismiss = cancelPage, title = "Axes") { AxesSettings(axes) { setAxes(it) } }
-        FigurePage.Figure -> if (!tablet) GraphSettingsFrame("", true, onDone = pageDone, onDismiss = cancelPage, title = "Figure") {
-            FigureSettings(doc) { d -> change(d); axesAt = axesAt.coerceAtMost(d.axes.lastIndex) }
+        // A dialog; on a tablet a wide one, its settings in two columns side by side.
+        FigurePage.Axes -> if (tablet) WideSettings("Axes", onDone = pageDone, onDismiss = cancelPage,
+            left = { AxesSettings(axes, { setAxes(it) }, part = 0) }, right = { AxesSettings(axes, { setAxes(it) }, part = 1) })
+            else GraphSettingsFrame("", true, onDone = pageDone, onDismiss = cancelPage, title = "Axes") { AxesSettings(axes, { setAxes(it) }) }
+        FigurePage.Figure -> {
+            val set = { d: Figure.Doc -> change(d); axesAt = axesAt.coerceAtMost(d.axes.lastIndex) }
+            if (tablet) WideSettings("Figure", onDone = pageDone, onDismiss = cancelPage, left = { FigureSettings(doc, set, part = 0) }, right = { FigureSettings(doc, set, part = 1) })
+            else GraphSettingsFrame("", true, onDone = pageDone, onDismiss = cancelPage, title = "Figure") { FigureSettings(doc, set) }
         }
         FigurePage.Python -> PythonPage(doc, built, onBack = pageDone)
         FigurePage.None -> Unit
@@ -736,6 +804,8 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
      */
     // The held axes' menu (where the finger was), and removing axes that still have layers (asked first).
     var axesMenu by remember { mutableStateOf<Offset?>(null) }
+    // An axes being dragged to another place: (its index, where the finger started, where it is).
+    var shuffling by remember { mutableStateOf<Triple<Int, Offset, Offset>?>(null) }
     var removingAxes by remember { mutableStateOf(false) }
     if (removingAxes) androidx.compose.material3.AlertDialog(
         onDismissRequest = { removingAxes = false },
@@ -866,11 +936,8 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                         val sx = (p.x - f.dx) / f.k; val sy = (p.y - f.dy) / f.k
                         return Figure.cellBoxes(latest.value, f.sw.toDouble()).indexOfFirst { b -> sx >= b[0] && sx <= b[0] + b[2] && sy >= b[1] && sy <= b[1] + b[3] }
                     }
-                    // Tap an axes to edit it; hold one for its menu (move, copy, remove).
-                    detectTapGestures(
-                        onTap = { p -> if (Figure.axesCount(latest.value.layout) >= 2) hit(p).takeIf { it >= 0 }?.let { axesAt = it; selected = null } },
-                        onLongPress = { p -> hit(p).takeIf { it >= 0 }?.let { axesAt = it; selected = null; axesMenu = p } },
-                    )
+                    // Tap an axes to edit it (holding one is below: drag it elsewhere, or let go for its menu).
+                    detectTapGestures(onTap = { p -> if (Figure.axesCount(latest.value.layout) >= 2) hit(p).takeIf { it >= 0 }?.let { axesAt = it; selected = null } })
                 }
                 .pointerInput(Unit) {
                     val reach = with(density) { 22.dp.toPx() }
@@ -890,7 +957,23 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                             val row = (1 until ye.size - 1).minByOrNull { abs(f.dy + (top + ye[it].toFloat() * (f.sh - top)) * f.k - p.y) }?.takeIf { abs(f.dy + (top + ye[it].toFloat() * (f.sh - top)) * f.k - p.y) < reach }
                             divider = when { col != null -> true to col; row != null -> false to row; else -> null }
                         }
-                        if (target == null && divider == null) return@awaitEachGesture
+                        if (target == null && divider == null) {
+                            // Held on an axes: dragged onto another, the two trade places; let go where it was, its menu.
+                            val held = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+                            val f0 = fit(w, h)
+                            fun cellAt(p: Offset): Int { val sx = (p.x - f0.dx) / f0.k; val sy = (p.y - f0.dy) / f0.k; return Figure.cellBoxes(latest.value, f0.sw.toDouble()).indexOfFirst { b -> sx >= b[0] && sx <= b[0] + b[2] && sy >= b[1] && sy <= b[1] + b[3] } }
+                            val from = cellAt(down.position).takeIf { it >= 0 } ?: return@awaitEachGesture
+                            held.consume()
+                            axesAt = from; selected = null
+                            shuffling = Triple(from, down.position, held.position)
+                            var at = held.position
+                            drag(held.id) { ch -> ch.consume(); at = ch.position; shuffling = Triple(from, down.position, at) }
+                            shuffling = null
+                            val to = cellAt(at)
+                            if ((at - down.position).getDistance() < viewConfiguration.touchSlop || to < 0 || to == from) axesMenu = down.position
+                            else { change(Figure.swapAxes(latest.value, from, to)); axesAt = to }
+                            return@awaitEachGesture
+                        }
                         val first = awaitTouchSlopOrCancellation(down.id) { ch, _ -> ch.consume() } ?: return@awaitEachGesture
                         change(d, record = true)
                         if (target != null) moving = target else dragging = divider
@@ -908,7 +991,9 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                             val (xe, ye) = Figure.edges(dd)
                             val e = (if (across) xe else ye).copyOf()
                             val span = if (across) f.sw * f.k else (f.sh - Figure.titleSpace(dd).toFloat()) * f.k
-                            e[j] = (e[j] + (if (across) delta.x else delta.y) / span).coerceIn(e[j - 1] + 0.12, e[j + 1] - 0.12)
+                            // Each side keeps some room (less when the cells are already narrow, so the range is never empty).
+                            val room = minOf(0.12, (e[j + 1] - e[j - 1]) / 3)
+                            e[j] = (e[j] + (if (across) delta.x else delta.y) / span).coerceIn(e[j - 1] + room, e[j + 1] - room)
                             val shares = (1 until e.size).map { e[it] - e[it - 1] }
                             change(if (across) dd.copy(widths = shares) else dd.copy(heights = shares), record = false)
                         }
@@ -937,6 +1022,20 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                     val y = f.dy + (top + ye[j].toFloat() * (f.sh - top)) * f.k; val x = f.dx + f.sw / 2 * f.k
                     if (dragging == (false to j)) drawRoundRect(colors.primary, Offset(x - long / 2, y - thick / 2), androidx.compose.ui.geometry.Size(long, thick), androidx.compose.ui.geometry.CornerRadius(thick, thick))
                 }
+                // An axes being dragged: its outline follows the finger, and the axes it would trade with is filled.
+                shuffling?.let { (from, s0, now) ->
+                    val boxes = Figure.cellBoxes(d, f.sw.toDouble())
+                    fun rect(b: DoubleArray, dx: Float = 0f, dy: Float = 0f) = Offset(f.dx + b[0].toFloat() * f.k + dx, f.dy + b[1].toFloat() * f.k + dy) to androidx.compose.ui.geometry.Size(b[2].toFloat() * f.k, b[3].toFloat() * f.k)
+                    val sx = (now.x - f.dx) / f.k; val sy = (now.y - f.dy) / f.k
+                    boxes.indexOfFirst { b -> sx >= b[0] && sx <= b[0] + b[2] && sy >= b[1] && sy <= b[1] + b[3] }.takeIf { it >= 0 && it != from }?.let { to ->
+                        val (o, sz) = rect(boxes[to]); drawRoundRect(colors.primary.copy(alpha = 0.18f), o, sz, androidx.compose.ui.geometry.CornerRadius(14.dp.toPx(), 14.dp.toPx()))
+                    }
+                    boxes.getOrNull(from)?.let { b ->
+                        val (o, sz) = rect(b, now.x - s0.x, now.y - s0.y)
+                        drawRoundRect(colors.primary.copy(alpha = 0.12f), o, sz, androidx.compose.ui.geometry.CornerRadius(14.dp.toPx(), 14.dp.toPx()))
+                        drawRoundRect(colors.primary, o, sz, androidx.compose.ui.geometry.CornerRadius(14.dp.toPx(), 14.dp.toPx()), style = Stroke(2.dp.toPx()))
+                    }
+                }
                 // A text being moved, ringed.
                 moving?.let { m ->
                     // The legend outlined; anything else ringed under the finger.
@@ -947,7 +1046,7 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                 }
             }
             // A small + on each side of the axes being edited: a new axes there.
-            if (handles && moving == null && dragging == null) BoxWithConstraints(Modifier.fillMaxSize()) {
+            if (handles && moving == null && dragging == null && shuffling == null) BoxWithConstraints(Modifier.fillMaxSize()) {
                 val w = constraints.maxWidth.toFloat(); val h = constraints.maxHeight.toFloat()
                 val f = fit(w, h)
                 Figure.cellBoxes(doc, f.sw.toDouble()).getOrNull(axesAt)?.let { b ->
@@ -1001,13 +1100,7 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
     @Composable
     fun Controls(modifier: Modifier) {
         Box(modifier) {
-            if (tablet && (page == FigurePage.Axes || page == FigurePage.Figure)) {
-                // The axes' or figure's settings beside the figure, which shows each change at once.
-                SettingsPane(if (page == FigurePage.Axes) "Axes" else "Figure", onDone = pageDone, onCancel = cancelPage) {
-                    if (page == FigurePage.Axes) AxesSettings(axes) { setAxes(it) }
-                    else FigureSettings(doc) { d -> change(d); axesAt = axesAt.coerceAtMost(d.axes.lastIndex) }
-                }
-            } else if (layer != null && sel != null) {
+            if (layer != null && sel != null) {
                 LayerEditor(
                     layer, built?.error(axesAt, layer), built?.worked?.getOrNull(axesAt)?.drawn?.firstOrNull { it.layer === layer }?.color,
                     table = sheet.table, sheets = sheets, sheetAt = sheetAt, sheetTabs = sheetTabs,
@@ -1148,7 +1241,7 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                 Column(Modifier.weight(1.3f).fillMaxHeight().padding(12.dp), verticalArrangement = Arrangement.Center) { Preview(Modifier.fillMaxWidth(), handles = layer == null) }
                 Box(Modifier.weight(1f).fillMaxHeight()) {
                     Controls(Modifier.fillMaxSize())
-                    if (layer == null && tab == 0 && page != FigurePage.Axes && page != FigurePage.Figure) AddLayerButton(Modifier.align(Alignment.BottomEnd).padding(20.dp)) { page = FigurePage.Gallery }
+                    if (layer == null && tab == 0) AddLayerButton(Modifier.align(Alignment.BottomEnd).padding(20.dp)) { page = FigurePage.Gallery }
                 }
             }
         } else {
@@ -1170,6 +1263,33 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
     }
 }
 
+/**
+ * A parameter's starting value for your own fitted model: its name as math, the value (or "auto"
+ * until one is set) and a slider. The slider spans a range round the value it opened with
+ * ([guess], the last fit's number, else 1), fixed while it's moved.
+ */
+@Composable
+private fun StartSlider(name: String, value: Double?, guess: Double?, key: String, onChange: (Double) -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val center = value ?: guess ?: 1.0
+    val reach = remember(name, key) { 10.0.pow(kotlin.math.ceil(kotlin.math.log10(maxOf(1.0, abs(center) * 2)))) }
+    var v by remember(value) { mutableStateOf(center) }
+    Column(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            MathView(remember(name) { MathRow(mutableListOf(Sym(name))) }, 18.sp, colors.onSurface)
+            Spacer(Modifier.weight(1f))
+            Text(if (value == null) tr("auto") + " · " + Figure.tickText(center) else java.math.BigDecimal(v).round(java.math.MathContext(4)).stripTrailingZeros().toPlainString().replace("-", "−"),
+                style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant)
+        }
+        ExpressiveSlider(
+            value = v.toFloat().coerceIn((-reach).toFloat(), reach.toFloat()),
+            onValueChange = { f -> val q = Math.round(f / (reach / 400)) * (reach / 400); if (q != v) { v = q; onChange(q) } },
+            valueRange = (-reach).toFloat()..reach.toFloat(),
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = tr("Starting value") },
+        )
+    }
+}
+
 /** A new axes' tab on a side of the axes being edited: a small, flat, rounded + (wide on the top and bottom, tall on the sides). */
 @Composable
 private fun AddSideTab(across: Boolean, modifier: Modifier, onClick: () -> Unit) {
@@ -1185,18 +1305,28 @@ private fun AddSideTab(across: Boolean, modifier: Modifier, onClick: () -> Unit)
 private fun figureAt(w: Figure.Worked, v: Double, across: Boolean): Double? =
     if (across) w.toFigure(v, w.frame[6])?.first else w.toFigure(w.frame[4], v)?.second
 
-/** A settings page in the editor's side (tablets): its title with Cancel and Done, and its rows scrolled under them. */
+/**
+ * The axes' or figure's settings on a tablet: a wide dialog as the graph settings' (title, then
+ * Cancel and Done), its settings in two columns that scroll on their own.
+ */
 @Composable
-private fun SettingsPane(title: String, onDone: () -> Unit, onCancel: () -> Unit, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+private fun WideSettings(title: String, onDone: () -> Unit, onDismiss: () -> Unit, left: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit, right: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     val colors = MaterialTheme.colorScheme
-    Column(Modifier.fillMaxSize().padding(end = 12.dp, bottom = 12.dp).clip(RoundedCornerShape(28.dp)).background(colors.surfaceContainerHigh)) {
-        Row(Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, top = 12.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(tr(title), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.weight(1f))
-            TextButton(onClick = onCancel) { Text(tr("Cancel")) }
-            TextButton(onClick = onDone) { Text(tr("Done")) }
-        }
-        androidx.compose.runtime.CompositionLocalProvider(LocalCompactRows provides true) {
-            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp)) { content() }
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(shape = RoundedCornerShape(28.dp), color = colors.surfaceContainerHigh, modifier = Modifier.fillMaxWidth(0.9f).widthIn(max = 1040.dp).fillMaxHeight(0.86f)) {
+            Column(Modifier.padding(top = 20.dp, bottom = 12.dp)) {
+                Text(tr(title), style = MaterialTheme.typography.headlineSmall, color = colors.onSurface, modifier = Modifier.padding(horizontal = 24.dp))
+                androidx.compose.runtime.CompositionLocalProvider(LocalCompactRows provides true) {
+                    Row(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp)) { left() }
+                        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp)) { right() }
+                    }
+                }
+                Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text(tr("Cancel")) }
+                    TextButton(onClick = onDone) { Text(tr("Done")) }
+                }
+            }
         }
     }
 }
@@ -1789,11 +1919,18 @@ private fun LayerEditor(
         // Every table's columns as buttons: tap one to put it in at the cursor.
         val named = sheets.flatMapIndexed { si, sh -> sh.table.names.indices.filter { sh.table.names[it].isNotBlank() }.map { si to it } }
         if (named.isNotEmpty() && l.kind != Figure.Kind.Parametric && l.kind != Figure.Kind.Polar) {
-            // All of them in view: wrapped onto as many lines as they need.
-            @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
-            androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                named.forEach { (si, c) ->
-                    Box(Modifier.clip(CircleShape).clickable(onClickLabel = tr("Put in")) { onColumn(si, c) }.padding(vertical = 4.dp)) { ColumnChip(sheets[si].table.names[c].trim()) }
+            // All of them in view, wrapped onto as many lines as they need; with several tables (a workbook's sheets, files), each under its name.
+            named.groupBy { it.first }.forEach { (si, cols) ->
+                if (sheets.size > 1) Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    AppIcon(TableIcons.Table, contentDescription = null, tint = colors.onSurfaceVariant, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(sheets[si].name.ifBlank { tr("Table") + " ${si + 1}" }, style = MaterialTheme.typography.labelMedium, color = colors.onSurfaceVariant)
+                }
+                @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+                androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    cols.forEach { (_, c) ->
+                        Box(Modifier.clip(CircleShape).clickable(onClickLabel = tr("Put in")) { onColumn(si, c) }.padding(vertical = 4.dp)) { ColumnChip(sheets[si].table.names[c].trim()) }
+                    }
                 }
             }
         }
@@ -1863,6 +2000,18 @@ private fun LayerEditor(
                             MathView(remember(p, shown) { MathRow((listOf<com.example.cas.editor.Node>(Sym(p), Sym("=")) + shown.map { Sym(it.toString()) }).toMutableList()) }, 18.sp, colors.onSurface)
                         }
                     }
+                }
+            }
+            // Your own model: where each parameter starts (the fit begins there; a good start finds the right peak).
+            if (custom && params.isNotEmpty()) {
+                val starts = Figure.startsOf(s.starts)
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(tr("Starting values"), style = MaterialTheme.typography.labelLarge, color = colors.primary, modifier = Modifier.weight(1f))
+                    if (starts.isNotEmpty()) TextButton(onClick = { onChange(l.copy(style = s.copy(starts = ""))) }) { Text(tr("Reset")) }
+                }
+                params.forEachIndexed { k, p ->
+                    val guess = fitted?.getOrNull(k)?.takeIf { it.isFinite() }
+                    StartSlider(p, starts[p], guess, key = s.formula) { v -> onChange(l.copy(style = s.copy(starts = Figure.startsText(Figure.startsOf(s.starts) + (p to v))))) }
                 }
             }
         }
@@ -2083,8 +2232,10 @@ private fun NumberField(label: String, value: Double?, modifier: Modifier, onCha
 
 /** The axes' page: titles, limits, scales, grid, frame and legend. */
 @Composable
-private fun AxesSettings(a: Figure.Axes, onChange: (Figure.Axes) -> Unit) {
+private fun AxesSettings(a: Figure.Axes, onChange: (Figure.Axes) -> Unit, part: Int = -1) {
     val colors = MaterialTheme.colorScheme
+    // [part]: 0 the titles and limits, 1 the scales, look and legend (a tablet's two columns), −1 all.
+    if (part != 1) {
     PxHeader("Titles")
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(a.title, { onChange(a.copy(title = it)) }, label = { Text(tr("Title")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
@@ -2105,6 +2256,8 @@ private fun AxesSettings(a: Figure.Axes, onChange: (Figure.Axes) -> Unit) {
             NumberField("y to", a.yMax, Modifier.weight(1f)) { onChange(a.copy(yMax = it)) }
         }
     }
+    }
+    if (part == 0) return
     PxHeader("Scales")
     PxCards(
         { PxToggleRow("Logarithmic x", "set_xscale(\"log\")", a.xLog) { onChange(a.copy(xLog = it)) } },
@@ -2144,8 +2297,10 @@ private fun AxesSettings(a: Figure.Axes, onChange: (Figure.Axes) -> Unit) {
 
 /** The figure's page: its title, layout, shape and look. */
 @Composable
-private fun FigureSettings(d: Figure.Doc, onChange: (Figure.Doc) -> Unit) {
+private fun FigureSettings(d: Figure.Doc, onChange: (Figure.Doc) -> Unit, part: Int = -1) {
     val colors = MaterialTheme.colorScheme
+    // [part]: 0 the title, layout and shape, 1 the styles (a tablet's two columns), −1 all.
+    if (part != 1) {
     PxHeader("Title")
     OutlinedTextField(d.title, { onChange(d.copy(title = it)) }, label = { Text(tr("Title over the figure")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
     // Axes are added from the figure itself: + on a side of the one being edited; hold one to move, copy or remove it.
@@ -2153,6 +2308,8 @@ private fun FigureSettings(d: Figure.Doc, onChange: (Figure.Doc) -> Unit) {
     PxHeader("Shape")
     val shapes = listOf(0.5, 0.667, 0.75, 1.0, 1.3)
     PxCards({ PxChoiceRow("Height", listOf("2 : 1", "3 : 2", "4 : 3", "1 : 1", "3 : 4"), nearest(shapes, d.aspect)) { onChange(d.copy(aspect = shapes[it])) } })
+    }
+    if (part == 0) return
     PxHeader("Style")
     // As the colormaps: a card each, a little plot in the style's colors over its name.
     val app = appFigureTheme()

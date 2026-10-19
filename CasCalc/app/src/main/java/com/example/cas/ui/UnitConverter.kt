@@ -449,7 +449,7 @@ private fun SwapButton(spin: Float, onSwap: () -> Unit) {
 }
 
 /** Material 3 Expressive's cookie: a circle with [lobes] soft scallops around its edge. */
-private class CookieShape(val lobes: Int) : androidx.compose.ui.graphics.Shape {
+internal class CookieShape(val lobes: Int) : androidx.compose.ui.graphics.Shape {
     override fun createOutline(size: androidx.compose.ui.geometry.Size, layoutDirection: androidx.compose.ui.unit.LayoutDirection, density: androidx.compose.ui.unit.Density): androidx.compose.ui.graphics.Outline {
         val path = androidx.compose.ui.graphics.Path()
         val cx = size.width / 2; val cy = size.height / 2

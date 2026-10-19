@@ -108,19 +108,29 @@ object Figure {
         val arrowByLength: Boolean = true, val arrowLength: Int = 0, val arrowScale: Double = 0.9, val arrowTip: Int = 0, val arrowTipSize: Double = 0.8, val arrows: Int = 17,
         /** An arrow's note: the room (in points) between the note and where its arrow starts. */
         val gap: Double = 8.0,
+        /** Your own fitted model's starting values, by parameter ("a=1.5;x₀=2"); the fit begins from them. */
+        val starts: String = "",
     ) {
         fun copy(color: Int = this.color, line: Int = this.line, marker: Int = this.marker, width: Double = this.width, alpha: Double = this.alpha,
                  label: String = this.label, bins: Int = this.bins, levels: Int = this.levels, cmap: String = this.cmap,
                  density: Boolean = this.density, cumulative: Boolean = this.cumulative, size: Double = this.size, argb: Int = this.argb, model: Int = this.model,
                  cbar: String = this.cbar, formula: String = this.formula, errCap: Double = this.errCap, errWidth: Double = this.errWidth, errBand: Boolean = this.errBand,
                  arrowByLength: Boolean = this.arrowByLength, arrowLength: Int = this.arrowLength, arrowScale: Double = this.arrowScale, arrowTip: Int = this.arrowTip,
-                 arrowTipSize: Double = this.arrowTipSize, arrows: Int = this.arrows, gap: Double = this.gap) =
+                 arrowTipSize: Double = this.arrowTipSize, arrows: Int = this.arrows, gap: Double = this.gap, starts: String = this.starts) =
             Style(color, line, marker, width, alpha, label, bins, levels, cmap, density, cumulative, size, argb, model, cbar, formula, errCap, errWidth, errBand,
-                arrowByLength, arrowLength, arrowScale, arrowTip, arrowTipSize, arrows, gap)
+                arrowByLength, arrowLength, arrowScale, arrowTip, arrowTipSize, arrows, gap, starts)
     }
 
     /** [Axes.legend] for a legend dragged to its own place ([Axes.legendX], [Axes.legendY]). */
     const val LEGEND_FREE = 10
+
+    /** Starting values as stored in [Style.starts]: parameter → value. */
+    fun startsOf(text: String): Map<String, Double> = text.split(';').mapNotNull { p ->
+        val k = p.lastIndexOf('='); if (k <= 0) null else p.substring(k + 1).toDoubleOrNull()?.let { p.substring(0, k) to it }
+    }.toMap()
+
+    /** [starts] written for [Style.starts]. */
+    fun startsText(starts: Map<String, Double>): String = starts.entries.joinToString(";") { (k, v) -> "$k=$v" }
 
     /** [Style.model] for a fitted curve's own formula, after the ready-made [FitModel]s. */
     val CUSTOM_FIT get() = FitModel.entries.size
@@ -539,10 +549,15 @@ object Figure {
     /** Axes [k] and its neighbor on [side] trade places (their contents swap; the layout stays). */
     fun moveAxes(d: Doc, k: Int, side: Side): Pair<Doc, Int> {
         val o = neighbor(d, k, side) ?: return d to k
+        return swapAxes(d, k, o) to o
+    }
+
+    /** Axes [a] and [b] trade places: each one's contents move into the other's cell. */
+    fun swapAxes(d: Doc, a: Int, b: Int): Doc {
         val list = d.axes.toMutableList()
-        if (k !in list.indices || o !in list.indices) return d to k
-        val t = list[k]; list[k] = list[o]; list[o] = t
-        return d.copy(axes = list) to o
+        if (a !in list.indices || b !in list.indices || a == b) return d
+        val t = list[a]; list[a] = list[b]; list[b] = t
+        return d.copy(axes = list)
     }
 
     /**
@@ -674,7 +689,7 @@ object Figure {
                 val flags = (if (s.density) 1 else 0) or (if (s.cumulative) 2 else 0)
                 appendLine((listOf("L", l.kind.name, if (l.visible) "1" else "0", s.color, s.line, s.marker, s.width, s.alpha, s.bins, s.levels, esc(s.cmap), flags, s.size,
                     esc(s.label), esc(l.text), l.inputs.size) + l.inputs.map { esc(MathCodec.encode(it)) } + listOf(s.argb, s.model, esc(s.cbar), esc(s.formula), s.errCap, s.errWidth, if (s.errBand) "1" else "0",
-                    if (s.arrowByLength) "1" else "0", s.arrowLength, s.arrowScale, s.arrowTip, s.arrowTipSize, s.arrows, s.gap)).joinToString("\t"))
+                    if (s.arrowByLength) "1" else "0", s.arrowLength, s.arrowScale, s.arrowTip, s.arrowTipSize, s.arrows, s.gap, esc(s.starts))).joinToString("\t"))
             }
         }
     }
@@ -726,7 +741,7 @@ object Figure {
                     val inputs = (0 until n).map { k -> runCatching { MathCodec.decode(s(16 + k)) }.getOrDefault(MathRow()) }
                     val style2 = style.copy(argb = i(16 + n, 0), model = i(17 + n, 0), cbar = s(18 + n), formula = s(19 + n),
                         errCap = d(20 + n) ?: 3.0, errWidth = d(21 + n) ?: 0.9, errBand = f.getOrNull(22 + n) == "1",
-                        arrowByLength = f.getOrNull(23 + n) != "0", arrowLength = i(24 + n, 0), arrowScale = d(25 + n) ?: 0.9, arrowTip = i(26 + n, 0), arrowTipSize = d(27 + n) ?: 0.8, arrows = i(28 + n, 17), gap = d(29 + n) ?: 8.0)
+                        arrowByLength = f.getOrNull(23 + n) != "0", arrowLength = i(24 + n, 0), arrowScale = d(25 + n) ?: 0.9, arrowTip = i(26 + n, 0), arrowTipSize = d(27 + n) ?: 0.8, arrows = i(28 + n, 17), gap = d(29 + n) ?: 8.0, starts = s(30 + n))
                     fun at(k: Int) = inputs.getOrElse(k) { MathRow() }
                     val ins = if (format >= 2) inputs else when (kindName) {
                         "ErrorBar" -> listOf(at(0), at(1), MathRow(), at(2))
@@ -1333,7 +1348,9 @@ object Figure {
                     val count = custom?.params?.size ?: model.params.size
                     // Its own model starts from a few guesses; the best fit is kept.
                     val r = if (px.size <= count) null else if (custom == null) Fit.leastSquares(fn, px, py, model.start(px, py))
-                        else listOf(1.0, 0.5, -1.0, 0.1, 2.0).mapNotNull { g -> runCatching { Fit.leastSquares(fn, px, py, DoubleArray(count) { g }) }.getOrNull() }
+                        else (listOfNotNull(startsOf(l.style.starts).takeIf { it.isNotEmpty() }?.let { st -> DoubleArray(count) { k -> st[custom.params[k]] ?: 1.0 } }) +
+                            listOf(1.0, 0.5, -1.0, 0.1, 2.0).map { g -> DoubleArray(count) { g } })
+                            .mapNotNull { g -> runCatching { Fit.leastSquares(fn, px, py, g) }.getOrNull() }
                             .filter { it.parameters.all { p -> p.isFinite() } }.maxByOrNull { if (it.rSquared.isFinite()) it.rSquared else -1e300 }
                     if (r == null) { bad(l, "Couldn't fit this model: more points, or another model"); continue }
                     val x = xs()
@@ -2080,10 +2097,14 @@ object Figure {
     private fun drawLegend(scene: Scene, w: Worked, t: Theme, left: Double, top: Double, right: Double, bottom: Double) {
         val entries = w.drawn.filter { it.error == null && legendName(it).isNotBlank() && it.layer.kind != Kind.Pie }
         if (entries.isEmpty()) return
-        val size = 8.5; val line = 12.0; val sample = 16.0
+        val size = 8.5; val sample = 16.0
+        // Each name set as LaTeX sets it (stacked fractions, exponents of exponents, built symbols),
+        // each entry as tall as its name needs.
+        val boxes = entries.map { e -> runCatching { MathScene.layout(Legend.row(legendName(e)), size, t.ink) }.getOrNull() }
         val texts = entries.map { spans(legendName(it)) }
-        val boxW = 8 + sample + 5 + (texts.maxOf { width(it, size) }) + 8
-        val boxH = 6 + entries.size * line
+        val heights = entries.indices.map { k -> boxes[k]?.let { max(12.0, it.height + 4) } ?: 12.0 }
+        val boxW = 8 + sample + 5 + entries.indices.maxOf { k -> boxes[k]?.width ?: width(texts[k], size) } + 8
+        val boxH = 6 + heights.sum()
         // "Best": the corner whose region holds the fewest drawn points.
         val place = if (w.axes.legend in 1..9) w.axes.legend else bestCorner(w, left, top, right, bottom, boxW, boxH)
         val col = (place - 1) % 3; val row = (place - 1) / 3
@@ -2097,7 +2118,7 @@ object Figure {
             scene.add(Scene.Stroke(listOf(doubleArrayOf(x, y, x + boxW, y, x + boxW, y + boxH, x, y + boxH, x, y)), withAlpha(t.muted, 0.5), 0.5))
         }
         entries.forEachIndexed { k, dr ->
-            val cy = y + 3 + line * (k + 0.5)
+            val cy = y + 3 + heights.take(k).sum() + heights[k] / 2
             val s = dr.layer.style
             val c = withAlpha(dr.color, s.alpha)
             val sx = x + 8
@@ -2111,7 +2132,9 @@ object Figure {
                     if (s.marker >= 0) Marker.of(if (s.marker >= 0) s.marker else 0).addTo(scene, sx + sample / 2, cy, 2.6, c)
                 }
             }
-            scene.add(Scene.Label(sx + sample + 5, cy, texts[k].joinToString("") { it.text }, size, t.ink, Scene.Anchor.Start, Scene.Font.Roman, spans = texts[k]))
+            val b = boxes[k]
+            if (b != null) b.draw(scene, sx + sample + 5, cy + (b.ascent - b.descent) / 2)
+            else scene.add(Scene.Label(sx + sample + 5, cy, texts[k].joinToString("") { it.text }, size, t.ink, Scene.Anchor.Start, Scene.Font.Roman, spans = texts[k]))
         }
     }
 

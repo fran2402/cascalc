@@ -376,9 +376,17 @@ Rename figure
 Delete {0}?	
 this figure	
 The saved figure will be removed.	
+Plots	
+Figures from functions and data, ready for a paper.	
+New figure	
+From 2D graph	
+Start from	
+Saved	
+No saved figures yet	
+Save one with the disk button in the editor. A table's Chart and the 2D graph start one too.	
 copy	
+Open	
 Untitled figure	
-{0} layers	
 A saved figure is called “{0}”: saving replaces it.	
 Replace “{0}”?	
 A saved figure already has this name. Saving replaces it with this one.	
@@ -396,6 +404,7 @@ Layers
 Data	
 Save as…	
 Your own model	
+Starting value	
 Add axes on this side	
 Edit	
 empty	
@@ -417,6 +426,8 @@ Put in
 Tap a column's name to put it in the input; double-tap the table to edit it.	
 Your own	
 Edit the model	
+Starting values	
+Reset	
 Auto	
 Colorbar label	
 Look	
@@ -431,7 +442,6 @@ Figure file
 Saved graphs	
 Close the search	
 Import a graph file (.g2d, .g3d, .gcp)	
-Plots	
 Nothing to save	
 The saved graph will be removed. The graph on screen isn't affected.	
 Save a graph to keep its lines, colors and sliders, and open it again later.	
@@ -465,7 +475,6 @@ chapters with
 worked examples, every key, and the spreadsheet functions	
 Reset all settings?	
 Every setting goes back to how it was when the app was installed. Your history, graphs, projects, symbols and pinned keys stay as they are.	
-Reset	
 Used for:	
 Search settings	
 No settings match	
@@ -730,6 +739,7 @@ Complex tools
 Multiply and divide points as numbers, take nth roots, or draw where a function f(z) from your list takes a point or a shape.	
 Options and names	
 Tap a line's color dot for its size, name and fill. Every construction is a line of text too: edit A = (1, 2), or type Circle(A, 3).	
+A .casfig figure	
 Exact answers	
 Graphs in 2D, 3D and the complex plane	
 Step by step	
