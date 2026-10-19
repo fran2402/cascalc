@@ -35,10 +35,16 @@ enum class Mode(val english: String, val icon: ImageVector) {
     Calculator("Calculator", TableIcons.ModeCalculator),
     Graph2D("2D graphing", TableIcons.Mode2D),
     Graph3D("3D graphing", TableIcons.Mode3D),
-    Complex("Complex plotting", TableIcons.ModeComplex);
+    Complex("Complex plotting", TableIcons.ModeComplex),
+    Plots("Plots", FigureIcons.Mode);
 
     /** Its name in the app's language. */
     val label: String get() = tr(english)
+
+    companion object {
+        /** The modes on offer: Plots only when it's turned on (Settings › Graphs). */
+        val shown: List<Mode> get() = entries.filter { it != Plots || AppSettings.plots }
+    }
 }
 
 /**
@@ -51,8 +57,13 @@ enum class Mode(val english: String, val icon: ImageVector) {
 fun ModeSwitcher(selected: Mode, onSelect: (Mode) -> Unit, modifier: Modifier = Modifier, onGuide: (Mode) -> Unit = {}) {
     val colors = MaterialTheme.colorScheme
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    // Buttons shrink to fit narrow phones: the chosen one a little under twice as wide as the others.
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
+    val n = Mode.shown.size
+    val room = maxWidth - 12.dp - 6.dp * (n - 1)
+    val unit = minOf(48.dp, room / (n + 0.8f))
     Row(
-        modifier
+        Modifier
             .shadow(6.dp, CircleShape)
             .clip(CircleShape)
             .background(colors.surfaceContainerLowest)
@@ -60,10 +71,10 @@ fun ModeSwitcher(selected: Mode, onSelect: (Mode) -> Unit, modifier: Modifier = 
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Mode.entries.forEach { mode ->
+        Mode.shown.forEach { mode ->
             val on = mode == selected
             val width by animateDpAsState(
-                if (on) 88.dp else 48.dp,
+                if (on) unit * 1.8f else unit,
                 spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMediumLow),
                 label = "width",
             )
@@ -72,7 +83,7 @@ fun ModeSwitcher(selected: Mode, onSelect: (Mode) -> Unit, modifier: Modifier = 
             Box(
                 Modifier
                     .width(width)
-                    .height(48.dp)
+                    .height(unit)
                     .clip(CircleShape)
                     .background(bg)
                     // Hold for the mode's guide: what it does and examples to try.
@@ -89,8 +100,9 @@ fun ModeSwitcher(selected: Mode, onSelect: (Mode) -> Unit, modifier: Modifier = 
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                AppIcon(mode.icon, contentDescription = null, tint = fg, modifier = Modifier.size(24.dp))
+                AppIcon(mode.icon, contentDescription = null, tint = fg, modifier = Modifier.size(minOf(24.dp, unit * 0.55f)))
             }
         }
+    }
     }
 }

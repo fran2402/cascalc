@@ -208,7 +208,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 { PxToggleRow("Mark points on curves", "Zeros, extrema and crossings of the tapped curve", AppSettings.specialPoints, AppSettings::changeSpecialPoints) },
             )
             PxHeader("Plots")
-            PxCards({ PxToggleRow("Plots (beta)", "Figures after matplotlib (histograms, box plots, contours, fits…) as a notebook block and from the 2D graph's ⋮ menu", AppSettings.plots, AppSettings::changePlots) })
+            PxCards({ PxToggleRow("Plots (beta)", "Figures after matplotlib (histograms, box plots, contours, fits…): a mode after complex plotting, a notebook block, and the 2D graph's ⋮ menu", AppSettings.plots, AppSettings::changePlots) })
             PxHeader("Detail")
             DetailCards()
             PxFootnote("Higher detail is sharper but slower to draw. Each graph's own settings have the same sliders.")

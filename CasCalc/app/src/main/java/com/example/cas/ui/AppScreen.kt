@@ -42,7 +42,7 @@ fun AppScreen() {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("calculator", Context.MODE_PRIVATE) }
     // Where it was left, unless Settings › General says to open at the calculator.
-    var mode by remember { mutableStateOf(if (AppSettings.startInCalculator) Mode.Calculator else runCatching { Mode.valueOf(prefs.getString("mode", Mode.Calculator.name)!!) }.getOrDefault(Mode.Calculator)) }
+    var mode by remember { mutableStateOf(if (AppSettings.startInCalculator) Mode.Calculator else runCatching { Mode.valueOf(prefs.getString("mode", Mode.Calculator.name)!!) }.getOrNull()?.takeIf { it in Mode.shown } ?: Mode.Calculator) }
     val calculator: CalculatorViewModel = viewModel()
     // The graph modes are made on first use (each loads and works out its lines), not at launch.
     val owner = checkNotNull(androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner.current)
@@ -66,6 +66,7 @@ fun AppScreen() {
                 Mode.Graph2D -> graph2d.show(listOf(row))
                 Mode.Graph3D -> graph3d.show(listOf(row))
                 Mode.Complex -> complex.show(listOf(row))
+                Mode.Plots -> PlotsNav.show(FigureFactory.fromRow(row))
             }
             switchTo(m)
         }, onDismiss = { guide = null })
@@ -80,13 +81,20 @@ fun AppScreen() {
         else runCatching { Mode.valueOf(shortcut) }.getOrNull()?.let { switchTo(it) }
     }
 
-    // A figure asked for elsewhere (a table's Chart, the 2D graph's Open as figure): saved, opened in Plots.
+    // A figure asked for elsewhere (a table's Chart, the 2D graph's Open as figure): opened in Plots.
     val figureRequest = PlotsNav.request
     androidx.compose.runtime.LaunchedEffect(figureRequest) {
         val d = figureRequest ?: return@LaunchedEffect
         PlotsNav.request = null
         // Not saved until asked: leaving it asks whether to.
         PlotsNav.show(d)
+    }
+    // A figure opened (from there, or from Saved graphs): the Plots mode shows it.
+    androidx.compose.runtime.LaunchedEffect(PlotsNav.open) {
+        if (!PlotsNav.open) return@LaunchedEffect
+        PlotsNav.open = false
+        NotebookNav.open = false
+        switchTo(Mode.Plots)
     }
 
     // A graph file the app was opened with: imported, opened, and its mode shown.
@@ -104,6 +112,10 @@ fun AppScreen() {
                 // Graphs have no button here: double-tap a graph to reset its view.
                 when (mode) {
                     Mode.Calculator -> CalculatorLeadingAction(calculator)
+                    // The saved figures (from a figure open in the editor; it asks about unsaved changes first).
+                    Mode.Plots -> IconButton(onClick = { PlotsNav.closeAsked = true }, enabled = PlotsNav.doc != null) {
+                        AppIcon(TableIcons.Folder, contentDescription = tr("Saved figures"), tint = if (PlotsNav.doc != null) colors.onSurfaceVariant else colors.outline)
+                    }
                     // Saved graphs of every graph mode; opening one switches to its mode.
                     else -> ProjectsButton(mode, graphs, onSwitch = switchTo)
                 }
@@ -114,7 +126,8 @@ fun AppScreen() {
             Box(Modifier.size(48.dp).tourTarget("more"), contentAlignment = Alignment.Center) {
                 // The ⋮ menu (settings, acknowledgements) is in every mode; the calculator's own
                 // entries (copy, clear history) come with it there.
-                if (mode == Mode.Calculator) CalculatorTrailingAction(calculator) else GraphMenuAction()
+                if (mode == Mode.Calculator) CalculatorTrailingAction(calculator)
+                else GraphMenuAction(onOpenAsFigure = if (mode == Mode.Graph2D && AppSettings.plots) ({ PlotsNav.request = FigureFactory.fromGraph(graph2d.functions) }) else null)
             }
         }
         AnimatedContent(targetState = mode, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "mode", modifier = Modifier.weight(1f)) { m ->
@@ -134,6 +147,7 @@ fun AppScreen() {
                 })
                 Mode.Graph3D -> Graph3DScreen(graph3d, onUseValue = { v -> calculator.insertNumber(v); switchTo(Mode.Calculator) })
                 Mode.Complex -> ComplexScreen(complex, onUseValue = { v -> calculator.insertComplex(v); switchTo(Mode.Calculator) })
+                Mode.Plots -> PlotsScreen(fromGraph = { FigureFactory.fromGraph(graph2d.functions) })
             }
         }
     }
@@ -144,14 +158,12 @@ fun AppScreen() {
         NotebookNav.open = false
         graph2d.show(request.rows); switchTo(Mode.Graph2D)
     })
-    // Plots (Settings › Graphs), over everything: from the 2D graph's ⋮ menu or a table's Chart.
-    if (PlotsNav.open) PlotsPage(onBack = { PlotsNav.open = false; PlotsNav.doc = null })
 }
 
 
 /** The ⋮ menu in the graph modes: settings and acknowledgements. */
 @Composable
-private fun GraphMenuAction() {
+private fun GraphMenuAction(onOpenAsFigure: (() -> Unit)? = null) {
     val colors = MaterialTheme.colorScheme
     var menu by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(false) }
@@ -166,6 +178,8 @@ private fun GraphMenuAction() {
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             DropdownMenuItem(text = { Text(tr("Notebooks")) }, leadingIcon = { AppIcon(TableIcons.Document, null) }, onClick = { menu = false; NotebookNav.open = true })
+            // The 2D graph as a figure, in Plots (Settings › Graphs).
+            if (onOpenAsFigure != null) DropdownMenuItem(text = { Text(tr("Open as figure")) }, leadingIcon = { AppIcon(FigureIcons.NewFigure, null) }, onClick = { menu = false; onOpenAsFigure() })
             if (AppSettings.unitConverter) DropdownMenuItem(
                 text = { Text(tr("Unit converter")) }, leadingIcon = { AppIcon(TableIcons.Converter, null) },
                 onClick = { menu = false; converter = true },

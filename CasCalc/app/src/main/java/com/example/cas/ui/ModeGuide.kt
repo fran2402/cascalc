@@ -141,7 +141,7 @@ private fun TabletGuide(mode: Mode, onMode: (Mode) -> Unit, onTry: (Mode, MathRo
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(tr("Guide"), style = MaterialTheme.typography.titleLarge, color = colors.onSurface, modifier = Modifier.padding(start = 8.dp, top = 8.dp, bottom = 8.dp))
-                    Mode.entries.forEach { m ->
+                    Mode.shown.forEach { m ->
                         val on = m == mode
                         val bg by animateColorAsState(if (on) colors.secondaryContainer else colors.surfaceContainer, label = "rail")
                         Row(
@@ -186,7 +186,7 @@ private fun TabletGuide(mode: Mode, onMode: (Mode) -> Unit, onTry: (Mode, MathRo
 private fun ModeChips(mode: Mode, onMode: (Mode) -> Unit) {
     val colors = MaterialTheme.colorScheme
     Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Mode.entries.forEach { m ->
+        Mode.shown.forEach { m ->
             val on = m == mode
             val bg by animateColorAsState(if (on) colors.primary else colors.surfaceContainerHigh, label = "chip")
             Row(

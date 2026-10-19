@@ -203,6 +203,18 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (19 October, Plots as a mode, saving, dragging, tablet layout)
+
+- Plots is now its own mode, after complex plotting (when Plots is on in Settings › Graphs). It opens on the saved figures and new ones: from the 2D graph, from templates, or from a .casfig file. The button on the left of the top bar goes back to the saved figures.
+- The 2D graph's square zoom button is back. Opening the graph as a figure is now in its ⋮ menu.
+- The save button is a floppy disk with a menu: Save, and Save as for a new figure. Saving under a name another saved figure already has replaces it, after asking.
+- Drag in the figure to move horizontal and vertical lines, bands (an edge, or the whole band), notes, arrow tips and the legend. A dragged legend stays where you leave it, and the Python export places it there too.
+- Arrow notes have a gap setting: the room between the note and the start of its arrow.
+- On a tablet, the axes' and figure's settings open beside the figure instead of in a dialog, so every change shows at once. Typing an equation on the keypad keeps its box in view under the figure.
+- On a phone, a tall figure lets the page scroll, so the layers below it get room.
+- The layers list shows just what each layer draws. The hints under input boxes are gone.
+- The welcome page shows the app's icon in the theme's colors.
+
 ## Latest changes (19 October, plot editing: fits, notes, chips, fixes)
 
 - Swiping an item away no longer sometimes leaves it stuck as a red strip. If the item is still there after the swipe, it springs back.

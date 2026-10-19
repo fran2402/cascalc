@@ -113,7 +113,11 @@ private fun Welcome() {
         Column(Modifier.widthIn(max = 480.dp).fillMaxSize().padding(horizontal = 28.dp, vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.weight(0.6f))
             Box(Modifier.size(112.dp).clip(RoundedCornerShape(34.dp)).background(colors.primaryContainer), contentAlignment = Alignment.Center) {
-                Text("∫", style = TextStyle(fontFamily = CasFonts.CmRoman, fontSize = 64.sp), color = colors.onPrimaryContainer)
+                // The app's own icon, in the theme's colors (as the themed launcher icon).
+                androidx.compose.foundation.Image(
+                    androidx.compose.ui.res.painterResource(com.example.cas.R.drawable.ic_launcher_monochrome), contentDescription = null,
+                    colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(colors.onPrimaryContainer), modifier = Modifier.size(112.dp),
+                )
             }
             Spacer(Modifier.height(28.dp))
             Text(tr("Welcome"), style = MaterialTheme.typography.displaySmall, color = colors.onSurface)

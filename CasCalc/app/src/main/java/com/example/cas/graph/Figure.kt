@@ -106,16 +106,21 @@ object Figure {
         val errCap: Double = 3.0, val errWidth: Double = 0.9, val errBand: Boolean = false,
         /** Arrows (as the 2D graph's vector fields): colored by length along [cmap], [VectorField.Length] and scale, [VectorField.Tip] and its size, how many across. */
         val arrowByLength: Boolean = true, val arrowLength: Int = 0, val arrowScale: Double = 0.9, val arrowTip: Int = 0, val arrowTipSize: Double = 0.8, val arrows: Int = 17,
+        /** An arrow's note: the room (in points) between the note and where its arrow starts. */
+        val gap: Double = 8.0,
     ) {
         fun copy(color: Int = this.color, line: Int = this.line, marker: Int = this.marker, width: Double = this.width, alpha: Double = this.alpha,
                  label: String = this.label, bins: Int = this.bins, levels: Int = this.levels, cmap: String = this.cmap,
                  density: Boolean = this.density, cumulative: Boolean = this.cumulative, size: Double = this.size, argb: Int = this.argb, model: Int = this.model,
                  cbar: String = this.cbar, formula: String = this.formula, errCap: Double = this.errCap, errWidth: Double = this.errWidth, errBand: Boolean = this.errBand,
                  arrowByLength: Boolean = this.arrowByLength, arrowLength: Int = this.arrowLength, arrowScale: Double = this.arrowScale, arrowTip: Int = this.arrowTip,
-                 arrowTipSize: Double = this.arrowTipSize, arrows: Int = this.arrows) =
+                 arrowTipSize: Double = this.arrowTipSize, arrows: Int = this.arrows, gap: Double = this.gap) =
             Style(color, line, marker, width, alpha, label, bins, levels, cmap, density, cumulative, size, argb, model, cbar, formula, errCap, errWidth, errBand,
-                arrowByLength, arrowLength, arrowScale, arrowTip, arrowTipSize, arrows)
+                arrowByLength, arrowLength, arrowScale, arrowTip, arrowTipSize, arrows, gap)
     }
+
+    /** [Axes.legend] for a legend dragged to its own place ([Axes.legendX], [Axes.legendY]). */
+    const val LEGEND_FREE = 10
 
     /** [Style.model] for a fitted curve's own formula, after the ready-made [FitModel]s. */
     val CUSTOM_FIT get() = FitModel.entries.size
@@ -139,13 +144,15 @@ object Figure {
         /** The numbers on each axis shown; each axis turned round (high to low); ticks pointing in; the legend in a box. */
         val xNumbers: Boolean = true, val yNumbers: Boolean = true, val xInvert: Boolean = false, val yInvert: Boolean = false,
         val ticksIn: Boolean = false, val legendFrame: Boolean = true,
+        /** With [legend] [LEGEND_FREE]: the legend box's top left corner as shares of the plot's frame (dragged there). */
+        val legendX: Double = 0.02, val legendY: Double = 0.02,
     ) {
         fun copy(layers: List<Layer> = this.layers, title: String = this.title, xLabel: String = this.xLabel, yLabel: String = this.yLabel,
                  xMin: Double? = this.xMin, xMax: Double? = this.xMax, yMin: Double? = this.yMin, yMax: Double? = this.yMax,
                  xLog: Boolean = this.xLog, yLog: Boolean = this.yLog, grid: Int = this.grid, legend: Int = this.legend, spines: Int = this.spines, equal: Boolean = this.equal,
                  xNumbers: Boolean = this.xNumbers, yNumbers: Boolean = this.yNumbers, xInvert: Boolean = this.xInvert, yInvert: Boolean = this.yInvert,
-                 ticksIn: Boolean = this.ticksIn, legendFrame: Boolean = this.legendFrame) =
-            Axes(layers, title, xLabel, yLabel, xMin, xMax, yMin, yMax, xLog, yLog, grid, legend, spines, equal, xNumbers, yNumbers, xInvert, yInvert, ticksIn, legendFrame)
+                 ticksIn: Boolean = this.ticksIn, legendFrame: Boolean = this.legendFrame, legendX: Double = this.legendX, legendY: Double = this.legendY) =
+            Axes(layers, title, xLabel, yLabel, xMin, xMax, yMin, yMax, xLog, yLog, grid, legend, spines, equal, xNumbers, yNumbers, xInvert, yInvert, ticksIn, legendFrame, legendX, legendY)
     }
 
     /**
@@ -166,6 +173,9 @@ object Figure {
                  aspect: Double = this.aspect, data: DataTable = this.data, edited: Long = this.edited, name: String = this.name,
                  widths: List<Double> = this.widths, heights: List<Double> = this.heights, more: List<Sheet> = this.more, sheetName: String = this.sheetName) =
             Doc(id, title, axes, layout, theme, aspect, data, edited, name, widths, heights, more, sheetName)
+
+        /** The same figure under another id (saved as a new one, or over another). */
+        fun withId(other: String) = Doc(other, title, axes, layout, theme, aspect, data, edited, name, widths, heights, more, sheetName)
 
         /** Every table of the figure, [data] first. */
         val sheets: List<Sheet> get() = listOf(Sheet(sheetName, data)) + more
@@ -524,13 +534,13 @@ object Figure {
         for (a in d.axes) {
             appendLine(listOf("A", esc(a.title), esc(a.xLabel), esc(a.yLabel), num(a.xMin), num(a.xMax), num(a.yMin), num(a.yMax),
                 if (a.xLog) "1" else "0", if (a.yLog) "1" else "0", a.grid, a.legend, a.spines, if (a.equal) "1" else "0",
-                listOf(a.xNumbers, a.yNumbers, a.xInvert, a.yInvert, a.ticksIn, a.legendFrame).joinToString("") { if (it) "1" else "0" }).joinToString("\t"))
+                listOf(a.xNumbers, a.yNumbers, a.xInvert, a.yInvert, a.ticksIn, a.legendFrame).joinToString("") { if (it) "1" else "0" }, a.legendX, a.legendY).joinToString("\t"))
             for (l in a.layers) {
                 val s = l.style
                 val flags = (if (s.density) 1 else 0) or (if (s.cumulative) 2 else 0)
                 appendLine((listOf("L", l.kind.name, if (l.visible) "1" else "0", s.color, s.line, s.marker, s.width, s.alpha, s.bins, s.levels, esc(s.cmap), flags, s.size,
                     esc(s.label), esc(l.text), l.inputs.size) + l.inputs.map { esc(MathCodec.encode(it)) } + listOf(s.argb, s.model, esc(s.cbar), esc(s.formula), s.errCap, s.errWidth, if (s.errBand) "1" else "0",
-                    if (s.arrowByLength) "1" else "0", s.arrowLength, s.arrowScale, s.arrowTip, s.arrowTipSize, s.arrows)).joinToString("\t"))
+                    if (s.arrowByLength) "1" else "0", s.arrowLength, s.arrowScale, s.arrowTip, s.arrowTipSize, s.arrows, s.gap)).joinToString("\t"))
             }
         }
     }
@@ -568,7 +578,7 @@ object Figure {
                     val opts = f.getOrNull(14) ?: "110001"
                     fun o(k: Int, def: Boolean) = opts.getOrNull(k)?.let { it == '1' } ?: def
                     axes += Axes(emptyList(), s(1), s(2), s(3), d(4), d(5), d(6), d(7), f.getOrNull(8) == "1", f.getOrNull(9) == "1", i(10, 1), i(11, 0), i(12, 0), f.getOrNull(13) == "1",
-                        o(0, true), o(1, true), o(2, false), o(3, false), o(4, false), o(5, true))
+                        o(0, true), o(1, true), o(2, false), o(3, false), o(4, false), o(5, true), d(15) ?: 0.02, d(16) ?: 0.02)
                     layers.add(ArrayList())
                 }
                 "L" -> {
@@ -582,7 +592,7 @@ object Figure {
                     val inputs = (0 until n).map { k -> runCatching { MathCodec.decode(s(16 + k)) }.getOrDefault(MathRow()) }
                     val style2 = style.copy(argb = i(16 + n, 0), model = i(17 + n, 0), cbar = s(18 + n), formula = s(19 + n),
                         errCap = d(20 + n) ?: 3.0, errWidth = d(21 + n) ?: 0.9, errBand = f.getOrNull(22 + n) == "1",
-                        arrowByLength = f.getOrNull(23 + n) != "0", arrowLength = i(24 + n, 0), arrowScale = d(25 + n) ?: 0.9, arrowTip = i(26 + n, 0), arrowTipSize = d(27 + n) ?: 0.8, arrows = i(28 + n, 17))
+                        arrowByLength = f.getOrNull(23 + n) != "0", arrowLength = i(24 + n, 0), arrowScale = d(25 + n) ?: 0.9, arrowTip = i(26 + n, 0), arrowTipSize = d(27 + n) ?: 0.8, arrows = i(28 + n, 17), gap = d(29 + n) ?: 8.0)
                     fun at(k: Int) = inputs.getOrElse(k) { MathRow() }
                     val ins = if (format >= 2) inputs else when (kindName) {
                         "ErrorBar" -> listOf(at(0), at(1), MathRow(), at(2))
@@ -718,6 +728,8 @@ object Figure {
                  val xCategories: List<String>?, val yCategories: List<String>?, val pie: Boolean, val zMin: Double, val zMax: Double, val mapped: Drawn?) {
         /** Where it was drawn: the plot's frame (left, top, right, bottom) in the figure and the x and y it shows there (x0, x1, y0, y1). */
         var frame: DoubleArray = DoubleArray(0)
+        /** Where its legend was drawn (left, top, width, height in the figure), empty with none. */
+        var legendBox: DoubleArray = DoubleArray(0)
 
         /** The data point at figure position ([sx], [sy]), or null before it's drawn (straight axes; log axes in their logarithms). */
         fun toData(sx: Double, sy: Double): Pair<Double, Double>? {
@@ -1858,7 +1870,7 @@ object Figure {
                 // The arrow as the arrows' options have it (head, its size, the line), arrow and note in one color.
                 val ink = if (s.color >= 0 || s.argb != 0) color else t.ink
                 val tx = px(dr.values[2]); val ty = py(dr.values[3]); val ax = px(dr.values[0]); val ay = py(dr.values[1])
-                val ang = atan2(ay - ty, ax - tx); val gap = textSize(s) * 0.8
+                val ang = atan2(ay - ty, ax - tx); val gap = s.gap.coerceAtLeast(0.0)
                 val sx = tx + gap * cos(ang); val sy = ty + gap * sin(ang)
                 val lw = max(0.6, s.width * 0.6)
                 val tip = VectorField.Tip.entries.getOrElse(s.arrowTip) { VectorField.Tip.Triangle }
@@ -1941,8 +1953,11 @@ object Figure {
         // "Best": the corner whose region holds the fewest drawn points.
         val place = if (w.axes.legend in 1..9) w.axes.legend else bestCorner(w, left, top, right, bottom, boxW, boxH)
         val col = (place - 1) % 3; val row = (place - 1) / 3
-        val x = when (col) { 0 -> left + 6; 1 -> (left + right - boxW) / 2; else -> right - 6 - boxW }
-        val y = when (row) { 0 -> top + 6; 1 -> (top + bottom - boxH) / 2; else -> bottom - 6 - boxH }
+        // Dragged: where it was left, kept inside the frame.
+        val free = w.axes.legend == LEGEND_FREE
+        val x = if (free) (left + w.axes.legendX * (right - left)).coerceIn(left, max(left, right - boxW)) else when (col) { 0 -> left + 6; 1 -> (left + right - boxW) / 2; else -> right - 6 - boxW }
+        val y = if (free) (top + w.axes.legendY * (bottom - top)).coerceIn(top, max(top, bottom - boxH)) else when (row) { 0 -> top + 6; 1 -> (top + bottom - boxH) / 2; else -> bottom - 6 - boxH }
+        w.legendBox = doubleArrayOf(x, y, boxW, boxH)
         if (w.axes.legendFrame) {
             scene.add(Scene.Fill(listOf(doubleArrayOf(x, y, x + boxW, y, x + boxW, y + boxH, x, y + boxH)), withAlpha(t.face, 0.85)))
             scene.add(Scene.Stroke(listOf(doubleArrayOf(x, y, x + boxW, y, x + boxW, y + boxH, x, y + boxH, x, y)), withAlpha(t.muted, 0.5), 0.5))

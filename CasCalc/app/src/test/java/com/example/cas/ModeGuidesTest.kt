@@ -67,7 +67,8 @@ class ModeGuidesTest {
     }
 
     @Test fun everyGuideHasContent() {
-        assertEquals(4, ModeGuides.all.size)
+        // One per mode: calculator, the three graphs, Plots.
+        assertEquals(5, ModeGuides.all.size)
         ModeGuides.all.forEach { assertTrue(it.examples.size >= 5 && it.gestures.isNotEmpty()) }
     }
 }

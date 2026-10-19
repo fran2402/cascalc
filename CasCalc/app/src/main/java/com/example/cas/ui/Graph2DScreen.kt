@@ -683,11 +683,8 @@ private fun Graph2DCanvas(vm: Graph2DViewModel, onUseValue: (Double) -> Unit, mo
         }, tools = {
             // Circles of constant r mean nothing on log axes: turning the grid on goes back to linear ones.
             ToolToggle(PlotIcons.PolarGrid, "Polar grid", vm.polarGrid) { if (!vm.polarGrid) vm.setLogAxes(false, false); vm.polarGrid = !vm.polarGrid }
-            // With Plots on (Settings › Graphs): the graph as a figure to style and export. Otherwise
-            // equal scales on both axes, so circles look round.
-            if (AppSettings.plots) IconButton(onClick = { tap(); PlotsNav.request = FigureFactory.fromGraph(vm.functions) }) {
-                AppIcon(FigureIcons.NewFigure, contentDescription = tr("Open as figure"), tint = colors.onSurface)
-            } else IconButton(onClick = { tap(); vm.zoomSquare(size.width, size.height) }) {
+            // Equal scales on both axes, so circles look round. (The graph as a figure: ⋮ › Open as figure, or Plots.)
+            IconButton(onClick = { tap(); vm.zoomSquare(size.width, size.height) }) {
                 AppIcon(TableIcons.SquareZoom, contentDescription = tr("Square zoom: equal scales"), tint = colors.onSurface)
             }
             // The graph's settings, like Desmos's wrench: limits, grid, numbers, angle unit.

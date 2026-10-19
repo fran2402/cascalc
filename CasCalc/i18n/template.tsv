@@ -3,8 +3,10 @@
 # write each translation after the tab, and the app offers it in Settings › Language.
 # Lines left empty stay English. {0}, {1}… are filled in by the app; keep them. \n is a new line.
 Graph this	
+Saved figures	
 More options	
 Notebooks	
+Open as figure	
 Unit converter	
 Settings	
 Acknowledgements	
@@ -88,7 +90,6 @@ Close
 Graph. Drag to move, pinch to zoom, tap a curve to read a point, double-tap to reset.	
 Import points from a CSV, Excel or Google Sheets file	
 Import data	
-Open as figure	
 Square zoom: equal scales	
 Import sheets	
 Each sheet becomes its own line.	
@@ -370,6 +371,18 @@ Add math
 Add a graph	
 Add a figure	
 Share figure	
+That isn't a figure file	
+Rename figure	
+Delete {0}?	
+this figure	
+The saved figure will be removed.	
+copy	
+Untitled figure	
+{0} layers	
+A saved figure is called “{0}”: saving replaces it.	
+Replace “{0}”?	
+A saved figure already has this name. Saving replaces it with this one.	
+Save as new	
 Discard	
 Column “{0}” is now {1}, so it can be typed	
 Delete this layer?	
@@ -378,16 +391,13 @@ Added the table “{0}”
 Added {0} tables	
 Layers	
 Data	
-Untitled figure	
+Save as…	
 Your own model	
 Edit	
 empty	
 Rename table	
 Add tables from files	
-x is the variable; every other letter is a parameter to fit.	
-Enter goes to the next input.	
 Add a layer	
-Tap to set its inputs	
 Search: histogram, violin, contour…	
 e.g. sin(x), x^2/2, [1, 4, 9], a column, Signal[1:50]	
 Tap a column's name for a layer of it; double-tap the table to edit it.	
@@ -403,16 +413,12 @@ Put in
 Tap a column's name to put it in the input; double-tap the table to edit it.	
 Your own	
 Edit the model	
-In x; every other letter is a parameter to fit, like a·e^(−bx) + c or a·sin(bx + c)	
 Auto	
 Colorbar label	
-$math$ between dollar signs, like $T$ (K)	
 Look	
 Color, line and more	
 x label	
 y label	
-$math$ between dollar signs: $t$ (s), $\\sigma^2$	
-Leave one empty to fit that end to what's drawn.	
 Title over the figure	
 The same figure as a matplotlib script, with the numbers it was drawn from.	
 Copied	
@@ -422,11 +428,7 @@ Saved graphs
 Close the search	
 Import a graph file (.g2d, .g3d, .gcp)	
 Plots	
-copy	
 Nothing to save	
-Delete {0}?	
-this figure	
-The saved figure will be removed.	
 The saved graph will be removed. The graph on screen isn't affected.	
 Save a graph to keep its lines, colors and sliders, and open it again later.	
 No lines	
@@ -682,16 +684,14 @@ Complex plotting
 Maximum	
 Minimum	
 Zero	
+Save as a new figure	
+Save figure	
 Save this figure?	
 Save changes?	
-It goes into Saved graphs, under Plots.	
+It goes into Plots' saved figures.	
 Your changes to this figure aren't saved yet.	
 Hide	
 Show	
-Split by commas	
-$math$ between dollar signs	
-Empty: its equation and R²	
-Empty: not in the legend. $math$ between dollar signs	
 Finish	
 Unpin	
 Pin	

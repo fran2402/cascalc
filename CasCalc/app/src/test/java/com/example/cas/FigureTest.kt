@@ -241,6 +241,24 @@ class FigureTest {
         assertEquals(3.0, x, 1e-9); assertEquals(2.0, y, 1e-9)
     }
 
+    @Test fun draggedLegendAndArrowGapAreKept() {
+        fun p(s: String) = com.example.cas.engine.PlainMath.parse(s)
+        val d = Figure.Doc("g", "", listOf(Figure.Axes(listOf(
+            Figure.Layer(Kind.Plot, listOf(MathRow(), p("x")), style = Figure.Style(label = "line")),
+            Figure.Layer(Kind.Annotate, listOf(p("0"), p("0"), p("1"), p("1")), text = "Note", style = Figure.Style(gap = 14.5)),
+        ), legend = Figure.LEGEND_FREE, legendX = 0.4, legendY = 0.3)))
+        val back = Figure.decode("g", Figure.encode(d))
+        assertEquals(Figure.LEGEND_FREE, back.axes[0].legend)
+        assertEquals(0.4, back.axes[0].legendX, 1e-12); assertEquals(0.3, back.axes[0].legendY, 1e-12)
+        assertEquals(14.5, back.axes[0].layers[1].style.gap, 1e-12)
+        // The legend is drawn where it was left, and its box is known (to drag it again).
+        val w = Figure.build(d, eval, app).worked.single()
+        assertEquals(4, w.legendBox.size)
+        assertEquals(w.frame[0] + 0.4 * (w.frame[2] - w.frame[0]), w.legendBox[0], 1e-6)
+        val py = FigurePython.write(d, Figure.build(d, eval, app))
+        assertTrue(py.contains("bbox_to_anchor=(0.4")); assertTrue(py.contains("shrinkA=14.5"))
+    }
+
     @Test fun ownModelWithABuiltSymbolSurvives() {
         // y = (1 − x/x₀)^(−a), with x₀ a symbol from the builder: kept exactly, and fitted.
         val x0 = Sym(com.example.cas.cas.CustomSymbol("x", sub = "0").encode())

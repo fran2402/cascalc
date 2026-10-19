@@ -85,7 +85,7 @@ object FigurePython {
             }
             if (a.legend >= 0 && w.drawn.any { it.error == null && Figure.legendName(it).isNotBlank() }) {
                 appendLine("handles, labels = ax.get_legend_handles_labels()")
-                appendLine("ax.legend(handles[::-1], labels[::-1], loc=\"${LOC[a.legend.coerceIn(0, 9)]}\"${if (a.legendFrame) "" else ", frameon=False"})")
+                appendLine("ax.legend(handles[::-1], labels[::-1], ${if (a.legend == Figure.LEGEND_FREE) "loc=\"upper left\", bbox_to_anchor=(${n(a.legendX)}, ${n(1 - a.legendY)})" else "loc=\"" + LOC[a.legend.coerceIn(0, 9)] + "\""}${if (a.legendFrame) "" else ", frameon=False"})")
             }
         }
         appendLine()
@@ -172,7 +172,7 @@ object FigurePython {
             Figure.Kind.Annotate -> {
                 val ink = if (s.color >= 0 || s.argb != 0) ", $color" else ""
                 "ax.annotate(${str(l.text)}, xy=(${n(dr.values[0])}, ${n(dr.values[1])}), xytext=(${n(dr.values[2])}, ${n(dr.values[3])}), ha=\"center\", va=\"center\", fontsize=${n(Figure.textSize(s))}$ink, " +
-                    "arrowprops=dict(arrowstyle=\"${if (s.arrowTip == 2) "->" else if (s.arrowTip == 4) "-" else "-|>"}\", lw=${n(s.width * 0.6)}${if (s.color >= 0 || s.argb != 0) ", color=" + hex(dr.color) else ""}))"
+                    "arrowprops=dict(arrowstyle=\"${if (s.arrowTip == 2) "->" else if (s.arrowTip == 4) "-" else "-|>"}\", lw=${n(s.width * 0.6)}, shrinkA=${n(s.gap)}${if (s.color >= 0 || s.argb != 0) ", color=" + hex(dr.color) else ""}))"
             }
         })
         out.appendLine()

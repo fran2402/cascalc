@@ -156,6 +156,12 @@ object TableIcons {
     /** A tick: done, chosen. */
     val Check: ImageVector by lazy { tableIcon("Check", stroke = listOf("M4.5 12.5l5 5L19.5 7"), accent = setOf("M4.5 12.5l5 5L19.5 7")) }
 
+    /** A floppy disk: save (its label in the accent). */
+    val Save: ImageVector by lazy {
+        tableIcon("Save", stroke = listOf("M6 4h10l4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z", "M8.5 4.5v3.5h6V4.5", "M8 20v-5.5h8V20"),
+            shade = listOf("M8 20v-5.5h8V20z"), accent = setOf("M8 20v-5.5h8V20", "M8 20v-5.5h8V20z"))
+    }
+
     /** A plus: add. */
     val Add: ImageVector by lazy { tableIcon("Add", stroke = listOf("M12 5v14", "M5 12h14"), accent = setOf("M12 5v14", "M5 12h14")) }
 
