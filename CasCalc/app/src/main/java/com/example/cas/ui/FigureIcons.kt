@@ -34,6 +34,21 @@ object FigureIcons {
     val Shown: ImageVector by lazy { tableIcon("LayerShown", stroke = listOf("M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"), fill = listOf(dot(12f, 12f, 2.8f)), accent = setOf(dot(12f, 12f, 2.8f))) }
     val Hidden: ImageVector by lazy { tableIcon("LayerHidden", stroke = listOf("M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12z", "M4 20L20 4"), accent = setOf("M4 20L20 4")) }
 
+    /** The fitted curves' models, each its curve through a few points: line, quadratic, cubic, exponential, power, logarithm. */
+    val FitModels: List<ImageVector> by lazy {
+        fun fit(name: String, curve: String, pts: List<Pair<Float, Float>>) = pts.map { (x, y) -> dot(x, y, 1.3f) }.let { d ->
+            tableIcon(name, stroke = listOf(curve), thin = listOf(AXES), fill = d, accent = setOf(curve))
+        }
+        listOf(
+            fit("FitLine", "M5.5 17.5L20 6", listOf(8f to 13.5f, 12.5f to 12.5f, 16.5f to 8f)),
+            fit("FitQuadratic", "M5.5 5.5c3 14.5 10.5 14.5 14 0", listOf(7.5f to 12f, 12.5f to 17.5f, 17.5f to 11f)),
+            fit("FitCubic", "M5 17c2.5-11 5-11 7-6s4.5 5 7.5-6", listOf(7f to 9.5f, 12f to 12.5f, 17f to 9f)),
+            fit("FitExponential", "M5.5 17.5c7.5 0 11.5-2.5 14.5-12", listOf(9f to 15.5f, 14.5f to 13f, 18f to 9f)),
+            fit("FitPower", "M5.5 18c1-7 6-10.5 14.5-11.5", listOf(7.5f to 12f, 12f to 9.5f, 17f to 8.5f)),
+            fit("FitLogarithm", "M6.5 19.5c.5-7 4-11 13.5-12", listOf(8f to 13f, 12.5f to 9.5f, 17f to 8f)),
+        )
+    }
+
     private val icons = HashMap<Figure.Kind, ImageVector>()
 
     /** The icon for a layer type. */

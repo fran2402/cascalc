@@ -1193,8 +1193,8 @@ object Figure {
                     val x = xs()
                     val y = DoubleArray(x.size) { fn(x[it], r.parameters) }
                     y.filter { it.isFinite() }.let { f -> if (f.isNotEmpty()) { sampled.y(f.min()); sampled.y(f.max()) } }
-                    val eq = if (custom != null) "y = " + com.example.cas.engine.Latex.of(withNumbers(custom.row, custom.params, r.parameters))
-                        else model.equation(r.parameters) { v -> tickText(v).replace("−", "-") }
+                    // The legend: the model as written (its parameters' numbers are listed in the layer) and R².
+                    val eq = if (custom != null) "y = " + com.example.cas.engine.Latex.of(custom.row) else model.latex
                     val r2 = if (r.rSquared.isFinite()) ",\\; R^2 = " + String.format(java.util.Locale.ROOT, "%.4f", r.rSquared) else ""
                     drawn[l] = Drawn(l, color, series = listOf(x to y), raw = listOf(px, py), labels = listOf("$" + eq + r2 + "$"), values = r.parameters)
                 }
@@ -1279,6 +1279,9 @@ object Figure {
     }
 
     private fun binsOf(l: Layer, def: Int) = if (l.style.bins > 0) l.style.bins else def
+
+    /** A text's size: [Style.size] 3 is the labels' own. */
+    fun textSize(s: Style) = LABEL * s.size / 3.0
 
     /** A Gaussian kernel density estimate (Scott's bandwidth) of [data]: the ys it's taken at, and the density there. */
     fun kde(data: DoubleArray): Pair<DoubleArray, DoubleArray> {
@@ -1605,8 +1608,18 @@ object Figure {
             val ew = max(0.4, s.errWidth); val cap = s.errCap
             val ec = withAlpha(dr.color, s.alpha * 0.9)
             fun e(a: DoubleArray, k: Int) = if (a.isEmpty()) 0.0 else a[k]
-            if (s.errBand) {
-                // Shaded: y errors as a band along x, x errors as a band along y.
+            if (s.errBand && l.kind == Kind.Scatter) {
+                // Points: a shaded box round each, its width the x error and its height the y error (a marker wide when there's none).
+                val half = s.size * 1.4
+                val boxes = xs.indices.filter { xs[it].isFinite() && ys[it].isFinite() }.map { k ->
+                    val ey = e(dr.errY, k); val ex = e(dr.errX, k)
+                    val x0 = if (ex > 0) px(xs[k] - ex) else px(xs[k]) - half; val x1 = if (ex > 0) px(xs[k] + ex) else px(xs[k]) + half
+                    val y0 = if (ey > 0) py(ys[k] - ey) else py(ys[k]) + half; val y1 = if (ey > 0) py(ys[k] + ey) else py(ys[k]) - half
+                    doubleArrayOf(x0, y0, x1, y0, x1, y1, x0, y1)
+                }
+                boxes.forEach { scene.add(Scene.Fill(listOf(it), withAlpha(dr.color, s.alpha * 0.3))) }
+            } else if (s.errBand) {
+                // A line: y errors as a band along x, x errors as a band along y.
                 val ok = xs.indices.filter { xs[it].isFinite() && ys[it].isFinite() }
                 if (dr.errY.isNotEmpty()) ok.sortedBy { xs[it] }.takeIf { it.size >= 2 }?.let { ks ->
                     scene.add(Scene.Fill(listOf((ks.flatMap { listOf(px(xs[it]), py(ys[it] + e(dr.errY, it))) } + ks.reversed().flatMap { listOf(px(xs[it]), py(ys[it] - e(dr.errY, it))) }).toDoubleArray()), withAlpha(dr.color, s.alpha * 0.25)))
@@ -1682,7 +1695,7 @@ object Figure {
             }
             Kind.Hist -> {
                 val (edges, counts) = dr.series.single()
-                if (s.line == 1 || s.cumulative && s.density) {
+                if (s.line == 1) {
                     // histtype="step"
                     val path = ArrayList<Double>(); path += px(edges[0]); path += py(0.0)
                     for (k in counts.indices) { path += px(edges[k]); path += py(counts[k]); path += px(edges[k + 1]); path += py(counts[k]) }
@@ -1839,14 +1852,22 @@ object Figure {
             Kind.VLine -> scene.add(Scene.Stroke(dr.values.map { v -> doubleArrayOf(px(v), top, px(v), bottom) }, color, s.width, dash))
             Kind.HSpan -> rect(left, py(dr.values[1]), right, py(dr.values[0]), withAlpha(dr.color, s.alpha * 0.22))
             Kind.VSpan -> rect(px(dr.values[0]), top, px(dr.values[1]), bottom, withAlpha(dr.color, s.alpha * 0.22))
-            Kind.Text -> label(t, scene, px(dr.values[0]), py(dr.values[1]), l.text, LABEL, if (s.color >= 0) color else t.ink)
+            // Text: its own size, and its color once one is picked (else the theme's ink).
+            Kind.Text -> label(t, scene, px(dr.values[0]), py(dr.values[1]), l.text, textSize(s), if (s.color >= 0 || s.argb != 0) color else t.ink)
             Kind.Annotate -> {
-                val ink = if (s.color >= 0) color else t.ink
+                // The arrow as the arrows' options have it (head, its size, the line), arrow and note in one color.
+                val ink = if (s.color >= 0 || s.argb != 0) color else t.ink
                 val tx = px(dr.values[2]); val ty = py(dr.values[3]); val ax = px(dr.values[0]); val ay = py(dr.values[1])
-                val ang = atan2(ay - ty, ax - tx); val gap = 8.0
+                val ang = atan2(ay - ty, ax - tx); val gap = textSize(s) * 0.8
                 val sx = tx + gap * cos(ang); val sy = ty + gap * sin(ang)
-                scene.add(Scene.Stroke(listOf(doubleArrayOf(sx, sy, ax, ay), doubleArrayOf(ax - 5 * cos(ang - 0.4), ay - 5 * sin(ang - 0.4), ax, ay, ax - 5 * cos(ang + 0.4), ay - 5 * sin(ang + 0.4))), ink, max(0.8, s.width * 0.6)))
-                label(t, scene, tx, ty, l.text, LABEL, ink)
+                val lw = max(0.6, s.width * 0.6)
+                val tip = VectorField.Tip.entries.getOrElse(s.arrowTip) { VectorField.Tip.Triangle }
+                val head = VectorField.head(tip, ax, ay, cos(ang), sin(ang), (3.0 + lw * 2.5) * s.arrowTipSize * 1.4)
+                scene.add(Scene.Stroke(listOf(doubleArrayOf(sx, sy, head.shaftEndX, head.shaftEndY)), ink, lw, dash))
+                if (head.fills.isNotEmpty()) scene.add(Scene.Fill(head.fills, ink))
+                if (head.strokes.isNotEmpty()) scene.add(Scene.Stroke(head.strokes, ink, lw))
+                head.dot?.let { d -> scene.add(Scene.Fill(listOf(DoubleArray(24) { q -> val a = q / 2 * Math.PI / 6; if (q % 2 == 0) d[0] + d[2] * cos(a) else d[1] + d[2] * sin(a) }), ink)) }
+                label(t, scene, tx, ty, l.text, textSize(s), ink)
             }
             Kind.Pie -> Unit
         }

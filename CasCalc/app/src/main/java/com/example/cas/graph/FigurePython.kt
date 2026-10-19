@@ -168,8 +168,12 @@ object FigurePython {
             Figure.Kind.VLine -> if (dr.values.size == 1) "ax.axvline(${n(dr.values[0])}, $color$line$alpha$label)" else "for k, v in enumerate(${arr(dr.values)}):\n    ax.axvline(v, $color$line$alpha${if (label.isNotEmpty()) ", label=${str(Figure.legendName(dr))} if k == 0 else None" else ""})"
             Figure.Kind.HSpan -> "ax.axhspan(${n(dr.values[0])}, ${n(dr.values[1])}, $color, alpha=${n(s.alpha * 0.22)}$label)"
             Figure.Kind.VSpan -> "ax.axvspan(${n(dr.values[0])}, ${n(dr.values[1])}, $color, alpha=${n(s.alpha * 0.22)}$label)"
-            Figure.Kind.Text -> "ax.text(${n(dr.values[0])}, ${n(dr.values[1])}, ${str(l.text)}, ha=\"center\", va=\"center\")"
-            Figure.Kind.Annotate -> "ax.annotate(${str(l.text)}, xy=(${n(dr.values[0])}, ${n(dr.values[1])}), xytext=(${n(dr.values[2])}, ${n(dr.values[3])}), ha=\"center\", va=\"center\", arrowprops=dict(arrowstyle=\"->\"))"
+            Figure.Kind.Text -> "ax.text(${n(dr.values[0])}, ${n(dr.values[1])}, ${str(l.text)}, ha=\"center\", va=\"center\", fontsize=${n(Figure.textSize(s))}${if (s.color >= 0 || s.argb != 0) ", $color" else ""})"
+            Figure.Kind.Annotate -> {
+                val ink = if (s.color >= 0 || s.argb != 0) ", $color" else ""
+                "ax.annotate(${str(l.text)}, xy=(${n(dr.values[0])}, ${n(dr.values[1])}), xytext=(${n(dr.values[2])}, ${n(dr.values[3])}), ha=\"center\", va=\"center\", fontsize=${n(Figure.textSize(s))}$ink, " +
+                    "arrowprops=dict(arrowstyle=\"${if (s.arrowTip == 2) "->" else if (s.arrowTip == 4) "-" else "-|>"}\", lw=${n(s.width * 0.6)}${if (s.color >= 0 || s.argb != 0) ", color=" + hex(dr.color) else ""}))"
+            }
         })
         out.appendLine()
     }

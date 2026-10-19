@@ -203,6 +203,15 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (19 October, plot editing: fits, notes, chips, fixes)
+
+- Swiping an item away no longer sometimes leaves it stuck as a red strip. If the item is still there after the swipe, it springs back.
+- Text notes have a text size slider and keep their colour. Arrow notes use the arrow options (head style, head size, line width and dash), and the arrow and its text share the note's colour. Both carry over to the Python export.
+- Best fit lines: pick the model from a tab row with its own icon for each fit. "Your own" uses the pen icon and comes first. The fitted parameters are listed under the formula. The legend shows just the formula, rendered as math including built symbols such as x₀, and the R² value.
+- Column names inside an input field now use the same chip as the reading shown under the field.
+- Error bar bands now show for scatter points, as a shaded box around each point. Lines keep the connected band.
+- A cumulative histogram stays filled. It only turns into an outline when you choose the outline style.
+
 ## Latest changes (18 October, fix: table editor overlap while typing)
 
 - In the data table on a phone, the summary pill (Count, Sum…) and the + button no longer sit over the function suggestions while you type in a cell. They step aside while the keyboard is up and come back when it closes.

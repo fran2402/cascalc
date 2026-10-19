@@ -1641,10 +1641,17 @@ internal fun folderColor(folder: PlotFunction, scheme: androidx.compose.material
 @Composable
 internal fun SwipeToRemove(onRemove: () -> Unit, asks: () -> Boolean = { false }, content: @Composable () -> Unit) {
     val colors = MaterialTheme.colorScheme
+    // The latest actions: the state is remembered, and an old onRemove would act on an old list.
+    val remove = androidx.compose.runtime.rememberUpdatedState(onRemove)
+    val ask = androidx.compose.runtime.rememberUpdatedState(asks)
     val state = androidx.compose.material3.rememberSwipeToDismissBoxState(
         // When it asks first, the row snaps back and the dialog decides.
-        confirmValueChange = { value -> if (value != androidx.compose.material3.SwipeToDismissBoxValue.Settled) { onRemove(); !asks() } else false },
+        confirmValueChange = { value -> if (value != androidx.compose.material3.SwipeToDismissBoxValue.Settled) { remove.value(); !ask.value() } else false },
     )
+    // Still here a moment after being swiped away (it couldn't be removed): back in place, never stuck as a red strip.
+    LaunchedEffect(state.currentValue) {
+        if (state.currentValue != androidx.compose.material3.SwipeToDismissBoxValue.Settled) { kotlinx.coroutines.delay(400); state.reset() }
+    }
     androidx.compose.material3.SwipeToDismissBox(
         state = state,
         backgroundContent = {
