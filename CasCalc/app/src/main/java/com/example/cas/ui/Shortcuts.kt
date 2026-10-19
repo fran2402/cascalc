@@ -12,14 +12,14 @@ import androidx.core.graphics.drawable.IconCompat
 import com.example.cas.R
 
 /**
- * Home screen shortcuts: straight to the unit converter or a graph mode. They're on the app
+ * Home screen shortcuts: straight to the unit converter, a graph mode, Plots or the notebooks. They're on the app
  * icon (hold it) from res/xml/shortcuts.xml, and Settings can pin one to the home screen.
  */
 object Shortcuts {
     const val ACTION = "com.example.cas.action.OPEN"
     const val EXTRA = "open"
 
-    /** Where a shortcut asked to go ("converter" or a [Mode] name), waiting for the app to show it. */
+    /** Where a shortcut asked to go ("converter", "notebook" or a [Mode] name), waiting for the app to show it. */
     var target by mutableStateOf<String?>(null)
 
     /** The unit converter asked for by a shortcut, for the calculator screen to open. */
@@ -32,6 +32,8 @@ object Shortcuts {
         Entry("graph2d", Mode.Graph2D.name, "2D graph", "2D graphing", R.mipmap.shortcut_graph2d),
         Entry("graph3d", Mode.Graph3D.name, "3D graph", "3D graphing", R.mipmap.shortcut_graph3d),
         Entry("complex", Mode.Complex.name, "Complex", "Complex plane", R.mipmap.shortcut_complex),
+        Entry("plots", Mode.Plots.name, "Plots", "Plots", R.mipmap.shortcut_plots),
+        Entry("notebook", "notebook", "Notebooks", "Notebooks", R.mipmap.shortcut_notebook),
     )
 
     /** Asks the launcher to put [e] on the home screen (it shows its own confirmation). */

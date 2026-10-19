@@ -11,4 +11,8 @@
     <string name="shortcut_graph3d_long">3D graphing</string>
     <string name="shortcut_complex_short">Complex</string>
     <string name="shortcut_complex_long">Complex plane</string>
+    <string name="shortcut_plots_short">Plots</string>
+    <string name="shortcut_plots_long">Plots</string>
+    <string name="shortcut_notebook_short">Notebooks</string>
+    <string name="shortcut_notebook_long">Notebooks</string>
 </resources>

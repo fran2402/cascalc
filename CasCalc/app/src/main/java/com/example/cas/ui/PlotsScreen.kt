@@ -26,6 +26,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.layout.layout
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -733,8 +734,19 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
      * The figure, fitted into its box. With several axes: tap one to edit it (it's outlined), and
      * drag a line between them to make columns or rows wider or taller.
      */
+    // The held axes' menu (where the finger was), and removing axes that still have layers (asked first).
+    var axesMenu by remember { mutableStateOf<Offset?>(null) }
+    var removingAxes by remember { mutableStateOf(false) }
+    if (removingAxes) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { removingAxes = false },
+        title = { Text(tr("Remove these axes?")) },
+        text = { Text(tr("Their {0} layers go too.", axes.layers.size)) },
+        confirmButton = { TextButton(onClick = { removingAxes = false; change(Figure.removeAxes(doc, axesAt)); axesAt = 0; selected = null }) { Text(tr("Remove"), color = colors.error) } },
+        dismissButton = { TextButton(onClick = { removingAxes = false }) { Text(tr("Cancel")) } },
+    )
+
     @Composable
-    fun Preview(modifier: Modifier, compact: Boolean = false, fill: Boolean = false) {
+    fun Preview(modifier: Modifier, compact: Boolean = false, fill: Boolean = false, handles: Boolean = false) {
         val density = LocalDensity.current
         val latest = androidx.compose.runtime.rememberUpdatedState(doc)
         val latestBuilt = androidx.compose.runtime.rememberUpdatedState(built)
@@ -849,13 +861,16 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
             }
             Canvas(Modifier.fillMaxSize()
                 .pointerInput(Unit) {
-                    detectTapGestures { p ->
-                        if (Figure.axesCount(latest.value.layout) < 2) return@detectTapGestures
+                    fun hit(p: Offset): Int {
                         val f = fit(size.width.toFloat(), size.height.toFloat())
                         val sx = (p.x - f.dx) / f.k; val sy = (p.y - f.dy) / f.k
-                        val hit = Figure.cellBoxes(latest.value).indexOfFirst { b -> sx >= b[0] && sx <= b[0] + b[2] && sy >= b[1] && sy <= b[1] + b[3] }
-                        if (hit >= 0) { axesAt = hit; selected = null }
+                        return Figure.cellBoxes(latest.value, f.sw.toDouble()).indexOfFirst { b -> sx >= b[0] && sx <= b[0] + b[2] && sy >= b[1] && sy <= b[1] + b[3] }
                     }
+                    // Tap an axes to edit it; hold one for its menu (move, copy, remove).
+                    detectTapGestures(
+                        onTap = { p -> if (Figure.axesCount(latest.value.layout) >= 2) hit(p).takeIf { it >= 0 }?.let { axesAt = it; selected = null } },
+                        onLongPress = { p -> hit(p).takeIf { it >= 0 }?.let { axesAt = it; selected = null; axesMenu = p } },
+                    )
                 }
                 .pointerInput(Unit) {
                     val reach = with(density) { 22.dp.toPx() }
@@ -903,7 +918,7 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                 val f = fit(size.width, size.height)
                 val d = doc
                 // With several axes, the open one outlined, inside its cell so no edge is cut off.
-                if (Figure.axesCount(d.layout) > 1) Figure.cellBoxes(d, f.sw.toDouble()).getOrNull(axesAt)?.let { b ->
+                if (Figure.axesCount(d.layout) > 1 || handles) Figure.cellBoxes(d, f.sw.toDouble()).getOrNull(axesAt)?.let { b ->
                     val inset = 5.dp.toPx(); val sw = 2.dp.toPx()
                     val l = f.dx + b[0].toFloat() * f.k + inset; val t = f.dy + b[1].toFloat() * f.k + inset
                     val r = f.dx + (b[0] + b[2]).toFloat() * f.k - inset; val btm = f.dy + (b[1] + b[3]).toFloat() * f.k - inset
@@ -929,6 +944,55 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                     if (lb != null) drawRoundRect(colors.primary, Offset(f.dx + (lb[0].toFloat() * f.k) + m.moved.x, f.dy + lb[1].toFloat() * f.k + m.moved.y),
                         androidx.compose.ui.geometry.Size(lb[2].toFloat() * f.k, lb[3].toFloat() * f.k), androidx.compose.ui.geometry.CornerRadius(6.dp.toPx(), 6.dp.toPx()), style = Stroke(2.dp.toPx()))
                     else drawCircle(colors.primary, 14.dp.toPx(), m.start + m.moved, style = Stroke(2.dp.toPx()))
+                }
+            }
+            // A small + on each side of the axes being edited: a new axes there.
+            if (handles && moving == null && dragging == null) BoxWithConstraints(Modifier.fillMaxSize()) {
+                val w = constraints.maxWidth.toFloat(); val h = constraints.maxHeight.toFloat()
+                val f = fit(w, h)
+                Figure.cellBoxes(doc, f.sw.toDouble()).getOrNull(axesAt)?.let { b ->
+                    val l = f.dx + b[0].toFloat() * f.k; val t = f.dy + b[1].toFloat() * f.k
+                    val r = f.dx + (b[0] + b[2]).toFloat() * f.k; val btm = f.dy + (b[1] + b[3]).toFloat() * f.k
+                    val inset = with(density) { 5.dp.toPx() }
+                    Figure.Side.entries.forEach { side ->
+                        val across = side == Figure.Side.Above || side == Figure.Side.Below
+                        val (cx, cy) = when (side) {
+                            Figure.Side.Above -> (l + r) / 2 to t + inset
+                            Figure.Side.Below -> (l + r) / 2 to btm - inset
+                            Figure.Side.Left -> l + inset to (t + btm) / 2
+                            Figure.Side.Right -> r - inset to (t + btm) / 2
+                        }
+                        AddSideTab(across, Modifier.layout { m, c ->
+                            val p = m.measure(c.copy(minWidth = 0, minHeight = 0))
+                            layout(0, 0) { p.place((cx - p.width / 2f).roundToInt().coerceIn(0, maxOf(0, w.toInt() - p.width)), (cy - p.height / 2f).roundToInt().coerceIn(0, maxOf(0, h.toInt() - p.height))) }
+                        }) {
+                            val (next, k) = Figure.addBeside(doc, axesAt, side)
+                            change(next); axesAt = k; selected = null
+                        }
+                    }
+                }
+            }
+            // Held: the axes' menu, where the finger was.
+            axesMenu?.let { at ->
+                val count = Figure.axesCount(doc.layout)
+                Box(Modifier.offset { androidx.compose.ui.unit.IntOffset(at.x.roundToInt(), at.y.roundToInt()) }) {
+                    DropdownMenu(expanded = true, onDismissRequest = { axesMenu = null }) {
+                        listOf(Figure.Side.Left to "Move left", Figure.Side.Right to "Move right", Figure.Side.Above to "Move up", Figure.Side.Below to "Move down").forEach { (side, name) ->
+                            if (Figure.neighbor(doc, axesAt, side) != null) DropdownMenuItem(text = { Text(tr(name)) }, onClick = {
+                                axesMenu = null; val (next, k) = Figure.moveAxes(doc, axesAt, side); change(next); axesAt = k
+                            })
+                        }
+                        DropdownMenuItem(text = { Text(tr("Duplicate")) }, leadingIcon = { AppIcon(TableIcons.Copy, null) }, onClick = {
+                            axesMenu = null
+                            val (next, k) = Figure.addBeside(doc, axesAt, Figure.Side.Right)
+                            val copy = axes.copy()
+                            change(next.copy(axes = next.axes.mapIndexed { i, a -> if (i == k) copy else a })); axesAt = k
+                        })
+                        if (count > 1) DropdownMenuItem(text = { Text(tr("Remove axes"), color = colors.error) }, leadingIcon = { AppIcon(TableIcons.Delete, null, tint = colors.error) }, onClick = {
+                            axesMenu = null
+                            if (axes.layers.isEmpty()) { change(Figure.removeAxes(doc, axesAt)); axesAt = 0; selected = null } else removingAxes = true
+                        })
+                    }
                 }
             }
         }
@@ -1081,7 +1145,7 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
             }
         } else if (tablet) {
             Row(Modifier.weight(1f).fillMaxWidth()) {
-                Column(Modifier.weight(1.3f).fillMaxHeight().padding(12.dp), verticalArrangement = Arrangement.Center) { Preview(Modifier.fillMaxWidth()) }
+                Column(Modifier.weight(1.3f).fillMaxHeight().padding(12.dp), verticalArrangement = Arrangement.Center) { Preview(Modifier.fillMaxWidth(), handles = layer == null) }
                 Box(Modifier.weight(1f).fillMaxHeight()) {
                     Controls(Modifier.fillMaxSize())
                     if (layer == null && tab == 0 && page != FigurePage.Axes && page != FigurePage.Figure) AddLayerButton(Modifier.align(Alignment.BottomEnd).padding(20.dp)) { page = FigurePage.Gallery }
@@ -1096,7 +1160,7 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
                 val scrolls = !typing && figureHeight > viewport * 0.45f
                 // One layout either way (so a field being typed in keeps its place and focus).
                 Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState(), enabled = scrolls)) {
-                    Preview(Modifier.padding(horizontal = 12.dp).fillMaxWidth(), compact = typing)
+                    Preview(Modifier.padding(horizontal = 12.dp).fillMaxWidth(), compact = typing, handles = layer == null && !typing)
                     Controls(Modifier.fillMaxWidth().height(if (scrolls) viewport else (viewport - if (typing) 170.dp else figureHeight).coerceAtLeast(120.dp)))
                 }
                 if (layer == null && tab == 0) AddLayerButton(Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(16.dp)) { page = FigurePage.Gallery }
@@ -1104,6 +1168,17 @@ fun FigureEditor(start: Figure.Doc, eval: (Figure.Doc) -> (MathRow) -> Expr, onS
         }
     }
     }
+}
+
+/** A new axes' tab on a side of the axes being edited: a small, flat, rounded + (wide on the top and bottom, tall on the sides). */
+@Composable
+private fun AddSideTab(across: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Box(
+        modifier.size(if (across) 26.dp else 15.dp, if (across) 15.dp else 26.dp).clip(RoundedCornerShape(5.dp)).background(colors.primary)
+            .clickable(onClickLabel = tr("Add axes on this side"), onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { AppIcon(TableIcons.Add, contentDescription = tr("Add axes on this side"), tint = colors.onPrimary, modifier = Modifier.size(12.dp)) }
 }
 
 /** Where value [v] of an axes is across the figure: its x ([across]) or its y, in the figure's units. */
@@ -1512,28 +1587,6 @@ private fun InputField(label: String, value: TextFieldValue, columns: List<Strin
                 container = { androidx.compose.material3.OutlinedTextFieldDefaults.Container(enabled = true, isError = false, interactionSource = interaction, colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(), shape = RoundedCornerShape(16.dp)) },
             )
         }
-        // How it's read: math, with the table's columns as chips.
-        if (text.isNotBlank()) Box(Modifier.padding(start = 12.dp, top = 4.dp).horizontalScroll(rememberScrollState())) {
-            ReadAs(text, columns, 15.sp, colors.onSurfaceVariant)
-        }
-    }
-}
-
-/** An input as it's read: the calculator's math, or, with columns in it, the columns as chips among the rest. */
-@Composable
-private fun ReadAs(text: String, columns: List<String>, size: androidx.compose.ui.unit.TextUnit, ink: Color) {
-    val spans = remember(text, columns) { columnSpans(text, columns) }
-    if (spans.isEmpty()) { MathView(remember(text) { com.example.cas.engine.PlainMath.parse(text) }, size, ink); return }
-    val colors = MaterialTheme.colorScheme
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        var at = 0
-        fun rest(t: String) = t.replace("*", " · ").replace("-", " − ").replace("+", " + ").replace("/", " / ").replace(Regex(" +"), " ")
-        for (r in spans) {
-            if (r.first > at) Text(rest(text.substring(at, r.first)), style = TextStyle(fontSize = size, color = ink))
-            ColumnChip(text.substring(r.first, r.last + 1))
-            at = r.last + 1
-        }
-        if (at < text.length) Text(rest(text.substring(at)), style = TextStyle(fontSize = size, color = ink))
     }
 }
 
@@ -1736,7 +1789,9 @@ private fun LayerEditor(
         // Every table's columns as buttons: tap one to put it in at the cursor.
         val named = sheets.flatMapIndexed { si, sh -> sh.table.names.indices.filter { sh.table.names[it].isNotBlank() }.map { si to it } }
         if (named.isNotEmpty() && l.kind != Figure.Kind.Parametric && l.kind != Figure.Kind.Polar) {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // All of them in view: wrapped onto as many lines as they need.
+            @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+            androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 named.forEach { (si, c) ->
                     Box(Modifier.clip(CircleShape).clickable(onClickLabel = tr("Put in")) { onColumn(si, c) }.padding(vertical = 4.dp)) { ColumnChip(sheets[si].table.names[c].trim()) }
                 }
@@ -1767,7 +1822,7 @@ private fun LayerEditor(
                     Box(
                         Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(16.dp)).background(if (on) colors.primary else colors.surfaceContainerHigh)
                             .clickable(onClickLabel = name) {
-                                if (k < 0) { if (!custom) onChange(l.copy(style = s.copy(model = Figure.CUSTOM_FIT, formula = s.formula.ifBlank { "a*e^(-b*x) + c" }))); onEditMath(-1) }
+                                if (k < 0) { if (!custom) onChange(l.copy(style = s.copy(model = Figure.CUSTOM_FIT))); onEditMath(-1) }
                                 else onChange(l.copy(style = s.copy(model = k)))
                             },
                         contentAlignment = Alignment.Center,
@@ -2093,20 +2148,8 @@ private fun FigureSettings(d: Figure.Doc, onChange: (Figure.Doc) -> Unit) {
     val colors = MaterialTheme.colorScheme
     PxHeader("Title")
     OutlinedTextField(d.title, { onChange(d.copy(title = it)) }, label = { Text(tr("Title over the figure")) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-    PxHeader("Layout")
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Figure.LAYOUTS.forEach { lay ->
-            val on = lay == d.layout
-            Box(Modifier.size(width = 84.dp, height = 64.dp).clip(RoundedCornerShape(16.dp)).background(if (on) colors.primaryContainer else colors.surfaceContainerHigh)
-                .then(if (on) Modifier.border(2.dp, colors.primary, RoundedCornerShape(16.dp)) else Modifier).clickable { onChange(Figure.withLayout(d, lay)) }.padding(10.dp)) {
-                val (cells, cols, rows) = Figure.cells(lay)
-                Canvas(Modifier.fillMaxSize()) {
-                    val cw = size.width / cols; val ch = size.height / rows
-                    cells.forEach { c -> drawRoundRect(if (on) colors.primary else colors.onSurfaceVariant, Offset(c[0] * cw + 2, c[1] * ch + 2), androidx.compose.ui.geometry.Size(c[2] * cw - 4, c[3] * ch - 4), androidx.compose.ui.geometry.CornerRadius(6f, 6f), alpha = 0.55f) }
-                }
-            }
-        }
-    }
+    // Axes are added from the figure itself: + on a side of the one being edited; hold one to move, copy or remove it.
+    PxFootnote("Tap an axes in the figure, then a + on one of its sides to add axes there. Hold an axes to move, copy or remove it.")
     PxHeader("Shape")
     val shapes = listOf(0.5, 0.667, 0.75, 1.0, 1.3)
     PxCards({ PxChoiceRow("Height", listOf("2 : 1", "3 : 2", "4 : 3", "1 : 1", "3 : 4"), nearest(shapes, d.aspect)) { onChange(d.copy(aspect = shapes[it])) } })

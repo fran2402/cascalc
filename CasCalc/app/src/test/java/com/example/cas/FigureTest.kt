@@ -241,6 +241,33 @@ class FigureTest {
         assertEquals(3.0, x, 1e-9); assertEquals(2.0, y, 1e-9)
     }
 
+    @Test fun axesAddedOnEachSideMovedAndRemoved() {
+        val one = Figure.Doc("l", "", listOf(Figure.Axes(title = "first")))
+        val (right, r) = Figure.addBeside(one, 0, Figure.Side.Right)
+        assertEquals("AB", right.layout); assertEquals(1, r); assertEquals("first", right.axes[0].title)
+        val (left, l) = Figure.addBeside(one, 0, Figure.Side.Left)
+        assertEquals("AB", left.layout); assertEquals(0, l); assertEquals("first", left.axes[1].title)
+        // On the outer edge a new row spans the whole width; inside, only beside the axes.
+        val (below, b) = Figure.addBeside(right, 0, Figure.Side.Below)
+        assertEquals("AB;CC", below.layout); assertEquals(2, b)
+        val (inner, i) = Figure.addBeside(right.copy(axes = listOf(Figure.Axes(title = "a"), Figure.Axes(title = "b"))), 0, Figure.Side.Right)
+        assertEquals("ABC", inner.layout); assertEquals(1, i); assertEquals("b", inner.axes[2].title)
+        val (above, _) = Figure.addBeside(below, 2, Figure.Side.Above)
+        assertEquals(3, above.layout.split(';').size)
+        assertEquals(4, Figure.cells(above.layout).first.size)
+        // Neighbors and moving trade contents.
+        assertEquals(1, Figure.neighbor(right, 0, Figure.Side.Right)); assertNull(Figure.neighbor(right, 0, Figure.Side.Left))
+        val (moved, to) = Figure.moveAxes(right, 0, Figure.Side.Right)
+        assertEquals(1, to); assertEquals("first", moved.axes[1].title)
+        // Removing gives the room to a neighbor and folds the grid back.
+        assertEquals("A", Figure.removeAxes(right, 1).layout)
+        assertEquals("first", Figure.removeAxes(right, 1).axes.single().title)
+        assertEquals("AB", Figure.removeAxes(below, 2).layout)
+        val grid = Figure.withLayout(Figure.Doc("g", "", listOf(Figure.Axes())), "AB;CD")
+        val noB = Figure.removeAxes(grid, 1)
+        assertEquals(3, Figure.cells(noB.layout).first.size)
+    }
+
     @Test fun draggedLegendAndArrowGapAreKept() {
         fun p(s: String) = com.example.cas.engine.PlainMath.parse(s)
         val d = Figure.Doc("g", "", listOf(Figure.Axes(listOf(

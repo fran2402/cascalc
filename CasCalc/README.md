@@ -203,6 +203,15 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (19 October, axes added from the figure, shortcuts, tablet settings)
+
+- Plots: tap an axes, then a small + on one of its sides to add new axes there. On the figure's outer edge the new axes span that whole side; inside, they sit beside the one you tapped. Hold an axes to move it left, right, up or down, duplicate it, or remove it (asked first when it has layers). This replaces the preset layouts.
+- The column buttons for putting a column into an input wrap onto more lines, so all of them are in view.
+- The math preview under each input is gone: the chips in the field show the same thing.
+- Your own fitted model starts empty.
+- Home screen shortcuts for Plots and Notebooks, on the app icon and in Settings. The Plots shortcut turns Plots on if it was off.
+- Settings on a tablet use the phone's look: the categories with their tinted icons in grouped cards down the left, the chosen page beside them.
+
 ## Latest changes (19 October, Plots as a mode, saving, dragging, tablet layout)
 
 - Plots is now its own mode, after complex plotting (when Plots is on in Settings › Graphs). It opens on the saved figures and new ones: from the 2D graph, from templates, or from a .casfig file. The button on the left of the top bar goes back to the saved figures.

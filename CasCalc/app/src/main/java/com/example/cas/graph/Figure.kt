@@ -449,6 +449,140 @@ object Figure {
         return d.copy(layout = layout, axes = axes, widths = d.widths.takeIf { it.size == cols } ?: emptyList(), heights = d.heights.takeIf { it.size == rows } ?: emptyList())
     }
 
+    /** A side of an axes, where another can be added or looked for. */
+    enum class Side { Above, Below, Left, Right }
+
+    /** A layout as a grid: its rows of letters (padded with '.'), and its columns' and rows' shares. */
+    private class Mosaic(val g: List<CharArray>, val widths: List<Double>, val heights: List<Double>) {
+        val rows get() = g.size
+        val cols get() = g.firstOrNull()?.size ?: 0
+        fun transposed() = Mosaic(List(cols) { c -> CharArray(rows) { r -> g[r][c] } }, heights, widths)
+        fun mirrored() = Mosaic(g.map { it.reversedArray() }, widths.reversed(), heights)
+    }
+
+    private fun mosaic(d: Doc): Mosaic {
+        val rows = d.layout.split(';').map { it.trim() }.filter { it.isNotEmpty() }.ifEmpty { listOf("A") }
+        val cols = rows.maxOf { it.length }
+        val g = rows.map { r -> CharArray(cols) { r.getOrElse(it) { '.' } } }
+        return Mosaic(g, d.widths.takeIf { it.size == cols } ?: List(cols) { 1.0 }, d.heights.takeIf { it.size == rows.size } ?: List(rows.size) { 1.0 })
+    }
+
+    /**
+     * [g] as the figure's layout, its letters renamed A, B, C… in reading order, each axes kept with
+     * its cell ([axesOf] gives a letter's axes; a letter without one gets empty axes).
+     */
+    private fun fromGrid(d: Doc, g: Mosaic, axesOf: (Char) -> Axes?): Doc {
+        val order = ArrayList<Char>()
+        g.g.forEach { r -> r.forEach { c -> if (c != '.' && c !in order) order += c } }
+        val name = order.withIndex().associate { (k, c) -> c to ('A' + k) }
+        val layout = g.g.joinToString(";") { r -> r.map { name[it] ?: '.' }.joinToString("") }
+        return d.copy(layout = layout, axes = order.map { axesOf(it) ?: Axes() }, widths = g.widths, heights = g.heights)
+    }
+
+    /** Where letter [ch] is in [g]: its first and last row, first and last column. */
+    private fun span(g: Mosaic, ch: Char): IntArray {
+        var r0 = Int.MAX_VALUE; var r1 = -1; var c0 = Int.MAX_VALUE; var c1 = -1
+        g.g.forEachIndexed { r, row -> row.forEachIndexed { c, x -> if (x == ch) { r0 = min(r0, r); r1 = max(r1, r); c0 = min(c0, c); c1 = max(c1, c) } } }
+        return intArrayOf(r0, r1, c0, c1)
+    }
+
+    /** [g] turned so that [side] is its right (and back with [back]). */
+    private fun turn(g: Mosaic, side: Side, back: Boolean = false): Mosaic = when (side) {
+        Side.Right -> g
+        Side.Left -> g.mirrored()
+        Side.Below -> g.transposed()
+        Side.Above -> if (back) g.mirrored().transposed() else g.transposed().mirrored()
+    }
+
+    /**
+     * A new, empty axes beside axes [k] on [side], and its place among the axes. On the figure's
+     * outer edge it takes that whole side; inside, it sits beside [k] and the axes next to it
+     * stretch over the new column (or row).
+     */
+    fun addBeside(d: Doc, k: Int, side: Side): Pair<Doc, Int> {
+        val letters = cells(d.layout).first.size
+        if (letters >= 26) return d to k
+        val start = mosaic(d)
+        val order = ArrayList<Char>(); start.g.forEach { r -> r.forEach { c -> if (c != '.' && c !in order) order += c } }
+        val ch = order.getOrNull(k) ?: return d to k
+        val fresh = ('a'..'z').first { it !in order }
+        val g = turn(start, side)
+        val (r0, r1, _, c1) = span(g, ch)
+        val outer = c1 == g.cols - 1
+        val rows = g.g.mapIndexed { r, row ->
+            val put = if (outer || r in r0..r1) fresh else row[c1]
+            CharArray(g.cols + 1) { c -> when { c <= c1 -> row[c]; c == c1 + 1 -> put; else -> row[c - 1] } }
+        }
+        val widths = g.widths.toMutableList().apply { add(c1 + 1, g.widths[c1]) }
+        val done = turn(Mosaic(rows, widths, g.heights), side, back = true)
+        val byLetter = order.withIndex().associate { (i, c) -> c to d.axes.getOrNull(i) }
+        val out = fromGrid(d, done, byLetter::get)
+        val (cs, _, _) = cells(out.layout)
+        val newOrder = ArrayList<Char>(); done.g.forEach { r -> r.forEach { c -> if (c != '.' && c !in newOrder) newOrder += c } }
+        return out to newOrder.indexOf(fresh).coerceIn(0, cs.lastIndex)
+    }
+
+    /** The axes next to axes [k] on [side] (across the middle of that edge), or null at the figure's edge. */
+    fun neighbor(d: Doc, k: Int, side: Side): Int? {
+        val (cs, cols, rows) = cells(d.layout)
+        val c = cs.getOrNull(k) ?: return null
+        val (x, y) = when (side) {
+            Side.Right -> (c[0] + c[2]) to (c[1] + (c[3] - 1) / 2)
+            Side.Left -> (c[0] - 1) to (c[1] + (c[3] - 1) / 2)
+            Side.Below -> (c[0] + (c[2] - 1) / 2) to (c[1] + c[3])
+            Side.Above -> (c[0] + (c[2] - 1) / 2) to (c[1] - 1)
+        }
+        if (x !in 0 until cols || y !in 0 until rows) return null
+        return cs.indexOfFirst { o -> x in o[0] until o[0] + o[2] && y in o[1] until o[1] + o[3] }.takeIf { it >= 0 && it != k }
+    }
+
+    /** Axes [k] and its neighbor on [side] trade places (their contents swap; the layout stays). */
+    fun moveAxes(d: Doc, k: Int, side: Side): Pair<Doc, Int> {
+        val o = neighbor(d, k, side) ?: return d to k
+        val list = d.axes.toMutableList()
+        if (k !in list.indices || o !in list.indices) return d to k
+        val t = list[k]; list[k] = list[o]; list[o] = t
+        return d.copy(axes = list) to o
+    }
+
+    /**
+     * The figure without axes [k]: a neighbor whose edge matches its own takes its room, else it's
+     * left empty; then empty rows and columns, and repeated ones, are folded away.
+     */
+    fun removeAxes(d: Doc, k: Int): Doc {
+        val start = mosaic(d)
+        val order = ArrayList<Char>(); start.g.forEach { r -> r.forEach { c -> if (c != '.' && c !in order) order += c } }
+        if (order.size < 2) return d
+        val ch = order.getOrNull(k) ?: return d
+        val g = start.g.map { it.copyOf() }
+        val (r0, r1, c0, c1) = span(start, ch)
+        fun whole(o: Char) = o != '.' && o != ch
+        // A neighbor exactly as tall (beside) or as wide (above or below) as the removed cell.
+        val heir = listOf(
+            (if (c1 + 1 < start.cols) g[r0][c1 + 1] else '.').takeIf { o -> whole(o) && span(start, o).let { it[0] == r0 && it[1] == r1 } },
+            (if (c0 > 0) g[r0][c0 - 1] else '.').takeIf { o -> whole(o) && span(start, o).let { it[0] == r0 && it[1] == r1 } },
+            (if (r1 + 1 < start.rows) g[r1 + 1][c0] else '.').takeIf { o -> whole(o) && span(start, o).let { it[2] == c0 && it[3] == c1 } },
+            (if (r0 > 0) g[r0 - 1][c0] else '.').takeIf { o -> whole(o) && span(start, o).let { it[2] == c0 && it[3] == c1 } },
+        ).firstOrNull { it != null } ?: '.'
+        for (r in r0..r1) for (c in c0..c1) g[r][c] = heir
+        var grid = Mosaic(g, start.widths, start.heights)
+        // Fold columns (then rows, by turning the grid) that are empty or repeat the one before.
+        fun fold(x: Mosaic): Mosaic {
+            val keep = ArrayList<Int>(); val widths = ArrayList<Double>()
+            for (c in 0 until x.cols) {
+                val col = x.g.map { it[c] }
+                if (col.all { it == '.' }) continue
+                if (keep.isNotEmpty() && x.g.map { it[keep.last()] } == col) { widths[widths.lastIndex] += x.widths[c]; continue }
+                keep += c; widths += x.widths[c]
+            }
+            if (keep.isEmpty()) return x
+            return Mosaic(x.g.map { row -> CharArray(keep.size) { row[keep[it]] } }, widths, x.heights)
+        }
+        grid = fold(fold(grid).transposed()).transposed()
+        val byLetter = order.withIndex().associate { (i, c) -> c to d.axes.getOrNull(i) }
+        return fromGrid(d, grid, byLetter::get)
+    }
+
     // ---- Themes -------------------------------------------------------------------------------
 
     /** Colors a figure is drawn in: page, plot face, ink (frame, text), muted ink (ticks), grid, and the color cycle. */

@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -270,8 +272,8 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
     )
 
     if (tablet) {
-        // Two panes, as before: the categories down the left, the chosen one on the right.
-        SectionedPage("Settings", onBack = onBack, sections = categories.map { c -> PageSection(c.title, c.icon) { c.content(this) } })
+        // Two panes in the phone's look: the categories (tinted icon circles, grouped cards) down the left, the chosen one on the right.
+        TabletSettings(categories, onBack)
         if (tabsPage) CalcTabsPage(onBack = { tabsPage = false })
         if (acknowledgements) AcknowledgementsDialog(onDismiss = { acknowledgements = false })
     } else {
@@ -321,6 +323,51 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
 }
 
 // ---- Pages --------------------------------------------------------------------------------
+
+/** Settings on a tablet: the main page's grouped categories down the left, the chosen page beside it, as on a phone. */
+@Composable
+private fun TabletSettings(categories: List<Category>, onBack: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    var chosen by rememberSaveable { mutableStateOf(categories.first().title) }
+    val page = rememberPageMotion(onBack)
+    Dialog(onDismissRequest = page.close, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        BackHandler(onBack = page.close)
+        page.Content {
+            Surface(Modifier.fillMaxSize(), color = colors.surface) {
+                Row(Modifier.fillMaxSize().safeDrawingPadding()) {
+                    Column(Modifier.width(360.dp).fillMaxHeight()) {
+                        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier.size(48.dp).clip(CircleShape).background(colors.surfaceContainerHigh).clickable(onClickLabel = tr("Back"), onClick = page.close),
+                                contentAlignment = Alignment.Center,
+                            ) { AppIcon(TableIcons.Back, contentDescription = tr("Back"), tint = colors.onSurface) }
+                            Spacer(Modifier.width(16.dp))
+                            Text(tr("Settings"), style = MaterialTheme.typography.headlineMedium, color = colors.onSurface, maxLines = 1)
+                        }
+                        Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 32.dp)) {
+                            categories.groupBy { it.group }.values.forEachIndexed { i, group ->
+                                if (i > 0) Spacer(Modifier.height(16.dp))
+                                PxCards(*group.map { c -> @Composable {
+                                    // The open one in the secondary container, as a selected item.
+                                    Box(Modifier.background(if (c.title == chosen) colors.secondaryContainer else Color.Transparent)) {
+                                        LinkRow(c.title, c.summary(), c.icon, c.tone, trailing = null) { chosen = c.title }
+                                    }
+                                } }.toTypedArray())
+                            }
+                        }
+                    }
+                    val c = categories.firstOrNull { it.title == chosen } ?: categories.first()
+                    androidx.compose.runtime.key(chosen) {
+                        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 24.dp, top = 16.dp, bottom = 32.dp)) {
+                            Text(tr(c.title), style = MaterialTheme.typography.headlineMedium, color = colors.onSurface, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
+                            Column(Modifier.widthIn(max = 760.dp).fillMaxWidth()) { c.content(this) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 /** A settings page: a round back button and a large title, the content scrolling below. */
 @Composable

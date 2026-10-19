@@ -77,8 +77,15 @@ fun AppScreen() {
     androidx.compose.runtime.LaunchedEffect(shortcut) {
         if (shortcut == null) return@LaunchedEffect
         Shortcuts.target = null
-        if (shortcut == "converter") { switchTo(Mode.Calculator); Shortcuts.openConverter = true }
-        else runCatching { Mode.valueOf(shortcut) }.getOrNull()?.let { switchTo(it) }
+        when (shortcut) {
+            "converter" -> { switchTo(Mode.Calculator); Shortcuts.openConverter = true }
+            "notebook" -> NotebookNav.open = true
+            else -> runCatching { Mode.valueOf(shortcut) }.getOrNull()?.let { m ->
+                // Plots from its shortcut turns the mode on, so it's in the switcher too.
+                if (m == Mode.Plots && !AppSettings.plots) AppSettings.changePlots(true)
+                switchTo(m)
+            }
+        }
     }
 
     // A figure asked for elsewhere (a table's Chart, the 2D graph's Open as figure): opened in Plots.
