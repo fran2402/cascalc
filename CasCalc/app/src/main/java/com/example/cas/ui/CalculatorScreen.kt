@@ -172,6 +172,13 @@ import com.example.cas.ui.theme.equalsKey
 @Composable
 fun CalculatorScreen(vm: CalculatorViewModel, onGraph: (GraphRequest) -> Unit, modifier: Modifier = Modifier) {
     BackHandler(enabled = vm.historyMode) { vm.historyMode = false }
+    if (vm.labsUnlocked) {
+        val context = androidx.compose.ui.platform.LocalContext.current
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            android.widget.Toast.makeText(context, tr("Labs settings are on: Settings › Graphs › Labs"), android.widget.Toast.LENGTH_LONG).show()
+            vm.labsUnlocked = false
+        }
+    }
     // An equation with several letters: which to solve for.
     vm.solveChoice?.let { c -> SolveForDialog(c, onSolve = vm::solveFor, onDismiss = vm::dismissSolveChoice) }
     if (isTabletLayout()) {
@@ -328,7 +335,8 @@ fun CalculatorTrailingAction(vm: CalculatorViewModel) {
                         onClick = { menu = false; vm.clearVariables() },
                     )
                 }
-                DropdownMenuItem(
+                // Notebooks only when they're on (Settings › Graphs › Labs).
+                if (AppSettings.notebooks) DropdownMenuItem(
                     text = { Text(tr("Notebooks")) }, leadingIcon = { AppIcon(TableIcons.Document, null) },
                     onClick = { menu = false; NotebookNav.open = true },
                 )

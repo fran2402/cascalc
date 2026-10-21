@@ -20,12 +20,12 @@ android {
     defaultConfig {
         // Google Play refuses IDs starting with com.example: choose your own (e.g. com.yourname.cascalc).
         // It can't change once the app is published.
-        applicationId = "com.example.cas"
+        applicationId = "com.stimac.cascalc"
         minSdk = 26          // variable fonts
         targetSdk = 36
         // Raise versionCode by 1 for every upload to Play; versionName is what people see.
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 7
+        versionName = "26.10.2 (October update)"
     }
 
     signingConfigs {

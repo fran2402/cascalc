@@ -66,6 +66,14 @@ object AppSettings {
     var showGrid by mutableStateOf(true)
     /** Plots (figures after matplotlib) in notebooks and from the 2D graph: off until turned on. */
     var plots by mutableStateOf(false)
+    /** Notebooks (the ⋮ menu's Notebooks): off until turned on. */
+    var notebooks by mutableStateOf(false)
+    /**
+     * The settings for features still being finished (Plots, Notebooks): hidden, and those features
+     * off, until the code is typed into the calculator (see [isLabsCode]).
+     */
+    var labs by mutableStateOf(false)
+        private set
     /** A legend with each line's name, on the graphs and in exported ones. */
     var showLegend by mutableStateOf(true)
         private set
@@ -186,7 +194,10 @@ object AppSettings {
         keypadSide = p.getInt("keypadSide", 1)
         graphListWidth = p.getInt("graphListWidth", 320)
         showGrid = p.getBoolean("showGrid", true)
-        plots = p.getBoolean("plots", false)
+        labs = p.getBoolean("labs", false)
+        // Off for everyone else, whatever was set before.
+        plots = labs && p.getBoolean("plots", false)
+        notebooks = labs && p.getBoolean("notebooks", false)
         showLegend = p.getBoolean("showLegend", true)
         axisNumbers = p.getBoolean("axisNumbers", true)
         numberFormat = p.getInt("numberFormat", 0)
@@ -221,7 +232,7 @@ object AppSettings {
     /** The settings page's own keys, cleared by [resetAll] (not the history, graphs, symbols, pins or tabs). */
     private val RESETTABLE = listOf(
         "language", "theme", "dynamicColor", "themeColor", "haptics", "groupDigits", "mathSize", "keypadSize", "keypadSide",
-        "showGrid", "plots", "showLegend", "axisNumbers", "numberFormat", "sciAfter", "sciDecimals", "polarComplex", "livePreview",
+        "showGrid", "plots", "notebooks", "showLegend", "axisNumbers", "numberFormat", "sciAfter", "sciDecimals", "polarComplex", "livePreview",
         "historyLimit", "confirmClearHistory", "confirmDeleteEntry", "keyHelp", "continueFromAnswer", "expressiveMotion",
         "keepScreenOn", "startInCalculator", "keySounds", "specialPoints", "answerPreviews", "viewHalfWidth", "complexQuality", "surfaceDetail", "fieldQuality",
         "mathLevel", "keypadLevel", "complexLevel", "surfaceLevel", "fieldLevel",
@@ -254,6 +265,14 @@ object AppSettings {
     fun changeKeypadSide(v: Int) { keypadSide = v; save("keypadSide", v) }
     fun changeShowGrid(v: Boolean) { showGrid = v; save("showGrid", v) }
     fun changePlots(v: Boolean) { plots = v; save("plots", v) }
+    fun changeNotebooks(v: Boolean) { notebooks = v; save("notebooks", v) }
+
+    /** The code that, typed into the calculator and entered, shows the settings for Plots and Notebooks: kept as its SHA-256 only. */
+    private const val LABS_HASH = "3622e8bf59c66a27e9214846f24356900c5f021fd43293b100b18fbccccbb6d6"
+
+    /** Whether [typed] is the Labs code. */
+    fun isLabsCode(typed: String): Boolean = java.security.MessageDigest.getInstance("SHA-256").digest(typed.toByteArray()).joinToString("") { "%02x".format(it) } == LABS_HASH
+    fun unlockLabs() { labs = true; save("labs", true) }
     fun changeShowLegend(v: Boolean) { showLegend = v; save("showLegend", v) }
     fun changeAxisNumbers(v: Boolean) { axisNumbers = v; save("axisNumbers", v) }
     fun changeSciDecimals(v: Int) { sciDecimals = v; com.example.cas.engine.Formatter.sciDecimals = v; save("sciDecimals", v) }

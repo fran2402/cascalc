@@ -375,8 +375,17 @@ class CalculatorViewModel(app: Application) : AndroidViewModel(app), KeypadHost 
         }
     }
 
+    /** Set when the Labs code was entered: the screen says where the new settings are. */
+    var labsUnlocked by mutableStateOf(false)
+
     private fun enter(solveFor: List<String>? = null) {
         if (editor.isEmpty || busy) return
+        // The code that shows the Plots and Notebooks settings: nothing is calculated.
+        val typed = editor.root.items.takeIf { items -> items.all { it is com.example.cas.editor.Sym } }?.joinToString("") { (it as com.example.cas.editor.Sym).text }?.replace(" ", "")
+        if (typed != null && AppSettings.isLabsCode(typed.replace("−", "-"))) {
+            AppSettings.unlockLabs(); editor.clear(); labsUnlocked = true
+            return
+        }
         // Growable matrices keep only the rows and columns in use.
         val snapshot = com.example.cas.editor.trimMatrices(editor.root)
         val evaluator = evaluator().also { it.solveFor = solveFor }

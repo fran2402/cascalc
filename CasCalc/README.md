@@ -203,6 +203,12 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (21 October, release 26.10.2: Play bundle on GitHub, Labs)
+
+- Version 26.10.2 (October update), versionCode 7, app ID com.stimac.cascalc (the home screen shortcuts point at it).
+- GitHub builds the Play Store bundle: the "Release bundle" workflow runs on every push to main, on tags starting with v, and by hand from the Actions tab. The signed .aab is under the run's Artifacts (release-aab), with R8's mapping.txt for Play's crash reports. Signing needs four repository secrets: KEYSTORE_BASE64 (the .jks, base64-encoded), KEYSTORE_PASSWORD, KEY_ALIAS and KEY_PASSWORD. Without them the bundle is built unsigned. The keystore and passwords are never in the repository.
+- For a stable release, Plots and Notebooks are off and their settings hidden. Typing the Labs code into the calculator and pressing Enter shows them (the code is kept in the source only as a SHA-256 hash) under Settings › Graphs › Labs. Notebooks can now be turned on and off there too. Their home screen shortcuts show only when they're on.
+
 ## Latest changes (21 October, Play policy: installed name matches the store listing)
 
 - The name under the icon on the home screen is now "CAS Scientific Calculator", the same as the Play store listing. Google Play rejected the update because the installed name ("Calculator") differed from the listing. The launcher icon already matches the store icon (store/icon-512.png).

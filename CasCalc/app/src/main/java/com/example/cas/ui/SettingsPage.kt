@@ -209,8 +209,14 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 { PxToggleRow("Legend", "Each line's name in the corner, and in exports. Hold a line to rename it", AppSettings.showLegend, AppSettings::changeShowLegend) },
                 { PxToggleRow("Mark points on curves", "Zeros, extrema and crossings of the tapped curve", AppSettings.specialPoints, AppSettings::changeSpecialPoints) },
             )
-            PxHeader("Plots")
-            PxCards({ PxToggleRow("Plots (beta)", "Figures after matplotlib (histograms, box plots, contours, fits…): a mode after complex plotting, a notebook block, and the 2D graph's ⋮ menu", AppSettings.plots, AppSettings::changePlots) })
+            // Features still being finished: shown once the Labs code has been entered in the calculator.
+            if (AppSettings.labs) {
+                PxHeader("Labs")
+                PxCards(
+                    { PxToggleRow("Plots (beta)", "Figures after matplotlib (histograms, box plots, contours, fits…): a mode after complex plotting, a notebook block, and the 2D graph's ⋮ menu", AppSettings.plots, AppSettings::changePlots) },
+                    { PxToggleRow("Notebooks (beta)", "Pages of text, math, graphs and figures, from the ⋮ menu", AppSettings.notebooks, AppSettings::changeNotebooks) },
+                )
+            }
             PxHeader("Detail")
             DetailCards()
             PxFootnote("Higher detail is sharper but slower to draw. Each graph's own settings have the same sliders.")
@@ -245,7 +251,7 @@ fun AppSettingsPage(vm: CalculatorViewModel? = null, onBack: () -> Unit, onAckno
                 }) else null,
             )
             PxHeader("Home screen shortcuts")
-            PxCards(*Shortcuts.entries.map { e -> @Composable { LinkRow(e.longLabel, "Add to the home screen", TableIcons.Shortcut, 3, trailing = TableIcons.Add) { Shortcuts.pin(context, e) } } }.toTypedArray())
+            PxCards(*Shortcuts.entries.filter { it.shown }.map { e -> @Composable { LinkRow(e.longLabel, "Add to the home screen", TableIcons.Shortcut, 3, trailing = TableIcons.Add) { Shortcuts.pin(context, e) } } }.toTypedArray())
             PxHeader("Reset")
             PxCards({ LinkRow("Reset all settings", "Back to how they were at install; your work is kept", TableIcons.Reset, 3, trailing = null) { resetting = true } })
         },

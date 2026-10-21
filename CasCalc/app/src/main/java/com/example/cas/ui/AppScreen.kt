@@ -79,11 +79,10 @@ fun AppScreen() {
         Shortcuts.target = null
         when (shortcut) {
             "converter" -> { switchTo(Mode.Calculator); Shortcuts.openConverter = true }
-            "notebook" -> NotebookNav.open = true
+            "notebook" -> if (AppSettings.notebooks) NotebookNav.open = true
             else -> runCatching { Mode.valueOf(shortcut) }.getOrNull()?.let { m ->
-                // Plots from its shortcut turns the mode on, so it's in the switcher too.
-                if (m == Mode.Plots && !AppSettings.plots) AppSettings.changePlots(true)
-                switchTo(m)
+                // Plots only when it's on.
+                if (m in Mode.shown) switchTo(m)
             }
         }
     }
@@ -184,7 +183,7 @@ private fun GraphMenuAction(onOpenAsFigure: (() -> Unit)? = null) {
             AppIcon(TableIcons.More, contentDescription = tr("More options"), tint = colors.onSurfaceVariant)
         }
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            DropdownMenuItem(text = { Text(tr("Notebooks")) }, leadingIcon = { AppIcon(TableIcons.Document, null) }, onClick = { menu = false; NotebookNav.open = true })
+            if (AppSettings.notebooks) DropdownMenuItem(text = { Text(tr("Notebooks")) }, leadingIcon = { AppIcon(TableIcons.Document, null) }, onClick = { menu = false; NotebookNav.open = true })
             // The 2D graph as a figure, in Plots (Settings › Graphs).
             if (onOpenAsFigure != null) DropdownMenuItem(text = { Text(tr("Open as figure")) }, leadingIcon = { AppIcon(FigureIcons.NewFigure, null) }, onClick = { menu = false; onOpenAsFigure() })
             if (AppSettings.unitConverter) DropdownMenuItem(

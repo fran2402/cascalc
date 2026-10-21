@@ -9,7 +9,7 @@
         android:shortcutLongLabel="@string/shortcut_converter_long">
         <intent
             android:action="com.example.cas.action.OPEN"
-            android:targetPackage="com.example.cas"
+            android:targetPackage="com.stimac.cascalc"
             android:targetClass="com.example.cas.MainActivity">
             <extra android:name="open" android:value="converter" />
         </intent>
@@ -22,7 +22,7 @@
         android:shortcutLongLabel="@string/shortcut_graph2d_long">
         <intent
             android:action="com.example.cas.action.OPEN"
-            android:targetPackage="com.example.cas"
+            android:targetPackage="com.stimac.cascalc"
             android:targetClass="com.example.cas.MainActivity">
             <extra android:name="open" android:value="Graph2D" />
         </intent>
@@ -35,7 +35,7 @@
         android:shortcutLongLabel="@string/shortcut_graph3d_long">
         <intent
             android:action="com.example.cas.action.OPEN"
-            android:targetPackage="com.example.cas"
+            android:targetPackage="com.stimac.cascalc"
             android:targetClass="com.example.cas.MainActivity">
             <extra android:name="open" android:value="Graph3D" />
         </intent>
@@ -48,35 +48,9 @@
         android:shortcutLongLabel="@string/shortcut_complex_long">
         <intent
             android:action="com.example.cas.action.OPEN"
-            android:targetPackage="com.example.cas"
+            android:targetPackage="com.stimac.cascalc"
             android:targetClass="com.example.cas.MainActivity">
             <extra android:name="open" android:value="Complex" />
-        </intent>
-    </shortcut>
-    <shortcut
-        android:shortcutId="plots"
-        android:enabled="true"
-        android:icon="@mipmap/shortcut_plots"
-        android:shortcutShortLabel="@string/shortcut_plots_short"
-        android:shortcutLongLabel="@string/shortcut_plots_long">
-        <intent
-            android:action="com.example.cas.action.OPEN"
-            android:targetPackage="com.example.cas"
-            android:targetClass="com.example.cas.MainActivity">
-            <extra android:name="open" android:value="Plots" />
-        </intent>
-    </shortcut>
-    <shortcut
-        android:shortcutId="notebook"
-        android:enabled="true"
-        android:icon="@mipmap/shortcut_notebook"
-        android:shortcutShortLabel="@string/shortcut_notebook_short"
-        android:shortcutLongLabel="@string/shortcut_notebook_long">
-        <intent
-            android:action="com.example.cas.action.OPEN"
-            android:targetPackage="com.example.cas"
-            android:targetClass="com.example.cas.MainActivity">
-            <extra android:name="open" android:value="notebook" />
         </intent>
     </shortcut>
 </shortcuts>

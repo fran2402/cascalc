@@ -25,7 +25,10 @@ object Shortcuts {
     /** The unit converter asked for by a shortcut, for the calculator screen to open. */
     var openConverter by mutableStateOf(false)
 
-    class Entry(val id: String, val target: String, val label: String, val longLabel: String, val icon: Int)
+    class Entry(val id: String, val target: String, val label: String, val longLabel: String, val icon: Int) {
+        /** Plots and Notebooks only when they're on. */
+        val shown: Boolean get() = when (id) { "plots" -> AppSettings.plots; "notebook" -> AppSettings.notebooks; else -> true }
+    }
 
     val entries = listOf(
         Entry("converter", "converter", "Units", "Unit converter", R.mipmap.shortcut_converter),
