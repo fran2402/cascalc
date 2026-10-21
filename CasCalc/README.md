@@ -203,6 +203,11 @@ with the .apk inside). Install it on a phone with "install unknown apps" allowed
 browser or file manager. The run can also be started by hand (Run workflow). Debug builds are
 signed with a throwaway debug key, so they install alongside nothing from the Play Store.
 
+## Latest changes (21 October, Play policy: installed name matches the store listing)
+
+- The name under the icon on the home screen is now "CAS Scientific Calculator", the same as the Play store listing. Google Play rejected the update because the installed name ("Calculator") differed from the listing. The launcher icon already matches the store icon (store/icon-512.png).
+- Version 1.1 (versionCode 2), ready to upload as a new release.
+
 ## Latest changes (19 October, Plots: crash fix, rearranging, fit starts, new home)
 
 - Fixed a crash when dragging the line between axes after several had been added (the cells were too narrow for the minimum room each side keeps).

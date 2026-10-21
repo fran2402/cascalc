@@ -24,8 +24,8 @@ android {
         minSdk = 26          // variable fonts
         targetSdk = 36
         // Raise versionCode by 1 for every upload to Play; versionName is what people see.
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
     }
 
     signingConfigs {

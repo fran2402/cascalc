@@ -57,7 +57,7 @@ fun LaunchAnimation(onDone: () -> Unit) {
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                 scope.launch { time.snapTo(1f) }
             }
-            .semantics { contentDescription = "CAS Calculator" },
+            .semantics { contentDescription = "CAS Scientific Calculator" },
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.size(220.dp).graphicsLayer {

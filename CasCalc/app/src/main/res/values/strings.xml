@@ -1,7 +1,5 @@
 <resources>
     <string name="app_name">CAS Scientific Calculator</string>
-    <!-- The name under the icon on the home screen and in the app drawer. -->
-    <string name="launcher_name">Calculator</string>
     <!-- Home screen shortcuts (hold the app icon, or add them from Settings). -->
     <string name="shortcut_converter_short">Units</string>
     <string name="shortcut_converter_long">Unit converter</string>
